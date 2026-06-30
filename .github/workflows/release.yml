@@ -1,0 +1,244 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:        # build and check without publishing
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate tag
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        name: Tag must equal VERSION
+        run: |
+          FILE=$(tr -d '[:space:]' < VERSION)
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/v}"
+            [ "$FILE" = "$TAG" ] || { echo "::error::tag v$TAG != VERSION $FILE"; exit 1; }
+          fi
+          echo "version=$FILE" >> "$GITHUB_OUTPUT"
+
+  # geozl ships one native artifact, the pure C kernels lib. It links only libc,
+  # so there is nothing to vendor and no GDAL anywhere. The wheel is cffi in ABI
+  # mode, one py3-none wheel per platform serves every Python 3.
+  wheel-linux:
+    name: Wheel (${{ matrix.name }})
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64
+            runner: ubuntu-24.04
+            image: quay.io/pypa/manylinux_2_28_x86_64
+          - name: linux-aarch64
+            runner: ubuntu-24.04-arm
+            image: quay.io/pypa/manylinux_2_28_aarch64
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true          # extern/openzl headers, its nested deps are not needed
+      - name: Build kernels lib and wheel
+        run: |
+          set -euxo pipefail
+          echo /opt/python/cp312-cp312/bin >> "$GITHUB_PATH"
+          export PATH=/opt/python/cp312-cp312/bin:$PATH
+          python -m pip install -q cmake ninja build wheel auditwheel patchelf
+          # FULL=OFF, kernels only. No OpenZL compile, so the image gcc alone is
+          # enough and the .so keeps a low glibc floor from the manylinux base.
+          cmake -S core -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+                -DGEOZL_BUILD_FULL=OFF -DGEOZL_BUILD_KERNELS=ON
+          cmake --build build
+          mkdir -p bindings/python/geozl/_lib
+          cp -av build/libgeozl_kernels*.so bindings/python/geozl/_lib/
+          ( cd bindings/python && python -m build --wheel --outdir ../../wheelhouse-raw )
+          python -m wheel tags --python-tag py3 --abi-tag none --remove wheelhouse-raw/*.whl
+          # Nothing to vendor, repair only stamps the manylinux platform tag.
+          auditwheel repair -w wheelhouse wheelhouse-raw/*.whl
+          ls -1 wheelhouse/
+      - name: Install and import in a clean venv
+        run: |
+          set -euxo pipefail
+          export PATH=/opt/python/cp312-cp312/bin:$PATH
+          python -m venv /tmp/clean
+          . /tmp/clean/bin/activate
+          pip install -q --upgrade pip
+          pip install wheelhouse/*.whl
+          LD_LIBRARY_PATH="" python -c "import geozl; print('geozl', geozl.__version__)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.name }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+  wheel-macos:
+    name: Wheel (macos-arm64)
+    needs: validate
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build kernels lib and wheel
+        run: |
+          set -euxo pipefail
+          export MACOSX_DEPLOYMENT_TARGET=11.0   # makes the platform tag below honest
+          python -m pip install -q --upgrade pip cmake ninja build wheel
+          cmake -S core -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+                -DGEOZL_BUILD_FULL=OFF -DGEOZL_BUILD_KERNELS=ON
+          cmake --build build
+          mkdir -p bindings/python/geozl/_lib
+          cp -av build/libgeozl_kernels*.dylib bindings/python/geozl/_lib/
+          ( cd bindings/python && python -m build --wheel --outdir ../../wheelhouse-raw )
+          # The dylib links only libSystem, nothing to delocate, tag straight.
+          python -m wheel tags --python-tag py3 --abi-tag none \
+            --platform-tag macosx_11_0_arm64 --remove wheelhouse-raw/*.whl
+          mkdir -p wheelhouse && cp wheelhouse-raw/*.whl wheelhouse/
+      - name: Install and import in a clean venv
+        run: |
+          set -euxo pipefail
+          python -m venv /tmp/clean
+          . /tmp/clean/bin/activate
+          pip install -q --upgrade pip
+          pip install wheelhouse/*.whl
+          python -c "import geozl; print('geozl', geozl.__version__)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-macos-arm64
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+  # No OpenZL compile here, so plain MSVC cl builds the C kernels, no clang-cl.
+  wheel-windows:
+    name: Wheel (windows-x86_64)
+    needs: validate
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Build kernels lib and wheel
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python -m pip install -q --upgrade pip cmake ninja build wheel
+          cmake -S core -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+                -DGEOZL_BUILD_FULL=OFF -DGEOZL_BUILD_KERNELS=ON
+          cmake --build build
+          mkdir -p bindings/python/geozl/_lib
+          cp -av build/geozl_kernels*.dll bindings/python/geozl/_lib/
+          ( cd bindings/python && python -m build --wheel --outdir ../../wheelhouse-raw )
+          python -m wheel tags --python-tag py3 --abi-tag none \
+            --platform-tag win_amd64 --remove wheelhouse-raw/*.whl
+          mkdir -p wheelhouse && cp wheelhouse-raw/*.whl wheelhouse/
+      - name: Assert the dll exports the geozl kernels
+        shell: bash
+        run: |
+          set -euo pipefail
+          dll=$(ls bindings/python/geozl/_lib/*geozl_kernels*.dll | head -1)
+          if ! dumpbin //exports "$dll" | grep -qi geozl_delta_w_encode; then
+            echo "::error::kernels dll exports no geozl_* symbols, check GEOZL_API dllexport and GEOZL_BUILD"
+            dumpbin //exports "$dll" | head -40
+            exit 1
+          fi
+      - name: Install and import in a clean venv
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python -m venv /tmp/clean
+          . /tmp/clean/Scripts/activate
+          pip install -q --upgrade pip
+          pip install wheelhouse/*.whl
+          python -c "import geozl; print('geozl', geozl.__version__)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-windows-x86_64
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+  check-wheels:
+    name: Check wheels
+    needs: [wheel-linux, wheel-macos, wheel-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-*
+          path: wheels/
+          merge-multiple: true
+      - name: Assert all four platforms and a sane glibc floor
+        run: |
+          ls -1 wheels/
+          python - <<'PY'
+          import glob, re, sys
+          names = [w.split("/")[-1] for w in glob.glob("wheels/*.whl")]
+          want = {
+            "linux x86_64":   lambda n: "manylinux" in n and n.endswith("x86_64.whl"),
+            "linux aarch64":  lambda n: "manylinux" in n and n.endswith("aarch64.whl"),
+            "macos arm64":    lambda n: "macosx"    in n and n.endswith("arm64.whl"),
+            "windows x86_64": lambda n: n.endswith("win_amd64.whl"),
+          }
+          ok = True
+          for label, pred in want.items():
+              if not any(pred(n) for n in names):
+                  print(f"::error::missing wheel for {label}"); ok = False
+          for n in names:
+              m = re.search(r"manylinux_(\d+)_(\d+)_", n)
+              if m and (int(m.group(1)), int(m.group(2))) > (2, 28):
+                  print(f"::error::{n} needs glibc > 2.28"); ok = False
+          print("found:", *("  " + n for n in names), sep="\n")
+          sys.exit(0 if ok else 1)
+          PY
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [check-wheels]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write           # OIDC trusted publishing, no API token
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: wheel-*
+          merge-multiple: true
+      - run: ls -la dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  gh-release:
+    name: GitHub Release
+    needs: [check-wheels]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: wheel-*
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.whl
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref, '-') }}

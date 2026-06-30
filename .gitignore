@@ -67,3 +67,9 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+.DS_Store
+
+bindings/python/__pycache__/
+
+bindings/python/geozl/__pycache__/
