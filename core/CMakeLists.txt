@@ -64,6 +64,7 @@ endif()
 set(GEOZL_DECODE_SOURCES
     src/register_lossless.c
     src/register_lossy.c
+    src/register_decoders.c
     src/delta_w/decode_delta_w_binding.c
     src/delta_w/decode_delta_w_kernel.c
     src/delta_n/decode_delta_n_binding.c
