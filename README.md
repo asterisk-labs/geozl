@@ -41,26 +41,26 @@ c.select_starting_graph(g)
 
 ## Codecs
 
-Two families, both registered as OpenZL custom codecs that chain like any other node.
+Two families, both registered as OpenZL custom codecs that chain like any other node. The `call` column is what you type to place the codec in the graph.
 
 ### Near lossless
 
 Quantizers, namespace `geozl.lossy`. A frame is no longer bit exact, carries one quantizer at the head, and bounds its error by the parameters in the frame. Each declares one error mode. **ABS** holds a fixed absolute tolerance, the same everywhere, for elevation, depth, coordinates. **REL** holds a fixed relative tolerance, a percentage of each value, for radiance, reflectance, SAR amplitude.
 
-| codec | CTid | mode | error |
-|---|---|---|---|
-| `quant_linear` | `0x72D780` | ABS | every value within `max_error` |
-| `quant_log` | `0x72D781` | REL | every value within `rel_error` of itself |
+| codec | call | CTid | mode | error |
+|---|---|---|---|---|
+| `quant_linear` | `geozl.lossy.quant_linear(max_error, dtype)` | `0x72D780` | ABS | every value within `max_error` |
+| `quant_log` | reserved, not implemented yet | `0x72D781` | REL | every value within `rel_error` of itself |
 
 ### Lossless
 
 Spatial predictors, namespace `geozl.lossless`. Each rewrites a tile as residuals against decoded neighbours, bit exact. They are reversible and domain agnostic, so these are the candidates to merge into OpenZL upstream.
 
-| codec | CTid | what it does |
-|---|---|---|
-| `delta_w` | `0x72D701` | horizontal delta |
-| `delta_n` | `0x72D702` | vertical delta |
-| `planar` | `0x72D703` | predicts each pixel from W plus N minus NW |
+| codec | call | CTid | what it does |
+|---|---|---|---|
+| `delta_w` | `geozl.lossless.DeltaWInt(width)` | `0x72D701` | horizontal delta |
+| `delta_n` | `geozl.lossless.DeltaNInt(width)` | `0x72D702` | vertical delta |
+| `planar` | `geozl.lossless.PlanarInt(width)` | `0x72D703` | predicts each pixel from W plus N minus NW |
 
 ## License
 
