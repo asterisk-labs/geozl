@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="680" height="190" viewBox="0 0 680 190" role="img" aria-label="geozl — Geospatial codec extensions for OpenZL">
+<svg xmlns="http://www.w3.org/2000/svg" width="472" height="104" viewBox="64 48 472 104" role="img" aria-label="geozl — Geospatial codec extensions for OpenZL">
 <style>
 .sq{animation:lh 6s ease-in-out infinite}
 .nw{--on:#4A2BE8;animation-delay:0s}
@@ -15,7 +15,6 @@
 .tag{font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-weight:400;fill:#8B949E}
 </style>
 <defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
-<rect x="0" y="0" width="680" height="190" rx="14" fill="#0D1117"/>
 <g transform="translate(58,42) scale(0.58)">
   <rect class="sq nw" x="18" y="18" width="44" height="44" rx="6" fill="#222B38"/>
   <rect class="sq nn" x="118" y="18" width="44" height="44" rx="6" fill="#222B38"/>
