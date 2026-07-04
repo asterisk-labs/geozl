@@ -1,6 +1,9 @@
-// Inverse Average predictor. The prediction reads the reconstructed W, and
-// enters it halved, so this is not a prefix sum like a unit weight predictor,
-// each sample is reconstructed in turn from its decoded neighbours.
+// Inverse Average predictor, PNG filter 3 (RFC 2083 6.5,
+// https://datatracker.ietf.org/doc/rfc2083/). The prediction reads the
+// reconstructed W and enters it halved, so this is not a prefix sum like a unit
+// weight predictor, each sample is reconstructed in turn from its decoded
+// neighbours. Row zero and column zero are peeled so the interior loop carries
+// no boundary test.
 
 #include "decode_average_kernel.h"
 
@@ -8,16 +11,21 @@
 
 #define AVERAGE_DEC(T)                                                      \
     do {                                                                     \
-        T* d       = (T*)dst;                                                \
-        const T* s = (const T*)src;                                          \
-        size_t rows = nbElts / w;                                            \
-        for (size_t r = 0; r < rows; ++r) {                                  \
-            for (size_t c = 0; c < w; ++c) {                                 \
-                size_t idx = r * w + c;                                      \
-                T Wv = (c > 0) ? d[idx - 1] : 0;                             \
-                T Nv = (r > 0) ? d[idx - w] : 0;                             \
-                T P  = (T)((Wv >> 1) + (Nv >> 1) + (Wv & Nv & 1));           \
-                d[idx] = (T)(s[idx] + P);                                    \
+        T* d              = (T*)dst;                                         \
+        const T* s        = (const T*)src;                                   \
+        const size_t rows = nbElts / w;                                      \
+        d[0] = s[0];                                                         \
+        for (size_t c = 1; c < w; ++c)                                       \
+            d[c] = (T)(s[c] + (d[c - 1] >> 1));                             \
+        for (size_t r = 1; r < rows; ++r) {                                  \
+            const size_t row = r * w;                                        \
+            d[row] = (T)(s[row] + (d[row - w] >> 1));                        \
+            for (size_t c = 1; c < w; ++c) {                                 \
+                const size_t i = row + c;                                    \
+                const T Wv = d[i - 1];                                       \
+                const T Nv = d[i - w];                                       \
+                const T P  = (T)((Wv >> 1) + (Nv >> 1) + (Wv & Nv & 1));     \
+                d[i] = (T)(s[i] + P);                                        \
             }                                                                \
         }                                                                    \
     } while (0)

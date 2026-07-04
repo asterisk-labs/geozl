@@ -1,7 +1,8 @@
-// Inverse MED predictor. The prediction clamps the gradient to the neighbour
-// range, so it is nonlinear in W and cannot be a prefix sum the way a linear
-// predictor is, each sample is reconstructed in turn from its decoded
-// neighbours.
+// Inverse MED predictor, JPEG-LS (ITU-T T.87 A.4.2,
+// https://www.itu.int/rec/T-REC-T.87/en). The prediction clamps the gradient to
+// the neighbour range, so it is nonlinear in W and cannot be a prefix sum, each
+// sample is reconstructed in turn from its decoded neighbours. Row zero and
+// column zero are peeled so the interior loop carries no boundary test.
 
 #include "decode_med_kernel.h"
 
@@ -9,21 +10,26 @@
 
 #define MED_DEC(T)                                                          \
     do {                                                                     \
-        T* d       = (T*)dst;                                                \
-        const T* s = (const T*)src;                                          \
-        size_t rows = nbElts / w;                                            \
-        for (size_t r = 0; r < rows; ++r) {                                  \
-            for (size_t c = 0; c < w; ++c) {                                 \
-                size_t idx = r * w + c;                                      \
-                T Wv  = (c > 0) ? d[idx - 1] : 0;                            \
-                T Nv  = (r > 0) ? d[idx - w] : 0;                            \
-                T NWv = (r > 0 && c > 0) ? d[idx - w - 1] : 0;               \
-                T mn  = Wv < Nv ? Wv : Nv;                                   \
-                T mx  = Wv < Nv ? Nv : Wv;                                   \
-                T P   = (NWv >= mx) ? mn                                     \
-                      : (NWv <= mn) ? mx                                     \
-                                    : (T)(Wv + Nv - NWv);                    \
-                d[idx] = (T)(s[idx] + P);                                    \
+        T* d              = (T*)dst;                                         \
+        const T* s        = (const T*)src;                                   \
+        const size_t rows = nbElts / w;                                      \
+        d[0] = s[0];                                                         \
+        for (size_t c = 1; c < w; ++c)                                       \
+            d[c] = (T)(s[c] + d[c - 1]);                                     \
+        for (size_t r = 1; r < rows; ++r) {                                  \
+            const size_t row = r * w;                                        \
+            d[row] = (T)(s[row] + d[row - w]);                               \
+            for (size_t c = 1; c < w; ++c) {                                 \
+                const size_t i = row + c;                                    \
+                const T Wv  = d[i - 1];                                      \
+                const T Nv  = d[i - w];                                      \
+                const T NWv = d[i - w - 1];                                  \
+                const T mn  = Wv < Nv ? Wv : Nv;                             \
+                const T mx  = Wv < Nv ? Nv : Wv;                             \
+                const T P   = (NWv >= mx) ? mn                               \
+                            : (NWv <= mn) ? mx                               \
+                                          : (T)(Wv + Nv - NWv);              \
+                d[i] = (T)(s[i] + P);                                        \
             }                                                                \
         }                                                                    \
     } while (0)
