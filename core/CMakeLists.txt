@@ -73,6 +73,8 @@ set(GEOZL_DECODE_SOURCES
     src/planar/decode_planar_kernel.c
     src/med/decode_med_binding.c
     src/med/decode_med_kernel.c
+    src/average/decode_average_binding.c
+    src/average/decode_average_kernel.c
     src/quant_linear/decode_quant_linear_binding.c
     src/quant_linear/decode_quant_linear_kernel.c
 )
@@ -87,6 +89,8 @@ set(GEOZL_KERNEL_SOURCES
     src/planar/decode_planar_kernel.c
     src/med/encode_med_kernel.c
     src/med/decode_med_kernel.c
+    src/average/encode_average_kernel.c
+    src/average/decode_average_kernel.c
     src/quant_linear/encode_quant_linear_kernel.c
     src/quant_linear/decode_quant_linear_kernel.c
 )

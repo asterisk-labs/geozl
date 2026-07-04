@@ -6,11 +6,12 @@ from .complex import (
 )
 from .delta_n import DeltaNDecoder, DeltaNInt
 from .delta_w import DeltaWDecoder, DeltaWInt
+from .average import AverageDecoder, AverageInt
 from .med import MedDecoder, MedInt
 from .planar import PlanarDecoder, PlanarInt
 
 _DECODERS = (DeltaWDecoder, DeltaNDecoder, PlanarDecoder, MedDecoder,
-             ComplexSplitDecoder)
+             AverageDecoder, ComplexSplitDecoder)
 
 
 def register_decoders(dctx) -> None:
@@ -21,7 +22,8 @@ def register_decoders(dctx) -> None:
 
 
 __all__ = [
-    "ComplexSplitDecoder", "DeltaNDecoder", "DeltaNInt", "DeltaWDecoder",
-    "DeltaWInt", "MedDecoder", "MedInt", "PlanarDecoder", "PlanarInt",
-    "complex_split", "component_dtype", "decompress_complex", "register_decoders",
+    "AverageDecoder", "AverageInt", "ComplexSplitDecoder", "DeltaNDecoder",
+    "DeltaNInt", "DeltaWDecoder", "DeltaWInt", "MedDecoder", "MedInt",
+    "PlanarDecoder", "PlanarInt", "complex_split", "component_dtype",
+    "decompress_complex", "register_decoders",
 ]

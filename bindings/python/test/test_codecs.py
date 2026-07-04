@@ -58,7 +58,8 @@ _SHAPES = [(16, 16), (7, 13), (1, 32), (32, 1), (4, 4)]
 _PATTERNS = ["random", "gradient", "constant"]
 
 _PREDICTORS = [geozl.lossless.DeltaWInt, geozl.lossless.DeltaNInt,
-               geozl.lossless.PlanarInt, geozl.lossless.MedInt]
+               geozl.lossless.PlanarInt, geozl.lossless.MedInt,
+               geozl.lossless.AverageInt]
 
 
 @pytest.mark.parametrize("node", _PREDICTORS, ids=lambda n: n.__name__)

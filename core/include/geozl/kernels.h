@@ -25,6 +25,10 @@ GEOZL_API void geozl_med_encode(void* dst, const void* src,
                                 size_t width, size_t nb_elts, size_t elt_width);
 GEOZL_API void geozl_med_decode(void* dst, const void* src,
                                 size_t width, size_t nb_elts, size_t elt_width);
+GEOZL_API void geozl_average_encode(void* dst, const void* src,
+                                    size_t width, size_t nb_elts, size_t elt_width);
+GEOZL_API void geozl_average_decode(void* dst, const void* src,
+                                    size_t width, size_t nb_elts, size_t elt_width);
 GEOZL_API void geozl_quant_linear_encode(void* dst, const void* src,
                                          double scale, int dtype, size_t nb_elts);
 GEOZL_API void geozl_quant_linear_decode(void* dst, const void* src,

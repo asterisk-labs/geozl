@@ -4,6 +4,7 @@
 #include "delta_n/decode_delta_n_binding.h"
 #include "planar/decode_planar_binding.h"
 #include "med/decode_med_binding.h"
+#include "average/decode_average_binding.h"
 
 #include "openzl/zl_dtransform.h"
 #include "openzl/zl_errors.h"
@@ -17,6 +18,8 @@ ZL_Report geozl_register_lossless_decoders(ZL_DCtx* dctx)
     r = ZL_DCtx_registerTypedDecoder(dctx, &planar_decoder_desc);
     if (ZL_isError(r)) return r;
     r = ZL_DCtx_registerTypedDecoder(dctx, &med_decoder_desc);
+    if (ZL_isError(r)) return r;
+    r = ZL_DCtx_registerTypedDecoder(dctx, &average_decoder_desc);
     if (ZL_isError(r)) return r;
     return ZL_returnSuccess();
 }
