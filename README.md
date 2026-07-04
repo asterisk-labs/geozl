@@ -3,6 +3,7 @@
 </p>
 <p align="center">
   <img src="https://img.shields.io/badge/license-BSD--3--Clause-2b8a3e.svg" alt="License: BSD-3-Clause"/>
+  <img src="coverage.svg" alt="Coverage"/>
   <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-blue" alt="Platform"/>
   <img src="https://img.shields.io/badge/C11-blue" alt="C11"/>
   <a href="https://github.com/facebook/openzl"><img src="https://img.shields.io/badge/built%20on-OpenZL-6f42c1" alt="Built on OpenZL"/></a>
