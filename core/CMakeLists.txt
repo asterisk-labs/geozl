@@ -75,6 +75,8 @@ set(GEOZL_DECODE_SOURCES
     src/med/decode_med_kernel.c
     src/average/decode_average_binding.c
     src/average/decode_average_kernel.c
+    src/wp_static/decode_wp_static_binding.c
+    src/wp_static/decode_wp_static_kernel.c
     src/quant_linear/decode_quant_linear_binding.c
     src/quant_linear/decode_quant_linear_kernel.c
 )
@@ -91,6 +93,8 @@ set(GEOZL_KERNEL_SOURCES
     src/med/decode_med_kernel.c
     src/average/encode_average_kernel.c
     src/average/decode_average_kernel.c
+    src/wp_static/encode_wp_static_kernel.c
+    src/wp_static/decode_wp_static_kernel.c
     src/quant_linear/encode_quant_linear_kernel.c
     src/quant_linear/decode_quant_linear_kernel.c
 )

@@ -65,6 +65,7 @@ Namespace `geozl.lossless`, bit exact transforms of a tile.
 | `complex` | `geozl.lossless.complex_split(dtype)` | `0x72D704` | splits real and imaginary into separate streams |
 | `med` | `geozl.lossless.MedInt(width)` | `0x72D705` | median edge detector, W plus N minus NW clamped to the neighbours |
 | `average` | `geozl.lossless.AverageInt(width)` | `0x72D706` | floor average of W and N |
+| `wp_static` | `geozl.lossless.WpStaticInt(width, coeffs, shift)` | `0x72D707` | frozen weighted predictor, W plus a signaled linear kernel over the row above |
 
 ## License
 

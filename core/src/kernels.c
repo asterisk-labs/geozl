@@ -10,6 +10,8 @@
 #include "med/decode_med_kernel.h"
 #include "average/encode_average_kernel.h"
 #include "average/decode_average_kernel.h"
+#include "wp_static/encode_wp_static_kernel.h"
+#include "wp_static/decode_wp_static_kernel.h"
 #include "quant_linear/encode_quant_linear_kernel.h"
 #include "quant_linear/decode_quant_linear_kernel.h"
 
@@ -55,6 +57,16 @@ void geozl_average_encode(void* dst, const void* src,
 void geozl_average_decode(void* dst, const void* src,
                           size_t width, size_t nbElts, size_t eltWidth)
 { average_decode(dst, src, width, nbElts, eltWidth); }
+
+void geozl_wp_static_encode(void* dst, const void* src,
+                            size_t width, size_t nbElts, size_t eltWidth,
+                            const int16_t* coeffs, uint8_t shift)
+{ wp_static_encode(dst, src, width, nbElts, eltWidth, coeffs, shift); }
+
+void geozl_wp_static_decode(void* dst, const void* src,
+                            size_t width, size_t nbElts, size_t eltWidth,
+                            const int16_t* coeffs, uint8_t shift)
+{ wp_static_decode(dst, src, width, nbElts, eltWidth, coeffs, shift); }
 
 void geozl_quant_linear_encode(void* dst, const void* src,
                                double scale, int dtype, size_t nbElts)

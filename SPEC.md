@@ -29,7 +29,7 @@ A tile is a typed numeric stream of one component type, at an element width of 1
 | 9 | 4 | IEEE 32-bit float |
 | 10 | 8 | IEEE 64-bit float |
 
-OpenZL has no complex type. A complex value is two reals, so geozl carries it as its real component type with twice the element count, the real and imaginary parts either interleaved or split into two streams, and the frame records which. There is no separate complex codec.
+OpenZL has no complex type, a tile is always one of the real component types above. A complex value is two reals, so geozl carries it as its real component type with twice the element count, the real and imaginary parts either interleaved or split into two streams. The split is done by the `complex_split` codec, which takes the real component stream and emits the two parts as separate streams, so a spatial codec after it never crosses the component boundary.
 
 ## Transform ids
 
@@ -41,10 +41,7 @@ geozl treats a published id as permanent. Its decode format is frozen and later 
 
 ## Lossless codecs
 
-A lossless codec satisfies `decode(encode(x)) = x`. geozl's lossless codecs are spatial predictors over a row-major plane.
-
-- **Header.** One `uint32`, little endian, the row width in samples.
-- **Residual.** The sample minus a prediction from decoded neighbours, in native-width modular arithmetic, no zigzag, edge neighbours taken as zero.
+A lossless codec satisfies `decode(encode(x)) = x`. It carries in its codec header whatever the decoder needs to invert it, if anything.
 
 ## Near lossless codecs
 

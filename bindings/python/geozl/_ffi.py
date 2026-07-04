@@ -25,6 +25,12 @@ void geozl_average_encode(void* dst, const void* src,
                           size_t width, size_t nb_elts, size_t elt_width);
 void geozl_average_decode(void* dst, const void* src,
                           size_t width, size_t nb_elts, size_t elt_width);
+void geozl_wp_static_encode(void* dst, const void* src,
+                            size_t width, size_t nb_elts, size_t elt_width,
+                            const int16_t* coeffs, uint8_t shift);
+void geozl_wp_static_decode(void* dst, const void* src,
+                            size_t width, size_t nb_elts, size_t elt_width,
+                            const int16_t* coeffs, uint8_t shift);
 void geozl_quant_linear_encode(void* dst, const void* src,
                                double scale, int dtype, size_t nb_elts);
 void geozl_quant_linear_decode(void* dst, const void* src,

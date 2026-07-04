@@ -9,9 +9,10 @@ from .delta_w import DeltaWDecoder, DeltaWInt
 from .average import AverageDecoder, AverageInt
 from .med import MedDecoder, MedInt
 from .planar import PlanarDecoder, PlanarInt
+from .wp_static import WpStaticDecoder, WpStaticInt
 
 _DECODERS = (DeltaWDecoder, DeltaNDecoder, PlanarDecoder, MedDecoder,
-             AverageDecoder, ComplexSplitDecoder)
+             AverageDecoder, WpStaticDecoder, ComplexSplitDecoder)
 
 
 def register_decoders(dctx) -> None:
@@ -24,6 +25,7 @@ def register_decoders(dctx) -> None:
 __all__ = [
     "AverageDecoder", "AverageInt", "ComplexSplitDecoder", "DeltaNDecoder",
     "DeltaNInt", "DeltaWDecoder", "DeltaWInt", "MedDecoder", "MedInt",
-    "PlanarDecoder", "PlanarInt", "complex_split", "component_dtype",
-    "decompress_complex", "register_decoders",
+    "PlanarDecoder", "PlanarInt", "WpStaticDecoder", "WpStaticInt",
+    "complex_split", "component_dtype", "decompress_complex",
+    "register_decoders",
 ]
