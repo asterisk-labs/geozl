@@ -33,7 +33,12 @@ jobs:
       - name: Run pytest with coverage
         run: |
           python -m pytest bindings/python --cov=geozl --cov-report=term-missing
-          echo "### Coverage $(coverage report --format=total)%" >> "$GITHUB_STEP_SUMMARY"
+          # Per file table with the uncovered lines, rendered on the run summary.
+          {
+            echo "### Coverage $(coverage report --format=total)%"
+            echo
+            coverage report --format=markdown --show-missing
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # anybadge is pure Python, no pkg_resources, so setuptools removing it does
       # not break the badge like coverage-badge does.
