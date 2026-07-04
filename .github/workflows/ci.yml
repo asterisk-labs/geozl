@@ -25,10 +25,8 @@ jobs:
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          python -m pip install cmake ninja numpy cffi openzl pytest pytest-cov coverage-badge
+          python -m pip install cmake ninja numpy cffi openzl pytest pytest-cov anybadge
 
-      # FULL=OFF builds only the pure C kernels lib the tests dlopen, no OpenZL
-      # compile, then installs the binding editable.
       - name: Build the kernels lib and install geozl
         run: make python FULL=OFF
 
@@ -37,16 +35,17 @@ jobs:
           python -m pytest bindings/python --cov=geozl --cov-report=term-missing
           echo "### Coverage $(coverage report --format=total)%" >> "$GITHUB_STEP_SUMMARY"
 
-      # Regenerate the badge and commit it, only on a push to main. The message
-      # carries [skip ci] so the commit does not trigger this workflow again.
-      - name: Update the coverage badge
+      # anybadge is pure Python, no pkg_resources, so setuptools removing it does
+      # not break the badge like coverage-badge does.
+      - name: Generate the coverage badge
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          coverage-badge -o coverage.svg -f
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add coverage.svg
-          git diff --quiet --staged || {
-            git commit -m "ci: coverage badge [skip ci]"
-            git push origin HEAD:main
-          }
+          anybadge --label=coverage --value="$(coverage report --format=total)" \
+                   --suffix='%' --file=coverage.svg --overwrite 60=red 80=yellow 100=green
+
+      - name: Commit the coverage badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'ci: coverage badge [skip ci]'
+          file_pattern: coverage.svg
