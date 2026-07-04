@@ -73,3 +73,5 @@ Testing/
 bindings/python/__pycache__/
 
 bindings/python/geozl/__pycache__/
+
+*.pyc

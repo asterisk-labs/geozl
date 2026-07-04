@@ -38,7 +38,7 @@ def _bundled_lib():
 
 
 def _load_lib():
-    # GEOZL_LIB beats everything, then the wheel copy, then the OS path.
+    # GEOZL_LIB beats everything :D, then the wheel copy, then the OS path.
     candidate = (os.environ.get("GEOZL_LIB") or _bundled_lib()
                  or ctypes.util.find_library("geozl_kernels"))
     if candidate is None:
@@ -47,3 +47,7 @@ def _load_lib():
 
 
 lib = _load_lib()
+
+
+def _ptr(arr):
+    return ffi.cast("void *", arr.ctypes.data)

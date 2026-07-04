@@ -3,10 +3,12 @@ import struct
 import numpy as np
 from openzl import ext as _ext
 
-from ._ffi import ffi, lib
+from .._ffi import _ptr, lib
+from ._base import require_checksum_disabled
 
 
-_QUANT_LINEAR_CTID = 0x72D780
+_CTID = 0x72D780
+_NAME = "geozl.lossy.quant_linear"
 
 # Mirrors the ql_dtype enum in graph_quant_linear.h. Order is the wire value.
 _QL_DTYPE = {
@@ -17,23 +19,17 @@ _QL_DTYPE = {
 }
 
 _HEADER = struct.Struct("<Bd")          # dtype byte, scale as f64
-_FV = _ext.MAX_FORMAT_VERSION
-_CHECKSUM_DISABLE = 2                    # OpenZL ternary param, disable
-
-
-def _ptr(arr):
-    return ffi.cast("void *", arr.ctypes.data)
 
 
 _desc = _ext.MultiInputCodecDescription(
-    id=_QUANT_LINEAR_CTID,
-    name="geozl.lossy.quant_linear",
+    id=_CTID,
+    name=_NAME,
     input_types=[_ext.Type.Numeric],
     singleton_output_types=[_ext.Type.Numeric],
 )
 
 
-class _QuantLinearEncoder(_ext.CustomEncoder):
+class _Encoder(_ext.CustomEncoder):
     def __init__(self, scale, dtype):
         super().__init__()              # load bearing, inits the C++ side
         self._scale = scale
@@ -43,6 +39,7 @@ class _QuantLinearEncoder(_ext.CustomEncoder):
         return _desc
 
     def encode(self, state):
+        require_checksum_disabled(state, _NAME)
         inp = state.inputs[0]
         n, elt = inp.num_elts, inp.elt_width
         state.send_codec_header(_HEADER.pack(self._dtype, self._scale))
@@ -54,7 +51,7 @@ class _QuantLinearEncoder(_ext.CustomEncoder):
         out.commit(n)
 
 
-class _QuantLinearDecoder(_ext.CustomDecoder):
+class QuantLinearDecoder(_ext.CustomDecoder):
     def multi_input_description(self):
         return _desc
 
@@ -72,7 +69,8 @@ class _QuantLinearDecoder(_ext.CustomDecoder):
 
 def quant_linear(max_error, dtype):
     """Head of graph lossy node. Quantizes to a uniform step of 2*max_error,
-    bounding the per pixel error by max_error. Omit it for lossless."""
+    bounding the per pixel error by max_error. Omit it for lossless. Disable
+    ContentChecksum on the CCtx, the round trip is not bit exact."""
     qd = _QL_DTYPE.get(np.dtype(dtype))
     if qd is None:
         raise ValueError(f"quant_linear does not support dtype {dtype!r}")
@@ -83,45 +81,7 @@ def quant_linear(max_error, dtype):
     def build(compressor, successor):
         if not isinstance(successor, _ext.GraphID):
             successor = successor.parameterize(compressor)
-        node = compressor.register_custom_encoder(_QuantLinearEncoder(scale, qd))
-        return compressor.build_static_graph(
-            node, [successor], name="geozl.lossy.quant_linear")
+        node = compressor.register_custom_encoder(_Encoder(scale, qd))
+        return compressor.build_static_graph(node, [successor], name=_NAME)
 
     return build
-
-
-def register_decoders(dctx) -> None:
-    dctx.register_custom_decoder(_QuantLinearDecoder())
-
-
-def _compressor(recipe):
-    c = _ext.Compressor()
-    c.set_parameter(_ext.CParam.FormatVersion, _FV)
-    g = recipe[-1]()
-    for nf in reversed(recipe[:-1]):
-        g = nf()(c, g)
-    if not isinstance(g, _ext.GraphID):
-        g = g.parameterize(c)
-    c.select_starting_graph(g)
-    return c
-
-
-def compress(chunks, recipe, *, content_checksum=False):
-    """One OpenZL frame per tile. recipe ends in a terminal graph, for example
-    [lambda: quant_linear(5, np.uint16), G.Compress]. Keep content_checksum off
-    for any recipe with a lossy node, its content hash assumes a bit exact round
-    trip."""
-    comp = _compressor(recipe)
-    frames = []
-    for i in range(len(chunks)):
-        cc = _ext.CCtx()
-        cc.ref_compressor(comp)
-        cc.set_parameter(_ext.CParam.FormatVersion, _FV)
-        if not content_checksum:
-            cc.set_parameter(_ext.CParam.ContentChecksum, _CHECKSUM_DISABLE)
-        tile = np.ascontiguousarray(chunks[i]).reshape(-1)
-        frames.append(bytes(cc.compress([_ext.Input(_ext.Type.Numeric, tile)])))
-    return frames
-
-
-__all__ = ["compress", "quant_linear", "register_decoders"]

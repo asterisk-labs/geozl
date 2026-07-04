@@ -76,6 +76,13 @@ through openzl.ext.
 quantizes, the codec header layout, the element widths it accepts, and for a
 quantizer the error bound and its mode.
 
+**`bindings/python/geozl/<family>/foo.py`** is the Python codec, one file per
+codec like the C folder. A predictor is a single `predictor()` call, the whole
+file, since delta_w, delta_n and planar share the shape. A quantizer copies
+`quant_linear.py`: a bespoke encoder that carries its parameters, a decoder, and
+a head of graph builder, guarding the content checksum through
+`require_checksum_disabled` from `_base.py`.
+
 ## Files you edit
 
 Six wiring points, in order.
@@ -108,12 +115,10 @@ Six wiring points, in order.
 5. **`bindings/python/geozl/_ffi.py`**, add the two declarations to the cffi
    cdef block, matching the kernels.h signatures exactly.
 
-6. **`bindings/python/geozl/lossless.py`** or **`lossy.py`**, wire the Python
-   side. A predictor is one `_make_codec` call and one `_PredictorNode`
-   subclass, then its decoder into `register_decoders` and its public names into
-   `__all__`. A quantizer follows the quant_linear shape, a bespoke encoder that
-   carries its parameters, a decoder, a head of graph builder, the wire dtype
-   map if it has one, and the same two updates.
+6. **`bindings/python/geozl/<family>/__init__.py`**, import the node and decoder
+   from `foo`, add the decoder to the `_DECODERS` tuple, and add the public names
+   to `__all__`. The family's `register_decoders` walks `_DECODERS`, so it picks
+   up the new one with no further edit.
 
 Then expose it. Add the codec to its family table in the [README](../README.md),
 its call, its CTid, and a one line summary, and add the id to the allocation
@@ -127,7 +132,7 @@ table above so the registry stays complete.
 | CTid band         | `0x72D70x`                            | `0x72D78x`                         |
 | position in graph | anywhere before entropy               | head of graph, exactly one         |
 | codec header      | width, 4 bytes LE                     | codec specific, dtype plus scale   |
-| Python factory    | `_make_codec` in lossless.py          | bespoke, see lossy.py              |
+| Python codec      | `predictor()` call in `lossless/foo.py` | bespoke `lossy/foo.py`, see quant_linear |
 | content checksum  | left on                               | off, the hash assumes bit exact    |
 
 ## Invariants
