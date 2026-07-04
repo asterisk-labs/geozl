@@ -20,25 +20,19 @@ reader cannot read a CTid minted after it, and that is the only direction that
 breaks. It breaks loudly, a missing decoder error, never silent corruption.
 
 geozl's ids sit in the `0x72D700`-`0x72D7FF` block, high enough to stay clear of
-OpenZL's standard node ids. Predictors take the `0x72D70x` band, quantizers take
-`0x72D78x`. Take the next free id in the right band, never reuse or renumber.
-
-| CTid       | codec        | family    |
-|------------|--------------|-----------|
-| `0x72D701` | delta_w      | lossless  |
-| `0x72D702` | delta_n      | lossless  |
-| `0x72D703` | planar       | lossless  |
-| `0x72D780` | quant_linear | lossy     |
+OpenZL's standard node ids. Lossless codecs take the `0x72D70x` band, near
+lossless codecs the `0x72D78x` band. Take the next free id in the right band,
+never reuse or renumber.
 
 ## Files you create
 
-For a codec `foo`, make `core/src/foo/` after an existing folder. delta_w is the
-model for a predictor, quant_linear for a quantizer.
+For a codec `foo`, make `core/src/foo/` after an existing folder in the same
+family.
 
 **`graph_foo.h`** is the node definition, included by both bindings.
 
 ```c
-#define FOO_CTID 0x72D70?            // next free id, see the table
+#define FOO_CTID 0x72D70?            // next free id in the band
 #define FOO_PARAM_WIDTH 1           // local int param key, predictors only
 
 #define FOO_GRAPH                                            \
@@ -49,9 +43,8 @@ model for a predictor, quant_linear for a quantizer.
     }
 ```
 
-A quantizer that carries a typed payload declares its wire enum here too, the
-way quant_linear declares `ql_dtype`. The enum order is the wire value and
-freezes with the CTid.
+A quantizer that carries a typed payload declares its wire enum here too. The
+enum order is the wire value and freezes with the CTid.
 
 **`encode_foo_kernel.{h,c}`** and **`decode_foo_kernel.{h,c}`** are the transform
 and its inverse, pure C, no OpenZL. The internal names are `foo_encode` and
@@ -77,10 +70,10 @@ quantizes, the codec header layout, the element widths it accepts, and for a
 quantizer the error bound and its mode.
 
 **`bindings/python/geozl/<family>/foo.py`** is the Python codec, one file per
-codec like the C folder. A predictor is a single `predictor()` call, the whole
-file, since delta_w, delta_n and planar share the shape. A quantizer copies
-`quant_linear.py`: a bespoke encoder that carries its parameters, a decoder, and
-a head of graph builder, guarding the content checksum through
+codec like the C folder. A width based predictor is a single `predictor()` call,
+the whole file, since those share one shape. Any other codec is bespoke, an
+encoder that carries its parameters, a decoder, and a head of graph builder. A
+near lossless codec also guards the content checksum through
 `require_checksum_disabled` from `_base.py`.
 
 ## Files you edit
@@ -96,8 +89,7 @@ Six wiring points, in order.
                                    size_t width, size_t nb_elts, size_t elt_width);
    ```
 
-   A quantizer uses its own signature. quant_linear takes `double scale, int
-   dtype, size_t nb_elts` in place of the width.
+   A quantizer uses its own signature, its parameters in place of the width.
 
 2. **`core/src/kernels.c`**, add the forwarder bodies, one line each, calling the
    internal kernel name.
@@ -116,13 +108,12 @@ Six wiring points, in order.
    cdef block, matching the kernels.h signatures exactly.
 
 6. **`bindings/python/geozl/<family>/__init__.py`**, import the node and decoder
-   from `foo`, add the decoder to the `_DECODERS` tuple, and add the public names
-   to `__all__`. The family's `register_decoders` walks `_DECODERS`, so it picks
-   up the new one with no further edit.
+   from `foo`, add the decoder to the `_DECODERS` tuple, and the public names to
+   `__all__`. The family's `register_decoders` walks `_DECODERS`, so it picks up
+   the new one with no further edit.
 
-Then expose it. Add the codec to its family table in the [README](../README.md),
-its call, its CTid, and a one line summary, and add the id to the allocation
-table above so the registry stays complete.
+Then expose it. List the codec where the project lists its codecs, its call, its
+CTid, and a one line summary.
 
 ## Lossless versus lossy
 
@@ -131,18 +122,18 @@ table above so the registry stays complete.
 | reversibility     | bit exact, `decode(encode(x)) == x`   | bounded, within the declared error |
 | CTid band         | `0x72D70x`                            | `0x72D78x`                         |
 | position in graph | anywhere before entropy               | head of graph, exactly one         |
-| codec header      | width, 4 bytes LE                     | codec specific, dtype plus scale   |
-| Python codec      | `predictor()` call in `lossless/foo.py` | bespoke `lossy/foo.py`, see quant_linear |
+| codec header      | codec specific, a predictor's is a 4 byte width | codec specific, dtype plus scale |
+| Python codec      | `predictor()` for a predictor, else bespoke | a bespoke `lossy/foo.py`     |
 | content checksum  | left on                               | off, the hash assumes bit exact    |
 
 ## Invariants
 
 The codec header is the only channel from encoder to decoder. The decoder never
 sees a local param, so whatever the decode needs per tile, the width for a
-predictor, the dtype and scale for quant_linear, is written there on encode and
-read back with `ZL_Decoder_getCodecHeader`. Keep it minimal and fixed layout.
+predictor, the parameters for a quantizer, is written there on encode and read
+back with `ZL_Decoder_getCodecHeader`. Keep it minimal and fixed layout.
 
-A predictor's inverse must vectorize. delta_w, delta_n and planar invert with a
+A predictor's inverse must vectorize. The shipped predictors invert with a
 running sum or a plain vector add along one axis, which SIMD runs at streaming
 rate. A predictor whose inverse branches per pixel, MED or Paeth, decodes
 serially at a fraction of that and does not belong here, whatever it wins on

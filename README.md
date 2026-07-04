@@ -54,13 +54,14 @@ Quantizers, namespace `geozl.lossy`. A frame is no longer bit exact, carries one
 
 ### Lossless
 
-Spatial predictors, namespace `geozl.lossless`. Each rewrites a tile as residuals against decoded neighbours, bit exact. They are reversible and domain agnostic, so these are the candidates to merge into OpenZL upstream.
+Namespace `geozl.lossless`, bit exact transforms of a tile.
 
 | codec | call | CTid | what it does |
 |---|---|---|---|
 | `delta_w` | `geozl.lossless.DeltaWInt(width)` | `0x72D701` | horizontal delta |
 | `delta_n` | `geozl.lossless.DeltaNInt(width)` | `0x72D702` | vertical delta |
 | `planar` | `geozl.lossless.PlanarInt(width)` | `0x72D703` | predicts each pixel from W plus N minus NW |
+| `complex` | `geozl.lossless.complex_split(dtype)` | `0x72D704` | splits real and imaginary into separate streams |
 
 ## License
 
