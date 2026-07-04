@@ -63,6 +63,7 @@ Namespace `geozl.lossless`, bit exact transforms of a tile.
 | `delta_n` | `geozl.lossless.DeltaNInt(width)` | `0x72D702` | vertical delta |
 | `planar` | `geozl.lossless.PlanarInt(width)` | `0x72D703` | predicts each pixel from W plus N minus NW |
 | `complex` | `geozl.lossless.complex_split(dtype)` | `0x72D704` | splits real and imaginary into separate streams |
+| `med` | `geozl.lossless.MedInt(width)` | `0x72D705` | median edge detector, W plus N minus NW clamped to the neighbours |
 
 ## License
 

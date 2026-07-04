@@ -6,6 +6,8 @@
 #include "delta_n/decode_delta_n_kernel.h"
 #include "planar/encode_planar_kernel.h"
 #include "planar/decode_planar_kernel.h"
+#include "med/encode_med_kernel.h"
+#include "med/decode_med_kernel.h"
 #include "quant_linear/encode_quant_linear_kernel.h"
 #include "quant_linear/decode_quant_linear_kernel.h"
 
@@ -35,6 +37,14 @@ void geozl_planar_encode(void* dst, const void* src,
 void geozl_planar_decode(void* dst, const void* src,
                          size_t width, size_t nbElts, size_t eltWidth)
 { planar_decode(dst, src, width, nbElts, eltWidth); }
+
+void geozl_med_encode(void* dst, const void* src,
+                      size_t width, size_t nbElts, size_t eltWidth)
+{ med_encode(dst, src, width, nbElts, eltWidth); }
+
+void geozl_med_decode(void* dst, const void* src,
+                      size_t width, size_t nbElts, size_t eltWidth)
+{ med_decode(dst, src, width, nbElts, eltWidth); }
 
 void geozl_quant_linear_encode(void* dst, const void* src,
                                double scale, int dtype, size_t nbElts)

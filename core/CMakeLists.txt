@@ -71,6 +71,8 @@ set(GEOZL_DECODE_SOURCES
     src/delta_n/decode_delta_n_kernel.c
     src/planar/decode_planar_binding.c
     src/planar/decode_planar_kernel.c
+    src/med/decode_med_binding.c
+    src/med/decode_med_kernel.c
     src/quant_linear/decode_quant_linear_binding.c
     src/quant_linear/decode_quant_linear_kernel.c
 )
@@ -83,6 +85,8 @@ set(GEOZL_KERNEL_SOURCES
     src/delta_n/decode_delta_n_kernel.c
     src/planar/encode_planar_kernel.c
     src/planar/decode_planar_kernel.c
+    src/med/encode_med_kernel.c
+    src/med/decode_med_kernel.c
     src/quant_linear/encode_quant_linear_kernel.c
     src/quant_linear/decode_quant_linear_kernel.c
 )

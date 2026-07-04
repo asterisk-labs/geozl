@@ -6,9 +6,11 @@ from .complex import (
 )
 from .delta_n import DeltaNDecoder, DeltaNInt
 from .delta_w import DeltaWDecoder, DeltaWInt
+from .med import MedDecoder, MedInt
 from .planar import PlanarDecoder, PlanarInt
 
-_DECODERS = (DeltaWDecoder, DeltaNDecoder, PlanarDecoder, ComplexSplitDecoder)
+_DECODERS = (DeltaWDecoder, DeltaNDecoder, PlanarDecoder, MedDecoder,
+             ComplexSplitDecoder)
 
 
 def register_decoders(dctx) -> None:
@@ -20,6 +22,6 @@ def register_decoders(dctx) -> None:
 
 __all__ = [
     "ComplexSplitDecoder", "DeltaNDecoder", "DeltaNInt", "DeltaWDecoder",
-    "DeltaWInt", "PlanarDecoder", "PlanarInt", "complex_split",
-    "component_dtype", "decompress_complex", "register_decoders",
+    "DeltaWInt", "MedDecoder", "MedInt", "PlanarDecoder", "PlanarInt",
+    "complex_split", "component_dtype", "decompress_complex", "register_decoders",
 ]
