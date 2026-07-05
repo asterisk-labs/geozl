@@ -57,8 +57,7 @@ _DTYPES = [np.uint8, np.uint16, np.uint32, np.uint64,
 _SHAPES = [(16, 16), (7, 13), (1, 32), (32, 1), (4, 4)]
 _PATTERNS = ["random", "gradient", "constant"]
 
-# wp_static is called with one argument here, so it runs in its planar default
-# form. Its signaled kernel and shift are covered separately below.
+# wp_static takes only the width like the rest, it fits its own kernel in C.
 _PREDICTORS = [geozl.lossless.DeltaWInt, geozl.lossless.DeltaNInt,
                geozl.lossless.PlanarInt, geozl.lossless.MedInt,
                geozl.lossless.AverageInt, geozl.lossless.WpStaticInt]
@@ -71,36 +70,6 @@ _PREDICTORS = [geozl.lossless.DeltaWInt, geozl.lossless.DeltaNInt,
 def test_predictor_bit_exact(node, dtype, shape, pattern):
     arr = make_tile(shape, dtype, pattern)
     out = roundtrip(node(shape[1]), arr)
-    assert np.array_equal(out, arr.reshape(-1))
-
-
-# wp_static carries a signaled kernel and a shift the other predictors do not,
-# so exercise the header and the widened accumulator with non trivial kernels.
-_WP_KERNELS = [((1, -1, 0, 0), 0),      # planar, the default
-               ((2, -1, 1, -1), 1),
-               ((1, 0, 1, -1), 1),
-               ((3, -1, -1, -1), 2)]
-
-
-@pytest.mark.parametrize("coeffs,shift", _WP_KERNELS, ids=lambda p: str(p))
-@pytest.mark.parametrize("dtype", _DTYPES, ids=lambda d: np.dtype(d).name)
-@pytest.mark.parametrize("shape", _SHAPES, ids=lambda s: f"{s[0]}x{s[1]}")
-@pytest.mark.parametrize("pattern", _PATTERNS)
-def test_wp_static_signaled_kernel(coeffs, shift, dtype, shape, pattern):
-    arr = make_tile(shape, dtype, pattern)
-    node = geozl.lossless.WpStaticInt(shape[1], coeffs, shift)
-    out = roundtrip(node, arr)
-    assert np.array_equal(out, arr.reshape(-1))
-
-
-# the trained kernel must round trip bit exact like any other, whatever it fits.
-@pytest.mark.parametrize("dtype", [np.uint8, np.uint16, np.uint32],
-                         ids=lambda d: np.dtype(d).name)
-def test_wp_static_trained_kernel(dtype):
-    arr = make_tile((32, 32), dtype, "gradient")
-    coeffs, shift = geozl.train.fit_wp_static(arr)
-    node = geozl.lossless.WpStaticInt(32, coeffs, shift)
-    out = roundtrip(node, arr)
     assert np.array_equal(out, arr.reshape(-1))
 
 

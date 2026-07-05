@@ -1,8 +1,9 @@
 #include "decode_planar_binding.h"
 #include "decode_planar_kernel.h"
+#include "header_planar.h"
 
 #include "openzl/zl_data.h"
-#include "openzl/zl_dtransform.h" // ZL_Decoder
+#include "openzl/zl_dtransform.h"
 #include "openzl/zl_errors.h"
 #include "openzl/zl_errors_types.h"
 #include "openzl/zl_input.h"
@@ -10,7 +11,6 @@
 
 #include <assert.h>
 #include <stdint.h>
-#include <string.h>
 
 ZL_Report DI_geozl_planar(ZL_Decoder* dictx, const ZL_Input* ins[])
 {
@@ -23,10 +23,9 @@ ZL_Report DI_geozl_planar(ZL_Decoder* dictx, const ZL_Input* ins[])
     const size_t nbElts   = ZL_Input_numElts(in);
 
     ZL_RBuffer header = ZL_Decoder_getCodecHeader(dictx);
-    if (header.size != sizeof(uint32_t))
-        return ZL_returnError(ZL_ErrorCode_corruption);
     uint32_t width;
-    memcpy(&width, header.start, sizeof(width));
+    if (!planar_read_header((const uint8_t*)header.start, header.size, &width))
+        return ZL_returnError(ZL_ErrorCode_corruption);
 
     ZL_Output* out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);
     if (out == NULL)

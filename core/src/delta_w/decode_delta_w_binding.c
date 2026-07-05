@@ -1,8 +1,9 @@
 #include "decode_delta_w_binding.h"
 #include "decode_delta_w_kernel.h"
+#include "header_delta_w.h"
 
 #include "openzl/zl_data.h"
-#include "openzl/zl_dtransform.h" // ZL_Decoder
+#include "openzl/zl_dtransform.h"
 #include "openzl/zl_errors.h"
 #include "openzl/zl_errors_types.h"
 #include "openzl/zl_input.h"
@@ -10,11 +11,9 @@
 
 #include <assert.h>
 #include <stdint.h>
-#include <string.h>
 
 ZL_Report DI_geozl_delta_w(ZL_Decoder* dictx, const ZL_Input* ins[])
 {
-    // guaranteed by engine + codec signature: one numeric input
     assert(ins != NULL);
     const ZL_Input* in = ins[0];
     assert(in != NULL);
@@ -23,14 +22,11 @@ ZL_Report DI_geozl_delta_w(ZL_Decoder* dictx, const ZL_Input* ins[])
     const size_t eltWidth = ZL_Input_eltWidth(in);
     const size_t nbElts   = ZL_Input_numElts(in);
 
-    // the row width travels in the codec header as a single uint32
     ZL_RBuffer header = ZL_Decoder_getCodecHeader(dictx);
-    if (header.size != sizeof(uint32_t))
-        return ZL_returnError(ZL_ErrorCode_corruption);
     uint32_t width;
-    memcpy(&width, header.start, sizeof(width));
+    if (!delta_w_read_header((const uint8_t*)header.start, header.size, &width))
+        return ZL_returnError(ZL_ErrorCode_corruption);
 
-    // allocation is controlled by the engine
     ZL_Output* out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);
     if (out == NULL)
         return ZL_returnError(ZL_ErrorCode_allocation);

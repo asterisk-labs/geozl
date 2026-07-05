@@ -1,5 +1,7 @@
 #include "encode_wp_static_binding.h"
 #include "encode_wp_static_kernel.h"
+#include "train_wp_static.h"
+#include "header_wp_static.h"
 
 #include "openzl/zl_ctransform.h"
 #include "openzl/zl_data.h"
@@ -10,17 +12,6 @@
 
 #include <assert.h>
 #include <stdint.h>
-#include <string.h>
-
-#define WP_STATIC_HEADER_SIZE (4 + 1 + WP_STATIC_NTAPS * 2)
-
-// A signaled coefficient from a local int param, or @dflt when the graph builder
-// left it unset.
-static int16_t wp_static_param(ZL_Encoder* eictx, int key, int16_t dflt)
-{
-    ZL_IntParam p = ZL_Encoder_getLocalIntParam(eictx, key);
-    return (p.paramId == key) ? (int16_t)p.paramValue : dflt;
-}
 
 ZL_Report EI_geozl_wp_static(ZL_Encoder* eictx, const ZL_Input* in)
 {
@@ -35,25 +26,19 @@ ZL_Report EI_geozl_wp_static(ZL_Encoder* eictx, const ZL_Input* in)
             ? (uint32_t)wp.paramValue
             : (uint32_t)nbElts;
 
-    // Defaults reproduce planar.
-    const uint8_t shift = (uint8_t)wp_static_param(eictx, WP_STATIC_PARAM_SHIFT, 0);
-    int16_t coeffs[WP_STATIC_NTAPS];
-    coeffs[0] = wp_static_param(eictx, WP_STATIC_PARAM_C_N, 1);
-    coeffs[1] = wp_static_param(eictx, WP_STATIC_PARAM_C_NW, -1);
-    coeffs[2] = wp_static_param(eictx, WP_STATIC_PARAM_C_NE, 0);
-    coeffs[3] = wp_static_param(eictx, WP_STATIC_PARAM_C_NN, 0);
+    // The kernel is estimated here, not signaled from the graph builder.
+    int16_t coeffs[4];
+    uint8_t shift;
+    wp_static_train(coeffs, &shift, ZL_Input_ptr(in), width, nbElts, eltWidth);
 
     uint8_t hdr[WP_STATIC_HEADER_SIZE];
-    memcpy(hdr, &width, sizeof(width));
-    hdr[4] = shift;
-    memcpy(hdr + 5, coeffs, sizeof(coeffs));
+    wp_static_write_header(hdr, width, coeffs, shift);
     ZL_Encoder_sendCodecHeader(eictx, hdr, sizeof(hdr));
 
     ZL_Output* out = ZL_Encoder_createTypedStream(eictx, 0, nbElts, eltWidth);
     if (out == NULL)
         return ZL_returnError(ZL_ErrorCode_allocation);
 
-    // fresh output buffer, no aliasing with the input
     wp_static_encode(ZL_Output_ptr(out), ZL_Input_ptr(in), width, nbElts,
                      eltWidth, coeffs, shift);
 

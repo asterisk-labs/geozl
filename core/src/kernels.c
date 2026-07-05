@@ -1,72 +1,34 @@
 #include "geozl/kernels.h"
 
-#include "delta_w/encode_delta_w_kernel.h"
-#include "delta_w/decode_delta_w_kernel.h"
-#include "delta_n/encode_delta_n_kernel.h"
-#include "delta_n/decode_delta_n_kernel.h"
-#include "planar/encode_planar_kernel.h"
-#include "planar/decode_planar_kernel.h"
-#include "med/encode_med_kernel.h"
-#include "med/decode_med_kernel.h"
-#include "average/encode_average_kernel.h"
-#include "average/decode_average_kernel.h"
-#include "wp_static/encode_wp_static_kernel.h"
-#include "wp_static/decode_wp_static_kernel.h"
+#include "delta_w/auto_delta_w.h"
+#include "delta_n/auto_delta_n.h"
+#include "planar/auto_planar.h"
+#include "med/auto_med.h"
+#include "average/auto_average.h"
+#include "wp_static/auto_wp_static.h"
 #include "quant_linear/encode_quant_linear_kernel.h"
 #include "quant_linear/decode_quant_linear_kernel.h"
 
-// cffi calls the geozl_ names, the folders keep their own. Renaming here keeps
-// each codec folder self contained and copy-pasteable.
+// cffi calls the geozl_ names, each codec folder keeps its own. Renaming here
+// keeps every folder self contained and copy-pasteable.
 
-void geozl_delta_w_encode(void* dst, const void* src,
-                          size_t width, size_t nbElts, size_t eltWidth)
-{ delta_w_encode(dst, src, width, nbElts, eltWidth); }
+#define GEOZL_FWD_AUTO(codec)                                                 \
+    size_t geozl_##codec##_encode_auto(                                       \
+            void* dst, uint8_t* header, size_t header_cap, const void* src,   \
+            size_t width, size_t nbElts, size_t eltWidth)                     \
+    { return codec##_encode_auto(dst, header, header_cap, src, width,         \
+                                 nbElts, eltWidth); }                         \
+    void geozl_##codec##_decode_auto(                                         \
+            void* dst, const void* src, const uint8_t* header,                \
+            size_t headerSize, size_t nbElts, size_t eltWidth)                \
+    { codec##_decode_auto(dst, src, header, headerSize, nbElts, eltWidth); }
 
-void geozl_delta_w_decode(void* dst, const void* src,
-                          size_t width, size_t nbElts, size_t eltWidth)
-{ delta_w_decode(dst, src, width, nbElts, eltWidth); }
-
-void geozl_delta_n_encode(void* dst, const void* src,
-                          size_t width, size_t nbElts, size_t eltWidth)
-{ delta_n_encode(dst, src, width, nbElts, eltWidth); }
-
-void geozl_delta_n_decode(void* dst, const void* src,
-                          size_t width, size_t nbElts, size_t eltWidth)
-{ delta_n_decode(dst, src, width, nbElts, eltWidth); }
-
-void geozl_planar_encode(void* dst, const void* src,
-                         size_t width, size_t nbElts, size_t eltWidth)
-{ planar_encode(dst, src, width, nbElts, eltWidth); }
-
-void geozl_planar_decode(void* dst, const void* src,
-                         size_t width, size_t nbElts, size_t eltWidth)
-{ planar_decode(dst, src, width, nbElts, eltWidth); }
-
-void geozl_med_encode(void* dst, const void* src,
-                      size_t width, size_t nbElts, size_t eltWidth)
-{ med_encode(dst, src, width, nbElts, eltWidth); }
-
-void geozl_med_decode(void* dst, const void* src,
-                      size_t width, size_t nbElts, size_t eltWidth)
-{ med_decode(dst, src, width, nbElts, eltWidth); }
-
-void geozl_average_encode(void* dst, const void* src,
-                          size_t width, size_t nbElts, size_t eltWidth)
-{ average_encode(dst, src, width, nbElts, eltWidth); }
-
-void geozl_average_decode(void* dst, const void* src,
-                          size_t width, size_t nbElts, size_t eltWidth)
-{ average_decode(dst, src, width, nbElts, eltWidth); }
-
-void geozl_wp_static_encode(void* dst, const void* src,
-                            size_t width, size_t nbElts, size_t eltWidth,
-                            const int16_t* coeffs, uint8_t shift)
-{ wp_static_encode(dst, src, width, nbElts, eltWidth, coeffs, shift); }
-
-void geozl_wp_static_decode(void* dst, const void* src,
-                            size_t width, size_t nbElts, size_t eltWidth,
-                            const int16_t* coeffs, uint8_t shift)
-{ wp_static_decode(dst, src, width, nbElts, eltWidth, coeffs, shift); }
+GEOZL_FWD_AUTO(delta_w)
+GEOZL_FWD_AUTO(delta_n)
+GEOZL_FWD_AUTO(planar)
+GEOZL_FWD_AUTO(med)
+GEOZL_FWD_AUTO(average)
+GEOZL_FWD_AUTO(wp_static)
 
 void geozl_quant_linear_encode(void* dst, const void* src,
                                double scale, int dtype, size_t nbElts)

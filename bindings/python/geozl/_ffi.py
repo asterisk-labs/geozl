@@ -5,32 +5,42 @@ from pathlib import Path
 from cffi import FFI
 
 _CDEF = """
-void geozl_delta_w_encode(void* dst, const void* src,
-                          size_t width, size_t nb_elts, size_t elt_width);
-void geozl_delta_w_decode(void* dst, const void* src,
-                          size_t width, size_t nb_elts, size_t elt_width);
-void geozl_delta_n_encode(void* dst, const void* src,
-                          size_t width, size_t nb_elts, size_t elt_width);
-void geozl_delta_n_decode(void* dst, const void* src,
-                          size_t width, size_t nb_elts, size_t elt_width);
-void geozl_planar_encode(void* dst, const void* src,
-                         size_t width, size_t nb_elts, size_t elt_width);
-void geozl_planar_decode(void* dst, const void* src,
-                         size_t width, size_t nb_elts, size_t elt_width);
-void geozl_med_encode(void* dst, const void* src,
-                      size_t width, size_t nb_elts, size_t elt_width);
-void geozl_med_decode(void* dst, const void* src,
-                      size_t width, size_t nb_elts, size_t elt_width);
-void geozl_average_encode(void* dst, const void* src,
-                          size_t width, size_t nb_elts, size_t elt_width);
-void geozl_average_decode(void* dst, const void* src,
-                          size_t width, size_t nb_elts, size_t elt_width);
-void geozl_wp_static_encode(void* dst, const void* src,
-                            size_t width, size_t nb_elts, size_t elt_width,
-                            const int16_t* coeffs, uint8_t shift);
-void geozl_wp_static_decode(void* dst, const void* src,
-                            size_t width, size_t nb_elts, size_t elt_width,
-                            const int16_t* coeffs, uint8_t shift);
+size_t geozl_delta_w_encode_auto(void* dst, uint8_t* header, size_t header_cap,
+                             const void* src, size_t width,
+                             size_t nb_elts, size_t elt_width);
+void geozl_delta_w_decode_auto(void* dst, const void* src,
+                           const uint8_t* header, size_t header_size,
+                           size_t nb_elts, size_t elt_width);
+size_t geozl_delta_n_encode_auto(void* dst, uint8_t* header, size_t header_cap,
+                             const void* src, size_t width,
+                             size_t nb_elts, size_t elt_width);
+void geozl_delta_n_decode_auto(void* dst, const void* src,
+                           const uint8_t* header, size_t header_size,
+                           size_t nb_elts, size_t elt_width);
+size_t geozl_planar_encode_auto(void* dst, uint8_t* header, size_t header_cap,
+                             const void* src, size_t width,
+                             size_t nb_elts, size_t elt_width);
+void geozl_planar_decode_auto(void* dst, const void* src,
+                           const uint8_t* header, size_t header_size,
+                           size_t nb_elts, size_t elt_width);
+size_t geozl_med_encode_auto(void* dst, uint8_t* header, size_t header_cap,
+                             const void* src, size_t width,
+                             size_t nb_elts, size_t elt_width);
+void geozl_med_decode_auto(void* dst, const void* src,
+                           const uint8_t* header, size_t header_size,
+                           size_t nb_elts, size_t elt_width);
+size_t geozl_average_encode_auto(void* dst, uint8_t* header, size_t header_cap,
+                             const void* src, size_t width,
+                             size_t nb_elts, size_t elt_width);
+void geozl_average_decode_auto(void* dst, const void* src,
+                           const uint8_t* header, size_t header_size,
+                           size_t nb_elts, size_t elt_width);
+size_t geozl_wp_static_encode_auto(void* dst, uint8_t* header, size_t header_cap,
+                             const void* src, size_t width,
+                             size_t nb_elts, size_t elt_width);
+void geozl_wp_static_decode_auto(void* dst, const void* src,
+                           const uint8_t* header, size_t header_size,
+                           size_t nb_elts, size_t elt_width);
 void geozl_quant_linear_encode(void* dst, const void* src,
                                double scale, int dtype, size_t nb_elts);
 void geozl_quant_linear_decode(void* dst, const void* src,

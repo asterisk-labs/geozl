@@ -1,11 +1,15 @@
 from openzl import ext as _ext
 
-from .._ffi import _ptr, lib
+from .._ffi import _ptr, ffi, lib
 
 
-def predictor(ctid, name, enc_name, dec_name):
-    enc_kernel = getattr(lib, enc_name)
-    dec_kernel = getattr(lib, dec_name)
+def predictor(ctid, name, encode_auto, decode_auto, header_cap):
+    """Build the Node and Decoder for a lossless predictor whose header is owned
+    by C. encode_auto estimates any parameters, writes the header, and encodes.
+    decode_auto reads the header and decodes. Python only moves the opaque header
+    bytes, it never reads or writes the layout."""
+    enc = getattr(lib, encode_auto)
+    dec = getattr(lib, decode_auto)
     short = name.rsplit(".", 1)[-1]
 
     desc = _ext.MultiInputCodecDescription(
@@ -26,11 +30,11 @@ def predictor(ctid, name, enc_name, dec_name):
         def encode(self, state):
             inp = state.inputs[0]
             n, elt = inp.num_elts, inp.elt_width
-            state.send_codec_header(self._width.to_bytes(4, "little"))
             out = state.create_output(0, n, elt)
-            enc_kernel(_ptr(out.mut_content.as_nparray()),
-                       _ptr(inp.content.as_nparray()),
-                       self._width, n, elt)
+            header = ffi.new("uint8_t[]", header_cap)
+            size = enc(_ptr(out.mut_content.as_nparray()), header, header_cap,
+                       _ptr(inp.content.as_nparray()), self._width, n, elt)
+            state.send_codec_header(bytes(ffi.buffer(header, size)))
             out.commit(n)
 
     class Decoder(_ext.CustomDecoder):
@@ -40,11 +44,11 @@ def predictor(ctid, name, enc_name, dec_name):
         def decode(self, state):
             inp = state.singleton_inputs[0]
             n, elt = inp.num_elts, inp.elt_width
-            width = int.from_bytes(state.codec_header, "little")
+            head = state.codec_header
+            header = ffi.new("uint8_t[]", head)
             out = state.create_output(0, n, elt)
-            dec_kernel(_ptr(out.mut_content.as_nparray()),
-                       _ptr(inp.content.as_nparray()),
-                       width, n, elt)
+            dec(_ptr(out.mut_content.as_nparray()), _ptr(inp.content.as_nparray()),
+                header, len(head), n, elt)
             out.commit(n)
 
     class Node:

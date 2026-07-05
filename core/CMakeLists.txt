@@ -67,16 +67,22 @@ set(GEOZL_DECODE_SOURCES
     src/register_decoders.c
     src/delta_w/decode_delta_w_binding.c
     src/delta_w/decode_delta_w_kernel.c
+    src/delta_w/header_delta_w.c
     src/delta_n/decode_delta_n_binding.c
     src/delta_n/decode_delta_n_kernel.c
+    src/delta_n/header_delta_n.c
     src/planar/decode_planar_binding.c
     src/planar/decode_planar_kernel.c
+    src/planar/header_planar.c
     src/med/decode_med_binding.c
     src/med/decode_med_kernel.c
+    src/med/header_med.c
     src/average/decode_average_binding.c
     src/average/decode_average_kernel.c
+    src/average/header_average.c
     src/wp_static/decode_wp_static_binding.c
     src/wp_static/decode_wp_static_kernel.c
+    src/wp_static/header_wp_static.c
     src/quant_linear/decode_quant_linear_binding.c
     src/quant_linear/decode_quant_linear_kernel.c
 )
@@ -85,16 +91,29 @@ set(GEOZL_KERNEL_SOURCES
     src/kernels.c
     src/delta_w/encode_delta_w_kernel.c
     src/delta_w/decode_delta_w_kernel.c
+    src/delta_w/auto_delta_w.c
+    src/delta_w/header_delta_w.c
     src/delta_n/encode_delta_n_kernel.c
     src/delta_n/decode_delta_n_kernel.c
+    src/delta_n/auto_delta_n.c
+    src/delta_n/header_delta_n.c
     src/planar/encode_planar_kernel.c
     src/planar/decode_planar_kernel.c
+    src/planar/auto_planar.c
+    src/planar/header_planar.c
     src/med/encode_med_kernel.c
     src/med/decode_med_kernel.c
+    src/med/auto_med.c
+    src/med/header_med.c
     src/average/encode_average_kernel.c
     src/average/decode_average_kernel.c
+    src/average/auto_average.c
+    src/average/header_average.c
     src/wp_static/encode_wp_static_kernel.c
     src/wp_static/decode_wp_static_kernel.c
+    src/wp_static/auto_wp_static.c
+    src/wp_static/header_wp_static.c
+    src/wp_static/train_wp_static.c
     src/quant_linear/encode_quant_linear_kernel.c
     src/quant_linear/decode_quant_linear_kernel.c
 )
@@ -130,6 +149,11 @@ if(GEOZL_BUILD_KERNELS)
             ${GEOZL_OPENZL_DIR}/include
     )
     target_compile_definitions(geozl_kernels PRIVATE GEOZL_BUILD)
+    # the wp_static trainer uses log2 and lround, libm where it is a separate lib
+    find_library(GEOZL_LIBM m)
+    if(GEOZL_LIBM)
+        target_link_libraries(geozl_kernels PRIVATE ${GEOZL_LIBM})
+    endif()
 endif()
 
 # Install the static lib, the kernels lib and the public headers. A consumer
