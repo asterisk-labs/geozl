@@ -89,7 +89,8 @@ Six wiring points, in order.
                                    size_t width, size_t nb_elts, size_t elt_width);
    ```
 
-   A quantizer uses its own signature, its parameters in place of the width.
+   A codec that carries more than a width uses its own signature, its parameters
+   after the width, e.g. some coefficients.
 
 2. **`core/src/kernels.c`**, add the forwarder bodies, one line each, calling the
    internal kernel name.
@@ -122,8 +123,8 @@ CTid, and a one line summary.
 | reversibility     | bit exact, `decode(encode(x)) == x`   | bounded, within the declared error |
 | CTid band         | `0x72D70x`                            | `0x72D78x`                         |
 | position in graph | anywhere before entropy               | head of graph, exactly one         |
-| codec header      | codec specific, a predictor's is a 4 byte width | codec specific, dtype plus scale |
-| Python codec      | `predictor()` for a predictor, else bespoke | a bespoke `lossy/foo.py`     |
+| codec header      | codec specific, a width based predictor's is a 4 byte width | codec specific, dtype plus scale |
+| Python codec      | `predictor()` for a width predictor, else bespoke | a bespoke `lossy/foo.py`     |
 | content checksum  | left on                               | off, the hash assumes bit exact    |
 
 ## Invariants
@@ -133,11 +134,12 @@ sees a local param, so whatever the decode needs per tile, the width for a
 predictor, the parameters for a quantizer, is written there on encode and read
 back with `ZL_Decoder_getCodecHeader`. Keep it minimal and fixed layout.
 
-A predictor's inverse must vectorize. The shipped predictors invert with a
-running sum or a plain vector add along one axis, which SIMD runs at streaming
-rate. A predictor whose inverse branches per pixel, MED or Paeth, decodes
-serially at a fraction of that and does not belong here, whatever it wins on
-ratio.
+Decode speed is a codec choice, not a rule. A linear predictor inverts as a
+prefix sum or a vector add along one axis and decodes at streaming rate, delta,
+planar and wp_static are these. A predictor whose inverse is serial per pixel,
+MED or average, decodes at a fraction of that but earns its place when the ratio
+pays for the slower read. Prefer the vectorizable inverse, ship the serial one
+when it wins enough.
 
 A lossy frame carries exactly one quantizer, at the head, with content checksum
 off, since the checksum assumes a bit exact round trip. The error bound rides in

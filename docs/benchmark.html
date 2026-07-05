@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>geozl decode cost</title>
+<style>
+  :root{
+    --bg:#f4f5f3; --panel:#ffffff; --ink:#17191c; --muted:#616771;
+    --line:#e3e6e2; --pred:#1f44b8; --ent:#c9cfd8; --hot:#b8341f;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--sans);
+    line-height:1.5; -webkit-font-smoothing:antialiased;
+    padding:clamp(20px,5vw,64px);
+  }
+  .wrap{max-width:860px; margin:0 auto}
+
+  .eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 14px}
+  h1{font-family:var(--mono); font-weight:600; font-size:clamp(26px,4.4vw,40px);
+    letter-spacing:-.01em; line-height:1.08; margin:0 0 16px}
+  h1 span{color:var(--muted)}
+  .lede{font-size:clamp(15px,1.7vw,17px); color:#33373d; margin:0 0 6px; max-width:60ch}
+
+  .rule{height:1px; background:var(--line); border:0; margin:34px 0}
+
+  h2{font-family:var(--mono); font-size:12px; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--muted); font-weight:600; margin:0 0 16px}
+
+  .method{font-family:var(--mono); font-size:12.5px; color:#4a5058; line-height:1.7; max-width:76ch}
+
+  .chart{display:grid; gap:11px}
+  .row{display:grid; grid-template-columns:92px 1fr 70px; align-items:center; gap:14px}
+  .name{font-family:var(--mono); font-size:13px}
+  .name .slow{color:var(--hot)}
+  .ref{font-family:var(--mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-left:7px}
+  .bar{position:relative; height:22px; background:#eef0ee; border:1px solid var(--line); display:flex}
+  .seg{height:100%}
+  .seg.pred{background:var(--pred)}
+  .seg.ent{background:var(--ent)}
+  .total{font-family:var(--mono); font-size:13px; text-align:right; color:#33373d}
+  .total b{font-weight:600; color:var(--ink)}
+  .axis{display:grid; grid-template-columns:92px 1fr 70px; gap:14px; margin-top:8px}
+  .ticks{grid-column:2; display:flex; justify-content:space-between;
+    font-family:var(--mono); font-size:11px; color:var(--muted)}
+  .legend{display:flex; gap:20px; margin-top:22px; font-family:var(--mono); font-size:12px; color:var(--muted)}
+  .swatch{display:inline-block; width:11px; height:11px; margin-right:7px; vertical-align:-1px}
+  .swatch.pred{background:var(--pred)} .swatch.ent{background:var(--ent)}
+
+  table{width:100%; border-collapse:collapse; font-family:var(--mono); font-size:13px}
+  caption{text-align:left; font-family:var(--mono); font-size:12px; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--muted); padding-bottom:14px}
+  th,td{padding:8px 10px; text-align:right; border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  thead th{font-weight:600; color:var(--muted); font-size:11px; letter-spacing:.06em; text-transform:uppercase}
+  tbody tr:hover{background:#f8f9f7}
+  td.slow{color:var(--hot)}
+
+  ul.find{list-style:none; padding:0; margin:0; display:grid; gap:12px}
+  ul.find li{position:relative; padding-left:26px; max-width:66ch; font-size:15px; color:#2a2e34}
+  ul.find li::before{content:""; position:absolute; left:0; top:9px; width:9px; height:9px; background:var(--pred)}
+
+  pre.code{font-family:var(--mono); font-size:12px; line-height:1.6; color:#e8ecf3;
+    background:#171a21; padding:18px 20px; overflow-x:auto; margin:0}
+  pre.code .c{color:#7f8a9a}
+  footer{margin-top:40px; font-family:var(--mono); font-size:11px; letter-spacing:.06em; color:var(--muted)}
+
+  @media (max-width:560px){
+    .row,.axis{grid-template-columns:74px 1fr 58px}
+    .name,.total{font-size:12px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow">geozl benchmark</p>
+  <h1>Decode cost <span>/ predictor versus entropy</span></h1>
+  <p class="lede">Where does the time go when a geozl tile is decoded. We split the decode into the inverse predictor and the Huffman entropy stage and measure each in nanoseconds per pixel.</p>
+
+  <hr class="rule">
+
+  <h2>Method</h2>
+  <p class="method">We decode one 256 by 256 uint16 tile and split the time into the inverse predictor and the Huffman entropy stage. Inputs are synthetic smooth fields, 32 tiles with varied frequency and offset, standing in for spatially correlated raster bands. Predictor kernels are the geozl C kernels built with -O3 -march=native. The entropy stage is HUF from the reference finite state entropy library, run on the zigzag residual split into high and low byte planes. Each tile is decoded one thousand times after warmup, and every number is the mean across all 32 tiles in nanoseconds per pixel. The OpenZL built in 1D delta is included as the baseline. Absolute times are machine specific, the ratios are the result.</p>
+
+  <h2 style="margin-top:34px">Synthetic tiles</h2>
+  <pre class="code"><span class="c"># 32 smooth fields, two sine layers plus a small dither, uint16</span>
+for t in 0 .. 31:
+    fx  = 6 + (t*7  mod 11)          <span class="c"># horizontal frequency</span>
+    fy  = 5 + (t*13 mod 9)           <span class="c"># diagonal frequency</span>
+    amp = 200 + (t*37 mod 400)       <span class="c"># amplitude</span>
+    off = 1500 + (t*101 mod 3000)    <span class="c"># DC offset</span>
+    seed = t * 2654435761
+
+    for y in 0 .. 255:
+        for x in 0 .. 255:
+            v  = off
+            v += amp * 0.5 * (1 + sin(2*pi * x/256 * fx/4))
+            v += amp * 0.4 * (1 + sin(2*pi * (x+y)/256 * fy/6))
+            v += (seed xor x*2654435761 xor y*40503) and 7
+            tile[y][x] = uint16(v)</pre>
+
+  <hr class="rule">
+
+  <h2>Decode time per pixel</h2>
+  <div class="chart" role="img" aria-label="Stacked bars of predictor and entropy decode time per predictor">
+    <div class="row"><div class="name">delta <span class="ref">openzl</span></div>
+      <div class="bar"><span class="seg pred" style="width:4.7%"></span><span class="seg ent" style="width:39.6%"></span></div>
+      <div class="total"><b>1.70</b></div></div>
+    <div class="row"><div class="name">delta_n</div>
+      <div class="bar"><span class="seg pred" style="width:1.8%"></span><span class="seg ent" style="width:44.2%"></span></div>
+      <div class="total"><b>1.76</b></div></div>
+    <div class="row"><div class="name">planar</div>
+      <div class="bar"><span class="seg pred" style="width:7.1%"></span><span class="seg ent" style="width:43.2%"></span></div>
+      <div class="total"><b>1.92</b></div></div>
+    <div class="row"><div class="name">delta_w</div>
+      <div class="bar"><span class="seg pred" style="width:4.9%"></span><span class="seg ent" style="width:46.1%"></span></div>
+      <div class="total"><b>1.95</b></div></div>
+    <div class="row"><div class="name">wp_static</div>
+      <div class="bar"><span class="seg pred" style="width:21.7%"></span><span class="seg ent" style="width:43.2%"></span></div>
+      <div class="total"><b>2.48</b></div></div>
+    <div class="row"><div class="name"><span class="slow">average</span></div>
+      <div class="bar"><span class="seg pred" style="width:32.5%"></span><span class="seg ent" style="width:44.9%"></span></div>
+      <div class="total"><b>2.96</b></div></div>
+    <div class="row"><div class="name"><span class="slow">med</span></div>
+      <div class="bar"><span class="seg pred" style="width:56.2%"></span><span class="seg ent" style="width:43.8%"></span></div>
+      <div class="total"><b>3.83</b></div></div>
+  </div>
+  <div class="axis"><div class="ticks"><span>0</span><span>1</span><span>2</span><span>3</span><span>3.83 ns/px</span></div></div>
+  <div class="legend">
+    <span><i class="swatch pred"></i>inverse predictor</span>
+    <span><i class="swatch ent"></i>Huffman entropy</span>
+  </div>
+
+  <hr class="rule">
+
+  <h2>Numbers</h2>
+  <table>
+    <caption>mean over 32 tiles, nanoseconds per pixel</caption>
+    <thead><tr>
+      <th>predictor</th><th>predictor ns/px</th><th>huffman ns/px</th><th>total ns/px</th><th>predictor share</th><th>vs planar</th>
+    </tr></thead>
+    <tbody>
+      <tr><td>delta <span class="ref">openzl</span></td><td>0.18</td><td>1.52</td><td>1.70</td><td>11%</td><td>0.88x</td></tr>
+      <tr><td>delta_n</td><td>0.07</td><td>1.69</td><td>1.76</td><td>4%</td><td>0.92x</td></tr>
+      <tr><td>planar</td><td>0.27</td><td>1.65</td><td>1.92</td><td>14%</td><td>1.00x</td></tr>
+      <tr><td>delta_w</td><td>0.19</td><td>1.76</td><td>1.95</td><td>10%</td><td>1.02x</td></tr>
+      <tr><td>wp_static</td><td>0.83</td><td>1.65</td><td>2.48</td><td>33%</td><td>1.29x</td></tr>
+      <tr><td class="slow">average</td><td>1.24</td><td>1.72</td><td>2.96</td><td>42%</td><td class="slow">1.54x</td></tr>
+      <tr><td class="slow">med</td><td>2.15</td><td>1.68</td><td>3.83</td><td>56%</td><td class="slow">1.99x</td></tr>
+    </tbody>
+  </table>
+
+  <hr class="rule">
+
+  <h2>Findings</h2>
+  <ul class="find">
+    <li>The entropy stage is a fixed floor near 1.7 ns per pixel and dominates the fast predictors.</li>
+    <li>The predictor share runs from 4 percent for delta_n to 56 percent for med.</li>
+    <li>med decodes in 2.0 times the time of planar, not 8 times. The entropy floor dilutes the predictor cost.</li>
+    <li>delta_n, planar and delta_w sit within 10 percent of each other. wp_static adds 29 percent. average and med are the slow tier.</li>
+    <li>delta is the built in OpenZL 1D predictor, shown as the baseline. It never reseeds, while the geozl delta_w reseeds at each row edge.</li>
+  </ul>
+
+  <footer>geozl &middot; predictor decode benchmark</footer>
+
+</div>
+</body>
+</html>
