@@ -1,9 +1,10 @@
 #include "decode_wp_static_binding.h"
 #include "decode_wp_static_kernel.h"
-#include "header_wp_static.h"
+
+#include "common/graph_num1to1.h" // GEOZL_NUM1TO1_GRAPH
+#include "geozl/ctids.h"          // GEOZL_CTID_WP_STATIC
 
 #include "openzl/zl_data.h"
-#include "openzl/zl_dtransform.h"
 #include "openzl/zl_errors.h"
 #include "openzl/zl_errors_types.h"
 #include "openzl/zl_input.h"
@@ -11,7 +12,13 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <string.h>
 
+const ZL_TypedDecoderDesc wp_static_decoder_desc = {
+    .gd          = GEOZL_NUM1TO1_GRAPH(GEOZL_CTID_WP_STATIC),
+    .transform_f = DI_geozl_wp_static,
+    .name        = "geozl.lossless.wp_static",
+};
 
 ZL_Report DI_geozl_wp_static(ZL_Decoder* dictx, const ZL_Input* ins[])
 {
@@ -23,13 +30,17 @@ ZL_Report DI_geozl_wp_static(ZL_Decoder* dictx, const ZL_Input* ins[])
     const size_t eltWidth = ZL_Input_eltWidth(in);
     const size_t nbElts   = ZL_Input_numElts(in);
 
+    // header, little endian: uint32 width, uint8 shift, four int16 {cN,cNW,cNE,cNN}
     ZL_RBuffer header = ZL_Decoder_getCodecHeader(dictx);
+    if (header.size != 4 + 1 + 4 * sizeof(int16_t))
+        return ZL_returnError(ZL_ErrorCode_corruption);
+    const uint8_t* hb = (const uint8_t*)header.start;
     uint32_t width;
     int16_t coeffs[4];
     uint8_t shift;
-    if (!wp_static_read_header((const uint8_t*)header.start, header.size,
-                               &width, coeffs, &shift))
-        return ZL_returnError(ZL_ErrorCode_corruption);
+    memcpy(&width, hb, sizeof(width));
+    shift = hb[4];
+    memcpy(coeffs, hb + 5, 4 * sizeof(int16_t));
 
     ZL_Output* out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);
     if (out == NULL)

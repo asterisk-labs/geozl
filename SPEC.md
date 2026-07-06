@@ -29,7 +29,7 @@ A tile is a typed numeric stream of one component type, at an element width of 1
 | 9 | 4 | IEEE 32-bit float |
 | 10 | 8 | IEEE 64-bit float |
 
-OpenZL has no complex type, a tile is always one of the real component types above. A complex value is two reals, so geozl carries it as its real component type with twice the element count, the real and imaginary parts either interleaved or split into two streams. The split is done by the `complex_split` codec, which takes the real component stream and emits the two parts as separate streams, so a spatial codec after it never crosses the component boundary.
+OpenZL has no complex type, a tile is always one of the real component types above. A complex value is two reals, so geozl carries it as its real component type with twice the element count, the real and imaginary parts interleaved. A codec MAY split the interleaved parts into two streams, so a spatial codec after it never crosses the component boundary. The complex type itself is the caller's, the frame records only the real component stream.
 
 ## Transform ids
 

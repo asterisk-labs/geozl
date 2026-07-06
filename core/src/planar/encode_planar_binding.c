@@ -1,7 +1,9 @@
 #include "encode_planar_binding.h"
 #include "encode_planar_kernel.h"
 
-#include "openzl/zl_ctransform.h" // ZL_Encoder
+#include "common/graph_num1to1.h" // GEOZL_NUM1TO1_GRAPH, GEOZL_PARAM_WIDTH
+#include "geozl/ctids.h"          // GEOZL_CTID_PLANAR
+
 #include "openzl/zl_data.h"
 #include "openzl/zl_errors.h"
 #include "openzl/zl_errors_types.h"
@@ -11,26 +13,36 @@
 #include <assert.h>
 #include <stdint.h>
 
+const ZL_TypedEncoderDesc planar_encoder_desc = {
+    .gd          = GEOZL_NUM1TO1_GRAPH(GEOZL_CTID_PLANAR),
+    .transform_f = EI_geozl_planar,
+    .name        = "geozl.lossless.planar",
+};
+
 ZL_Report EI_geozl_planar(ZL_Encoder* eictx, const ZL_Input* in)
 {
+    // guaranteed by the engine and the codec signature
     assert(in != NULL);
     assert(ZL_Input_type(in) == ZL_Type_numeric);
 
     const size_t eltWidth = ZL_Input_eltWidth(in);
     const size_t nbElts   = ZL_Input_numElts(in);
 
-    ZL_IntParam wp     = ZL_Encoder_getLocalIntParam(eictx, PLANAR_PARAM_WIDTH);
-    const uint32_t wid = (wp.paramId == PLANAR_PARAM_WIDTH)
+    // the row width comes from the graph builder, a single row if it is absent
+    ZL_IntParam wp = ZL_Encoder_getLocalIntParam(eictx, GEOZL_PARAM_WIDTH);
+    const uint32_t width = (wp.paramId == GEOZL_PARAM_WIDTH)
             ? (uint32_t)wp.paramValue
             : (uint32_t)nbElts;
-    ZL_Encoder_sendCodecHeader(eictx, &wid, sizeof(wid));
 
+    // allocation is controlled by the engine
     ZL_Output* out = ZL_Encoder_createTypedStream(eictx, 0, nbElts, eltWidth);
     if (out == NULL)
         return ZL_returnError(ZL_ErrorCode_allocation);
 
-    // engine gives a fresh output buffer, so dst does not alias the input
-    planar_encode(ZL_Output_ptr(out), ZL_Input_ptr(in), wid, nbElts, eltWidth);
+    planar_encode(ZL_Output_ptr(out), ZL_Input_ptr(in), width, nbElts, eltWidth);
+
+    // the width is all the decoder needs, it rides in the codec header
+    ZL_Encoder_sendCodecHeader(eictx, &width, sizeof(width));
 
     if (ZL_isError(ZL_Output_commit(out, nbElts)))
         return ZL_returnError(ZL_ErrorCode_GENERIC);

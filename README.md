@@ -12,7 +12,7 @@
 
 OpenZL models compression as a graph of codecs and ships the decode recipe inside every frame, so one **universal decoder** reads any frame. It compresses 1D streams and has no notion of a 2D raster. geozl adds the spatial codecs for it.
 
-A geozl codec is one node in the [OpenZL](https://github.com/facebook/openzl) graph. It transforms the tile, a numeric stream, and carries whatever the decoder needs to invert it in the codec header inside the frame. The full rules live in the [specification](SPEC.md).
+A geozl codec is one node in the [OpenZL](https://github.com/facebook/openzl) graph. It transforms the tile, a numeric stream, and carries whatever the decoder needs to invert it in the codec header inside the frame. The full rules live in the [specification](SPEC.md), and [adding a codec](docs/adding-a-codec.md) covers extending geozl.
 
 ## Status
 
@@ -36,7 +36,7 @@ import geozl
 c = zl.Compressor()
 g = zl.graphs.Compress()
 g = zl.nodes.Zigzag()(c, g)
-g = geozl.lossless.PlanarInt(width=512)(c, g)
+g = geozl.lossless.Planar(width=512)(c, g)
 c.select_starting_graph(g)
 ```
 
@@ -50,7 +50,7 @@ Quantizers, namespace `geozl.lossy`. A frame is no longer bit exact, carries one
 
 | codec | call | CTid | mode | error |
 |---|---|---|---|---|
-| `quant_linear` | `geozl.lossy.quant_linear(max_error, dtype)` | `0x72D780` | ABS | every value within `max_error` |
+| `quant_linear` | `geozl.lossy.QuantLinear(max_error, dtype)` | `0x72D780` | ABS | every value within `max_error` |
 | `quant_log` | reserved, not implemented yet | `0x72D781` | REL | every value within `rel_error` of itself |
 
 ### Lossless
@@ -59,13 +59,13 @@ Namespace `geozl.lossless`, bit exact transforms of a tile.
 
 | codec | call | CTid | what it does |
 |---|---|---|---|
-| `delta_w` | `geozl.lossless.DeltaWInt(width)` | `0x72D701` | horizontal delta |
-| `delta_n` | `geozl.lossless.DeltaNInt(width)` | `0x72D702` | vertical delta |
-| `planar` | `geozl.lossless.PlanarInt(width)` | `0x72D703` | predicts each pixel from W plus N minus NW |
-| `complex` | `geozl.lossless.complex_split(dtype)` | `0x72D704` | splits real and imaginary into separate streams |
-| `med` | `geozl.lossless.MedInt(width)` | `0x72D705` | median edge detector, W plus N minus NW clamped to the neighbours |
-| `average` | `geozl.lossless.AverageInt(width)` | `0x72D706` | floor average of W and N |
-| `wp_static` | `geozl.lossless.WpStaticInt(width, coeffs, shift)` | `0x72D707` | frozen weighted predictor, W plus a signaled linear kernel over the row above |
+| `delta_w` | `geozl.lossless.DeltaW(width)` | `0x72D701` | horizontal delta |
+| `delta_n` | `geozl.lossless.DeltaN(width)` | `0x72D702` | vertical delta |
+| `planar` | `geozl.lossless.Planar(width)` | `0x72D703` | predicts each pixel from W plus N minus NW |
+| `deinterleave` | `geozl.lossless.Deinterleave()` | `0x72D704` | splits an interleaved stream into two lanes, real and imaginary of a complex |
+| `med` | `geozl.lossless.Med(width)` | `0x72D705` | median edge detector, W plus N minus NW clamped to the neighbours |
+| `average` | `geozl.lossless.Average(width)` | `0x72D706` | floor average of W and N |
+| `wp_static` | `geozl.lossless.WpStatic(width)` | `0x72D707` | weighted predictor, fits a linear kernel over the neighbours and carries it in the frame |
 
 ## License
 

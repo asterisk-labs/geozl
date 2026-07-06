@@ -1,5 +1,5 @@
 #include "encode_quant_linear_kernel.h"
-#include "graph_quant_linear.h" // ql_dtype
+#include "quant_linear_dtype.h" // ql_dtype
 
 #include <stdint.h>
 #include <string.h>

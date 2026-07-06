@@ -7,4 +7,12 @@ try:
 except PackageNotFoundError:
     __version__ = "0+unknown"
 
-__all__ = ["lossless", "lossy", "__version__"]
+
+def register_decoders(dctx):
+    """Register every geozl decoder, lossless and lossy, into an openzl.ext DCtx.
+    The counterpart of geozl_register_decoders on the C side."""
+    lossless.register_decoders(dctx)
+    lossy.register_decoders(dctx)
+
+
+__all__ = ["lossless", "lossy", "register_decoders", "__version__"]

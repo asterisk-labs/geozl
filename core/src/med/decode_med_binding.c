@@ -1,9 +1,10 @@
 #include "decode_med_binding.h"
 #include "decode_med_kernel.h"
-#include "header_med.h"
+
+#include "common/graph_num1to1.h" // GEOZL_NUM1TO1_GRAPH
+#include "geozl/ctids.h"          // GEOZL_CTID_MED
 
 #include "openzl/zl_data.h"
-#include "openzl/zl_dtransform.h"
 #include "openzl/zl_errors.h"
 #include "openzl/zl_errors_types.h"
 #include "openzl/zl_input.h"
@@ -11,6 +12,13 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <string.h>
+
+const ZL_TypedDecoderDesc med_decoder_desc = {
+    .gd          = GEOZL_NUM1TO1_GRAPH(GEOZL_CTID_MED),
+    .transform_f = DI_geozl_med,
+    .name        = "geozl.lossless.med",
+};
 
 ZL_Report DI_geozl_med(ZL_Decoder* dictx, const ZL_Input* ins[])
 {
@@ -22,10 +30,12 @@ ZL_Report DI_geozl_med(ZL_Decoder* dictx, const ZL_Input* ins[])
     const size_t eltWidth = ZL_Input_eltWidth(in);
     const size_t nbElts   = ZL_Input_numElts(in);
 
+    // the width is carried in the codec header, written by the encoder
     ZL_RBuffer header = ZL_Decoder_getCodecHeader(dictx);
-    uint32_t width;
-    if (!med_read_header((const uint8_t*)header.start, header.size, &width))
+    if (header.size != sizeof(uint32_t))
         return ZL_returnError(ZL_ErrorCode_corruption);
+    uint32_t width;
+    memcpy(&width, header.start, sizeof(width));
 
     ZL_Output* out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);
     if (out == NULL)

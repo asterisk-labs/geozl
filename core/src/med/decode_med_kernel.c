@@ -1,7 +1,5 @@
 // Inverse MED predictor, JPEG-LS (ITU-T T.87 A.4.2,
-// https://www.itu.int/rec/T-REC-T.87/en). The prediction clamps the gradient to
-// the neighbour range, so it is nonlinear in W and cannot be a prefix sum, each
-// sample is reconstructed in turn from its decoded neighbours. Row zero and
+// https://www.itu.int/rec/T-REC-T.87/en). Row zero and
 // column zero are peeled so the interior loop carries no boundary test.
 
 #include "decode_med_kernel.h"

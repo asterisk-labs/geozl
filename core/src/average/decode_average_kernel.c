@@ -1,9 +1,6 @@
 // Inverse Average predictor, PNG filter 3 (RFC 2083 6.5,
-// https://datatracker.ietf.org/doc/rfc2083/). The prediction reads the
-// reconstructed W and enters it halved, so this is not a prefix sum like a unit
-// weight predictor, each sample is reconstructed in turn from its decoded
-// neighbours. Row zero and column zero are peeled so the interior loop carries
-// no boundary test.
+// https://datatracker.ietf.org/doc/rfc2083/). Row zero and column zero 
+// are peeled so the interior loop carries no boundary test.
 
 #include "decode_average_kernel.h"
 

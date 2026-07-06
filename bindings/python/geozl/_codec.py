@@ -1,15 +1,20 @@
+import struct
+
 from openzl import ext as _ext
 
-from .._ffi import _ptr, ffi, lib
+from ._ffi import _ptr, lib
+
+# uint32 little endian row width, the whole header of a spatial predictor. The C
+# binding writes the same four bytes, see the codec spec.
+_HEADER = struct.Struct("<I")
 
 
-def predictor(ctid, name, encode_auto, decode_auto, header_cap):
-    """Build the Node and Decoder for a lossless predictor whose header is owned
-    by C. encode_auto estimates any parameters, writes the header, and encodes.
-    decode_auto reads the header and decodes. Python only moves the opaque header
-    bytes, it never reads or writes the layout."""
-    enc = getattr(lib, encode_auto)
-    dec = getattr(lib, decode_auto)
+def spatial_predictor(ctid, name, encode, decode):
+    """Node and decoder for a lossless spatial predictor, one numeric stream in
+    and one out, parameterized by a row width. encode and decode are the C kernel
+    names. Both take (dst, src, width, nb_elts, elt_width)."""
+    enc = getattr(lib, encode)
+    dec = getattr(lib, decode)
     short = name.rsplit(".", 1)[-1]
 
     desc = _ext.MultiInputCodecDescription(
@@ -21,7 +26,7 @@ def predictor(ctid, name, encode_auto, decode_auto, header_cap):
 
     class Encoder(_ext.CustomEncoder):
         def __init__(self, width):
-            super().__init__()          # load bearing, inits the C++ side
+            super().__init__()
             self._width = int(width)
 
         def multi_input_description(self):
@@ -31,10 +36,9 @@ def predictor(ctid, name, encode_auto, decode_auto, header_cap):
             inp = state.inputs[0]
             n, elt = inp.num_elts, inp.elt_width
             out = state.create_output(0, n, elt)
-            header = ffi.new("uint8_t[]", header_cap)
-            size = enc(_ptr(out.mut_content.as_nparray()), header, header_cap,
-                       _ptr(inp.content.as_nparray()), self._width, n, elt)
-            state.send_codec_header(bytes(ffi.buffer(header, size)))
+            enc(_ptr(out.mut_content.as_nparray()),
+                _ptr(inp.content.as_nparray()), self._width, n, elt)
+            state.send_codec_header(_HEADER.pack(self._width))
             out.commit(n)
 
     class Decoder(_ext.CustomDecoder):
@@ -44,17 +48,13 @@ def predictor(ctid, name, encode_auto, decode_auto, header_cap):
         def decode(self, state):
             inp = state.singleton_inputs[0]
             n, elt = inp.num_elts, inp.elt_width
-            head = state.codec_header
-            header = ffi.new("uint8_t[]", head)
+            (width,) = _HEADER.unpack(state.codec_header)
             out = state.create_output(0, n, elt)
-            dec(_ptr(out.mut_content.as_nparray()), _ptr(inp.content.as_nparray()),
-                header, len(head), n, elt)
+            dec(_ptr(out.mut_content.as_nparray()),
+                _ptr(inp.content.as_nparray()), width, n, elt)
             out.commit(n)
 
     class Node:
-        """Chains like an openzl.ext node: call with the compressor and the
-        successor graph, get back a GraphID."""
-
         def __init__(self, width):
             self._width = int(width)
 

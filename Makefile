@@ -21,7 +21,7 @@ endif
 
 CMAKE_FLAGS ?=
 CMAKE_OPTS  := -G $(GEN) -DCMAKE_BUILD_TYPE=$(BUILD) \
-               -DGEOZL_BUILD_FULL=$(FULL) -DGEOZL_BUILD_KERNELS=ON $(CMAKE_FLAGS)
+               -DGEOZL_BUILD_FULL=$(FULL) -DGEOZL_BUILD_KERNELS_SHARED=ON $(CMAKE_FLAGS)
 
 .PHONY: all build configure lib python test install submodules clean help
 

@@ -1,11 +1,13 @@
-from .quant_linear import QuantLinearDecoder, quant_linear
+from .quant_linear import QuantLinear, QuantLinearDecoder
 
 _DECODERS = (QuantLinearDecoder,)
 
 
-def register_decoders(dctx) -> None:
+def register_decoders(dctx):
+    """Register the lossy decoders into an openzl.ext DCtx, for decoding in
+    Python. A C reader registers them through libgeozl instead."""
     for decoder in _DECODERS:
         dctx.register_custom_decoder(decoder())
 
 
-__all__ = ["QuantLinearDecoder", "quant_linear", "register_decoders"]
+__all__ = ["QuantLinear", "QuantLinearDecoder", "register_decoders"]

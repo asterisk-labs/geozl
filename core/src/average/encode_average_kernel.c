@@ -1,6 +1,6 @@
 // Forward Average predictor (PNG filter 3). The floor average of W and N is
 // computed as (W>>1) + (N>>1) + (W&N&1) so the sum never overflows the sample
-// width, which matters at 64 bits where a wider accumulator is not available.
+// width.
 
 #include "encode_average_kernel.h"
 
