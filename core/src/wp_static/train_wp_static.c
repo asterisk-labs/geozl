@@ -1,16 +1,15 @@
-// Fit the wp_static kernel from a tile. The kernel rides in the codec header, so
-// this only picks coefficients and its one rule is to never lose to planar. Ridge
-// normal equations, then a shift sweep scored by the byte plane entropy of the
-// residual, the way the entropy stage codes it. Defined for 1 and 2 byte samples.
+// Fit the wp_static kernel from a tile, for 1 and 2 byte samples. Ridge normal
+// equations for the coefficients, then the shift that gives the lowest residual
+// byte plane entropy. Never loses to planar.
 
 #include "train_wp_static.h"
-#include "encode_wp_static_kernel.h"
 
 #include <math.h>
-#include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 
 #define WP_SHIFT_MAX 8
+#define WP_MAX_CAND  (WP_SHIFT_MAX + 2)
 
 static int solve4(double A[4][4], double b[4], double x[4])
 {
@@ -71,25 +70,34 @@ static double plane_H(const uint32_t* hist, size_t nb)
     return H;
 }
 
-// Cost of the residual as the entropy stage codes it, the summed order zero
-// entropy of the high and low byte planes of the zigzagged residual.
-static double cand_cost(void* scratch, const void* src, size_t w, size_t nb,
-                        size_t elt, const int16_t c[4], uint8_t shift,
-                        uint32_t* hi, uint32_t* lo)
-{
-    wp_static_encode(scratch, src, w, nb, elt, c, shift);
-    memset(hi, 0, 256 * sizeof(uint32_t));
-    memset(lo, 0, 256 * sizeof(uint32_t));
-    const uint16_t* r = (const uint16_t*)scratch;
-    const uint8_t* r8 = (const uint8_t*)scratch;
-    for (size_t i = 0; i < nb; ++i) {
-        int16_t s = (elt == 1) ? (int16_t)(int8_t)r8[i] : (int16_t)r[i];
-        uint16_t zz = (uint16_t)((s << 1) ^ (s >> 15));
-        hi[(zz >> 8) & 0xFF]++;
-        lo[zz & 0xFF]++;
-    }
-    return plane_H(hi, nb) + plane_H(lo, nb);
-}
+// All candidates in one pass. The residual matches wp_static_encode, K in int32,
+// boundary neighbours zero.
+#define WP_SCORE(T, ZCAST)                                                   \
+    do {                                                                     \
+        const T* s = (const T*)src;                                          \
+        for (size_t r = 0; r < rows; ++r) {                                  \
+            const size_t row = r * w;                                        \
+            const T* ab  = (r >= 1) ? s + row - w : (const T*)0;             \
+            const T* ab2 = (r >= 2) ? s + row - 2 * w : (const T*)0;         \
+            for (size_t c = 0; c < w; ++c) {                                 \
+                const int32_t N  = ab ? (int32_t)ab[c] : 0;                  \
+                const int32_t NW = (ab && c > 0) ? (int32_t)ab[c - 1] : 0;   \
+                const int32_t NE = (ab && c + 1 < w) ? (int32_t)ab[c + 1] : 0; \
+                const int32_t NN = ab2 ? (int32_t)ab2[c] : 0;               \
+                const int32_t base =                                         \
+                    (int32_t)s[row + c] - (int32_t)((c > 0) ? s[row + c - 1] : 0); \
+                for (int m = 0; m < nc; ++m) {                              \
+                    const int32_t K =                                        \
+                        (cf[m][0] * N + cf[m][1] * NW + cf[m][2] * NE        \
+                         + cf[m][3] * NN + rnd[m]) >> sh[m];                 \
+                    const int16_t z = (int16_t)(ZCAST)(base - K);           \
+                    const uint16_t zz = (uint16_t)((z << 1) ^ (z >> 15));   \
+                    hi[m][(zz >> 8) & 0xFF]++;                              \
+                    lo[m][zz & 0xFF]++;                                     \
+                }                                                            \
+            }                                                                \
+        }                                                                    \
+    } while (0)
 
 void wp_static_train(int16_t coeffs[4], uint8_t* shift, const void* src,
                      size_t width, size_t nb_elts, size_t elt_width)
@@ -108,37 +116,47 @@ void wp_static_train(int16_t coeffs[4], uint8_t* shift, const void* src,
     if (elt_width == 1) WP_ACCUM(uint8_t); else WP_ACCUM(uint16_t);
 
     double tr = M[0][0] + M[1][1] + M[2][2] + M[3][3];
-    double lambda = 1e-6 * (tr / 4.0) + 1e-9;         // ridge, the neighbours are collinear
+    double lambda = 1e-6 * (tr / 4.0) + 1e-9; // ridge, the neighbours are collinear
     for (int i = 0; i < 4; ++i) M[i][i] += lambda;
 
     double a[4];
     if (!solve4(M, v, a))
         return;
 
-    void* scratch = malloc(nb_elts * elt_width);
-    if (!scratch) return;
-    uint32_t* hi = (uint32_t*)malloc(256 * sizeof(uint32_t));
-    uint32_t* lo = (uint32_t*)malloc(256 * sizeof(uint32_t));
-    if (!hi || !lo) { free(scratch); free(hi); free(lo); return; }
-
-    const int16_t planar[4] = {1, -1, 0, 0};
-    double best = cand_cost(scratch, src, w, nb_elts, elt_width, planar, 0, hi, lo);
-
-    for (int sh = 0; sh <= WP_SHIFT_MAX; ++sh) {
+    int16_t cf[WP_MAX_CAND][4];
+    uint8_t sh[WP_MAX_CAND];
+    int32_t rnd[WP_MAX_CAND];
+    int nc = 0;
+    cf[0][0] = 1; cf[0][1] = -1; cf[0][2] = 0; cf[0][3] = 0; // planar
+    sh[0] = 0; rnd[0] = 0; nc = 1;
+    for (int s = 0; s <= WP_SHIFT_MAX; ++s) {
         int16_t q[4];
         int ok = 1;
         for (int k = 0; k < 4; ++k) {
-            long qi = lround(a[k] * (double)(1 << sh));
+            long qi = lround(a[k] * (double)(1 << s));
             if (qi < -32768 || qi > 32767) { ok = 0; break; }
             q[k] = (int16_t)qi;
         }
         if (!ok) continue;
-        double e = cand_cost(scratch, src, w, nb_elts, elt_width, q, (uint8_t)sh, hi, lo);
-        if (e < best) {
-            best = e;
-            coeffs[0] = q[0]; coeffs[1] = q[1]; coeffs[2] = q[2]; coeffs[3] = q[3];
-            *shift = (uint8_t)sh;
-        }
+        cf[nc][0] = q[0]; cf[nc][1] = q[1]; cf[nc][2] = q[2]; cf[nc][3] = q[3];
+        sh[nc] = (uint8_t)s;
+        rnd[nc] = s ? (int32_t)1 << (s - 1) : 0;
+        ++nc;
     }
-    free(hi); free(lo); free(scratch);
+
+    uint32_t hi[WP_MAX_CAND][256], lo[WP_MAX_CAND][256];
+    memset(hi, 0, sizeof hi);
+    memset(lo, 0, sizeof lo);
+    if (elt_width == 1) WP_SCORE(uint8_t, int8_t); else WP_SCORE(uint16_t, int16_t);
+
+    int best = 0;
+    double best_cost = plane_H(hi[0], nb_elts) + plane_H(lo[0], nb_elts);
+    for (int m = 1; m < nc; ++m) {
+        double e = plane_H(hi[m], nb_elts) + plane_H(lo[m], nb_elts);
+        if (e < best_cost) { best_cost = e; best = m; }
+    }
+
+    coeffs[0] = cf[best][0]; coeffs[1] = cf[best][1];
+    coeffs[2] = cf[best][2]; coeffs[3] = cf[best][3];
+    *shift = sh[best];
 }
