@@ -51,7 +51,7 @@ jobs:
           # FULL=OFF, kernels only. No OpenZL compile, so the image gcc alone is
           # enough and the .so keeps a low glibc floor from the manylinux base.
           cmake -S core -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-                -DGEOZL_BUILD_FULL=OFF -DGEOZL_BUILD_KERNELS=ON
+                -DGEOZL_BUILD_FULL=OFF -DGEOZL_BUILD_KERNELS_SHARED=ON
           cmake --build build
           mkdir -p bindings/python/geozl/_lib
           cp -av build/libgeozl_kernels*.so bindings/python/geozl/_lib/
@@ -92,7 +92,7 @@ jobs:
           export MACOSX_DEPLOYMENT_TARGET=11.0   # makes the platform tag below honest
           python -m pip install -q --upgrade pip cmake ninja build wheel
           cmake -S core -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-                -DGEOZL_BUILD_FULL=OFF -DGEOZL_BUILD_KERNELS=ON
+                -DGEOZL_BUILD_FULL=OFF -DGEOZL_BUILD_KERNELS_SHARED=ON
           cmake --build build
           mkdir -p bindings/python/geozl/_lib
           cp -av build/libgeozl_kernels*.dylib bindings/python/geozl/_lib/
