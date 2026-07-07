@@ -18,11 +18,15 @@ UNAME      := $(shell uname -s)
 ifeq ($(SAN),ON)
   BUILD_DIR := core/build-san
   ifeq ($(UNAME),Darwin)
-    SAN_PRELOAD := DYLD_INSERT_LIBRARIES=$(shell $(CC) -print-runtime-dir)/libclang_rt.asan_osx_dynamic.dylib
+    ASAN_RT := $(shell $(CC) -print-runtime-dir)/libclang_rt.asan_osx_dynamic.dylib
+    SAN_PRELOAD := DYLD_INSERT_LIBRARIES=$(ASAN_RT)
   else
-    SAN_PRELOAD := LD_PRELOAD=$(shell $(CC) -print-file-name=libasan.so)
+    ASAN_RT := $(shell $(CC) -print-file-name=libasan.so)
+    SAN_PRELOAD := LD_PRELOAD=$(ASAN_RT)
   endif
-  SAN_ENV := $(SAN_PRELOAD) \
+  # GEOZL_ASAN_RT survives into the test process, which reinjects it as the
+  # preload for the subprocesses it spawns. macOS strips DYLD_* from the child.
+  SAN_ENV := $(SAN_PRELOAD) GEOZL_ASAN_RT=$(ASAN_RT) \
              ASAN_OPTIONS=detect_leaks=0:abort_on_error=1 \
              UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
 else

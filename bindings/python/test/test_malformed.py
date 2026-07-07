@@ -1,3 +1,4 @@
+import os
 import struct
 import subprocess
 import sys
@@ -71,13 +72,15 @@ def _case_dtype():
 
 
 # A shift wider than the accumulator, an undefined shift count in the predictor.
+# Two rows keep the trainer on its planar default, so the coeffs are known and
+# make a distinctive anchor, the shift byte sits right before them.
 def _case_shift():
-    arr = np.tile(np.arange(101, dtype=np.uint16), (7, 1))
-    frame = bytearray(_compress(geozl.lossless.WpStatic(101), arr))
-    at = _locate(frame, struct.pack("<I", 101))
-    if at < 0:
+    arr = np.tile(np.arange(1, 101, dtype=np.uint16), (2, 1))
+    frame = bytearray(_compress(geozl.lossless.WpStatic(100), arr))
+    at = _locate(frame, struct.pack("<4h", 1, -1, 0, 0))
+    if at < 1:
         sys.exit(2)
-    frame[at + 4] = 200
+    frame[at - 1] = 200
     _decode(bytes(frame))
 
 
@@ -91,10 +94,16 @@ _CASES = {
 
 # The child exits 0 when the fault is rejected cleanly, 3 when it slips through,
 # and dies on a signal when it corrupts memory. Isolating it keeps one bad frame
-# from taking down the whole run.
+# from taking down the whole run. macOS strips the dyld preload from the child, so
+# the Makefile hands the runtime path through GEOZL_ASAN_RT and we set it again.
 def _child(name):
+    env = dict(os.environ)
+    rt = env.get("GEOZL_ASAN_RT")
+    if rt:
+        var = "DYLD_INSERT_LIBRARIES" if sys.platform == "darwin" else "LD_PRELOAD"
+        env[var] = rt
     return subprocess.run(
-        [sys.executable, __file__, name], capture_output=True, text=True)
+        [sys.executable, __file__, name], capture_output=True, text=True, env=env)
 
 
 @pytest.mark.parametrize("name", list(_CASES))

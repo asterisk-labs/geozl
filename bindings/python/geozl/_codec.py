@@ -9,6 +9,13 @@ from ._ffi import _ptr, lib
 _HEADER = struct.Struct("<I")
 
 
+def _row_width(width, n):
+    """Effective row width, or 0 when width cannot tile n samples. Mirrors
+    geozl_row_width on the C side. Call with n != 0."""
+    w = n if (width == 0 or width > n) else width
+    return w if n % w == 0 else 0
+
+
 def spatial_predictor(ctid, name, encode, decode):
     """Node and decoder for a lossless spatial predictor, one numeric stream in
     and one out, parameterized by a row width. encode and decode are the C kernel
@@ -35,6 +42,9 @@ def spatial_predictor(ctid, name, encode, decode):
         def encode(self, state):
             inp = state.inputs[0]
             n, elt = inp.num_elts, inp.elt_width
+            if n and _row_width(self._width, n) == 0:
+                raise ValueError(
+                    f"{name}: width {self._width} does not tile {n} samples")
             out = state.create_output(0, n, elt)
             enc(_ptr(out.mut_content.as_nparray()),
                 _ptr(inp.content.as_nparray()), self._width, n, elt)
@@ -49,6 +59,8 @@ def spatial_predictor(ctid, name, encode, decode):
             inp = state.singleton_inputs[0]
             n, elt = inp.num_elts, inp.elt_width
             (width,) = _HEADER.unpack(state.codec_header)
+            if n and _row_width(width, n) == 0:
+                raise ValueError(f"{name}: bad row width in codec header")
             out = state.create_output(0, n, elt)
             dec(_ptr(out.mut_content.as_nparray()),
                 _ptr(inp.content.as_nparray()), width, n, elt)
