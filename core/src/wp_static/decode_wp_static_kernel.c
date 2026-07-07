@@ -1,11 +1,12 @@
 // Inverse wp_static predictor. The kernel K over the row above has no left
 // dependency, so it is a plain map that vectorizes, and the remaining W chain is
-// a prefix sum, the same scan as planar. K is accumulated in int32 for 8 and
-// 16-bit samples, int64 for 32 and 64-bit. @dst may alias @src.
+// a prefix sum, the same scan as planar. The sum folds unsigned in 64-bit, the
+// same as the encoder, so no width overflows. @dst may alias @src.
 
 #include "decode_wp_static_kernel.h"
 
 #include <stddef.h>
+#include <stdint.h>
 
 #if defined(__AVX2__)
 #    include <immintrin.h>
@@ -163,58 +164,63 @@ static void scan64(uint64_t* dst, const uint64_t* src, size_t n)
 // above, so the interior span has no dependency and vectorizes. Edge taps are
 // zero, and ab2, the row two above, is null on row one.
 
-#define WP_STATIC_KROW(T, ACC, NAME)                                          \
+#define WP_STATIC_KROW(T, NAME)                                               \
     static void NAME(T* d, const T* res, const T* ab, const T* ab2, size_t n, \
-                     ACC cN, ACC cNW, ACC cNE, ACC cNN, ACC rnd, int sh)       \
+                     int64_t cN, int64_t cNW, int64_t cNE, int64_t cNN,        \
+                     uint64_t rnd, int sh)                                     \
     {                                                                          \
         {                                                                      \
-            ACC K = (cN * (ACC)ab[0] + (n > 1 ? cNE * (ACC)ab[1] : 0)          \
-                     + (ab2 ? cNN * (ACC)ab2[0] : 0) + rnd) >> sh;             \
-            d[0] = (T)(res[0] + (T)K);                                         \
+            uint64_t acc = (uint64_t)cN * (uint64_t)ab[0]                      \
+                    + (n > 1 ? (uint64_t)cNE * (uint64_t)ab[1] : 0)            \
+                    + (ab2 ? (uint64_t)cNN * (uint64_t)ab2[0] : 0) + rnd;      \
+            d[0] = (T)(res[0] + (T)((int64_t)acc >> sh));                      \
         }                                                                      \
         size_t c = 1;                                                          \
         if (ab2) {                                                             \
             for (; c + 1 < n; ++c) {                                           \
-                ACC K = (cN * (ACC)ab[c] + cNW * (ACC)ab[c - 1]                \
-                         + cNE * (ACC)ab[c + 1] + cNN * (ACC)ab2[c] + rnd)     \
-                      >> sh;                                                   \
-                d[c] = (T)(res[c] + (T)K);                                     \
+                uint64_t acc = (uint64_t)cN * (uint64_t)ab[c]                  \
+                        + (uint64_t)cNW * (uint64_t)ab[c - 1]                  \
+                        + (uint64_t)cNE * (uint64_t)ab[c + 1]                  \
+                        + (uint64_t)cNN * (uint64_t)ab2[c] + rnd;              \
+                d[c] = (T)(res[c] + (T)((int64_t)acc >> sh));                  \
             }                                                                  \
         } else {                                                               \
             for (; c + 1 < n; ++c) {                                           \
-                ACC K = (cN * (ACC)ab[c] + cNW * (ACC)ab[c - 1]                \
-                         + cNE * (ACC)ab[c + 1] + rnd) >> sh;                  \
-                d[c] = (T)(res[c] + (T)K);                                     \
+                uint64_t acc = (uint64_t)cN * (uint64_t)ab[c]                  \
+                        + (uint64_t)cNW * (uint64_t)ab[c - 1]                  \
+                        + (uint64_t)cNE * (uint64_t)ab[c + 1] + rnd;           \
+                d[c] = (T)(res[c] + (T)((int64_t)acc >> sh));                  \
             }                                                                  \
         }                                                                      \
         if (n > 1) {                                                           \
             const size_t L = n - 1;                                            \
-            ACC K = (cN * (ACC)ab[L] + cNW * (ACC)ab[L - 1]                    \
-                     + (ab2 ? cNN * (ACC)ab2[L] : 0) + rnd) >> sh;             \
-            d[L] = (T)(res[L] + (T)K);                                         \
+            uint64_t acc = (uint64_t)cN * (uint64_t)ab[L]                      \
+                    + (uint64_t)cNW * (uint64_t)ab[L - 1]                      \
+                    + (ab2 ? (uint64_t)cNN * (uint64_t)ab2[L] : 0) + rnd;      \
+            d[L] = (T)(res[L] + (T)((int64_t)acc >> sh));                      \
         }                                                                      \
     }
 
-WP_STATIC_KROW(uint8_t,  int32_t, krow8)
-WP_STATIC_KROW(uint16_t, int32_t, krow16)
-WP_STATIC_KROW(uint32_t, int64_t, krow32)
-WP_STATIC_KROW(uint64_t, int64_t, krow64)
+WP_STATIC_KROW(uint8_t,  krow8)
+WP_STATIC_KROW(uint16_t, krow16)
+WP_STATIC_KROW(uint32_t, krow32)
+WP_STATIC_KROW(uint64_t, krow64)
 
 #undef WP_STATIC_KROW
 
-#define WP_STATIC_DEC(T, ACC, SCAN, KROW)                                     \
-    do {                                                                       \
-        T* d       = (T*)dst;                                                  \
-        const T* s = (const T*)src;                                            \
-        const ACC cN = coeffs[0], cNW = coeffs[1], cNE = coeffs[2],            \
-                  cNN = coeffs[3];                                             \
-        const ACC rnd = shift ? (ACC)1 << (shift - 1) : 0;                     \
-        SCAN(d, s, w);                                                         \
-        for (size_t off = w, r = 1; off < nbElts; off += w, ++r) {            \
-            const T* ab2 = (r >= 2) ? d + off - 2 * w : (const T*)0;          \
-            KROW(d + off, s + off, d + off - w, ab2, w, cN, cNW, cNE, cNN,     \
-                 rnd, shift);                                                  \
-            SCAN(d + off, d + off, w);                                         \
+#define WP_STATIC_DEC(T, SCAN, KROW)                                          \
+    do {                                                                      \
+        T* d       = (T*)dst;                                                 \
+        const T* s = (const T*)src;                                           \
+        const int64_t cN = coeffs[0], cNW = coeffs[1], cNE = coeffs[2],       \
+                      cNN = coeffs[3];                                        \
+        const uint64_t rnd = shift ? (uint64_t)1 << (shift - 1) : 0;          \
+        SCAN(d, s, w);                                                        \
+        for (size_t off = w, r = 1; off < nbElts; off += w, ++r) {           \
+            const T* ab2 = (r >= 2) ? d + off - 2 * w : (const T*)0;         \
+            KROW(d + off, s + off, d + off - w, ab2, w, cN, cNW, cNE, cNN,    \
+                 rnd, shift);                                                 \
+            SCAN(d + off, d + off, w);                                        \
         }                                                                     \
     } while (0)
 
@@ -231,10 +237,10 @@ void wp_static_decode(
         return;
     const size_t w = (width == 0 || width > nbElts) ? nbElts : width;
     switch (eltWidth) {
-        case 1: WP_STATIC_DEC(uint8_t,  int32_t, scan8,  krow8);  break;
-        case 2: WP_STATIC_DEC(uint16_t, int32_t, scan16, krow16); break;
-        case 4: WP_STATIC_DEC(uint32_t, int64_t, scan32, krow32); break;
-        case 8: WP_STATIC_DEC(uint64_t, int64_t, scan64, krow64); break;
+        case 1: WP_STATIC_DEC(uint8_t,  scan8,  krow8);  break;
+        case 2: WP_STATIC_DEC(uint16_t, scan16, krow16); break;
+        case 4: WP_STATIC_DEC(uint32_t, scan32, krow32); break;
+        case 8: WP_STATIC_DEC(uint64_t, scan64, krow64); break;
         default: break;
     }
 }
