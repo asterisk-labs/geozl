@@ -76,3 +76,5 @@ bindings/python/geozl/__pycache__/
 *.pyc
 
 demo.py
+
+demo.tif

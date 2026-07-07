@@ -91,7 +91,7 @@ static double plane_H(const uint32_t* hist, size_t nb)
                         (cf[m][0] * N + cf[m][1] * NW + cf[m][2] * NE        \
                          + cf[m][3] * NN + rnd[m]) >> sh[m];                 \
                     const int16_t z = (int16_t)(ZCAST)(base - K);           \
-                    const uint16_t zz = (uint16_t)((z << 1) ^ (z >> 15));   \
+                    const uint16_t zz = (uint16_t)(((uint16_t)z << 1) ^ (z >> 15)); \
                     hi[m][(zz >> 8) & 0xFF]++;                              \
                     lo[m][zz & 0xFF]++;                                     \
                 }                                                            \

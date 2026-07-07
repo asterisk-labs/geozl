@@ -8,6 +8,7 @@ project(geozl
 option(GEOZL_BUILD_FULL           "Build the library that links OpenZL, off builds only the kernels" ON)
 option(GEOZL_BUILD_KERNELS_SHARED "Build the pure C kernels shared library for Python" ON)
 option(GEOZL_USE_SYSTEM_OPENZL    "Link an installed OpenZL instead of the submodule" OFF)
+option(GEOZL_SANITIZE             "Build with ASan and UBSan, for tests and fuzzing" OFF)
 set(GEOZL_OPENZL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../extern/openzl"
     CACHE PATH "Path to the OpenZL submodule source")
 
@@ -25,6 +26,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS   ON)
 set(CMAKE_C_VISIBILITY_PRESET       hidden)
 set(CMAKE_CXX_VISIBILITY_PRESET     hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+
+if(GEOZL_SANITIZE)
+    add_compile_options(-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address,undefined)
+endif()
 
 include(GNUInstallDirs)
 find_library(GEOZL_LIBM m)   # the wp_static trainer uses log2 and lround

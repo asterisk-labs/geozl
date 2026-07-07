@@ -3,15 +3,34 @@ PREFIX ?= /usr/local
 BUILD  ?= Release
 GEN    ?= Ninja
 FULL   ?= ON
+SAN    ?= OFF
 
 CORE       := core
-BUILD_DIR  := core/build
 OPENZL     := extern/openzl
 PY_DIR     := bindings/python
 PY_LIB_DIR := $(PY_DIR)/geozl/_lib
+UNAME      := $(shell uname -s)
+
+# A sanitized build gets its own tree so its objects never mix with a plain one,
+# and pytest runs with the ASan runtime inserted because the interpreter that
+# dlopens the kernels lib is not itself instrumented. macOS inserts via dyld, the
+# rest via LD_PRELOAD, the runtime path comes from the compiler either way.
+ifeq ($(SAN),ON)
+  BUILD_DIR := core/build-san
+  ifeq ($(UNAME),Darwin)
+    SAN_PRELOAD := DYLD_INSERT_LIBRARIES=$(shell $(CC) -print-runtime-dir)/libclang_rt.asan_osx_dynamic.dylib
+  else
+    SAN_PRELOAD := LD_PRELOAD=$(shell $(CC) -print-file-name=libasan.so)
+  endif
+  SAN_ENV := $(SAN_PRELOAD) \
+             ASAN_OPTIONS=detect_leaks=0:abort_on_error=1 \
+             UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
+else
+  BUILD_DIR := core/build
+endif
 
 # Kernels lib name per platform, the file the wheel dlopens.
-ifeq ($(shell uname -s),Darwin)
+ifeq ($(UNAME),Darwin)
   KERNELS := libgeozl_kernels.dylib
 else ifeq ($(OS),Windows_NT)
   KERNELS := geozl_kernels.dll
@@ -21,9 +40,10 @@ endif
 
 CMAKE_FLAGS ?=
 CMAKE_OPTS  := -G $(GEN) -DCMAKE_BUILD_TYPE=$(BUILD) \
-               -DGEOZL_BUILD_FULL=$(FULL) -DGEOZL_BUILD_KERNELS_SHARED=ON $(CMAKE_FLAGS)
+               -DGEOZL_BUILD_FULL=$(FULL) -DGEOZL_BUILD_KERNELS_SHARED=ON \
+               -DGEOZL_SANITIZE=$(SAN) $(CMAKE_FLAGS)
 
-.PHONY: all build configure lib python test install submodules clean help
+.PHONY: all build configure lib python test test-san install submodules clean help
 
 # Build the libraries, stage the kernels lib, install the binding editable and
 # smoke load it. Run the tests with `make test`.
@@ -60,29 +80,35 @@ python: lib
 	@$(PYTHON) -c 'import numpy, cffi, openzl' 2>/dev/null \
 	  || { echo "missing runtime deps, install: numpy cffi openzl"; exit 1; }
 	$(PYTHON) -m pip install -e $(PY_DIR) -q
-	$(PYTHON) -c "import geozl; print('geozl', geozl.__version__)"
+	$(SAN_ENV) $(PYTHON) -c "import geozl; print('geozl', geozl.__version__)"
 
-# pytest.
+# pytest. With SAN=ON the kernels lib is instrumented and the run aborts on the
+# first ASan or UBSan finding.
 test: python
 	@$(PYTHON) -c 'import pytest' 2>/dev/null || { echo "pytest not installed"; exit 1; }
-	@$(PYTHON) -m pytest -q $(PY_DIR); \
+	@$(SAN_ENV) $(PYTHON) -m pytest -q $(PY_DIR); \
 	  rc=$$?; if [ $$rc -eq 5 ]; then echo "no tests collected"; elif [ $$rc -ne 0 ]; then exit $$rc; fi
+
+test-san:
+	$(MAKE) test SAN=ON
 
 install: build
 	cmake --install $(BUILD_DIR) --prefix $(PREFIX)
 
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf core/build core/build-san
 	rm -f $(PY_LIB_DIR)/libgeozl_kernels* $(PY_LIB_DIR)/geozl_kernels*.dll
 
 help:
 	@echo "make            build, stage the kernels lib, editable install, smoke load"
 	@echo "make build      build libgeozl.a and the kernels lib only"
 	@echo "make test       run pytest"
+	@echo "make test-san   run pytest against an ASan and UBSan build"
 	@echo "make install    cmake --install into PREFIX ($(PREFIX))"
-	@echo "make clean      remove the build dir and staged libs"
+	@echo "make clean      remove the build dirs and staged libs"
 	@echo "make submodules fetch or update OpenZL (zstd + lz4)"
 	@echo ""
 	@echo "vars  BUILD=Debug  PYTHON=python3.12  GEN='Unix Makefiles'  PREFIX=/opt"
 	@echo "      FULL=OFF (kernels lib only, what the wheel needs, no OpenZL compile)"
+	@echo "      SAN=ON (ASan and UBSan, Linux and macOS, separate build-san tree)"
 	@echo "      CMAKE_FLAGS=-DGEOZL_USE_SYSTEM_OPENZL=ON"
