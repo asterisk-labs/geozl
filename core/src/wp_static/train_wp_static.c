@@ -70,8 +70,8 @@ static double plane_H(const uint32_t* hist, size_t nb)
     return H;
 }
 
-// All candidates in one pass. The residual matches wp_static_encode, K in int32,
-// boundary neighbours zero.
+// All candidates in one pass. The residual matches wp_static_encode, accumulated
+// in int64, boundary neighbours zero.
 #define WP_SCORE(T, ZCAST)                                                   \
     do {                                                                     \
         const T* s = (const T*)src;                                          \
@@ -80,17 +80,16 @@ static double plane_H(const uint32_t* hist, size_t nb)
             const T* ab  = (r >= 1) ? s + row - w : (const T*)0;             \
             const T* ab2 = (r >= 2) ? s + row - 2 * w : (const T*)0;         \
             for (size_t c = 0; c < w; ++c) {                                 \
-                const int32_t N  = ab ? (int32_t)ab[c] : 0;                  \
-                const int32_t NW = (ab && c > 0) ? (int32_t)ab[c - 1] : 0;   \
-                const int32_t NE = (ab && c + 1 < w) ? (int32_t)ab[c + 1] : 0; \
-                const int32_t NN = ab2 ? (int32_t)ab2[c] : 0;               \
-                const int32_t base =                                         \
-                    (int32_t)s[row + c] - (int32_t)((c > 0) ? s[row + c - 1] : 0); \
+                const int64_t N  = ab ? ab[c] : 0;                          \
+                const int64_t NW = (ab && c > 0) ? ab[c - 1] : 0;           \
+                const int64_t NE = (ab && c + 1 < w) ? ab[c + 1] : 0;       \
+                const int64_t NN = ab2 ? ab2[c] : 0;                        \
+                const int64_t base =                                         \
+                    (int64_t)s[row + c] - (int64_t)((c > 0) ? s[row + c - 1] : 0); \
                 for (int m = 0; m < nc; ++m) {                              \
-                    const int64_t K =                                        \
-                        ((int64_t)cf[m][0] * N + (int64_t)cf[m][1] * NW      \
-                         + (int64_t)cf[m][2] * NE + (int64_t)cf[m][3] * NN    \
-                         + rnd[m]) >> sh[m];                                 \
+                    const int64_t K = (cf[m][0] * N + cf[m][1] * NW         \
+                                       + cf[m][2] * NE + cf[m][3] * NN       \
+                                       + rnd[m]) >> sh[m];                   \
                     const int16_t z = (int16_t)(ZCAST)(base - K);           \
                     const uint16_t zz = (uint16_t)(((uint16_t)z << 1) ^ (z >> 15)); \
                     hi[m][(zz >> 8) & 0xFF]++;                              \

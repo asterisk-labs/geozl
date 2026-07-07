@@ -41,14 +41,13 @@ def _locate(frame, needle):
     return at
 
 
-# A width that does not divide the element count. The encoder must reject it
-# rather than run the kernel off the end of the row.
+# width that does not divide the tile, the encoder must reject it
 def _case_width_encode():
     arr = np.arange(200, dtype=np.uint16)
     _compress(geozl.lossless.DeltaW(7), arr)
 
 
-# Same width fault reached through the codec header a decoder trusts.
+# same width fault, forged into the codec header
 def _case_width_decode():
     arr = np.arange(200, dtype=np.uint16)
     frame = bytearray(_compress(geozl.lossless.DeltaW(200), arr))
@@ -59,21 +58,30 @@ def _case_width_decode():
     _decode(bytes(frame))
 
 
-# A dtype byte outside the type enum, which the passthrough path uses to size a
-# copy and to pick the element width.
+# dtype byte outside the type enum
 def _case_dtype():
     arr = np.arange(256, dtype=np.uint16).reshape(16, 16)
     frame = bytearray(_compress(geozl.lossy.QuantLinear(50, np.uint16), arr))
     at = _locate(frame, struct.pack("<d", 100.0))
-    if at <= 0:
+    if at < 1:
         sys.exit(2)
     frame[at - 1] = 200
     _decode(bytes(frame))
 
 
-# A shift wider than the accumulator, an undefined shift count in the predictor.
-# Two rows keep the trainer on its planar default, so the coeffs are known and
-# make a distinctive anchor, the shift byte sits right before them.
+# non-finite scale the integer path cannot truncate to int64
+def _case_scale():
+    arr = np.arange(256, dtype=np.uint16).reshape(16, 16)
+    frame = bytearray(_compress(geozl.lossy.QuantLinear(50, np.uint16), arr))
+    at = _locate(frame, struct.pack("<d", 100.0))
+    if at < 0:
+        sys.exit(2)
+    frame[at:at + 8] = struct.pack("<d", float("inf"))
+    _decode(bytes(frame))
+
+
+# shift wider than the accumulator. Two rows force the planar default, so the
+# coeffs are a known anchor with the shift byte right before them.
 def _case_shift():
     arr = np.tile(np.arange(1, 101, dtype=np.uint16), (2, 1))
     frame = bytearray(_compress(geozl.lossless.WpStatic(100), arr))
@@ -88,14 +96,13 @@ _CASES = {
     "width_encode": _case_width_encode,
     "width_decode": _case_width_decode,
     "dtype": _case_dtype,
+    "scale": _case_scale,
     "shift": _case_shift,
 }
 
 
-# The child exits 0 when the fault is rejected cleanly, 3 when it slips through,
-# and dies on a signal when it corrupts memory. Isolating it keeps one bad frame
-# from taking down the whole run. macOS strips the dyld preload from the child, so
-# the Makefile hands the runtime path through GEOZL_ASAN_RT and we set it again.
+# Each case runs in its own process so one bad frame cannot take down the run.
+# macOS strips the dyld preload from the child, so reinject the runtime path.
 def _child(name):
     env = dict(os.environ)
     rt = env.get("GEOZL_ASAN_RT")
@@ -115,6 +122,7 @@ def test_decode_rejects_bad_header(name):
 
 
 if __name__ == "__main__":
+    # 0 rejected cleanly, 3 slipped through, a signal means it corrupted memory
     try:
         _CASES[sys.argv[1]]()
     except SystemExit:

@@ -1,13 +1,15 @@
 // Inverse wp_static predictor. The kernel K over the row above has no left
 // dependency, so it is a plain map that vectorizes, and the remaining W chain is
-// a prefix sum, the same scan as planar. The sum folds unsigned in 64-bit, the
-// same as the encoder, so no width overflows. @dst may alias @src.
+// a prefix sum, the same scan as planar. The sum folds unsigned in 64-bit so a
+// u64 tile cannot overflow it, then the shift reads it back signed. @dst may
+// alias @src.
 
 #include "decode_wp_static_kernel.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
+#ifndef GEOZL_NO_SIMD   // the ISA matrix sets this to force the scalar path
 #if defined(__AVX2__)
 #    include <immintrin.h>
 #    define WP_STATIC_AVX2 1
@@ -18,6 +20,7 @@
 #    include <arm_neon.h>
 #    define WP_STATIC_NEON 1
 #endif
+#endif // GEOZL_NO_SIMD
 
 // Prefix sum, dst[i] = dst[i-1] + src[i], the W chain. src may alias dst.
 
@@ -166,37 +169,32 @@ static void scan64(uint64_t* dst, const uint64_t* src, size_t n)
 
 #define WP_STATIC_KROW(T, NAME)                                               \
     static void NAME(T* d, const T* res, const T* ab, const T* ab2, size_t n, \
-                     int64_t cN, int64_t cNW, int64_t cNE, int64_t cNN,        \
+                     uint64_t cN, uint64_t cNW, uint64_t cNE, uint64_t cNN,    \
                      uint64_t rnd, int sh)                                     \
     {                                                                          \
         {                                                                      \
-            uint64_t acc = (uint64_t)cN * (uint64_t)ab[0]                      \
-                    + (n > 1 ? (uint64_t)cNE * (uint64_t)ab[1] : 0)            \
-                    + (ab2 ? (uint64_t)cNN * (uint64_t)ab2[0] : 0) + rnd;      \
+            uint64_t acc = cN * ab[0] + (n > 1 ? cNE * ab[1] : 0)              \
+                         + (ab2 ? cNN * ab2[0] : 0) + rnd;                     \
             d[0] = (T)(res[0] + (T)((int64_t)acc >> sh));                      \
         }                                                                      \
         size_t c = 1;                                                          \
         if (ab2) {                                                             \
             for (; c + 1 < n; ++c) {                                           \
-                uint64_t acc = (uint64_t)cN * (uint64_t)ab[c]                  \
-                        + (uint64_t)cNW * (uint64_t)ab[c - 1]                  \
-                        + (uint64_t)cNE * (uint64_t)ab[c + 1]                  \
-                        + (uint64_t)cNN * (uint64_t)ab2[c] + rnd;              \
+                uint64_t acc = cN * ab[c] + cNW * ab[c - 1]                    \
+                             + cNE * ab[c + 1] + cNN * ab2[c] + rnd;           \
                 d[c] = (T)(res[c] + (T)((int64_t)acc >> sh));                  \
             }                                                                  \
         } else {                                                               \
             for (; c + 1 < n; ++c) {                                           \
-                uint64_t acc = (uint64_t)cN * (uint64_t)ab[c]                  \
-                        + (uint64_t)cNW * (uint64_t)ab[c - 1]                  \
-                        + (uint64_t)cNE * (uint64_t)ab[c + 1] + rnd;           \
+                uint64_t acc = cN * ab[c] + cNW * ab[c - 1]                    \
+                             + cNE * ab[c + 1] + rnd;                          \
                 d[c] = (T)(res[c] + (T)((int64_t)acc >> sh));                  \
             }                                                                  \
         }                                                                      \
         if (n > 1) {                                                           \
             const size_t L = n - 1;                                            \
-            uint64_t acc = (uint64_t)cN * (uint64_t)ab[L]                      \
-                    + (uint64_t)cNW * (uint64_t)ab[L - 1]                      \
-                    + (ab2 ? (uint64_t)cNN * (uint64_t)ab2[L] : 0) + rnd;      \
+            uint64_t acc = cN * ab[L] + cNW * ab[L - 1]                        \
+                         + (ab2 ? cNN * ab2[L] : 0) + rnd;                     \
             d[L] = (T)(res[L] + (T)((int64_t)acc >> sh));                      \
         }                                                                      \
     }
@@ -212,8 +210,8 @@ WP_STATIC_KROW(uint64_t, krow64)
     do {                                                                      \
         T* d       = (T*)dst;                                                 \
         const T* s = (const T*)src;                                           \
-        const int64_t cN = coeffs[0], cNW = coeffs[1], cNE = coeffs[2],       \
-                      cNN = coeffs[3];                                        \
+        const uint64_t cN = (uint64_t)coeffs[0], cNW = (uint64_t)coeffs[1],   \
+                       cNE = (uint64_t)coeffs[2], cNN = (uint64_t)coeffs[3];   \
         const uint64_t rnd = shift ? (uint64_t)1 << (shift - 1) : 0;          \
         SCAN(d, s, w);                                                        \
         for (size_t off = w, r = 1; off < nbElts; off += w, ++r) {           \

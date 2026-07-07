@@ -71,6 +71,8 @@ static uint16_t ql_float_to_half(float f)
 void quant_linear_decode(void* dst, const void* src,
                          double scale, int dtype, size_t nbElts)
 {
+    if (dtype < QL_U8 || dtype > QL_F64)
+        return;
     if (scale == 0.0) {
         size_t w[] = {1,2,4,8, 1,2,4,8, 2,4,8};
         memcpy(dst, src, nbElts * w[dtype]);

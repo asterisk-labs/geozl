@@ -77,4 +77,10 @@ bindings/python/geozl/__pycache__/
 
 demo.py
 
-demo.tif
+# Fuzzer corpus and libFuzzer artifacts, all generated
+fuzz/corpus/
+crash-*
+leak-*
+timeout-*
+oom-*
+*.tif

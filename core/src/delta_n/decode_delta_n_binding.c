@@ -2,6 +2,7 @@
 #include "decode_delta_n_kernel.h"
 
 #include "common/graph_num1to1.h" // GEOZL_NUM1TO1_GRAPH
+#include "common/raster.h"    // geozl_row_width
 #include "geozl/ctids.h"          // GEOZL_CTID_DELTA_N
 
 #include "openzl/zl_data.h"
@@ -36,6 +37,9 @@ ZL_Report DI_geozl_delta_n(ZL_Decoder* dictx, const ZL_Input* ins[])
         return ZL_returnError(ZL_ErrorCode_corruption);
     uint32_t width;
     memcpy(&width, header.start, sizeof(width));
+
+    if (nbElts != 0 && geozl_row_width(width, nbElts) == 0)
+        return ZL_returnError(ZL_ErrorCode_corruption);
 
     ZL_Output* out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);
     if (out == NULL)

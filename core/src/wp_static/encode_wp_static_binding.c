@@ -3,6 +3,7 @@
 #include "train_wp_static.h"
 
 #include "common/graph_num1to1.h" // GEOZL_NUM1TO1_GRAPH, GEOZL_PARAM_WIDTH
+#include "common/raster.h"    // geozl_row_width
 #include "geozl/ctids.h"          // GEOZL_CTID_WP_STATIC
 
 #include "openzl/zl_data.h"
@@ -33,6 +34,9 @@ ZL_Report EI_geozl_wp_static(ZL_Encoder* eictx, const ZL_Input* in)
     const uint32_t width = (wp.paramId == GEOZL_PARAM_WIDTH)
             ? (uint32_t)wp.paramValue
             : (uint32_t)nbElts;
+
+    if (nbElts != 0 && geozl_row_width(width, nbElts) == 0)
+        return ZL_returnError(ZL_ErrorCode_node_invalid_input);
 
     // the weights are fit to this tile, then carried to the decoder in the header
     int16_t coeffs[4];

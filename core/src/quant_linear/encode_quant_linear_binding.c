@@ -38,7 +38,12 @@ ZL_Report EI_geozl_quant_linear(ZL_Encoder* eictx, const ZL_Input* in)
     double scale;
     memcpy(&scale, sp.paramPtr, sizeof(scale));
 
-    // the index keeps the original element width
+    // the index keeps the original element width, so the dtype must name a type
+    // of that width
+    static const size_t qlw[] = { 1, 2, 4, 8, 1, 2, 4, 8, 2, 4, 8 };
+    if (dtype < QL_U8 || dtype > QL_F64 || qlw[dtype] != eltWidth)
+        return ZL_returnError(ZL_ErrorCode_node_invalid_input);
+
     ZL_Output* out = ZL_Encoder_createTypedStream(eictx, 0, nbElts, eltWidth);
     if (out == NULL)
         return ZL_returnError(ZL_ErrorCode_allocation);

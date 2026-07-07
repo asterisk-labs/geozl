@@ -2,6 +2,7 @@
 #include "decode_wp_static_kernel.h"
 
 #include "common/graph_num1to1.h" // GEOZL_NUM1TO1_GRAPH
+#include "common/raster.h"    // geozl_row_width
 #include "geozl/ctids.h"          // GEOZL_CTID_WP_STATIC
 
 #include "openzl/zl_data.h"
@@ -41,6 +42,13 @@ ZL_Report DI_geozl_wp_static(ZL_Decoder* dictx, const ZL_Input* ins[])
     memcpy(&width, hb, sizeof(width));
     shift = hb[4];
     memcpy(coeffs, hb + 5, 4 * sizeof(int16_t));
+
+    if (nbElts != 0 && geozl_row_width(width, nbElts) == 0)
+        return ZL_returnError(ZL_ErrorCode_corruption);
+
+    // the kernel folds the sum in 64-bit, so a shift of 64 or more is undefined
+    if (shift >= 64)
+        return ZL_returnError(ZL_ErrorCode_corruption);
 
     ZL_Output* out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);
     if (out == NULL)

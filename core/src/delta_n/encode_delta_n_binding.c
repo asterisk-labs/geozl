@@ -2,6 +2,7 @@
 #include "encode_delta_n_kernel.h"
 
 #include "common/graph_num1to1.h" // GEOZL_NUM1TO1_GRAPH, GEOZL_PARAM_WIDTH
+#include "common/raster.h"    // geozl_row_width
 #include "geozl/ctids.h"          // GEOZL_CTID_DELTA_N
 
 #include "openzl/zl_data.h"
@@ -33,6 +34,9 @@ ZL_Report EI_geozl_delta_n(ZL_Encoder* eictx, const ZL_Input* in)
     const uint32_t width = (wp.paramId == GEOZL_PARAM_WIDTH)
             ? (uint32_t)wp.paramValue
             : (uint32_t)nbElts;
+
+    if (nbElts != 0 && geozl_row_width(width, nbElts) == 0)
+        return ZL_returnError(ZL_ErrorCode_node_invalid_input);
 
     // allocation is controlled by the engine
     ZL_Output* out = ZL_Encoder_createTypedStream(eictx, 0, nbElts, eltWidth);

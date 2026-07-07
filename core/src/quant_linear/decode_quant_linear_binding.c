@@ -9,6 +9,7 @@
 #include "openzl/zl_output.h"
 
 #include <assert.h>
+#include <math.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -37,7 +38,16 @@ ZL_Report DI_geozl_quant_linear(ZL_Decoder* dictx, const ZL_Input* ins[])
     double scale;
     memcpy(&scale, hb + 1, sizeof(scale));
 
-    // the index width equals the original element width for every supported type
+    // dtype comes from the header, check it names a real type of the stream
+    // width, the same check float_deconstruct makes
+    static const size_t qlw[] = { 1, 2, 4, 8, 1, 2, 4, 8, 2, 4, 8 };
+    if (dtype < QL_U8 || dtype > QL_F64 || qlw[dtype] != eltWidth)
+        return ZL_returnError(ZL_ErrorCode_corruption);
+
+    // scale is a positive step, the encoder never writes inf, nan or <= 0
+    if (!isfinite(scale) || scale <= 0.0)
+        return ZL_returnError(ZL_ErrorCode_corruption);
+
     ZL_Output* out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);
     if (out == NULL)
         return ZL_returnError(ZL_ErrorCode_allocation);

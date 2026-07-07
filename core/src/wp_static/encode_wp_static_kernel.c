@@ -1,6 +1,7 @@
 // Forward wp_static predictor. Reads only from src, so any traversal order is
-// fine as long as dst does not alias src. The decoder folds the same sum, 
-// so both sides match.
+// fine as long as dst does not alias src. The sum folds unsigned in 64-bit so a
+// u64 tile cannot overflow it, then the shift reads it back signed. The decoder
+// folds the same sum.
 
 #include "encode_wp_static_kernel.h"
 
@@ -12,25 +13,25 @@
         T* d       = (T*)dst;                                                \
         const T* s = (const T*)src;                                          \
         const size_t rows = nbElts / w;                                      \
-        const int64_t cN = coeffs[0], cNW = coeffs[1], cNE = coeffs[2],      \
-                      cNN = coeffs[3];                                       \
-        const uint64_t rnd = shift ? (uint64_t)1 << (shift - 1) : 0;         \
-        for (size_t r = 0; r < rows; ++r) {                                 \
-            const size_t row = r * w;                                       \
-            const T* ab  = (r >= 1) ? s + row - w : (const T*)0;            \
-            const T* ab2 = (r >= 2) ? s + row - 2 * w : (const T*)0;        \
-            for (size_t c = 0; c < w; ++c) {                               \
-                const uint64_t N  = ab ? (uint64_t)ab[c] : 0;              \
-                const uint64_t NW = (ab && c > 0) ? (uint64_t)ab[c - 1] : 0; \
-                const uint64_t NE = (ab && c + 1 < w) ? (uint64_t)ab[c + 1] : 0; \
-                const uint64_t NN = ab2 ? (uint64_t)ab2[c] : 0;            \
-                const uint64_t acc = (uint64_t)cN * N + (uint64_t)cNW * NW \
-                        + (uint64_t)cNE * NE + (uint64_t)cNN * NN + rnd;    \
-                const int64_t K = (int64_t)acc >> shift;                   \
-                const uint64_t W = (c > 0) ? s[row + c - 1] : 0;           \
-                d[row + c] = (T)((uint64_t)s[row + c] - (W + (uint64_t)K)); \
-            }                                                              \
-        }                                                                  \
+        const uint64_t cN = (uint64_t)coeffs[0], cNW = (uint64_t)coeffs[1],   \
+                       cNE = (uint64_t)coeffs[2], cNN = (uint64_t)coeffs[3];   \
+        const uint64_t rnd = shift ? (uint64_t)1 << (shift - 1) : 0;          \
+        for (size_t r = 0; r < rows; ++r) {                                   \
+            const size_t row = r * w;                                         \
+            const T* ab  = (r >= 1) ? s + row - w : (const T*)0;              \
+            const T* ab2 = (r >= 2) ? s + row - 2 * w : (const T*)0;          \
+            for (size_t c = 0; c < w; ++c) {                                  \
+                const uint64_t N  = ab ? ab[c] : 0;                           \
+                const uint64_t NW = (ab && c > 0) ? ab[c - 1] : 0;            \
+                const uint64_t NE = (ab && c + 1 < w) ? ab[c + 1] : 0;        \
+                const uint64_t NN = ab2 ? ab2[c] : 0;                         \
+                const uint64_t acc = cN * N + cNW * NW + cNE * NE             \
+                                   + cNN * NN + rnd;                          \
+                const int64_t K = (int64_t)acc >> shift;                      \
+                const uint64_t W = (c > 0) ? s[row + c - 1] : 0;              \
+                d[row + c] = (T)(s[row + c] - (W + (uint64_t)K));            \
+            }                                                                 \
+        }                                                                     \
     } while (0)
 
 void wp_static_encode(

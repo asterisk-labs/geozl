@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 
+#ifndef GEOZL_NO_SIMD   // the ISA matrix sets this to force the scalar path
 #if defined(__AVX2__)
 #    include <immintrin.h>
 #    define PLANAR_AVX2 1
@@ -18,6 +19,7 @@
 #    include <arm_neon.h>
 #    define PLANAR_NEON 1
 #endif
+#endif // GEOZL_NO_SIMD
 
 // Row zero prefix sum, dst[0] = src[0], dst[i] = dst[i-1] + src[i]. src may
 // alias dst.

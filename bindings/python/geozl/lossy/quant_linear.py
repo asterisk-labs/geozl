@@ -1,3 +1,4 @@
+import math
 import struct
 
 import numpy as np
@@ -16,6 +17,9 @@ _QL_DTYPE = {
     np.dtype("int32"): 6, np.dtype("int64"): 7, np.dtype("float16"): 8,
     np.dtype("float32"): 9, np.dtype("float64"): 10,
 }
+
+# Element width per dtype code, mirrors qlw in the C bindings.
+_QLW = (1, 2, 4, 8, 1, 2, 4, 8, 2, 4, 8)
 
 # uint8 dtype code, then the scale as an IEEE double, little endian.
 _HEADER = struct.Struct("<Bd")
@@ -41,6 +45,9 @@ class _Encoder(_ext.CustomEncoder):
         require_checksum_disabled(state, _NAME)
         inp = state.inputs[0]
         n, elt = inp.num_elts, inp.elt_width
+        if _QLW[self._dtype] != elt:
+            raise ValueError(
+                f"{_NAME}: dtype {self._dtype} does not match {elt}-byte samples")
         out = state.create_output(0, n, elt)
         lib.quant_linear_encode(_ptr(out.mut_content.as_nparray()),
                                 _ptr(inp.content.as_nparray()),
@@ -57,6 +64,10 @@ class QuantLinearDecoder(_ext.CustomDecoder):
         inp = state.singleton_inputs[0]
         n, elt = inp.num_elts, inp.elt_width
         dtype, scale = _HEADER.unpack(bytes(state.codec_header))
+        if not 0 <= dtype <= 10 or _QLW[dtype] != elt:
+            raise ValueError(f"{_NAME}: bad dtype in codec header")
+        if not math.isfinite(scale):
+            raise ValueError(f"{_NAME}: bad scale in codec header")
         out = state.create_output(0, n, elt)
         lib.quant_linear_decode(_ptr(out.mut_content.as_nparray()),
                                 _ptr(inp.content.as_nparray()),

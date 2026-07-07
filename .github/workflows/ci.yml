@@ -54,3 +54,74 @@ jobs:
         with:
           commit_message: 'ci: coverage badge [skip ci]'
           file_pattern: coverage.svg
+
+  sanitize:
+    name: Sanitizers
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install cmake ninja numpy cffi openzl pytest
+
+      # Runs the suite against an ASan and UBSan build. A memory or shift fault in
+      # a kernel, or a decoder that stops rejecting a forged header, fails here.
+      - name: Run the suite under ASan and UBSan
+        run: make test-san FULL=OFF
+
+  build:
+    name: Strict build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install build tools
+        run: python -m pip install --upgrade pip cmake ninja
+
+      # FULL=ON compiles the bindings and the library that links OpenZL, which the
+      # test job never builds. Warnings are errors, scoped to geozl code only.
+      - name: Build the full library and bindings
+        run: make build FULL=ON CMAKE_FLAGS=-DGEOZL_WERROR=ON
+
+  isa:
+    name: ISA ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: scalar, runner: ubuntu-24.04, cflags: "-DGEOZL_NO_SIMD" }
+          - { name: sse2,   runner: ubuntu-24.04, cflags: "-msse2 -mno-avx2" }
+          - { name: avx2,   runner: ubuntu-24.04, cflags: "-mavx2" }
+          - { name: neon,   runner: macos-15,     cflags: "" }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install cmake ninja numpy cffi openzl pytest
+
+      # CFLAGS reaches CMAKE_C_FLAGS on the first configure, so each vectorized
+      # kernel is built and tested, not just the host default. NEON runs on the
+      # macOS arm64 runner, which has an openzl wheel unlike the linux arm one.
+      - name: Build and test with the ${{ matrix.name }} kernels
+        env:
+          CFLAGS: ${{ matrix.cflags }}
+        run: make test FULL=OFF
