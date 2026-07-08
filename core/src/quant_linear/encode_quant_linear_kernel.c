@@ -20,7 +20,7 @@
         const uint64_t isc  = (uint64_t)(scale < 1.0 ? 1.0 : scale); \
         const uint64_t half = isc >> 1;                      \
         for (size_t i = 0; i < nbElts; ++i)                  \
-            d[i] = (T)(((uint64_t)s[i] + half) / isc);       \
+            d[i] = (T)(((unsigned __int128)s[i] + half) / isc); \
     } while (0)
 
 // Signed integer, round half away from zero on the magnitude, keep the sign.
@@ -31,10 +31,10 @@
         const int64_t isc   = (int64_t)(scale < 1.0 ? 1.0 : scale); \
         const int64_t half  = isc >> 1;                      \
         for (size_t i = 0; i < nbElts; ++i) {                \
-            int64_t v = (int64_t)s[i];                       \
-            int64_t m = v < 0 ? -v : v;                      \
-            int64_t q = (m + half) / isc;                    \
-            d[i] = (T)(v < 0 ? -q : q);                      \
+            const __int128 v = (__int128)s[i];               \
+            const __int128 m = v < 0 ? -v : v;               \
+            const __int128 q = (m + half) / isc;             \
+            d[i] = (T)(int64_t)(v < 0 ? -q : q);             \
         }                                                    \
     } while (0)
 
