@@ -98,7 +98,7 @@ _LOSSY_DTYPES = [np.uint8, np.uint16, np.int16, np.float32, np.float64]
 
 
 @pytest.mark.parametrize("dtype", _LOSSY_DTYPES, ids=lambda d: np.dtype(d).name)
-@pytest.mark.parametrize("max_error", [1, 5, 50])
+@pytest.mark.parametrize("max_error", [0.25, 1, 5, 50])
 @pytest.mark.parametrize("shape", _SHAPES, ids=lambda s: f"{s[0]}x{s[1]}")
 @pytest.mark.parametrize("pattern", ["random", "gradient"])
 def test_quant_linear_bound(dtype, max_error, shape, pattern):
@@ -111,7 +111,7 @@ def test_quant_linear_bound(dtype, max_error, shape, pattern):
 
 @pytest.mark.parametrize("dtype", [np.uint8, np.uint16, np.int8, np.int16],
                          ids=lambda d: np.dtype(d).name)
-@pytest.mark.parametrize("max_error", [1, 5, 50])
+@pytest.mark.parametrize("max_error", [0.25, 1, 5, 50])
 def test_quant_linear_bound_at_type_extremes(dtype, max_error):
     # the min and max of the type, where reconstruction clamps rather than wraps.
     # the bound must still hold, a clamp that overshoots is a real bug

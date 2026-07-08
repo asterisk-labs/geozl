@@ -11,12 +11,13 @@
 // saturating so a pathological value cannot wrap. scale is even for integers and a
 // real step for floats, so the error is bounded by scale/2 = max_error per element.
 
-// Unsigned integer, q = (x + scale/2) / scale, exact.
+// Unsigned integer, q = (x + step/2) / step. The index shares the sample width,
+// so a step below 1 cannot fit it and gains nothing on integers, clamp it to 1.
 #define QL_ENC_U(T)                                          \
     do {                                                     \
         const T* s          = (const T*)src;                 \
         T*       d          = (T*)dst;                       \
-        const uint64_t isc  = (uint64_t)scale;               \
+        const uint64_t isc  = (uint64_t)(scale < 1.0 ? 1.0 : scale); \
         const uint64_t half = isc >> 1;                      \
         for (size_t i = 0; i < nbElts; ++i)                  \
             d[i] = (T)(((uint64_t)s[i] + half) / isc);       \
@@ -27,7 +28,7 @@
     do {                                                     \
         const T* s          = (const T*)src;                 \
         T*       d          = (T*)dst;                        \
-        const int64_t isc   = (int64_t)scale;                \
+        const int64_t isc   = (int64_t)(scale < 1.0 ? 1.0 : scale); \
         const int64_t half  = isc >> 1;                      \
         for (size_t i = 0; i < nbElts; ++i) {                \
             int64_t v = (int64_t)s[i];                       \

@@ -5,6 +5,8 @@
 #   make test-san   run the suite under ASan and UBSan
 #   make fuzz       build and run the decode fuzzer
 #   make clean      remove all build output and generated files
+#
+# Vendors OpenZL as a submodule, fetched on first build.
 
 PYTHON ?= python
 PREFIX ?= /usr/local
@@ -24,15 +26,17 @@ UNAME      := $(shell uname -s)
 ifeq ($(SAN),ON)
   BUILD_DIR := core/build-san
   ifeq ($(UNAME),Darwin)
-    ASAN_RT := $(shell $(CC) -print-runtime-dir)/libclang_rt.asan_osx_dynamic.dylib
-    SAN_PRELOAD := DYLD_INSERT_LIBRARIES=$(ASAN_RT)
+    SAN_RT := $(shell $(CC) -print-runtime-dir)/libclang_rt.asan_osx_dynamic.dylib
+    SAN_PRELOAD := DYLD_INSERT_LIBRARIES=$(SAN_RT)
   else
-    ASAN_RT := $(shell $(CC) -print-file-name=libasan.so)
-    SAN_PRELOAD := LD_PRELOAD=$(ASAN_RT)
+    # libstdc++ too, so ASan can resolve __cxa_throw when a codec callback raises
+    # a Python exception back through the openzl C++ layer.
+    SAN_RT := $(shell $(CC) -print-file-name=libasan.so):$(shell $(CC) -print-file-name=libstdc++.so)
+    SAN_PRELOAD := LD_PRELOAD=$(SAN_RT)
   endif
   # macOS strips DYLD_* from spawned children, so pass the path through a plain
   # var the test can reinject as the preload.
-  SAN_ENV := $(SAN_PRELOAD) GEOZL_ASAN_RT=$(ASAN_RT) \
+  SAN_ENV := $(SAN_PRELOAD) GEOZL_ASAN_RT=$(SAN_RT) \
              ASAN_OPTIONS=detect_leaks=0:abort_on_error=1 \
              UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
 else

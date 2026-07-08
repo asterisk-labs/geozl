@@ -14,7 +14,7 @@
     do {                                                     \
         const T* s         = (const T*)src;                  \
         T*       d         = (T*)dst;                         \
-        const uint64_t isc = (uint64_t)scale;                \
+        const uint64_t isc = (uint64_t)(scale < 1.0 ? 1.0 : scale); \
         const uint64_t cap = (uint64_t)(T)(~(T)0);           \
         for (size_t i = 0; i < nbElts; ++i) {                \
             uint64_t r = (uint64_t)s[i] * isc;               \
@@ -27,7 +27,7 @@
     do {                                                     \
         const T* s        = (const T*)src;                   \
         T*       d        = (T*)dst;                          \
-        const int64_t isc = (int64_t)scale;                  \
+        const int64_t isc = (int64_t)(scale < 1.0 ? 1.0 : scale); \
         for (size_t i = 0; i < nbElts; ++i) {                \
             int64_t r = (int64_t)s[i] * isc;                 \
             if (r < (LO)) r = (LO);                          \
