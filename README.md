@@ -1,25 +1,37 @@
 <p align="center">
   <img src="img/geozl-banner-dark.svg" alt="geozl" width="750"/>
 </p>
+
 <p align="center">
   <img src="https://img.shields.io/badge/license-BSD--3--Clause-2b8a3e.svg" alt="License: BSD-3-Clause"/>
   <img src="coverage.svg" alt="Coverage"/>
   <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-blue" alt="Platform"/>
   <img src="https://img.shields.io/badge/C11-blue" alt="C11"/>
-  <a href="https://github.com/facebook/openzl"><img src="https://img.shields.io/badge/built%20on-OpenZL-6f42c1" alt="Built on OpenZL"/></a>
+  <a href="https://github.com/facebook/openzl">
+    <img src="https://img.shields.io/badge/built%20on-OpenZL-6f42c1" alt="Built on OpenZL"/>
+  </a>
 </p>
-<p align="center"><i>Spatial predictors and near lossless quantizers, packaged as OpenZL custom codecs.</i></p>
 
-OpenZL models compression as a graph of codecs and ships the decode recipe inside every frame, so one **universal decoder** reads any frame. It compresses 1D streams and has no notion of a 2D raster. geozl adds the spatial codecs for it.
+## What is geozl?
 
-A geozl codec is one node in the [OpenZL](https://github.com/facebook/openzl) graph. It transforms the tile, a numeric stream, and carries whatever the decoder needs to invert it in the codec header inside the frame. The full rules live in the [specification](SPEC.md), and [adding a codec](docs/adding-a-codec.md) covers extending geozl.
+OpenZL treats compression as a graph of codecs. Each frame carries the recipe needed to decode it, which lets a universal OpenZL decoder follow the graph without knowing how the data was originally encoded.
+
+That model works well for one-dimensional streams, but it does not know that a raster has rows, columns, neighbours, or spatial structure. **geozl adds that missing spatial layer.**
+
+A geozl codec is an OpenZL graph node that understands raster tiles. It transforms a typed numeric stream, stores the metadata needed to reverse that transform in the codec header, and lets the rest of the OpenZL graph continue as usual.
+
+The full wire-level rules are described in [SPEC.md](SPEC.md). If you want to implement a new codec, see [docs/adding-a-codec.md](docs/adding-a-codec.md).
 
 ## Status
 
-geozl is **experimental**. The codecs, their parameters, and the codec header layout can change between versions with no migration path. Pin a version for anything you cannot regenerate.
+geozl is **experimental**.
+
+The codec set, parameters, and header layouts may change between versions. There may be no migration path for old frames if the format changes, so pin the exact geozl version for any data you cannot regenerate.
 
 > [!WARNING]
-> **geozl codecs are not part of OpenZL.** They register at runtime and take custom transform ids in the `0x72D700`-`0x72D7FF` block. A frame that uses them decodes only with a reader that has geozl registered, a frame of built-in OpenZL codecs stays portable. Whether any geozl codec lands in OpenZL upstream is undecided.
+> **geozl codecs are not part of OpenZL.**
+>
+> They are registered at runtime as OpenZL custom transforms and use CTids in the `0x72D700`-`0x72D7FF` range. A frame that uses geozl codecs can only be decoded by a reader that has geozl registered. Frames that use only built-in OpenZL codecs remain portable OpenZL frames.
 
 ## Install
 
@@ -27,7 +39,9 @@ geozl is **experimental**. The codecs, their parameters, and the codec header la
 pip install geozl
 ```
 
-You compose the geozl codecs into an openzl.ext graph, they chain like any other node.
+## Example
+
+geozl codecs are composed into an `openzl.ext` graph just like regular OpenZL nodes.
 
 ```python
 import openzl.ext as zl
@@ -35,37 +49,51 @@ import geozl
 
 c = zl.Compressor()
 g = zl.graphs.Compress()
+
 g = zl.nodes.Zigzag()(c, g)
 g = geozl.lossless.Planar(width=512)(c, g)
+
 c.select_starting_graph(g)
 ```
 
 ## Codecs
 
-Two families, both registered as OpenZL custom codecs that chain like any other node. The `call` column is what you type to place the codec in the graph.
+geozl currently provides two codec families:
 
-### Near lossless
+- **near-lossless codecs**, under `geozl.lossy`
+- **lossless codecs**, under `geozl.lossless`
 
-Quantizers, namespace `geozl.lossy`. A frame is no longer bit exact, carries one quantizer at the head, and bounds its error by the parameters in the frame. Each declares one error mode. **ABS** holds a fixed absolute tolerance, the same everywhere, for elevation, depth, coordinates. **REL** holds a fixed relative tolerance, a percentage of each value, for radiance, reflectance, SAR amplitude.
+Both families are registered as OpenZL custom codecs and can be chained with other OpenZL graph nodes.
+
+The `call` column shows the Python call used to place the codec in a graph.
+
+### Near-lossless codecs
+
+Near-lossless codecs quantize the tile once, then store enough information in the frame to report and bound the reconstruction error.
+
+A near-lossless frame is no longer bit-exact. Instead, it declares one error mode:
+
+- **ABS**: a fixed absolute tolerance, useful for elevation, depth, coordinates, and similar values.
+- **REL**: a fixed relative tolerance, useful for radiance, reflectance, SAR amplitude, and other values where percentage error matters.
 
 | codec | call | CTid | mode | error |
-|---|---|---|---|---|
-| `quant_linear` | `geozl.lossy.QuantLinear(max_error, dtype)` | `0x72D780` | ABS | every value within `max_error` |
-| `quant_log` | reserved, not implemented yet | `0x72D781` | REL | every value within `rel_error` of itself |
+|---|---|---:|---|---|
+| `quant_linear` | `geozl.lossy.QuantLinear(max_error, dtype)` | `0x72D780` | ABS | every value reconstructs within `max_error` |
+| `quant_log` | `geozl.lossy.QuantLog(rel_error, dtype)` | `0x72D781` | REL | every value reconstructs within `rel_error` of itself |
 
-### Lossless
+### Lossless codecs
 
-Namespace `geozl.lossless`, bit exact transforms of a tile.
+Lossless codecs are bit-exact transforms over a raster tile. After decoding, the reconstructed tile is identical to the original input.
 
 | codec | call | CTid | what it does |
-|---|---|---|---|
-| `delta_w` | `geozl.lossless.DeltaW(width)` | `0x72D701` | horizontal delta |
-| `delta_n` | `geozl.lossless.DeltaN(width)` | `0x72D702` | vertical delta |
-| `planar` | `geozl.lossless.Planar(width)` | `0x72D703` | predicts each pixel from W plus N minus NW |
-| `deinterleave` | `geozl.lossless.Deinterleave()` | `0x72D704` | splits an interleaved stream into two lanes, real and imaginary of a complex |
-| `med` | `geozl.lossless.Med(width)` | `0x72D705` | median edge detector, W plus N minus NW clamped to the neighbours |
-| `average` | `geozl.lossless.Average(width)` | `0x72D706` | floor average of W and N |
-| `wp_static` | `geozl.lossless.WpStatic(width)` | `0x72D707` | weighted predictor, fits a linear kernel over the neighbours and carries it in the frame |
+|---|---|---:|---|
+| `delta_w` | `geozl.lossless.DeltaW(width)` | `0x72D701` | stores each value as a difference from its west neighbour |
+| `delta_n` | `geozl.lossless.DeltaN(width)` | `0x72D702` | stores each value as a difference from its north neighbour |
+| `planar` | `geozl.lossless.Planar(width)` | `0x72D703` | predicts each pixel from `W + N - NW` |
+| `deinterleave` | `geozl.lossless.Deinterleave()` | `0x72D704` | splits an interleaved complex stream into real and imaginary lanes |
+| `med` | `geozl.lossless.Med(width)` | `0x72D705` | uses the median edge detector predictor |
+| `average` | `geozl.lossless.Average(width)` | `0x72D706` | predicts from the floor average of west and north neighbours |
+| `wp_static` | `geozl.lossless.WpStatic(width)` | `0x72D707` | fits a static weighted predictor and stores the weights in the frame |
 
 ## License
 
