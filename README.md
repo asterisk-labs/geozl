@@ -14,7 +14,7 @@
 
 ## What is geozl?
 
-OpenZL treats compression as a graph of codecs. Each frame carries the recipe needed to decode it, which lets a universal OpenZL decoder follow the graph without knowing how the data was originally encoded.
+[OpenZL](https://github.com/facebook/openzl) treats compression as a graph of codecs. Each frame carries the recipe needed to decode it, which lets a universal OpenZL decoder follow the graph without knowing how the data was originally encoded.
 
 That model works well for one-dimensional streams, but it does not know that a raster has rows, columns, neighbours, or spatial structure. **geozl adds that missing spatial layer.**
 
