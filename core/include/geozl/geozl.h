@@ -20,6 +20,10 @@ extern "C" {
 // none of this.
 GEOZL_API ZL_Report geozl_register_decoders(ZL_DCtx* dctx);
 
+// Check if a ctid is owned by geozl, and if it is lossy.
+GEOZL_API int geozl_owns_ctid(uint32_t ctid);
+GEOZL_API int geozl_ctid_is_lossy(uint32_t ctid);
+
 // Encode. Each codec is a node builder. It registers the codec's typed encoder
 // on the compressor, attaches the per tile parameters, and returns a node to
 // chain into a graph. On failure it returns ZL_NODE_ILLEGAL, test the result

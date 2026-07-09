@@ -1,15 +1,6 @@
 #ifndef GEOZL_CTIDS_H
 #define GEOZL_CTIDS_H
 
-// Every geozl codec id in one place. A CTid is the only identity a frame
-// carries, names never travel, so this table is the interop contract.
-//
-// The bands separate the two reconstruction contracts, so a reader can tell a
-// lossless codec from a lossy one from the id alone.
-//   lossless, decode(encode(x)) == x        0x72D700 to 0x72D77F
-//   lossy, reconstruction within a bound     0x72D780 to 0x72D7FF
-// The whole block sits high enough to stay clear of OpenZL's standard node ids.
-
 // Lossless
 #define GEOZL_CTID_DELTA_W      0x72D701
 #define GEOZL_CTID_DELTA_N      0x72D702
@@ -21,5 +12,9 @@
 
 // Lossy
 #define GEOZL_CTID_QUANT_LINEAR 0x72D780
+
+#define GEOZL_CTID_FIRST         0x72D700
+#define GEOZL_CTID_LOSSLESS_LAST 0x72D77F
+#define GEOZL_CTID_LAST          0x72D7FF
 
 #endif // GEOZL_CTIDS_H

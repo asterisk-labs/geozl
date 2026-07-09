@@ -29,3 +29,13 @@ ZL_Report geozl_register_decoders(ZL_DCtx* dctx)
     }
     return ZL_returnSuccess();
 }
+
+int geozl_owns_ctid(uint32_t ctid)
+{
+    return ctid >= GEOZL_CTID_FIRST && ctid <= GEOZL_CTID_LAST;
+}
+
+int geozl_ctid_is_lossy(uint32_t ctid)
+{
+    return ctid > GEOZL_CTID_LOSSLESS_LAST && ctid <= GEOZL_CTID_LAST;
+}
