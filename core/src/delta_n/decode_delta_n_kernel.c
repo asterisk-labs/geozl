@@ -7,37 +7,41 @@
 #include <stdint.h>
 #include <string.h>
 
-#define DELTA_N_DEC(T)                                                       \
-    do {                                                                     \
-        T* d       = (T*)dst;                                                \
-        const T* s = (const T*)src;                                          \
-        memcpy(d, s, w * sizeof(T));                                         \
-        for (size_t off = w; off < nbElts; off += w) {                       \
-            const T* restrict up  = d + off - w;                             \
-            const T* restrict res = s + off;                                 \
-            T* restrict row       = d + off;                                 \
-            for (size_t c = 0; c < w; ++c)                                   \
-                row[c] = (T)(res[c] + up[c]);                                \
-        }                                                                    \
-    } while (0)
+#define DELTA_N_DEC(T)                                                         \
+  do {                                                                         \
+    T *d = (T *)dst;                                                           \
+    const T *s = (const T *)src;                                               \
+    memcpy(d, s, w * sizeof(T));                                               \
+    for (size_t off = w; off < nbElts; off += w) {                             \
+      const T *restrict up = d + off - w;                                      \
+      const T *restrict res = s + off;                                         \
+      T *restrict row = d + off;                                               \
+      for (size_t c = 0; c < w; ++c)                                           \
+        row[c] = (T)(res[c] + up[c]);                                          \
+    }                                                                          \
+  } while (0)
 
-void delta_n_decode(
-        void* dst,
-        const void* src,
-        size_t width,
-        size_t nbElts,
-        size_t eltWidth)
-{
-    if (nbElts == 0)
-        return;
-    const size_t w = (width == 0 || width > nbElts) ? nbElts : width;
-    switch (eltWidth) {
-        case 1: DELTA_N_DEC(uint8_t); break;
-        case 2: DELTA_N_DEC(uint16_t); break;
-        case 4: DELTA_N_DEC(uint32_t); break;
-        case 8: DELTA_N_DEC(uint64_t); break;
-        default: break;
-    }
+void delta_n_decode(void *dst, const void *src, size_t width, size_t nbElts,
+                    size_t eltWidth) {
+  if (nbElts == 0)
+    return;
+  const size_t w = (width == 0 || width > nbElts) ? nbElts : width;
+  switch (eltWidth) {
+  case 1:
+    DELTA_N_DEC(uint8_t);
+    break;
+  case 2:
+    DELTA_N_DEC(uint16_t);
+    break;
+  case 4:
+    DELTA_N_DEC(uint32_t);
+    break;
+  case 8:
+    DELTA_N_DEC(uint64_t);
+    break;
+  default:
+    break;
+  }
 }
 
 #undef DELTA_N_DEC

@@ -1,9 +1,7 @@
 #include "decode_med_binding.h"
 #include "decode_med_kernel.h"
 
-#include "common/graph_num1to1.h" // GEOZL_NUM1TO1_GRAPH
-#include "common/raster.h"    // geozl_row_width
-#include "geozl/ctids.h"          // GEOZL_CTID_MED
+#include "common/raster.h" // geozl_row_width
 
 #include "openzl/zl_data.h"
 #include "openzl/zl_errors.h"
@@ -15,39 +13,32 @@
 #include <stdint.h>
 #include <string.h>
 
-const ZL_TypedDecoderDesc med_decoder_desc = {
-    .gd          = GEOZL_NUM1TO1_GRAPH(GEOZL_CTID_MED),
-    .transform_f = DI_geozl_med,
-    .name        = "geozl.lossless.med",
-};
+ZL_Report DI_geozl_med(ZL_Decoder *dictx, const ZL_Input *ins[]) {
+  assert(ins != NULL);
+  const ZL_Input *in = ins[0];
+  assert(in != NULL);
+  assert(ZL_Input_type(in) == ZL_Type_numeric);
 
-ZL_Report DI_geozl_med(ZL_Decoder* dictx, const ZL_Input* ins[])
-{
-    assert(ins != NULL);
-    const ZL_Input* in = ins[0];
-    assert(in != NULL);
-    assert(ZL_Input_type(in) == ZL_Type_numeric);
+  const size_t eltWidth = ZL_Input_eltWidth(in);
+  const size_t nbElts = ZL_Input_numElts(in);
 
-    const size_t eltWidth = ZL_Input_eltWidth(in);
-    const size_t nbElts   = ZL_Input_numElts(in);
+  // the width is carried in the codec header, written by the encoder
+  ZL_RBuffer header = ZL_Decoder_getCodecHeader(dictx);
+  if (header.size != sizeof(uint32_t))
+    return ZL_returnError(ZL_ErrorCode_corruption);
+  uint32_t width;
+  memcpy(&width, header.start, sizeof(width));
 
-    // the width is carried in the codec header, written by the encoder
-    ZL_RBuffer header = ZL_Decoder_getCodecHeader(dictx);
-    if (header.size != sizeof(uint32_t))
-        return ZL_returnError(ZL_ErrorCode_corruption);
-    uint32_t width;
-    memcpy(&width, header.start, sizeof(width));
+  if (nbElts != 0 && geozl_row_width(width, nbElts) == 0)
+    return ZL_returnError(ZL_ErrorCode_corruption);
 
-    if (nbElts != 0 && geozl_row_width(width, nbElts) == 0)
-        return ZL_returnError(ZL_ErrorCode_corruption);
+  ZL_Output *out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);
+  if (out == NULL)
+    return ZL_returnError(ZL_ErrorCode_allocation);
 
-    ZL_Output* out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);
-    if (out == NULL)
-        return ZL_returnError(ZL_ErrorCode_allocation);
+  med_decode(ZL_Output_ptr(out), ZL_Input_ptr(in), width, nbElts, eltWidth);
 
-    med_decode(ZL_Output_ptr(out), ZL_Input_ptr(in), width, nbElts, eltWidth);
-
-    if (ZL_isError(ZL_Output_commit(out, nbElts)))
-        return ZL_returnError(ZL_ErrorCode_GENERIC);
-    return ZL_returnSuccess();
+  if (ZL_isError(ZL_Output_commit(out, nbElts)))
+    return ZL_returnError(ZL_ErrorCode_GENERIC);
+  return ZL_returnSuccess();
 }

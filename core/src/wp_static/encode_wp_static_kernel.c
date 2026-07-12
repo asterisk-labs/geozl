@@ -8,49 +8,50 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define WP_STATIC_FWD(T)                                                     \
-    do {                                                                     \
-        T* d       = (T*)dst;                                                \
-        const T* s = (const T*)src;                                          \
-        const size_t rows = nbElts / w;                                      \
-        const uint64_t cN = (uint64_t)coeffs[0], cNW = (uint64_t)coeffs[1],   \
-                       cNE = (uint64_t)coeffs[2], cNN = (uint64_t)coeffs[3];   \
-        const uint64_t rnd = shift ? (uint64_t)1 << (shift - 1) : 0;          \
-        for (size_t r = 0; r < rows; ++r) {                                   \
-            const size_t row = r * w;                                         \
-            const T* ab  = (r >= 1) ? s + row - w : (const T*)0;              \
-            const T* ab2 = (r >= 2) ? s + row - 2 * w : (const T*)0;          \
-            for (size_t c = 0; c < w; ++c) {                                  \
-                const uint64_t N  = ab ? ab[c] : 0;                           \
-                const uint64_t NW = (ab && c > 0) ? ab[c - 1] : 0;            \
-                const uint64_t NE = (ab && c + 1 < w) ? ab[c + 1] : 0;        \
-                const uint64_t NN = ab2 ? ab2[c] : 0;                         \
-                const uint64_t acc = cN * N + cNW * NW + cNE * NE             \
-                                   + cNN * NN + rnd;                          \
-                const int64_t K = (int64_t)acc >> shift;                      \
-                const uint64_t W = (c > 0) ? s[row + c - 1] : 0;              \
-                d[row + c] = (T)(s[row + c] - (W + (uint64_t)K));            \
-            }                                                                 \
-        }                                                                     \
-    } while (0)
+#define WP_STATIC_FWD(T)                                                       \
+  do {                                                                         \
+    T *d = (T *)dst;                                                           \
+    const T *s = (const T *)src;                                               \
+    const size_t rows = nbElts / w;                                            \
+    const uint64_t cN = (uint64_t)coeffs[0], cNW = (uint64_t)coeffs[1],        \
+                   cNE = (uint64_t)coeffs[2], cNN = (uint64_t)coeffs[3];       \
+    const uint64_t rnd = shift ? (uint64_t)1 << (shift - 1) : 0;               \
+    for (size_t r = 0; r < rows; ++r) {                                        \
+      const size_t row = r * w;                                                \
+      const T *ab = (r >= 1) ? s + row - w : (const T *)0;                     \
+      const T *ab2 = (r >= 2) ? s + row - 2 * w : (const T *)0;                \
+      for (size_t c = 0; c < w; ++c) {                                         \
+        const uint64_t N = ab ? ab[c] : 0;                                     \
+        const uint64_t NW = (ab && c > 0) ? ab[c - 1] : 0;                     \
+        const uint64_t NE = (ab && c + 1 < w) ? ab[c + 1] : 0;                 \
+        const uint64_t NN = ab2 ? ab2[c] : 0;                                  \
+        const uint64_t acc = cN * N + cNW * NW + cNE * NE + cNN * NN + rnd;    \
+        const int64_t K = (int64_t)acc >> shift;                               \
+        const uint64_t W = (c > 0) ? s[row + c - 1] : 0;                       \
+        d[row + c] = (T)(s[row + c] - (W + (uint64_t)K));                      \
+      }                                                                        \
+    }                                                                          \
+  } while (0)
 
-void wp_static_encode(
-        void* dst,
-        const void* src,
-        size_t width,
-        size_t nbElts,
-        size_t eltWidth,
-        const int16_t coeffs[4],
-        uint8_t shift)
-{
-    if (nbElts == 0)
-        return;
-    const size_t w = (width == 0 || width > nbElts) ? nbElts : width;
-    switch (eltWidth) {
-        case 1: WP_STATIC_FWD(uint8_t);  break;
-        case 2: WP_STATIC_FWD(uint16_t); break;
-        case 4: WP_STATIC_FWD(uint32_t); break;
-        case 8: WP_STATIC_FWD(uint64_t); break;
-        default: break;
-    }
+void wp_static_encode(void *dst, const void *src, size_t width, size_t nbElts,
+                      size_t eltWidth, const int16_t coeffs[4], uint8_t shift) {
+  if (nbElts == 0)
+    return;
+  const size_t w = (width == 0 || width > nbElts) ? nbElts : width;
+  switch (eltWidth) {
+  case 1:
+    WP_STATIC_FWD(uint8_t);
+    break;
+  case 2:
+    WP_STATIC_FWD(uint16_t);
+    break;
+  case 4:
+    WP_STATIC_FWD(uint32_t);
+    break;
+  case 8:
+    WP_STATIC_FWD(uint64_t);
+    break;
+  default:
+    break;
+  }
 }

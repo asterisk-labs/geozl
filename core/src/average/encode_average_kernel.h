@@ -4,11 +4,7 @@
 #include <stddef.h>
 
 // Forward Average predictor. @dst must not alias @src.
-void average_encode(
-        void* dst,
-        const void* src,
-        size_t width,
-        size_t nbElts,
-        size_t eltWidth);
+void average_encode(void *dst, const void *src, size_t width, size_t nbElts,
+                    size_t eltWidth);
 
 #endif // GEOZL_CODECS_AVERAGE_ENCODE_KERNEL_H

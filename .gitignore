@@ -84,3 +84,4 @@ leak-*
 timeout-*
 oom-*
 *.tif
+.vscode/settings.json

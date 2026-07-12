@@ -1,4 +1,9 @@
 from .._codec import spatial_predictor
+from .binoffset import BinOffset, BinOffsetDecoder
+from .floatmult import FloatMult, FloatMultDecoder
+from .floatmult import choose_base as choose_float_base
+from .floatquant import FloatQuant, FloatQuantDecoder, choose_k
+from .intmult import IntMult, IntMultDecoder, choose_base
 from .deinterleave import Deinterleave, DeinterleaveDecoder, component_dtype
 from .wp_static import WpStatic, WpStaticDecoder
 
@@ -17,7 +22,9 @@ Average, AverageDecoder = spatial_predictor(
     0x72D706, "geozl.lossless.average", "average_encode", "average_decode")
 
 _DECODERS = (DeltaWDecoder, DeltaNDecoder, PlanarDecoder, MedDecoder,
-             AverageDecoder, WpStaticDecoder, DeinterleaveDecoder)
+             AverageDecoder, WpStaticDecoder, DeinterleaveDecoder,
+             BinOffsetDecoder, IntMultDecoder, FloatQuantDecoder,
+             FloatMultDecoder)
 
 
 def register_decoders(dctx):
@@ -28,7 +35,10 @@ def register_decoders(dctx):
 
 
 __all__ = [
-    "Average", "AverageDecoder", "DeltaN", "DeltaNDecoder", "DeltaW",
+    "Average", "AverageDecoder", "BinOffset", "BinOffsetDecoder",
+    "IntMult", "IntMultDecoder", "choose_base",
+    "FloatQuant", "FloatQuantDecoder", "FloatMult", "FloatMultDecoder",
+    "choose_float_base", "DeltaN", "DeltaNDecoder", "DeltaW",
     "DeltaWDecoder", "Deinterleave", "DeinterleaveDecoder", "Med", "MedDecoder",
     "Planar", "PlanarDecoder", "WpStatic", "WpStaticDecoder", "component_dtype",
     "register_decoders",

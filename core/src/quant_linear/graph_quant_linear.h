@@ -17,11 +17,10 @@
 #define QUANT_LINEAR_PARAM_DTYPE 1
 #define QUANT_LINEAR_PARAM_SCALE 1
 
-#define QUANT_LINEAR_GRAPH                                    \
-    {                                                         \
-        .CTid           = QUANT_LINEAR_CTID,                  \
-        .inStreamType   = ZL_Type_numeric,                    \
-        .outStreamTypes = ZL_STREAMTYPELIST(ZL_Type_numeric)  \
-    }
+#define QUANT_LINEAR_GRAPH                                                     \
+  {                                                                            \
+    .CTid = QUANT_LINEAR_CTID, .inStreamType = ZL_Type_numeric,                \
+    .outStreamTypes = ZL_STREAMTYPELIST(ZL_Type_numeric)                       \
+  }
 
 #endif // GEOZL_CODECS_QUANT_LINEAR_GRAPH_H

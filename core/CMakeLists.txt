@@ -45,10 +45,20 @@ endif()
 include(GNUInstallDirs)
 find_library(GEOZL_LIBM m)   # the wp_static trainer uses log2 and lround
 
-# Bindings need OpenZL and go in the library, kernels are pure C and go in both
-# the library and the shared kernels the Python side loads.
-set(GEOZL_CODECS
-    delta_w delta_n planar med average wp_static deinterleave quant_linear)
+# Discover codecs by convention: any src/<name>/ that has an
+# encode_<name>_binding.c is a codec. CONFIGURE_DEPENDS re-globs on build, so a
+# new codec folder is picked up without editing this file.
+file(GLOB GEOZL_CODEC_BINDINGS CONFIGURE_DEPENDS
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/*/encode_*_binding.c)
+set(GEOZL_CODECS "")
+foreach(binding IN LISTS GEOZL_CODEC_BINDINGS)
+    get_filename_component(dir ${binding} DIRECTORY)
+    get_filename_component(name ${dir} NAME)
+    if(EXISTS ${dir}/encode_${name}_binding.c)
+        list(APPEND GEOZL_CODECS ${name})
+    endif()
+endforeach()
+list(SORT GEOZL_CODECS)
 
 foreach(name IN LISTS GEOZL_CODECS)
     list(APPEND GEOZL_BINDINGS

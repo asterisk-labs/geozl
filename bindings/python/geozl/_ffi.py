@@ -26,6 +26,20 @@ void wp_static_decode(void* dst, const void* src, size_t width, size_t nb_elts, 
 void deinterleave_split(void* out0, void* out1, const void* src, size_t nb_elts, size_t elt_width);
 void deinterleave_join(void* dst, const void* in0, const void* in1, size_t nb_elts, size_t elt_width);
 
+void binoffset_split(uint8_t* bins, void* offsets, const void* src, size_t nb_elts, size_t elt_width);
+int  binoffset_join(void* dst, const uint8_t* bins, const void* offsets, size_t nb_elts, size_t elt_width);
+void binoffset_split_table(uint8_t* bins, void* offsets, const void* src, size_t nb_elts, size_t elt_width, const uint64_t lowers[256], const uint8_t offset_bits[256], unsigned nb_bins);
+int  binoffset_join_table(void* dst, const uint8_t* bins, const void* offsets, size_t nb_elts, size_t elt_width, const uint64_t lowers[256], const uint8_t offset_bits[256], unsigned nb_bins);
+
+void intmult_split(void* mults, void* adjs, const void* src, size_t nb_elts, size_t elt_width, uint64_t base);
+int  intmult_join(void* dst, const void* mults, const void* adjs, size_t nb_elts, size_t elt_width, uint64_t base);
+
+void floatquant_split(void* primary, void* secondary, const void* src, size_t nb_elts, size_t elt_width, unsigned k);
+int  floatquant_join(void* dst, const void* primary, const void* secondary, size_t nb_elts, size_t elt_width, unsigned k);
+
+void floatmult_split(void* primary, void* secondary, const void* src, size_t nb_elts, size_t elt_width, double base, double inv_base);
+int  floatmult_join(void* dst, const void* primary, const void* secondary, size_t nb_elts, size_t elt_width, double base);
+
 void quant_linear_encode(void* dst, const void* src, double scale, int dtype, size_t nb_elts);
 void quant_linear_decode(void* dst, const void* src, double scale, int dtype, size_t nb_elts);
 """

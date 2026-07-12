@@ -1,0 +1,23 @@
+#ifndef GEOZL_CODECS_BINOFFSET_DECODE_KERNEL_H
+#define GEOZL_CODECS_BINOFFSET_DECODE_KERNEL_H
+
+#include <stddef.h>
+#include <stdint.h>
+
+// v = bin == 0 ? 0 : (1 << (bin - 1)) + offset, for nb_elts elements of
+// elt_width bytes (1, 2, 4 or 8). Returns nonzero if any bin exceeds the lane
+// width or any offset is not below 1 << (bin - 1). On nonzero, dst is garbage
+// but every write stayed in bounds.
+int binoffset_join(void *dst, const uint8_t *bins, const void *offsets,
+                   size_t nb_elts, size_t elt_width);
+
+// v = lowers[bin] + offset. Both tables padded to 256 so a corrupt bin id
+// loads in bounds; the flag rejects it afterwards. Returns nonzero if any bin
+// id is not below nb_bins or any offset reaches 1 << offset_bits[bin]. On
+// nonzero, dst is garbage but every access stayed in bounds.
+int binoffset_join_table(void *dst, const uint8_t *bins, const void *offsets,
+                         size_t nb_elts, size_t elt_width,
+                         const uint64_t lowers[256],
+                         const uint8_t offset_bits[256], unsigned nb_bins);
+
+#endif // GEOZL_CODECS_BINOFFSET_DECODE_KERNEL_H
