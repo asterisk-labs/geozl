@@ -31,4 +31,12 @@ unsigned binoffset_optimize_table(const uint64_t *fine_lowers,
                                   double meta_bits, uint64_t *out_lowers,
                                   uint8_t *out_offset_bits, unsigned max_bins);
 
+
+// split_table but offsets bit-packed to offset_bits[bin] bits. packed must be
+// zeroed, holds nb_elts*elt_width bytes. Returns packed bytes used.
+size_t binoffset_split_pack(uint8_t *bins, uint8_t *packed, const void *src,
+                            size_t nb_elts, size_t elt_width,
+                            const uint64_t lowers[256],
+                            const uint8_t offset_bits[256], unsigned nb_bins);
+
 #endif // GEOZL_CODECS_BINOFFSET_ENCODE_KERNEL_H

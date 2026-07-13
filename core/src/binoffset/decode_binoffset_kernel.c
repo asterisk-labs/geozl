@@ -74,3 +74,60 @@ int binoffset_join_table(void *dst, const uint8_t *bins, const void *offsets,
     return 1;
   }
 }
+
+// inverse of binoffset_split_pack: bounded u64 load + shift per value
+#include <string.h>
+static inline uint64_t bo_rmask(unsigned w) {
+  return (w >= 64) ? ~(uint64_t)0 : (((uint64_t)1 << w) - 1u);
+}
+static inline uint64_t bo_read(const uint8_t *p, size_t len, size_t bitpos,
+                               unsigned w) {
+  const size_t byte = bitpos >> 3;
+  const unsigned sh = (unsigned)(bitpos & 7u);
+  uint64_t lo = 0;
+  size_t avail = (byte < len) ? (len - byte) : 0;
+  if (avail > 8)
+    avail = 8;
+  memcpy(&lo, p + byte, avail);
+  uint64_t val = lo >> sh;
+  if (sh + w > 64) {
+    const uint8_t hi = (byte + 8 < len) ? p[byte + 8] : 0u;
+    val |= (uint64_t)hi << (64u - sh);
+  }
+  return val & bo_rmask(w);
+}
+
+#define BINOFFSET_UNPACK_JOIN(T)                                               \
+  do {                                                                         \
+    T *d = (T *)dst;                                                           \
+    size_t bitpos = 0;                                                         \
+    unsigned bad = 0;                                                          \
+    for (size_t k = 0; k < nb_elts; ++k) {                                     \
+      const unsigned b = bins[k];                                              \
+      bad |= (unsigned)(b >= nb_bins);                                         \
+      const unsigned w = offset_bits[b];                                       \
+      const uint64_t off = bo_read(packed, packed_len, bitpos, w);             \
+      bitpos += w;                                                             \
+      d[k] = (T)((T)lowers[b] + (T)off);                                       \
+    }                                                                          \
+    bad |= (unsigned)(((bitpos + 7) >> 3) > packed_len);                       \
+    return (int)bad;                                                           \
+  } while (0)
+
+int binoffset_unpack_join(void *dst, const uint8_t *bins, const uint8_t *packed,
+                          size_t packed_len, size_t nb_elts, size_t elt_width,
+                          const uint64_t lowers[256],
+                          const uint8_t offset_bits[256], unsigned nb_bins) {
+  switch (elt_width) {
+  case 1:
+    BINOFFSET_UNPACK_JOIN(uint8_t);
+  case 2:
+    BINOFFSET_UNPACK_JOIN(uint16_t);
+  case 4:
+    BINOFFSET_UNPACK_JOIN(uint32_t);
+  case 8:
+    BINOFFSET_UNPACK_JOIN(uint64_t);
+  default:
+    return 1;
+  }
+}

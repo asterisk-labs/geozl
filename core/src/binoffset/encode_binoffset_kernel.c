@@ -381,3 +381,69 @@ unsigned binoffset_optimize_table(const uint64_t *fine_lowers,
   free(starts);
   return nb;
 }
+// pcodec write_short_uints: pack offsets to offset_bits[bin] bits via a u64
+// accumulator. packed must hold nb_elts*elt_width + 8 bytes.
+#include <string.h>
+static inline uint64_t bo_mask(unsigned w) {
+  return (w >= 64) ? ~(uint64_t)0 : (((uint64_t)1 << w) - 1u);
+}
+
+#define BINOFFSET_SPLIT_PACK(T)                                                \
+  do {                                                                         \
+    const T *s = (const T *)src;                                               \
+    uint64_t acc = 0;                                                          \
+    unsigned nb = 0;                                                           \
+    size_t byte = 0;                                                           \
+    for (size_t k = 0; k < nb_elts; ++k) {                                     \
+      const T v = s[k];                                                        \
+      unsigned lo = 0, m = nb_bins;                                            \
+      while (m > 1) {                                                          \
+        const unsigned half = m / 2;                                           \
+        lo += ((uint64_t)v >= lowers[lo + half]) ? half : 0;                   \
+        m -= half;                                                             \
+      }                                                                        \
+      bins[k] = (uint8_t)lo;                                                   \
+      const unsigned w = offset_bits[lo];                                      \
+      const uint64_t val = (uint64_t)(v - (T)lowers[lo]) & bo_mask(w);         \
+      if (nb + w <= 64) {                                                      \
+        acc |= val << nb;                                                      \
+        nb += w;                                                               \
+      } else {                                                                 \
+        const unsigned first = 64u - nb;                                       \
+        acc |= val << nb;                                                      \
+        memcpy(packed + byte, &acc, 8);                                        \
+        byte += 8;                                                             \
+        acc = val >> first;                                                    \
+        nb = w - first;                                                        \
+      }                                                                        \
+      while (nb >= 8) {                                                        \
+        packed[byte++] = (uint8_t)(acc & 0xFFu);                               \
+        acc >>= 8;                                                             \
+        nb -= 8;                                                               \
+      }                                                                        \
+    }                                                                          \
+    while (nb > 0) {                                                           \
+      packed[byte++] = (uint8_t)(acc & 0xFFu);                                 \
+      acc >>= 8;                                                               \
+      nb = (nb >= 8) ? nb - 8 : 0;                                             \
+    }                                                                          \
+    return byte;                                                               \
+  } while (0)
+
+size_t binoffset_split_pack(uint8_t *bins, uint8_t *packed, const void *src,
+                            size_t nb_elts, size_t elt_width,
+                            const uint64_t lowers[256],
+                            const uint8_t offset_bits[256], unsigned nb_bins) {
+  switch (elt_width) {
+  case 1:
+    BINOFFSET_SPLIT_PACK(uint8_t);
+  case 2:
+    BINOFFSET_SPLIT_PACK(uint16_t);
+  case 4:
+    BINOFFSET_SPLIT_PACK(uint32_t);
+  case 8:
+    BINOFFSET_SPLIT_PACK(uint64_t);
+  default:
+    return 0;
+  }
+}

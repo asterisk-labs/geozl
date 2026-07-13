@@ -15,6 +15,7 @@ _desc = _ext.MultiInputCodecDescription(
     singleton_output_types=[_ext.Type.Numeric, _ext.Type.Numeric],
 )
 
+
 def _choose_bins_log(n, level):
     """pcodec choose_unoptimized_bins_log."""
     if n <= 0:
@@ -53,31 +54,35 @@ def _optimize_table(values, elt_width, level, meta_extra_bits):
     return out_lo[:nb].copy(), out_ob[:nb].copy()
 
 
+# header: [nb][elt] then per bin (lower elt bytes, offset_bits 1 byte). elt is
+# stored because offsets are packed bytes now, not elt-wide.
 def _pack_header(lowers, ob, elt_width):
-    out = bytearray(struct.pack("<B", lowers.size))
+    out = bytearray(struct.pack("<BB", lowers.size, elt_width))
     for l, o in zip(lowers.tolist(), ob.tolist()):
         out += int(l).to_bytes(8, "little")[:elt_width]
         out += struct.pack("<B", o)
     return bytes(out)
 
 
-def _unpack_header(raw, elt_width):
-    if len(raw) < 1:
+def _unpack_header(raw):
+    if len(raw) < 2:
         raise ValueError(f"{_NAME}: empty codec header")
-    nb = raw[0]
-    if nb == 0 or len(raw) != 1 + nb * (elt_width + 1):
+    nb, elt = raw[0], raw[1]
+    if elt not in (1, 2, 4, 8):
+        raise ValueError(f"{_NAME}: bad elt width in codec header")
+    if nb == 0 or len(raw) != 2 + nb * (elt + 1):
         raise ValueError(f"{_NAME}: bad codec header size")
     lowers = np.zeros(256, np.uint64)
     ob = np.zeros(256, np.uint8)
-    e = 1
+    e = 2
     for b in range(nb):
-        lowers[b] = int.from_bytes(raw[e:e + elt_width], "little")
-        o = raw[e + elt_width]
-        if o > 8 * elt_width:
+        lowers[b] = int.from_bytes(raw[e:e + elt], "little")
+        o = raw[e + elt]
+        if o > 8 * elt:
             raise ValueError(f"{_NAME}: bad offset_bits in codec header")
         ob[b] = o
-        e += elt_width + 1
-    return lowers, ob, nb
+        e += elt + 1
+    return lowers, ob, nb, elt
 
 
 class _Encoder(_ext.CustomEncoder):
@@ -99,16 +104,21 @@ class _Encoder(_ext.CustomEncoder):
         pad_lo = np.zeros(256, np.uint64)
         pad_ob = np.zeros(256, np.uint8)
         pad_lo[:lowers.size], pad_ob[:ob.size] = lowers, ob
+        # bins one byte each, offsets bit-packed
         bins = state.create_output(0, n, 1)
-        offs = state.create_output(1, n, elt)
-        lib.binoffset_split_table(
+        packed = np.zeros(max(1, n * elt) + 8, np.uint8)
+        nbytes = lib.binoffset_split_pack(
             ffi.cast("uint8_t *", _ptr(bins.mut_content.as_nparray())),
-            _ptr(offs.mut_content.as_nparray()), _ptr(src), n, elt,
+            ffi.cast("uint8_t *", _ptr(packed)), _ptr(src), n, elt,
             ffi.cast("const uint64_t *", _ptr(pad_lo)),
             ffi.cast("const uint8_t *", _ptr(pad_ob)), lowers.size)
+        nbytes = int(nbytes)
+        offs = state.create_output(1, nbytes, 1)
+        if nbytes:
+            offs.mut_content.as_nparray()[:] = packed[:nbytes]
         state.send_codec_header(_pack_header(lowers, ob, elt))
         bins.commit(n)
-        offs.commit(n)
+        offs.commit(nbytes)
 
 
 class BinOffsetDecoder(_ext.CustomDecoder):
@@ -118,15 +128,16 @@ class BinOffsetDecoder(_ext.CustomDecoder):
     def decode(self, state):
         bins = state.singleton_inputs[0]
         offs = state.singleton_inputs[1]
-        if bins.elt_width != 1 or bins.num_elts != offs.num_elts:
+        if bins.elt_width != 1 or offs.elt_width != 1:
             raise ValueError(f"{_NAME}: corrupt stream shape")
-        n, elt = offs.num_elts, offs.elt_width
-        lowers, ob, nb = _unpack_header(bytes(state.codec_header), elt)
+        n = bins.num_elts
+        lowers, ob, nb, elt = _unpack_header(bytes(state.codec_header))
+        packed = np.ascontiguousarray(offs.content.as_nparray())
         out = state.create_output(0, n, elt)
-        bad = lib.binoffset_join_table(
+        bad = lib.binoffset_unpack_join(
             _ptr(out.mut_content.as_nparray()),
             ffi.cast("const uint8_t *", _ptr(bins.content.as_nparray())),
-            _ptr(offs.content.as_nparray()), n, elt,
+            ffi.cast("const uint8_t *", _ptr(packed)), packed.size, n, elt,
             ffi.cast("const uint64_t *", _ptr(lowers)),
             ffi.cast("const uint8_t *", _ptr(ob)), nb)
         if bad:
@@ -135,11 +146,9 @@ class BinOffsetDecoder(_ext.CustomDecoder):
 
 
 class BinOffset:
-    """Split a numeric stream into (bin, offset) pairs against a per-tile bin
-    table from the boundary optimizer. Successors receive (bins, offsets); the
-    table travels in the codec header. compression_level sets the fine-bin
-    count; meta_extra_bits is the per-bin cost in the DP (models the FSE entry,
-    the one deviation from pcodec's tANS cost)."""
+    """Split into (bins, packed offsets): bins one byte each, offsets bit-packed
+    to offset_bits[bin] bits (pcodec style). Send bins to entropy, offsets to
+    Store. Table goes in the codec header."""
 
     def __init__(self, compression_level=8, meta_extra_bits=24.0):
         self._level = int(compression_level)

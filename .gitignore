@@ -85,3 +85,5 @@ timeout-*
 oom-*
 *.tif
 .vscode/settings.json
+
+*.jp2

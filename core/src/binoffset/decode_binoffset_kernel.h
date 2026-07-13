@@ -20,4 +20,12 @@ int binoffset_join_table(void *dst, const uint8_t *bins, const void *offsets,
                          const uint64_t lowers[256],
                          const uint8_t offset_bits[256], unsigned nb_bins);
 
+
+// inverse of binoffset_split_pack. Returns nonzero on a corrupt bin id or if
+// reads run past packed_len.
+int binoffset_unpack_join(void *dst, const uint8_t *bins, const uint8_t *packed,
+                          size_t packed_len, size_t nb_elts, size_t elt_width,
+                          const uint64_t lowers[256],
+                          const uint8_t offset_bits[256], unsigned nb_bins);
+
 #endif // GEOZL_CODECS_BINOFFSET_DECODE_KERNEL_H
