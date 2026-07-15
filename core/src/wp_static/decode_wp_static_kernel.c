@@ -1,8 +1,16 @@
-// Inverse wp_static predictor. The kernel K over the row above has no left
-// dependency, so it is a plain map that vectorizes, and the remaining W chain
-// is a prefix sum, the same scan as planar. The sum folds unsigned in 64-bit so
-// a u64 tile cannot overflow it, then the shift reads it back signed. @dst may
-// alias @src.
+// Inverse wp_static predictor, W + K + residual with K = (cN*N + cNW*NW +
+// cNE*NE + cNN*NN + round) >> shift over the row above. K has no left
+// dependency, so each row folds K into the residual and a prefix sum resolves
+// the W chain, the same scan as planar. K sums unsigned then shifts signed, so
+// a u64 tile wraps at 2^64 rather than overflowing.
+//
+// For 1 and 2 byte samples the fold accumulates in 32 bits when shift <= 16.
+// The output is <= 16 bits and only sum bits [shift, shift+16) reach it, so with
+// shift <= 16 they stay below bit 32 and survive the wrap, matching the 64-bit
+// fold exactly while letting the compiler vectorize the multiplies. A wider
+// sample or a larger shift (no encoder emits one, a corrupt header might) takes
+// the 64-bit path. @dst may alias @src.
+
 
 #include "decode_wp_static_kernel.h"
 
@@ -171,7 +179,7 @@ static void scan32(uint32_t *dst, const uint32_t *src, size_t n) {
   }
 }
 
-// u64 vectors hold too few elements to pay for a vector prefix sum.
+// Two elements per vector at 64 bits, not worth a vector cascade. Scalar.
 static void scan64(uint64_t *dst, const uint64_t *src, size_t n) {
   uint64_t acc = 0;
   for (size_t i = 0; i < n; ++i) {
@@ -180,11 +188,11 @@ static void scan64(uint64_t *dst, const uint64_t *src, size_t n) {
   }
 }
 
-// Fold the kernel into the residual, c[i] = res[i] + K[i]. K reads only the row
-// above, so the interior span has no dependency and vectorizes. Edge taps are
-// zero, and ab2, the row two above, is null on row one.
+// Fold d[c] = res[c] + K[c]. Edge taps (W, NW at column 0, NE at the last
+// column, NN on row 1) are zero, so the two end columns are peeled. FAST picks
+// the 32-bit interior for 1 and 2 byte samples; it compiles out otherwise.
 
-#define WP_STATIC_KROW(T, NAME)                                                \
+#define WP_STATIC_KROW(T, NAME, FAST)                                          \
   static void NAME(T *d, const T *res, const T *ab, const T *ab2, size_t n,    \
                    uint64_t cN, uint64_t cNW, uint64_t cNE, uint64_t cNN,      \
                    uint64_t rnd, int sh) {                                     \
@@ -194,7 +202,24 @@ static void scan64(uint64_t *dst, const uint64_t *src, size_t n) {
       d[0] = (T)(res[0] + (T)((int64_t)acc >> sh));                            \
     }                                                                          \
     size_t c = 1;                                                              \
-    if (ab2) {                                                                 \
+    if ((FAST) && sh <= 16) {                                                  \
+      const uint32_t kN = (uint32_t)cN, kNW = (uint32_t)cNW,                   \
+                     kNE = (uint32_t)cNE, kNN = (uint32_t)cNN,                 \
+                     krd = (uint32_t)rnd;                                      \
+      if (ab2) {                                                               \
+        for (; c + 1 < n; ++c) {                                               \
+          uint32_t acc = kN * ab[c] + kNW * ab[c - 1] + kNE * ab[c + 1] +      \
+                         kNN * ab2[c] + krd;                                   \
+          d[c] = (T)(res[c] + (T)((int32_t)acc >> sh));                        \
+        }                                                                      \
+      } else {                                                                 \
+        for (; c + 1 < n; ++c) {                                               \
+          uint32_t acc =                                                       \
+              kN * ab[c] + kNW * ab[c - 1] + kNE * ab[c + 1] + krd;            \
+          d[c] = (T)(res[c] + (T)((int32_t)acc >> sh));                        \
+        }                                                                      \
+      }                                                                        \
+    } else if (ab2) {                                                          \
       for (; c + 1 < n; ++c) {                                                 \
         uint64_t acc = cN * ab[c] + cNW * ab[c - 1] + cNE * ab[c + 1] +        \
                        cNN * ab2[c] + rnd;                                     \
@@ -212,14 +237,16 @@ static void scan64(uint64_t *dst, const uint64_t *src, size_t n) {
           cN * ab[L] + cNW * ab[L - 1] + (ab2 ? cNN * ab2[L] : 0) + rnd;       \
       d[L] = (T)(res[L] + (T)((int64_t)acc >> sh));                            \
     }                                                                          \
-  }
+  }                                                                            \
 
-WP_STATIC_KROW(uint8_t, krow8)
-WP_STATIC_KROW(uint16_t, krow16)
-WP_STATIC_KROW(uint32_t, krow32)
-WP_STATIC_KROW(uint64_t, krow64)
+WP_STATIC_KROW(uint8_t, krow8, 1)
+WP_STATIC_KROW(uint16_t, krow16, 1)
+WP_STATIC_KROW(uint32_t, krow32, 0)
+WP_STATIC_KROW(uint64_t, krow64, 0)
 
 #undef WP_STATIC_KROW
+
+// Row 0 is a bare prefix sum; later rows fold K first. ab2 is null until row 2.
 
 #define WP_STATIC_DEC(T, SCAN, KROW)                                           \
   do {                                                                         \

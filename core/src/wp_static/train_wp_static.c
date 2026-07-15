@@ -1,6 +1,11 @@
-// Fit the wp_static kernel from a tile, for 1 and 2 byte samples. Ridge normal
-// equations for the coefficients, then the shift that gives the lowest residual
-// byte plane entropy. Never loses to planar.
+// Fit the wp_static kernel from a tile: ridge normal equations for the
+// coefficients, then the shift with the lowest residual byte-plane entropy.
+// Candidate 0 is planar and the winner is by argmin, so the fit never loses to
+// planar; and since encode and decode apply the same K, a poor fit only costs
+// ratio, never correctness. The 1 and 2 byte paths are unchanged. For 4 and 8
+// byte samples the normal equations are scaled by the largest neighbour, which
+// leaves the least-squares minimiser unchanged (scaling both sides of the fit
+// by one constant) while keeping the products exact in double.
 
 #include "train_wp_static.h"
 
@@ -10,6 +15,7 @@
 
 #define WP_SHIFT_MAX 8
 #define WP_MAX_CAND (WP_SHIFT_MAX + 2)
+#define WP_MAX_PLANES 8 // a 64 bit sample splits into eight byte planes
 
 static int solve4(double A[4][4], double b[4], double x[4]) {
   for (int col = 0; col < 4; ++col) {
@@ -50,17 +56,45 @@ static int solve4(double A[4][4], double b[4], double x[4]) {
   return 1;
 }
 
+// Largest neighbour magnitude, to scale the normal equations. Zero maps to one.
+#define WP_MAXABS(T)                                                          \
+  do {                                                                         \
+    const T *s = (const T *)src;                                               \
+    for (size_t r = 2; r < rows; ++r) {                                        \
+      const T *up = s + (r - 1) * w;                                           \
+      const T *up2 = s + (r - 2) * w;                                          \
+      const T *row = s + r * w;                                                \
+      for (size_t c = 1; c + 1 < w; ++c) {                                     \
+        double m = (double)up[c];                                              \
+        if ((double)up[c - 1] > m)                                             \
+          m = (double)up[c - 1];                                               \
+        if ((double)up[c + 1] > m)                                             \
+          m = (double)up[c + 1];                                               \
+        if ((double)up2[c] > m)                                                \
+          m = (double)up2[c];                                                  \
+        if ((double)row[c] > m)                                                \
+          m = (double)row[c];                                                  \
+        if (m > maxabs)                                                        \
+          maxabs = m;                                                          \
+      }                                                                        \
+    }                                                                          \
+  } while (0)
+
+// Normal equations: target is the planar residual (row[c] - left), features the
+// four neighbours above, both divided by sc (see header). sc is 1 for narrow
+// samples, so that path is unchanged.
 #define WP_ACCUM(T)                                                            \
   do {                                                                         \
     const T *s = (const T *)src;                                               \
+    const double inv = 1.0 / sc;                                               \
     for (size_t r = 2; r < rows; ++r) {                                        \
       const T *row = s + r * w;                                                \
       const T *up = s + (r - 1) * w;                                           \
       const T *up2 = s + (r - 2) * w;                                          \
       for (size_t c = 1; c + 1 < w; ++c) {                                     \
-        double f[4] = {(double)up[c], (double)up[c - 1], (double)up[c + 1],    \
-                       (double)up2[c]};                                        \
-        double tgt = (double)row[c] - (double)row[c - 1];                      \
+        double f[4] = {(double)up[c] * inv, (double)up[c - 1] * inv,           \
+                       (double)up[c + 1] * inv, (double)up2[c] * inv};         \
+        double tgt = ((double)row[c] - (double)row[c - 1]) * inv;              \
         for (int i = 0; i < 4; ++i) {                                          \
           v[i] += f[i] * tgt;                                                  \
           for (int j = 0; j < 4; ++j)                                          \
@@ -83,9 +117,8 @@ static double plane_H(const uint32_t *hist, size_t nb) {
   return H;
 }
 
-// All candidates in one pass. The residual matches wp_static_encode,
-// accumulated in int64, boundary neighbours zero.
-#define WP_SCORE(T, ZCAST)                                                     \
+// 8/16 bit scoring, unchanged: 16 bit zigzag into a lo (plane 0) and hi (plane 1).
+#define WP_SCORE_NARROW(T, ZCAST)                                             \
   do {                                                                         \
     const T *s = (const T *)src;                                               \
     for (size_t r = 0; r < rows; ++r) {                                        \
@@ -105,8 +138,39 @@ static double plane_H(const uint32_t *hist, size_t nb) {
                             sh[m];                                             \
           const int16_t z = (int16_t)(ZCAST)(base - K);                        \
           const uint16_t zz = (uint16_t)(((uint16_t)z << 1) ^ (z >> 15));      \
-          hi[m][(zz >> 8) & 0xFF]++;                                           \
-          lo[m][zz & 0xFF]++;                                                  \
+          hist[m][1][(zz >> 8) & 0xFF]++;                                      \
+          hist[m][0][zz & 0xFF]++;                                             \
+        }                                                                      \
+      }                                                                        \
+    }                                                                          \
+  } while (0)
+
+// 32/64 bit scoring: residual formed exactly as the encoder (unsigned K, signed
+// shift, native-width subtract), then zigzagged and split into NB byte planes.
+#define WP_SCORE_WIDE(T, NB, BITS)                                            \
+  do {                                                                         \
+    const T *s = (const T *)src;                                               \
+    for (size_t r = 0; r < rows; ++r) {                                        \
+      const size_t row = r * w;                                                \
+      const T *ab = (r >= 1) ? s + row - w : (const T *)0;                     \
+      const T *ab2 = (r >= 2) ? s + row - 2 * w : (const T *)0;                \
+      for (size_t c = 0; c < w; ++c) {                                         \
+        const uint64_t N = ab ? ab[c] : 0;                                     \
+        const uint64_t NW = (ab && c > 0) ? ab[c - 1] : 0;                     \
+        const uint64_t NE = (ab && c + 1 < w) ? ab[c + 1] : 0;                 \
+        const uint64_t NN = ab2 ? ab2[c] : 0;                                  \
+        const uint64_t Wv = (c > 0) ? s[row + c - 1] : 0;                      \
+        for (int m = 0; m < nc; ++m) {                                         \
+          const uint64_t cN = (uint64_t)cf[m][0], cNW = (uint64_t)cf[m][1],    \
+                         cNE = (uint64_t)cf[m][2], cNN = (uint64_t)cf[m][3];   \
+          const uint64_t acc =                                                 \
+              cN * N + cNW * NW + cNE * NE + cNN * NN + (uint64_t)rnd[m];       \
+          const int64_t K = (int64_t)acc >> sh[m];                            \
+          const T res = (T)(s[row + c] - (Wv + (uint64_t)K));                  \
+          const T sgn = (T)(res >> (BITS - 1));                                \
+          const T zz = (T)(((T)(res << 1)) ^ (T)((T)0 - sgn));                 \
+          for (int b = 0; b < NB; ++b)                                         \
+            hist[m][b][(int)((zz >> (8 * b)) & 0xFF)]++;                       \
         }                                                                      \
       }                                                                        \
     }                                                                          \
@@ -120,18 +184,39 @@ void wp_static_train(int16_t coeffs[4], uint8_t *shift, const void *src,
   coeffs[3] = 0;
   *shift = 0;
 
-  if (nb_elts == 0 || (elt_width != 1 && elt_width != 2))
+  if (nb_elts == 0 ||
+      (elt_width != 1 && elt_width != 2 && elt_width != 4 && elt_width != 8))
     return;
   const size_t w = (width == 0 || width > nb_elts) ? nb_elts : width;
   const size_t rows = nb_elts / w;
   if (rows < 3 || w < 3)
     return;
 
+  double sc = 1.0;
+  if (elt_width >= 4) {
+    double maxabs = 1.0;
+    if (elt_width == 4)
+      WP_MAXABS(uint32_t);
+    else
+      WP_MAXABS(uint64_t);
+    sc = maxabs;
+  }
+
   double M[4][4] = {{0}}, v[4] = {0};
-  if (elt_width == 1)
+  switch (elt_width) {
+  case 1:
     WP_ACCUM(uint8_t);
-  else
+    break;
+  case 2:
     WP_ACCUM(uint16_t);
+    break;
+  case 4:
+    WP_ACCUM(uint32_t);
+    break;
+  default:
+    WP_ACCUM(uint64_t);
+    break;
+  }
 
   double tr = M[0][0] + M[1][1] + M[2][2] + M[3][3];
   double lambda =
@@ -176,19 +261,47 @@ void wp_static_train(int16_t coeffs[4], uint8_t *shift, const void *src,
     ++nc;
   }
 
-  uint32_t hi[WP_MAX_CAND][256], lo[WP_MAX_CAND][256];
-  memset(hi, 0, sizeof hi);
-  memset(lo, 0, sizeof lo);
-  if (elt_width == 1)
-    WP_SCORE(uint8_t, int8_t);
-  else
-    WP_SCORE(uint16_t, int16_t);
+  // One 256-bin plane per sample byte: planes 0-1 for narrow, eltWidth for wide.
+  static uint32_t hist[WP_MAX_CAND][WP_MAX_PLANES][256];
+  memset(hist, 0, sizeof hist);
+  int nplanes;
+  switch (elt_width) {
+  case 1:
+    WP_SCORE_NARROW(uint8_t, int8_t);
+    nplanes = 2;
+    break;
+  case 2:
+    WP_SCORE_NARROW(uint16_t, int16_t);
+    nplanes = 2;
+    break;
+  case 4:
+    WP_SCORE_WIDE(uint32_t, 4, 32);
+    nplanes = 4;
+    break;
+  default:
+    WP_SCORE_WIDE(uint64_t, 8, 64);
+    nplanes = 8;
+    break;
+  }
+
+  // Cost of every candidate under the byte plane proxy. Candidate 0 is planar.
+  double planar_cost = 0.0;
+  for (int p = 0; p < nplanes; ++p)
+    planar_cost += plane_H(hist[0][p], nb_elts);
+
+  // The order-0 byte-plane proxy is close to the coded size at 1/2 bytes, so the
+  // choice is a plain argmin there (margin 0, unchanged). At 4/8 bytes the proxy
+  // is weaker, so a candidate must beat planar by a small relative margin to be
+  // taken, which stops a tile from ever coming out larger than planar.
+  const double margin = (elt_width >= 4) ? planar_cost * 0.003 : 0.0;
 
   int best = 0;
-  double best_cost = plane_H(hi[0], nb_elts) + plane_H(lo[0], nb_elts);
+  double best_cost = planar_cost;
   for (int m = 1; m < nc; ++m) {
-    double e = plane_H(hi[m], nb_elts) + plane_H(lo[m], nb_elts);
-    if (e < best_cost) {
+    double e = 0.0;
+    for (int p = 0; p < nplanes; ++p)
+      e += plane_H(hist[m][p], nb_elts);
+    if (e < planar_cost - margin && e < best_cost) {
       best_cost = e;
       best = m;
     }
