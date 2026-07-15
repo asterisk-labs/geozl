@@ -179,3 +179,18 @@ done:
   ZL_Compressor_free(c);
   return r;
 }
+
+
+// Binding entry: like geozl_2d_compress but returns 0 on success or the
+// ZL_ErrorCode on failure, keeping ZL_Report out of foreign bindings. The
+// compressed size lands in *outSize on success.
+GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
+                                  double max_error, int dtype, int formatVersion,
+                                  const void *src, size_t numElts,
+                                  size_t eltWidth, void *dst, size_t dstCapacity,
+                                  size_t *outSize) {
+  ZL_Report r =
+      geozl_2d_compress(method, width, max_error, dtype, formatVersion, src,
+                        numElts, eltWidth, dst, dstCapacity, outSize);
+  return ZL_isError(r) ? (int)ZL_errorCode(r) : 0;
+}

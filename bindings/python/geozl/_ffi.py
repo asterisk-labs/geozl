@@ -46,6 +46,8 @@ int  floatmult_join(void* dst, const void* primary, const void* secondary, size_
 
 void quant_linear_encode(void* dst, const void* src, double scale, int dtype, size_t nb_elts);
 void quant_linear_decode(void* dst, const void* src, double scale, int dtype, size_t nb_elts);
+
+int geozl_2d_compress_c(const char* method, uint32_t width, double max_error, int dtype, int format_version, const void* src, size_t num_elts, size_t elt_width, void* dst, size_t dst_capacity, size_t* out_size);
 """
 
 ffi = FFI()
@@ -54,12 +56,17 @@ ffi.cdef(_CDEF)
 _LIB_GLOBS = ("*.so", "*.so.*", "*.dylib", "*.dll")
 
 
-def _bundled_lib():
+def _bundled(match, reject=None):
     lib_dir = Path(__file__).parent / "_lib"
     for pattern in _LIB_GLOBS:
         for path in sorted(lib_dir.glob(pattern)):
-            return str(path)
+            if match in path.name and (reject is None or reject not in path.name):
+                return str(path)
     return None
+
+
+def _bundled_lib():
+    return _bundled("geozl_kernels")
 
 
 def _load_lib():
@@ -71,6 +78,23 @@ def _load_lib():
 
 
 lib = _load_lib()
+
+
+# geozl_2d_compress_c is in libgeozl (links OpenZL), a different shared object
+# from geozl_kernels. Loaded lazily so importing geozl needs only the kernels.
+_lib_full = None
+
+
+def _load_lib_full():
+    global _lib_full
+    if _lib_full is None:
+        candidate = (os.environ.get("GEOZL_FULL_LIB")
+                     or _bundled("geozl", reject="kernels")
+                     or ctypes.util.find_library("geozl"))
+        if candidate is None:
+            raise OSError("libgeozl not found, set GEOZL_FULL_LIB to its path")
+        _lib_full = ffi.dlopen(candidate)
+    return _lib_full
 
 
 def _ptr(arr):

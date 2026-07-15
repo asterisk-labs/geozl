@@ -23,11 +23,6 @@ jobs:
           file="$(tr -d '[:space:]' < VERSION)"
           [ "$tag" = "$file" ] || { echo "::error::tag v$tag != VERSION $file"; exit 1; }
 
-  # geozl ships one native artifact, the pure C kernels lib, and it links only
-  # libc, so there is nothing to vendor. The wheel is cffi in ABI mode, one
-  # py3-none wheel per platform serves every Python 3. Platforms track the openzl
-  # wheels on PyPI, today linux x86_64 and macos arm64. FULL=OFF builds the
-  # kernels alone, no OpenZL compile, which also keeps a low glibc floor.
   linux:
     name: Wheel linux-x86_64
     needs: validate
@@ -36,23 +31,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: true          # extern/openzl headers only
+          submodules: true
       - name: Build and check the wheel
         run: |
           set -euxo pipefail
           export PATH=/opt/python/cp312-cp312/bin:$PATH
           pip install -q cmake ninja build wheel auditwheel
           cmake -S core -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-                -DGEOZL_BUILD_FULL=OFF -DGEOZL_BUILD_KERNELS_SHARED=ON
+                -DGEOZL_BUILD_FULL=ON -DGEOZL_BUILD_KERNELS_SHARED=ON
           cmake --build build
           mkdir -p bindings/python/geozl/_lib
           cp -v build/libgeozl_kernels*.so bindings/python/geozl/_lib/
+          cp -v build/libgeozl.so bindings/python/geozl/_lib/
           python -m build --wheel --outdir raw bindings/python
           python -m wheel tags --python-tag py3 --abi-tag none --remove raw/*.whl
-          auditwheel repair -w dist raw/*.whl     # stamps the manylinux tag
+          auditwheel repair -w dist raw/*.whl
           python -m venv /tmp/v && . /tmp/v/bin/activate
           pip install dist/*.whl
           LD_LIBRARY_PATH="" python -c "import geozl; print(geozl.__version__)"
+          LD_LIBRARY_PATH="" python -c "import numpy as np, geozl; \
+            t=(np.arange(256*256,dtype=np.uint16)%97).reshape(256,256); \
+            f=geozl.compress(t, method='full'); print('compress', len(f), 'bytes')"
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-linux
@@ -73,21 +72,24 @@ jobs:
       - name: Build and check the wheel
         run: |
           set -euxo pipefail
-          export MACOSX_DEPLOYMENT_TARGET=11.0    # matches the platform tag below
-          pip install -q --upgrade pip cmake ninja build wheel
+          export MACOSX_DEPLOYMENT_TARGET=11.0
+          pip install -q --upgrade pip cmake ninja build wheel delocate
           cmake -S core -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-                -DGEOZL_BUILD_FULL=OFF -DGEOZL_BUILD_KERNELS_SHARED=ON
+                -DGEOZL_BUILD_FULL=ON -DGEOZL_BUILD_KERNELS_SHARED=ON
           cmake --build build
           mkdir -p bindings/python/geozl/_lib
           cp -v build/libgeozl_kernels*.dylib bindings/python/geozl/_lib/
+          cp -v build/libgeozl.dylib bindings/python/geozl/_lib/
           python -m build --wheel --outdir raw bindings/python
-          # the dylib links only libSystem, nothing to delocate, tag straight
+          delocate-wheel -w dist raw/*.whl
           python -m wheel tags --python-tag py3 --abi-tag none \
-            --platform-tag macosx_11_0_arm64 --remove raw/*.whl
-          mkdir dist && mv raw/*.whl dist/
+            --platform-tag macosx_11_0_arm64 --remove dist/*.whl
           python -m venv /tmp/v && . /tmp/v/bin/activate
           pip install dist/*.whl
           python -c "import geozl; print(geozl.__version__)"
+          python -c "import numpy as np, geozl; \
+            t=(np.arange(256*256,dtype=np.uint16)%97).reshape(256,256); \
+            f=geozl.compress(t, method='full'); print('compress', len(f), 'bytes')"
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-macos

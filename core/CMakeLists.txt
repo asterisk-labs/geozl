@@ -89,7 +89,7 @@ if(GEOZL_BUILD_FULL)
         set(GEOZL_OPENZL_TARGET openzl)
     endif()
 
-    add_library(geozl
+    add_library(geozl SHARED
         ${GEOZL_BINDINGS}
         ${GEOZL_KERNELS}
         src/2d/2d.c

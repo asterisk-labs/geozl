@@ -1,6 +1,7 @@
 from importlib.metadata import PackageNotFoundError, version
 
 from . import lossless, lossy
+from ._2d import compress
 
 try:
     __version__ = version("geozl")
@@ -15,4 +16,4 @@ def register_decoders(dctx):
     lossy.register_decoders(dctx)
 
 
-__all__ = ["lossless", "lossy", "register_decoders", "__version__"]
+__all__ = ["lossless", "lossy", "compress", "register_decoders", "__version__"]

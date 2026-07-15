@@ -45,10 +45,13 @@ endif
 
 ifeq ($(UNAME),Darwin)
   KERNELS := libgeozl_kernels.dylib
+  FULLLIB := libgeozl.dylib
 else ifeq ($(OS),Windows_NT)
   KERNELS := geozl_kernels.dll
+  FULLLIB := geozl.dll
 else
   KERNELS := libgeozl_kernels.so
+  FULLLIB := libgeozl.so
 endif
 
 CMAKE_FLAGS ?=
@@ -84,6 +87,11 @@ lib: build
 	        -o -name 'libgeozl_kernels*.so*' -o -name 'geozl_kernels*.dll' \) | head -1); \
 	  [ -n "$$f" ] || { echo "no $(KERNELS) under $(BUILD_DIR)"; exit 1; }; \
 	  cp -a "$$f" $(PY_LIB_DIR)/
+	@rm -f $(PY_LIB_DIR)/libgeozl.dylib $(PY_LIB_DIR)/libgeozl.so* $(PY_LIB_DIR)/geozl.dll
+	@g=$$(find $(BUILD_DIR) \( -name 'libgeozl.dylib' \
+	        -o -name 'libgeozl.so*' -o -name 'geozl.dll' \) | head -1); \
+	  if [ -n "$$g" ]; then cp -a "$$g" $(PY_LIB_DIR)/; \
+	  else echo "note: no $(FULLLIB) (FULL=OFF), geozl.compress unavailable"; fi
 
 python: lib
 	@$(PYTHON) -c 'import numpy, cffi, openzl' 2>/dev/null \
