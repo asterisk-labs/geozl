@@ -92,6 +92,7 @@ if(GEOZL_BUILD_FULL)
     add_library(geozl
         ${GEOZL_BINDINGS}
         ${GEOZL_KERNELS}
+        src/2d/2d.c
         src/encoder_registry.c
         src/decoder_registry.c)
     add_library(geozl::geozl ALIAS geozl)

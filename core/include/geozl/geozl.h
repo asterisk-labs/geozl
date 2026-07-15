@@ -9,6 +9,7 @@
 #include "openzl/zl_dtransform.h"
 #include "openzl/zl_errors.h"
 
+#include <stddef.h>
 #include <stdint.h>
 
 #if defined(__cplusplus)
@@ -36,6 +37,22 @@ GEOZL_API ZL_NodeID geozl_node_floatquant(ZL_Compressor *c, unsigned k);
 GEOZL_API ZL_NodeID geozl_node_floatmult(ZL_Compressor *c, double base);
 GEOZL_API ZL_NodeID geozl_node_quant_linear(ZL_Compressor *c, double max_error,
                                             int dtype);
+
+// 2d high-level compression. method is "full" (sweep all predictors, keep the
+// smallest frame per tile) or a single predictor name ("average", "planar",
+// "med", "delta_w", "delta_n", "wp_static", "delta_1d"). max_error < 0 is
+// lossless; >= 0 adds a lossy quant_linear with that error bound (dtype is its
+// dtype code, ignored when lossless). src holds numElts numeric samples of
+// eltWidth bytes; up to dstCapacity bytes are written to dst, the count to
+// outSize. Returns the compression report; check ZL_isError.
+#define GEOZL_2D_LOSSLESS (-1.0)
+
+GEOZL_API ZL_Report geozl_2d_compress(const char *method, uint32_t width,
+                                      double max_error, int dtype,
+                                      int formatVersion, const void *src,
+                                      size_t numElts, size_t eltWidth,
+                                      void *dst, size_t dstCapacity,
+                                      size_t *outSize);
 
 #if defined(__cplusplus)
 }
