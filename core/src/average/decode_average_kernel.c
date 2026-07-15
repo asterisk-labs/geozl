@@ -1,12 +1,22 @@
 // Inverse Average predictor, PNG filter 3 (RFC 2083 6.5,
-// https://datatracker.ietf.org/doc/rfc2083/). Row zero and column zero
-// are peeled so the interior loop carries no boundary test.
+// https://datatracker.ietf.org/doc/rfc2083/).
+//
+// floor((W + N) / 2) chains through W, so it is an IIR, not a prefix sum, and
+// cannot vectorize like delta_n or planar. But the N side is known before the
+// row starts, so it is hoisted into a vectorizable prepass (B[c], L[c]) leaving
+// a minimal W chain. The split rests on the identity
+//   floor((W+N)/2) == (W>>1) + (N>>1) + (W & N & 1),
+// with L[c] = N & 1 carrying the low bit, so the chain stays in native width
+// with no overflow. Column zero has W == 0, so t starts at floor(N/2), the edge
+// rule. If the scratch allocation fails the kernel falls back to the in-place
+// recurrence, so it never fails on a valid frame. @dst may alias @src.
 
 #include "decode_average_kernel.h"
 
 #include <stdint.h>
+#include <stdlib.h>
 
-#define AVERAGE_DEC(T)                                                         \
+#define AVERAGE_DEC_DIRECT(T)                                                  \
   do {                                                                         \
     T *d = (T *)dst;                                                           \
     const T *s = (const T *)src;                                               \
@@ -15,14 +25,42 @@
     for (size_t c = 1; c < w; ++c)                                             \
       d[c] = (T)(s[c] + (d[c - 1] >> 1));                                      \
     for (size_t r = 1; r < rows; ++r) {                                        \
-      const size_t row = r * w;                                                \
-      d[row] = (T)(s[row] + (d[row - w] >> 1));                                \
-      for (size_t c = 1; c < w; ++c) {                                         \
-        const size_t i = row + c;                                              \
-        const T Wv = d[i - 1];                                                 \
-        const T Nv = d[i - w];                                                 \
-        const T P = (T)((Wv >> 1) + (Nv >> 1) + (Wv & Nv & 1));                \
-        d[i] = (T)(s[i] + P);                                                  \
+      const size_t row = r * w;                                               \
+      d[row] = (T)(s[row] + (d[row - w] >> 1));                               \
+      for (size_t c = 1; c < w; ++c) {                                        \
+        const size_t i = row + c;                                             \
+        const T Wv = d[i - 1];                                                \
+        const T Nv = d[i - w];                                                \
+        const T P = (T)((Wv >> 1) + (Nv >> 1) + (Wv & Nv & 1));               \
+        d[i] = (T)(s[i] + P);                                                 \
+      }                                                                        \
+    }                                                                          \
+  } while (0)
+
+#define AVERAGE_DEC_SPLIT(T)                                                   \
+  do {                                                                         \
+    T *restrict B = (T *)scratch;                                             \
+    T *restrict L = (T *)scratch + w;                                         \
+    T *d = (T *)dst;                                                           \
+    const T *s = (const T *)src;                                               \
+    const size_t rows = nbElts / w;                                            \
+    d[0] = s[0];                                                               \
+    for (size_t c = 1; c < w; ++c)                                             \
+      d[c] = (T)(s[c] + (d[c - 1] >> 1));                                      \
+    for (size_t r = 1; r < rows; ++r) {                                        \
+      const size_t row = r * w;                                               \
+      const T *restrict up = d + row - w;                                     \
+      const T *restrict res = s + row;                                        \
+      T *restrict o = d + row;                                                \
+      for (size_t c = 0; c < w; ++c) {                                        \
+        B[c] = (T)(res[c] + (up[c] >> 1));                                    \
+        L[c] = (T)(up[c] & 1);                                                \
+      }                                                                        \
+      T t = B[0];                                                             \
+      o[0] = t;                                                                \
+      for (size_t c = 1; c < w; ++c) {                                        \
+        t = (T)(B[c] + (t >> 1) + (t & L[c]));                                \
+        o[c] = t;                                                             \
       }                                                                        \
     }                                                                          \
   } while (0)
@@ -32,22 +70,48 @@ void average_decode(void *dst, const void *src, size_t width, size_t nbElts,
   if (nbElts == 0)
     return;
   const size_t w = (width == 0 || width > nbElts) ? nbElts : width;
+
+  // Two scratch rows (B and L); on allocation failure fall back in place.
+  void *scratch = malloc((size_t)2 * w * eltWidth);
+  if (scratch == NULL) {
+    switch (eltWidth) {
+    case 1:
+      AVERAGE_DEC_DIRECT(uint8_t);
+      break;
+    case 2:
+      AVERAGE_DEC_DIRECT(uint16_t);
+      break;
+    case 4:
+      AVERAGE_DEC_DIRECT(uint32_t);
+      break;
+    case 8:
+      AVERAGE_DEC_DIRECT(uint64_t);
+      break;
+    default:
+      break;
+    }
+    return;
+  }
+
   switch (eltWidth) {
   case 1:
-    AVERAGE_DEC(uint8_t);
+    AVERAGE_DEC_SPLIT(uint8_t);
     break;
   case 2:
-    AVERAGE_DEC(uint16_t);
+    AVERAGE_DEC_SPLIT(uint16_t);
     break;
   case 4:
-    AVERAGE_DEC(uint32_t);
+    AVERAGE_DEC_SPLIT(uint32_t);
     break;
   case 8:
-    AVERAGE_DEC(uint64_t);
+    AVERAGE_DEC_SPLIT(uint64_t);
     break;
   default:
     break;
   }
+
+  free(scratch);
 }
 
-#undef AVERAGE_DEC
+#undef AVERAGE_DEC_DIRECT
+#undef AVERAGE_DEC_SPLIT
