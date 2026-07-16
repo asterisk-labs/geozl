@@ -14,6 +14,12 @@ option(GEOZL_BUILD_FUZZERS        "Build the libFuzzer decode fuzzer, needs clan
 set(GEOZL_OPENZL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../extern/openzl"
     CACHE PATH "Path to the OpenZL submodule source")
 
+# Full library is shared for the Python wheel; a vendoring parent sets
+# BUILD_SHARED_LIBS OFF before add_subdirectory to fold it in static instead.
+if(NOT DEFINED BUILD_SHARED_LIBS)
+    set(BUILD_SHARED_LIBS ON)
+endif()
+
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
 endif()
@@ -89,7 +95,7 @@ if(GEOZL_BUILD_FULL)
         set(GEOZL_OPENZL_TARGET openzl)
     endif()
 
-    add_library(geozl SHARED
+    add_library(geozl
         ${GEOZL_BINDINGS}
         ${GEOZL_KERNELS}
         src/2d/2d.c
