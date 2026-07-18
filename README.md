@@ -127,10 +127,6 @@ Lossless codecs are bit-exact transforms over a raster tile. After decoding, the
 | codec | call | CTid | lanes | what it does |
 |---|---|---:|---|---|
 | `deinterleave` | `geozl.lossless.Deinterleave()` | `0x72D704` | both to one successor | separates a two-lane interleaved stream; for complex, view the tile through `geozl.lossless.component_dtype` first, OpenZL has no complex type |
-| `binoffset` | `geozl.lossless.BinOffset(compression_level=8)` | `0x72D708` | bins, offsets | bins each value, sends the one-byte bin to entropy and the bit-packed offset to Store, table in the codec header |
-| `intmult` | `geozl.lossless.IntMult(base)` | `0x72D709` | mults, adjs | splits values that cluster on multiples of an integer base |
-| `floatquant` | `geozl.lossless.FloatQuant(k)` | `0x72D70A` | high, low-k | splits floats whose mantissas carry only `k` meaningful bits |
-| `floatmult` | `geozl.lossless.FloatMult(base)` | `0x72D70B` | mults, adjs | splits floats that cluster on multiples of a float base |
 
 ## License
 
