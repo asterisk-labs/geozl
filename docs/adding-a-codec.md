@@ -2,12 +2,8 @@
 
 A codec is a self contained folder under `core/src/`, shaped like a standard codec
 in OpenZL's own `codecs/`, so it copies out whole if it ever graduates upstream.
-The fastest start is to copy the nearest existing codec, `planar/` for a one to
-one shape, `deinterleave/` for anything else, and adapt it.
-
-It has two parts. A kernel, the transform in pure C with no OpenZL types. A
-binding, the OpenZL typed encoder and decoder that wrap the kernel and own the
-codec header.
+The names are load bearing, `core/CMakeLists.txt` globs for
+`src/<name>/encode_<name>_binding.c` and takes the codec from there.
 
 ## The CTid
 
@@ -17,21 +13,20 @@ uses. A published CTid is frozen, its decode never changes, and new behaviour
 takes a new CTid rather than altering an old one. A reader that meets a newer
 CTid fails with a missing decoder, it never decodes wrong.
 
-Every id lives in `core/include/geozl/ctids.h`, lossless in the `0x72D70x` band,
-near lossless in `0x72D78x`. Take the next free one, never reuse or renumber. The
-format contract is in `SPEC.md`.
+Every id lives in `core/include/geozl/ctids.h`, lossless in `0x72D700` to
+`0x72D77F`, near lossless in `0x72D780` to `0x72D7FF`. The band is not a
+convention, `geozl_ctid_is_lossy` reads the kind straight off the id, so an id in
+the wrong band makes the codec lie about whether it destroys data. **Take the next
+free one, never reuse or renumber.**
 
 ## The codec header
 
 The codec header is the only channel from encoder to decoder, the decoder never
 sees a local param. Whatever the decode needs per tile is written on encode with
 `ZL_Encoder_sendCodecHeader` and read on decode with `ZL_Decoder_getCodecHeader`,
-inline in the two bindings. Keep it minimal and fixed. A predictor carries a four
-byte width, quant_linear its dtype and scale, deinterleave nothing.
-
-If the codec is exposed to Python, the Python side writes the same layout with
-`struct`, since it cannot call the C binding. Both sides follow the codec's
-`spec.md`, and the cross reader test catches a disagreement.
+inline in the two bindings. Keep it minimal! For instace, most predictors carry
+a four byte width, wp_static that width plus a shift and four coefficients,
+quant_linear its dtype and scale, deinterleave nothing.
 
 ## The folder
 
@@ -49,7 +44,8 @@ If the codec is exposed to Python, the Python side writes the same layout with
   and for a near lossless codec the error bound.
 
 A one numeric in, one numeric out codec reuses `GEOZL_NUM1TO1_GRAPH` from
-`common/`. Any other shape carries its own `graph_foo.h`, like `deinterleave/`.
+`common/`, a one in two out reuses `GEOZL_NUM1TO2_GRAPH` from the same place.
+Any other shape carries its own `graph_foo.h`, like `quant_linear/`.
 
 ## Wiring
 
@@ -60,22 +56,16 @@ On the C side.
 3. `encoder_registry.c`, add the node builder and declare it in `geozl.h`. A width
    predictor is one line, another codec writes a small builder that registers the
    encoder and attaches its params.
-4. `core/CMakeLists.txt`, add the codec name to `GEOZL_CODECS`. The foreach picks
-   up its four files by the naming convention. An odd extra source, like the
-   wp_static trainer, is appended after the loop.
-
-On the Python side, if the codec is exposed there.
-
-5. `_ffi.py`, add the kernel signatures to the cdef.
-6. A module under `lossless/` or `lossy/`, and its decoder in that package's
-   `register_decoders`.
-
-Then list the codec in the README, its call, CTid, and one line on what it does.
-That table is where a user finds it.
+4. `core/CMakeLists.txt`, nothing. A `CONFIGURE_DEPENDS` glob takes any
+   `src/<name>/` holding an `encode_<name>_binding.c` for a codec and re-globs on
+   build, so a new folder is picked up on its own and the four files come with it
+   by the naming convention. A source outside that convention, like the wp_static
+   trainer, is the one case that needs a line, appended after the loop.
 
 ## Verifying
 
-Syntax check the binding against the real OpenZL headers.
+Syntax check the binding against the real OpenZL headers. They come from the
+submodule, so a fresh clone runs `make submodules` first.
 
 ```
 gcc -fsyntax-only -std=c11 -Icore/include -Icore/src -Iextern/openzl/include \
@@ -88,13 +78,17 @@ shapes, bit exact for lossless, within the bound for near lossless.
 Cross reader is the real proof. A frame encoded in C decodes in Python and the
 reverse, since both implement the same CTid, header, and kernel.
 
+`make test` runs the suite, `make test-san` the same under ASan and UBSan, and
+`make fuzz` builds the decode fuzzer and its corpus.
+
 ## Checklist
 
 - [ ] folder with the four files, plus `graph_foo.h` if the shape is not one to one
+      or one to two
 - [ ] CTid in `ctids.h`, in the right band
 - [ ] decoder registered in `decoder_registry.c`
 - [ ] node builder in `encoder_registry.c` and `geozl.h`
-- [ ] sources building in `core/CMakeLists.txt`
+- [ ] `core/CMakeLists.txt` only if the codec has a source outside the convention
 - [ ] cdef and module on the Python side, if exposed
 - [ ] listed in the README codec table
 - [ ] round trip and cross reader pass

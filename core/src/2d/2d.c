@@ -11,6 +11,7 @@
 #include "openzl/codecs/zl_illegal.h" // ZL_GRAPH_ILLEGAL
 #include "openzl/codecs/zl_zigzag.h"  // ZL_NODE_ZIGZAG
 
+#include <stdio.h>
 #include <string.h>
 
 typedef enum {
@@ -81,6 +82,24 @@ static ZL_GraphID geozl_2d_graph(ZL_Compressor *c, const geozl_predictor *predic
     return ZL_GRAPH_ILLEGAL;
   return ZL_Compressor_registerStaticGraph_fromNode1o(c, q, sel);
 }
+// An OpenZL error string lives inside the object that raised it and only for
+// that object's lifetime, so it has to be copied out before the free below. It
+// is also rejected by any other object, hence err_owner.
+typedef enum { ERR_NONE, ERR_COMPRESSOR, ERR_CCTX } err_owner;
+
+static void copy_err(char *dst, size_t cap, const char *src) {
+  if (dst == NULL || cap == 0)
+    return;
+  if (src == NULL) {
+    dst[0] = '\0';
+    return;
+  }
+  size_t n = strlen(src);
+  if (n >= cap)
+    n = cap - 1;
+  memcpy(dst, src, n);
+  dst[n] = '\0';
+}
 
 static int geozl_2d_method(const char *name, geozl_predictor *out,
                            size_t *outN) {
@@ -117,31 +136,58 @@ static int geozl_2d_method(const char *name, geozl_predictor *out,
   return -1;
 }
 
+// errCtx receives the reason on failure and an empty string on success,
+// truncated to errCtxSize. Pass NULL to drop it.
 ZL_Report geozl_2d_compress(const char *method, uint32_t width,
                             double max_error, int dtype, int formatVersion,
                             const void *src, size_t numElts, size_t eltWidth,
-                            void *dst, size_t dstCapacity, size_t *outSize) {
+                            void *dst, size_t dstCapacity, size_t *outSize,
+                            char *errCtx, size_t errCtxSize) {
+  const int has_err = errCtx != NULL && errCtxSize != 0;
+  if (has_err)
+    errCtx[0] = '\0';
+
   geozl_predictor set[GEOZL_PRED_COUNT];
   size_t n = 0;
-  if (geozl_2d_method(method, set, &n) != 0)
-    return ZL_returnError(ZL_ErrorCode_graph_invalid);
+  if (geozl_2d_method(method, set, &n) != 0) {
+    if (has_err)
+      snprintf(errCtx, errCtxSize, "unknown method \"%s\"",
+               method != NULL ? method : "(null)");
+    return ZL_returnError(ZL_ErrorCode_parameter_invalid);
+  }
+
+  // ZL_TypedRef_createNumeric only returns NULL, so an unsupported width would
+  // otherwise be reported as an allocation failure.
+  if (eltWidth != 1 && eltWidth != 2 && eltWidth != 4 && eltWidth != 8) {
+    if (has_err)
+      snprintf(errCtx, errCtxSize,
+               "eltWidth %zu, an OpenZL numeric stream is 1, 2, 4 or 8",
+               eltWidth);
+    return ZL_returnError(ZL_ErrorCode_parameter_invalid);
+  }
 
   ZL_Compressor *c = ZL_Compressor_create();
   if (c == NULL)
     return ZL_returnError(ZL_ErrorCode_allocation);
 
   ZL_Report r;
+  err_owner owner = ERR_NONE;
   ZL_TypedRef *in = NULL;
   ZL_CCtx *cctx = NULL;
 
   ZL_GraphID g = geozl_2d_graph(c, set, n, width, max_error, dtype);
   if (!ZL_GraphID_isValid(g)) {
+    if (has_err)
+      snprintf(errCtx, errCtxSize, "could not build the graph for method \"%s\"",
+               method);
     r = ZL_returnError(ZL_ErrorCode_graph_invalid);
     goto done;
   }
   r = ZL_Compressor_selectStartingGraphID(c, g);
-  if (ZL_isError(r))
+  if (ZL_isError(r)) {
+    owner = ERR_COMPRESSOR;
     goto done;
+  }
 
   cctx = ZL_CCtx_create();
   if (cctx == NULL) {
@@ -149,29 +195,43 @@ ZL_Report geozl_2d_compress(const char *method, uint32_t width,
     goto done;
   }
   r = ZL_CCtx_refCompressor(cctx, c);
-  if (ZL_isError(r))
+  if (ZL_isError(r)) {
+    owner = ERR_CCTX;
     goto done;
+  }
   r = ZL_CCtx_setParameter(cctx, ZL_CParam_formatVersion, formatVersion);
-  if (ZL_isError(r))
+  if (ZL_isError(r)) {
+    owner = ERR_CCTX;
     goto done;
+  }
   if (max_error >= 0.0) {
     r = ZL_CCtx_setParameter(cctx, ZL_CParam_contentChecksum,
                              ZL_TernaryParam_disable);
-    if (ZL_isError(r))
+    if (ZL_isError(r)) {
+      owner = ERR_CCTX;
       goto done;
+    }
   }
 
   in = ZL_TypedRef_createNumeric(src, eltWidth, numElts);
   if (in == NULL) {
+    if (has_err)
+      snprintf(errCtx, errCtxSize, "could not wrap src as a numeric stream");
     r = ZL_returnError(ZL_ErrorCode_allocation);
     goto done;
   }
 
   r = ZL_CCtx_compressTypedRef(cctx, dst, dstCapacity, in);
-  if (!ZL_isError(r) && outSize != NULL)
+  if (ZL_isError(r))
+    owner = ERR_CCTX;
+  else if (outSize != NULL)
     *outSize = ZL_validResult(r);
 
 done:
+  if (owner == ERR_CCTX)
+    copy_err(errCtx, errCtxSize, ZL_CCtx_getErrorContextString(cctx, r));
+  else if (owner == ERR_COMPRESSOR)
+    copy_err(errCtx, errCtxSize, ZL_Compressor_getErrorContextString(c, r));
   if (in != NULL)
     ZL_TypedRef_free(in);
   if (cctx != NULL)
@@ -188,9 +248,10 @@ GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
                                   double max_error, int dtype, int formatVersion,
                                   const void *src, size_t numElts,
                                   size_t eltWidth, void *dst, size_t dstCapacity,
-                                  size_t *outSize) {
-  ZL_Report r =
-      geozl_2d_compress(method, width, max_error, dtype, formatVersion, src,
-                        numElts, eltWidth, dst, dstCapacity, outSize);
+                                  size_t *outSize, char *errCtx,
+                                  size_t errCtxSize) {
+  ZL_Report r = geozl_2d_compress(method, width, max_error, dtype, formatVersion,
+                                  src, numElts, eltWidth, dst, dstCapacity,
+                                  outSize, errCtx, errCtxSize);
   return ZL_isError(r) ? (int)ZL_errorCode(r) : 0;
 }

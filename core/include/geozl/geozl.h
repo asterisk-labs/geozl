@@ -42,9 +42,7 @@ GEOZL_API ZL_NodeID geozl_node_quant_linear(ZL_Compressor *c, double max_error,
 // smallest frame per tile) or a single predictor name ("average", "planar",
 // "med", "delta_w", "delta_n", "wp_static", "delta_1d"). max_error < 0 is
 // lossless; >= 0 adds a lossy quant_linear with that error bound (dtype is its
-// dtype code, ignored when lossless). src holds numElts numeric samples of
-// eltWidth bytes; up to dstCapacity bytes are written to dst, the count to
-// outSize. Returns the compression report; check ZL_isError.
+// dtype code, ignored when lossless).
 #define GEOZL_2D_LOSSLESS (-1.0)
 
 GEOZL_API ZL_Report geozl_2d_compress(const char *method, uint32_t width,
@@ -52,7 +50,8 @@ GEOZL_API ZL_Report geozl_2d_compress(const char *method, uint32_t width,
                                       int formatVersion, const void *src,
                                       size_t numElts, size_t eltWidth,
                                       void *dst, size_t dstCapacity,
-                                      size_t *outSize);
+                                      size_t *outSize, char *errCtx,
+                                      size_t errCtxSize);
 
 #if defined(__cplusplus)
 }

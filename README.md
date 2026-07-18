@@ -26,8 +26,6 @@ The full wire-level rules are described in [SPEC.md](SPEC.md). If you want to im
 
 geozl is **experimental**.
 
-The codec set, parameters, and header layouts may change between versions. There may be no migration path for old frames if the format changes, so pin the exact geozl version for any data you cannot regenerate.
-
 > [!WARNING]
 > **geozl codecs are not part of OpenZL.**
 >
@@ -41,7 +39,26 @@ pip install geozl
 
 ## Example
 
-geozl codecs are composed into an `openzl.ext` graph just like regular OpenZL nodes.
+geozl has two entry points: a high-level API that compresses a tile in one call, and a low-level API that places individual codecs in an OpenZL graph.
+
+### High-level API
+
+`geozl.compress` takes a tile and returns a frame. With the default method it sweeps every predictor and keeps the smallest one.
+
+```python
+import numpy as np
+import geozl
+
+tile = np.random.randint(0, 4096, (1024, 1024), dtype=np.uint16)
+
+frame = geozl.compress(tile)                 # sweep, keep the smallest frame
+frame = geozl.compress(tile, method="med")   # or name one predictor
+frame = geozl.compress(tile, max_error=2)    # near-lossless, absolute bound
+```
+
+### Low-level API
+
+For anything else, place the codecs in an `openzl.ext` graph yourself, alongside regular OpenZL nodes.
 
 ```python
 import openzl.ext as zl
@@ -54,6 +71,19 @@ g = zl.nodes.Zigzag()(c, g)
 g = geozl.lossless.Planar(width=512)(c, g)
 
 c.select_starting_graph(g)
+```
+
+### Decoding
+
+Either way, a reader has to register the geozl decoders before it can follow the frame.
+
+```python
+import openzl.ext as zl
+import geozl
+
+d = zl.DCtx()
+geozl.register_decoders(d)
+tile = d.decompress(frame)[0].content.as_nparray()
 ```
 
 ## Codecs
@@ -69,31 +99,38 @@ The `call` column shows the Python call used to place the codec in a graph.
 
 ### Near-lossless codecs
 
-Near-lossless codecs quantize the tile once, then store enough information in the frame to report and bound the reconstruction error.
+Near-lossless codecs quantize the tile once, then store enough information in the frame to report and bound the reconstruction error. A near-lossless frame is no longer bit-exact, it declares the bound it holds to instead.
 
-A near-lossless frame is no longer bit-exact. Instead, it declares one error mode:
+A frame carries at most one near-lossless codec, as the head transform, so the loss happens once and every stage after it is lossless.
 
-- **ABS**: a fixed absolute tolerance, useful for elevation, depth, coordinates, and similar values.
-- **REL**: a fixed relative tolerance, useful for radiance, reflectance, SAR amplitude, and other values where percentage error matters.
-
-| codec | call | CTid | mode | error |
-|---|---|---:|---|---|
-| `quant_linear` | `geozl.lossy.QuantLinear(max_error, dtype)` | `0x72D780` | ABS | every value reconstructs within `max_error` |
-| `quant_log` | `geozl.lossy.QuantLog(rel_error, dtype)` | `0x72D781` | REL | every value reconstructs within `rel_error` of itself |
+| codec | call | CTid | error |
+|---|---|---:|---|
+| `quant_linear` | `geozl.lossy.QuantLinear(max_error, dtype)` | `0x72D780` | every value reconstructs within `max_error`, an absolute tolerance |
 
 ### Lossless codecs
 
 Lossless codecs are bit-exact transforms over a raster tile. After decoding, the reconstructed tile is identical to the original input.
+
+**Predictors** replace each sample with its residual against a prediction from neighbours the decoder already holds. They take the row width, and one successor.
 
 | codec | call | CTid | what it does |
 |---|---|---:|---|
 | `delta_w` | `geozl.lossless.DeltaW(width)` | `0x72D701` | stores each value as a difference from its west neighbour |
 | `delta_n` | `geozl.lossless.DeltaN(width)` | `0x72D702` | stores each value as a difference from its north neighbour |
 | `planar` | `geozl.lossless.Planar(width)` | `0x72D703` | predicts each pixel from `W + N - NW` |
-| `deinterleave` | `geozl.lossless.Deinterleave()` | `0x72D704` | splits an interleaved complex stream into real and imaginary lanes |
 | `med` | `geozl.lossless.Med(width)` | `0x72D705` | uses the median edge detector predictor |
 | `average` | `geozl.lossless.Average(width)` | `0x72D706` | predicts from the floor average of west and north neighbours |
 | `wp_static` | `geozl.lossless.WpStatic(width)` | `0x72D707` | fits a static weighted predictor and stores the weights in the frame |
+
+**Splits** cut one stream into two lanes, so they take two successors, one per lane, and each lane can go on to its own graph.
+
+| codec | call | CTid | lanes | what it does |
+|---|---|---:|---|---|
+| `deinterleave` | `geozl.lossless.Deinterleave()` | `0x72D704` | both to one successor | separates a two-lane interleaved stream; for complex, view the tile through `geozl.lossless.component_dtype` first, OpenZL has no complex type |
+| `binoffset` | `geozl.lossless.BinOffset(compression_level=8)` | `0x72D708` | bins, offsets | bins each value, sends the one-byte bin to entropy and the bit-packed offset to Store, table in the codec header |
+| `intmult` | `geozl.lossless.IntMult(base)` | `0x72D709` | mults, adjs | splits values that cluster on multiples of an integer base |
+| `floatquant` | `geozl.lossless.FloatQuant(k)` | `0x72D70A` | high, low-k | splits floats whose mantissas carry only `k` meaningful bits |
+| `floatmult` | `geozl.lossless.FloatMult(base)` | `0x72D70B` | mults, adjs | splits floats that cluster on multiples of a float base |
 
 ## License
 

@@ -18,9 +18,7 @@ _COMPONENT = {np.complex64: np.float32, np.complex128: np.float64}
 
 def component_dtype(dtype):
     """The real component dtype a complex array views as, float32 for complex64.
-    OpenZL has no complex type, so view a complex tile through this before the
-    graph, and view the decoded output back to complex afterwards. deinterleave
-    itself never sees the complex type, it only separates the two lanes."""
+    deinterleave itself never sees the complex type, it only separates the two lanes."""
     return np.dtype(_COMPONENT[np.dtype(dtype).type])
 
 

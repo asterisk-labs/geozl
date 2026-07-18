@@ -14,10 +14,17 @@ option(GEOZL_BUILD_FUZZERS        "Build the libFuzzer decode fuzzer, needs clan
 set(GEOZL_OPENZL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../extern/openzl"
     CACHE PATH "Path to the OpenZL submodule source")
 
-# Full library is shared for the Python wheel; a vendoring parent sets
-# BUILD_SHARED_LIBS OFF before add_subdirectory to fold it in static instead.
-if(NOT DEFINED BUILD_SHARED_LIBS)
-    set(BUILD_SHARED_LIBS ON)
+# Decide geozl's own linkage from BUILD_SHARED_LIBS as OUR caller set it, and do
+# it HERE, before add_subdirectory(openzl). OpenZL's vendored deps (googletest,
+# zstd) run option(BUILD_SHARED_LIBS ... OFF), which lands in the cache; reading
+# the var after that subdirectory would wrongly flip us to STATIC. Captured up
+# front: a standalone build (var undefined) gets a shared geozl for the wheel, a
+# vendoring parent (rumi) that sets BUILD_SHARED_LIBS OFF gets it folded in
+# static. OpenZL itself stays static regardless via OPENZL_BUILD_SHARED_LIBS OFF.
+if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
+    set(GEOZL_LIB_TYPE STATIC)
+else()
+    set(GEOZL_LIB_TYPE SHARED)
 endif()
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -95,7 +102,7 @@ if(GEOZL_BUILD_FULL)
         set(GEOZL_OPENZL_TARGET openzl)
     endif()
 
-    add_library(geozl
+    add_library(geozl ${GEOZL_LIB_TYPE}
         ${GEOZL_BINDINGS}
         ${GEOZL_KERNELS}
         src/2d/2d.c
@@ -118,7 +125,8 @@ if(GEOZL_BUILD_FULL)
         target_link_libraries(geozl PRIVATE ${GEOZL_LIBM})
     endif()
 
-    install(TARGETS geozl ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    install(TARGETS geozl ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                          LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
     install(DIRECTORY include/geozl DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
     # libFuzzer harness over the decode path. Needs clang, and GEOZL_SANITIZE=ON
