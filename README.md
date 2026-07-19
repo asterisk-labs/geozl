@@ -12,15 +12,15 @@
   </a>
 </p>
 
-## What is geozl?
+## What is OpenZL and GeoZL?
 
-[OpenZL](https://github.com/facebook/openzl) treats compression as a graph of codecs. Each frame carries the recipe needed to decode it, which lets a universal OpenZL decoder follow the graph without knowing how the data was originally encoded.
+[OpenZL](https://github.com/facebook/openzl) is a new compression framework that treats compression as a graph of codecs. Each frame carries the recipe needed to decode it, which lets a universal OpenZL decoder follow the graph without knowing how the data was originally encoded.
 
 That model works well for one-dimensional streams, but it does not know that a raster has rows, columns, neighbours, or spatial structure. **geozl adds that missing spatial layer.**
 
 A geozl codec is an OpenZL graph node that understands raster tiles. It transforms a typed numeric stream, stores the metadata needed to reverse that transform in the codec header, and lets the rest of the OpenZL graph continue as usual.
 
-The full wire-level rules are described in [SPEC.md](SPEC.md). If you want to implement a new codec, see [docs/adding-a-codec.md](docs/adding-a-codec.md).
+If you want to implement a new codec, see [docs/adding-a-codec.md](docs/adding-a-codec.md).
 
 ## Status
 
