@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="img/geozl-banner-dark.svg" alt="geozl" width="750"/>
+  <img src="docs/assets/svg/banner.svg" alt="geozl" width="750"/>
 </p>
 
 <p align="center">
@@ -137,6 +137,6 @@ BSD-3-Clause
   Made with &#9829; by
   <br><br>
   <a href="https://asterisk.coop">
-    <img src="img/asterisk_banner.svg" alt="Asterisk Labs" width="400"/>
+    <img src="docs/assets/svg/asterisk_banner.svg" alt="Asterisk Labs" width="400"/>
   </a>
 </div>

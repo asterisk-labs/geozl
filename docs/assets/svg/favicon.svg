@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="geozl">
+  <rect x="18" y="18" width="44" height="44" fill="#4A2BE8" stroke="#16151C" stroke-width="4"/>
+  <rect x="118" y="18" width="44" height="44" fill="#F7CC0C" stroke="#16151C" stroke-width="4"/>
+  <rect x="18" y="118" width="44" height="44" fill="#A9FFA6" stroke="#16151C" stroke-width="4"/>
+  <rect x="118" y="118" width="44" height="44" fill="none" stroke="#16151C" stroke-width="4"/>
+  <rect x="132" y="132" width="16" height="16" fill="#FE6B37"/>
+</svg>

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="geozl — geospatial codec extensions for OpenZL.">
+<meta name="theme-color" content="#EFEBE2">
+<meta property="og:title" content="geozl — geospatial codec extensions for OpenZL">
+<meta property="og:description" content="Raster codecs for OpenZL. Lossless and near-lossless.">
+<meta property="og:type" content="website">
+<title>geozl</title>
+<link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="landing">
+  <div class="sheet">
+    <span class="reg tl">+</span><span class="reg tr">+</span>
+    <span class="reg bl">+</span><span class="reg br">+</span>
+
+    <header class="masthead">
+      <span class="mono">geozl</span>
+      <span class="mono status"><span class="dot"></span>v0.7.1 — stable</span>
+    </header>
+
+    <section class="hero">
+      <div class="hero-id">
+        <div class="lockup-hero vt-lockup">
+          <img class="marksvg-lg" src="assets/svg/mark.svg" alt="">
+          <h1 class="wordmark">GeoZL</h1>
+        </div>
+        <p class="tagline">Geospatial codec extensions for OpenZL.</p>
+      </div>
+
+      <div class="spec mono">
+        <div class="spec-row"><span class="k">Base</span><span class="v">OpenZL</span></div>
+        <div class="spec-row"><span class="k">Model</span><span class="v">codec DAG</span></div>
+        <div class="spec-row"><span class="k">Adds</span><span class="v">raster codecs</span></div>
+        <div class="spec-row"><span class="k">CTid</span><span class="v">0x72D700–0x72D7FF</span></div>
+        <div class="spec-row"><span class="k">Verify</span><span class="v">checksum</span></div>
+        <div class="spec-row"><span class="k">Mode</span><span class="v">lossless · near-lossless</span></div>
+      </div>
+    </section>
+
+    <nav class="index" aria-label="geozl">
+      <a class="idx doc" href="docs.html">
+        <div class="idx-top"><span class="sq"></span><span class="no mono">01</span></div>
+        <div class="idx-body"><div class="idx-name">Documentation</div><div class="idx-tag mono">start here</div></div>
+        <span class="idx-cta" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
+      </a>
+      <a class="idx hi" href="api-high.html">
+        <div class="idx-top"><span class="sq"></span><span class="no mono">02</span></div>
+        <div class="idx-body"><div class="idx-name">High-level API</div><div class="idx-tag mono">compress()</div></div>
+        <span class="idx-cta" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
+      </a>
+      <a class="idx lo" href="api-low.html">
+        <div class="idx-top"><span class="sq"></span><span class="no mono">03</span></div>
+        <div class="idx-body"><div class="idx-name">Low-level API</div><div class="idx-tag mono">build the graph</div></div>
+        <span class="idx-cta" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
+      </a>
+      <a class="idx bench" href="benchmark.html">
+        <div class="idx-top"><span class="sq"></span><span class="no mono">04</span></div>
+        <div class="idx-body"><div class="idx-name">Benchmark</div><div class="idx-tag mono">ratio &amp; speed</div></div>
+        <span class="idx-cta" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
+      </a>
+      <a class="idx links" href="links.html">
+        <div class="idx-top"><span class="sq"></span><span class="no mono">05</span></div>
+        <div class="idx-body"><div class="idx-name">Links</div><div class="idx-tag mono">code &amp; data</div></div>
+        <span class="idx-cta" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
+      </a>
+    </nav>
+
+    <footer class="colophon">
+      <span class="by">
+        Made with
+        <svg class="heart" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        by
+        <a class="ast-link" href="https://asterisk.coop" target="_blank" rel="noopener noreferrer">
+          <img class="ast" src="assets/svg/asterisk.svg" alt="">
+          asterisk labs
+        </a>
+      </span>
+    </footer>
+  </div>
+
+  <script src="assets/js/main.js" defer></script>
+</body>
+</html>
