@@ -38,20 +38,49 @@ GEOZL_API ZL_NodeID geozl_node_floatmult(ZL_Compressor *c, double base);
 GEOZL_API ZL_NodeID geozl_node_quant_linear(ZL_Compressor *c, double max_error,
                                             int dtype);
 
-// 2d high-level compression. method is "full" (sweep all predictors, keep the
-// smallest frame per tile) or a single predictor name ("average", "planar",
-// "med", "delta_w", "delta_n", "wp_static", "delta_1d"). max_error < 0 is
-// lossless; >= 0 adds a lossy quant_linear with that error bound (dtype is its
-// dtype code, ignored when lossless).
+// 2d high-level compression. A tile is compressed through one graph chosen out
+// of the grid {predictor prior + id} x {entropy, field_lz, zstd, store_lo}.
+// method is the prior (a name, "none", or NULL for unbiased). graph runs one
+// candidate directly by recipe name. optim picks what the selector minimizes
+// (store/speed/balanced), lam is the balanced weight. max_error < 0 is lossless.
 #define GEOZL_2D_LOSSLESS (-1.0)
 
-GEOZL_API ZL_Report geozl_2d_compress(const char *method, uint32_t width,
+#define GEOZL_2D_OPTIM_STORE 0
+#define GEOZL_2D_OPTIM_SPEED 1
+#define GEOZL_2D_OPTIM_BALANCED 2
+
+GEOZL_API ZL_Report geozl_2d_compress(const char *method, const char *graph,
+                                      int optim, double lam, uint32_t width,
                                       double max_error, int dtype,
-                                      int formatVersion, const void *src,
-                                      size_t numElts, size_t eltWidth,
-                                      void *dst, size_t dstCapacity,
-                                      size_t *outSize, char *errCtx,
-                                      size_t errCtxSize);
+                                      const void *src, size_t numElts,
+                                      size_t eltWidth, void *dst,
+                                      size_t dstCapacity, size_t *outSize,
+                                      char *chosenGraph, size_t chosenGraphSize,
+                                      char *errCtx, size_t errCtxSize);
+
+// Returns 0 or the ZL_ErrorCode. The winning recipe lands in chosenGraph
+// (may be NULL), the reason in errCtx, the size in *outSize.
+GEOZL_API int geozl_2d_compress_c(const char *method, const char *graph,
+                                  int optim, double lam, uint32_t width,
+                                  double max_error, int dtype, const void *src,
+                                  size_t numElts, size_t eltWidth, void *dst,
+                                  size_t dstCapacity, size_t *outSize,
+                                  char *chosenGraph, size_t chosenGraphSize,
+                                  char *errCtx, size_t errCtxSize);
+
+// Decompressed byte size of a frame, or 0 if it cannot be read.
+GEOZL_API size_t geozl_2d_frame_dsize_c(const void *frame, size_t frameSize);
+
+// Decompress a self-describing frame into dst. Returns 0 or the ZL_ErrorCode.
+GEOZL_API int geozl_2d_decompress_c(const void *frame, size_t frameSize,
+                                    void *dst, size_t dstCapacity,
+                                    size_t *outSize, char *errCtx,
+                                    size_t errCtxSize);
+
+// Recipe names of the grid a method expands to, one per stride-byte slot,
+// count in *outCount. -1 on an unknown method.
+GEOZL_API int geozl_2d_grid_c(const char *method, size_t eltWidth, char *names,
+                              size_t stride, size_t maxNames, size_t *outCount);
 
 #if defined(__cplusplus)
 }
