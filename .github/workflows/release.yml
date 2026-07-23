@@ -51,7 +51,10 @@ jobs:
           LD_LIBRARY_PATH="" python -c "import geozl; print(geozl.__version__)"
           LD_LIBRARY_PATH="" python -c "import numpy as np, geozl; \
             t=(np.arange(256*256,dtype=np.uint16)%97).reshape(256,256); \
-            f=geozl.compress(t, method='full'); print('compress', len(f), 'bytes')"
+            f=geozl.compress(t, method=None); \
+            d=geozl.decompress(f, dtype=np.uint16).reshape(t.shape); \
+            assert (d == t).all(), 'round-trip mismatch'; \
+            print('compress', len(f), 'bytes, round-trip ok')"
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-linux
@@ -89,7 +92,10 @@ jobs:
           python -c "import geozl; print(geozl.__version__)"
           python -c "import numpy as np, geozl; \
             t=(np.arange(256*256,dtype=np.uint16)%97).reshape(256,256); \
-            f=geozl.compress(t, method='full'); print('compress', len(f), 'bytes')"
+            f=geozl.compress(t, method=None); \
+            d=geozl.decompress(f, dtype=np.uint16).reshape(t.shape); \
+            assert (d == t).all(), 'round-trip mismatch'; \
+            print('compress', len(f), 'bytes, round-trip ok')"
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-macos
