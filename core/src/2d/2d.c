@@ -673,6 +673,10 @@ GEOZL_API int geozl_2d_bench_c(const char *method, const char *graph,
                                const void *src, size_t numElts, size_t eltWidth,
                                size_t reps, size_t *compSize, double *encSec,
                                double *decSec, char *errCtx, size_t errCtxSize) {
+  // reps == 0 would leave cbuf unwritten and the timings at DBL_MAX
+  if (reps == 0)
+    return (int)ZL_ErrorCode_parameter_invalid;
+
   size_t cap = 1024 + numElts * eltWidth + numElts * eltWidth / 2;
   void *cbuf = malloc(cap);
   if (cbuf == NULL)
