@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="geozl high-level API — the compress() one-liner.">
+<meta name="description" content="geozl high-level API. profile measures every candidate graph, compress picks the winner, decompress gives the array back.">
 <meta name="theme-color" content="#F1EDE4">
 <title>geozl — high-level API</title>
 <link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
@@ -12,83 +12,226 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
 <style>
-  /* api-high: a reference page that flows past one sheet */
+  /* api-high runs past one sheet, so the page scrolls instead of fitting. */
   body.doc-page{ align-items:flex-start; }
   .doc-page .sheet{ overflow:visible; min-height:min(820px,calc(100svh - clamp(32px,5.2vw,68px))); }
 
-  .api{ flex:1 1 auto; min-width:0; padding:clamp(44px,5.4vw,78px) clamp(28px,5vw,70px) clamp(30px,4vw,52px); }
-  .api section{ padding:clamp(38px,4.6vw,60px) 0; border-bottom:1px solid var(--line); }
-  .api section:last-of-type{ border-bottom:0; }
+  .api{ flex:1 1 auto; min-width:0; padding:clamp(40px,5vw,72px) clamp(28px,5vw,70px) clamp(30px,4vw,52px); }
+  .api section{ padding:clamp(40px,4.8vw,64px) 0; border-bottom:1px solid var(--line); }
+  .api section:last-of-type{ border-bottom:0; padding-bottom:clamp(20px,2.4vw,32px); }
 
-  .sec-h{ display:inline-flex; align-items:center; gap:9px; margin:0 0 clamp(20px,2.6vw,30px); color:var(--ink-2); font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.09em; text-transform:uppercase; }
-  .sec-h .sq{ width:9px; height:9px; background:var(--page); border:1px solid var(--ink); }
+  .sec-h{ display:flex; align-items:baseline; flex-wrap:wrap; gap:9px; margin:0 0 clamp(20px,2.6vw,30px); color:var(--ink-2); font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.09em; text-transform:uppercase; }
+  .sec-h .sq{ width:9px; height:9px; background:var(--page); border:1px solid var(--ink); transform:translateY(1px); }
+  .sec-h .sig{ letter-spacing:.02em; text-transform:none; opacity:.62; }
+  .sec-h .sig::before{ content:"/ "; opacity:.5; }
+
+  .note{ margin:14px 0 0; max-width:76ch; color:var(--ink-2); font-size:12.5px; line-height:1.6; opacity:1; }
+  .note a{ color:var(--ink); box-shadow:inset 0 -1px 0 var(--line-strong); }
+  .note b{ color:var(--ink); font-weight:600; }
+  .band{ display:grid; grid-template-columns:minmax(0,1fr) minmax(230px,.44fr); gap:clamp(26px,3.6vw,58px); align-items:start; }
+  .band > *{ min-width:0; }
+  .side{ margin:0; padding-top:13px; border-top:1px solid var(--line-strong); color:var(--ink-2); font-size:12.5px; line-height:1.6; }
+  .side b{ color:var(--ink); font-weight:600; }
+  .side .st{ display:block; margin-bottom:8px; color:var(--ink); font:500 10px/1 "IBM Plex Mono",monospace; letter-spacing:.09em; text-transform:uppercase; }
+  .side code{ font-family:"IBM Plex Mono",monospace; font-size:.9em; color:var(--ink); background:rgba(23,22,28,.045); padding:1px 3px; }
+  .prose{ max-width:64ch; color:var(--ink-2); font-size:15.5px; line-height:1.62; }
+  .prose p{ margin:0 0 15px; }
+  .prose p:last-child{ margin-bottom:0; }
+  .prose strong{ color:var(--ink); font-weight:600; }
+  .prose a{ color:var(--ink); box-shadow:inset 0 -1px 0 var(--line-strong); }
+  .prose code, .note code, .ds code, .defs dd code, .calls code{ font-family:"IBM Plex Mono",monospace; font-size:.88em; color:var(--ink); background:rgba(23,22,28,.045); padding:1px 3px; border-radius:1px; }
 
   /* hero */
-  .api-hero{ display:grid; grid-template-columns:minmax(0,1.1fr) minmax(320px,.92fr); column-gap:clamp(40px,6vw,84px); align-items:end; border-bottom:1px solid var(--line-strong); }
-  .api-hero .col-a{ min-width:0; }
-  .api-hero h1{ margin:0 0 22px; max-width:12ch; font-size:clamp(46px,6.3vw,84px); font-weight:600; line-height:.92; letter-spacing:-.052em; }
-  .api-hero h1 .u{ box-shadow:inset 0 -.10em 0 var(--page); }
-  .api-hero .lead{ margin:0; max-width:44ch; color:var(--ink-2); font-size:clamp(16px,1.5vw,19px); line-height:1.58; }
-  .oneliner{ position:relative; align-self:end; margin-top:clamp(28px,3vw,0px); }
-  .oneliner .tag{ display:inline-block; margin-bottom:-1px; padding:5px 11px; background:var(--page); color:var(--ink); font:600 10px/1 "IBM Plex Mono",monospace; letter-spacing:.06em; text-transform:uppercase; border:1px solid var(--ink); }
-  .oneliner pre{ margin:0; padding:clamp(20px,2.4vw,28px); background:var(--paper-2); border:1px solid var(--line-strong); font:600 clamp(14px,1.35vw,17px)/1.75 "IBM Plex Mono",monospace; color:var(--ink); white-space:pre; overflow-x:auto; }
+  .hero2{ display:grid; grid-template-columns:minmax(0,1.06fr) minmax(300px,.78fr); column-gap:clamp(36px,5vw,72px); align-items:end; border-bottom:1px solid var(--line-strong); }
+  .hero2 h1{ margin:0 0 20px; max-width:11ch; font-size:clamp(46px,6.2vw,82px); font-weight:600; line-height:.92; letter-spacing:-.052em; }
+  .hero2 .lead{ margin:0; max-width:46ch; color:var(--ink-2); font-size:clamp(16px,1.5vw,19px); line-height:1.56; }
+  .hero2 .lead code{ color:var(--ink); font:600 .86em/1 "IBM Plex Mono",monospace; }
+  .runrow{ display:flex; flex-wrap:wrap; gap:9px; margin-top:26px; }
+  .runrow a{ display:inline-flex; align-items:center; gap:8px; padding:9px 13px; border:1px solid var(--line-strong); background:rgba(255,255,255,.16); color:var(--ink); font:500 11.5px/1 "IBM Plex Mono",monospace; transition:background var(--duration) var(--ease); }
+  .runrow a:hover{ background:color-mix(in srgb,var(--page) 22%,transparent); }
+  .runrow a svg{ width:13px; height:13px; }
 
-  /* code + repl */
-  .code{ position:relative; margin-top:6px; background:var(--paper-2); border:1px solid var(--line-strong); overflow-x:auto; }
-  .code pre{ margin:0; padding:clamp(18px,2.2vw,26px); font:500 13px/1.72 "IBM Plex Mono",monospace; color:var(--ink); white-space:pre; }
+  /* figure panel */
+  .fig{ margin:0; border:1px solid var(--line-strong); background:var(--paper-2); }
+  .fig img{ width:100%; height:auto; display:block; }
+  .figbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 12px; border-top:1px solid var(--line-strong); color:var(--ink-2); font:500 10px/1.3 "IBM Plex Mono",monospace; letter-spacing:.04em; }
+  .ramp{ display:flex; align-items:center; gap:7px; white-space:nowrap; }
+  .ramp i{ width:70px; height:8px; border:1px solid var(--line-strong);
+    background:linear-gradient(90deg,#339 0%,#09f 15%,#0c6 25%,#ff9 50%,#805c54 75%,#fff 100%); }
+
+  /* the three calls */
+  .calls{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); border:1px solid var(--line-strong); }
+  .calls > div{ padding:clamp(18px,2.1vw,24px); border-right:1px solid var(--line); }
+  .calls > div:last-child{ border-right:0; }
+  .calls .n{ display:block; margin-bottom:9px; color:var(--ink); font:600 14px/1 "IBM Plex Mono",monospace; }
+  .calls .n em{ color:var(--ink-2); font-style:normal; font-weight:500; }
+  .calls p{ margin:0; color:var(--ink-2); font-size:13px; line-height:1.55; }
+  .calls code{ font-family:"IBM Plex Mono",monospace; font-size:.92em; color:var(--ink); }
+
+  /* code */
+  .lbl{ padding:11px clamp(16px,2vw,24px); border:1px solid var(--line-strong); border-bottom:0; background:rgba(255,255,255,.14); color:var(--ink-2); font:500 10px/1 "IBM Plex Mono",monospace; letter-spacing:.07em; text-transform:uppercase; }
+  .code{ background:var(--paper-2); border:1px solid var(--line-strong); overflow-x:auto; }
+  .code pre{ margin:0; padding:clamp(16px,2vw,24px); font:500 12.8px/1.72 "IBM Plex Mono",monospace; color:var(--ink); white-space:pre; }
   .code .c{ color:var(--ink-2); font-weight:400; font-style:italic; }
   .code .fn{ box-shadow:inset 0 -.085em 0 var(--page); }
-  .lbl{ padding:11px clamp(18px,2.2vw,26px); border:1px solid var(--line-strong); border-bottom:0; background:rgba(255,255,255,.14); color:var(--ink-2); font:500 10px/1 "IBM Plex Mono",monospace; letter-spacing:.07em; text-transform:uppercase; }
-  .lbl + .code{ margin-top:0; border-top:0; }
+  .lbl + .code{ border-top:0; }
+  .out{ border:1px solid var(--line-strong); border-top:0; background:rgba(255,255,255,.1); padding:13px clamp(16px,2vw,24px); color:var(--ink-2); font:500 12.5px/1.7 "IBM Plex Mono",monospace; white-space:pre; overflow-x:auto; }
+  .out b{ color:var(--ink); font-weight:600; }
 
-  .two{ display:grid; grid-template-columns:minmax(0,1.35fr) minmax(260px,.8fr); gap:clamp(22px,2.6vw,32px); align-items:start; }
+  .two{ display:grid; grid-template-columns:minmax(0,1.32fr) minmax(250px,.78fr); gap:clamp(20px,2.4vw,30px); align-items:start; }
+  .two > *, .calls > div, .defs > div{ min-width:0; }
+  .readout{ border:1px solid var(--line-strong); background:rgba(255,255,255,.1); }
+  .readout div{ display:flex; justify-content:space-between; gap:14px; padding:11px clamp(14px,1.8vw,20px); border-bottom:1px solid var(--line); font:500 12.5px/1.3 "IBM Plex Mono",monospace; }
+  .readout div:last-child{ border-bottom:0; }
+  .readout div:nth-child(even){ background:rgba(255,255,255,.12); }
+  .readout .k{ color:var(--ink-2); }
+  .readout .v{ color:var(--ink); font-weight:600; text-align:right; }
+  .readout .v.hot{ color:var(--wine); }
 
-  .repl{ border:1px solid var(--line-strong); background:rgba(255,255,255,.1); }
-  .repl .rr{ display:grid; grid-template-columns:auto 1fr; gap:16px; align-items:baseline; padding:12px clamp(16px,2vw,22px); border-bottom:1px solid var(--line); font:500 12.5px/1.3 "IBM Plex Mono",monospace; }
-  .repl .rr:last-child{ border-bottom:0; }
-  .repl .rr:nth-child(even){ background:rgba(255,255,255,.12); }
-  .repl .rk{ color:var(--ink-2); letter-spacing:.02em; }
-  .repl .rv{ color:var(--ink); text-align:right; font-weight:600; }
-  .repl .rv.hot{ color:var(--wine); }
-  .cap{ margin:14px 0 0; color:var(--ink-2); font-size:12px; line-height:1.55; }
-  .cap a{ color:var(--ink); text-underline-offset:2px; }
+  /* recipe chips */
+  .rcp{ display:inline-flex; align-items:center; flex-wrap:wrap; gap:2px; font:500 12px/1 "IBM Plex Mono",monospace; }
+  .rcp .gt{ color:var(--ink-2); font-style:normal; opacity:.55; padding:0 1px; }
+  .rcp .tk{ padding:4px 6px; border:1px solid transparent; color:var(--ink); white-space:nowrap; }
+  .rcp a.tk{ transition:border-color var(--duration) var(--ease); }
+  .rcp a.tk:hover{ border-color:var(--line-strong); }
+  .rcp .pred{ background:color-mix(in srgb,var(--purple) 15%,transparent); }
+  .rcp .split{ background:color-mix(in srgb,var(--green) 42%,transparent); }
+  .rcp .mid{ color:var(--ink-2); }
+  .rcp .back{ background:rgba(23,22,28,.075); font-weight:600; }
 
-  .prose{ max-width:62ch; color:var(--ink-2); font-size:15.5px; line-height:1.62; }
-  .prose p{ margin:0 0 15px; }
-  .prose strong{ color:var(--ink); font-weight:600; }
-  .prose code, .desc code, .cap code{ font-family:"IBM Plex Mono",monospace; font-size:.9em; color:var(--ink); background:rgba(23,22,28,.055); padding:1px 5px; }
+  /* plots */
+  .chart{ margin:clamp(22px,2.6vw,30px) 0 0; border:1px solid var(--line-strong); }
+  .chart .lbl{ display:flex; align-items:center; justify-content:space-between; gap:10px 20px; flex-wrap:wrap; border:0; border-bottom:1px solid var(--line-strong); }
+  .chart .lg{ display:flex; gap:6px 18px; letter-spacing:.04em; text-transform:none; }
+  .chart .lg > span{ display:inline-flex; align-items:center; gap:6px; }
+  .chart .lg i{ width:9px; height:9px; border:1px solid var(--ink); }
+  .chart .lg .l-front{ background:var(--ink); }
+  .chart .lg .l-rest{ background:var(--paper); border-color:rgba(23,22,28,.4); }
+  .cbody{ padding:clamp(16px,2vw,24px) clamp(12px,1.6vw,20px) clamp(4px,.6vw,8px); overflow-x:auto; }
+  .plot{ display:block; width:100%; min-width:960px; height:auto; overflow:visible; }
+  .plot .grid line{ stroke:var(--ink); stroke-opacity:.1; }
+  .plot .axis{ stroke:var(--ink); stroke-opacity:.42; }
+  .plot .ax{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; }
+  .plot .axl{ fill:var(--ink-2); font:500 10px/1 "IBM Plex Mono",monospace; letter-spacing:.07em; text-transform:uppercase; }
+  .plot .pt{ fill:var(--paper); stroke:var(--ink); stroke-opacity:.4; }
+  .plot .pt.on{ fill:var(--ink); stroke:var(--ink); stroke-opacity:1; }
+  .plot .front{ fill:none; stroke:var(--ink); stroke-opacity:.4; stroke-width:1.4; }
+  .plot .pick{ fill:var(--gold); stroke:var(--ink); stroke-width:1.4; }
+  .plot .base{ fill:none; stroke:var(--purple); stroke-width:2; }
+  .plot .num{ fill:var(--ink); font:600 10.5px/1 "IBM Plex Mono",monospace; }
+  .plot .num.alt{ fill:var(--purple); }
+  .plot .curve{ fill:none; stroke:var(--orange); stroke-width:2; }
+  .plot .cd{ fill:var(--orange); }
+  .plot .lossless{ stroke:var(--ink); stroke-opacity:.38; stroke-dasharray:5 5; }
+  .plot .ll{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; }
+  .plot .knee{ fill:none; stroke:var(--purple); stroke-width:2.2; }
+
+  .keys{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); border-top:1px solid var(--line-strong); }
+  .keys.one{ grid-template-columns:1fr; }
+  .key{ display:grid; grid-template-columns:20px 76px 54px minmax(0,1fr); gap:12px; align-items:center; min-width:0; padding:11px clamp(14px,1.8vw,20px); border-bottom:1px solid var(--line); }
+  .keys .key:nth-child(n+3){ border-bottom:0; }
+  .keys .key:nth-child(odd){ border-right:1px solid var(--line); }
+  .keys.one .key{ border-right:0; border-bottom:0; grid-template-columns:20px 76px 54px minmax(0,1fr); }
+  .kn{ display:grid; place-items:center; width:20px; height:20px; border:1px solid var(--ink); font:600 10px/1 "IBM Plex Mono",monospace; color:var(--ink); }
+  .kn.pick{ background:var(--gold); }
+  .kn.base{ border-color:var(--purple); color:var(--purple); }
+  .kl{ color:var(--ink); font:600 12.5px/1 "IBM Plex Mono",monospace; }
+  .kv{ text-align:right; color:var(--wine); font:600 12.5px/1 "IBM Plex Mono",monospace; }
+  .kd{ color:var(--ink-2); font-size:12.5px; line-height:1.5; }
+
+  /* graph table */
+  .gtab{ border:1px solid var(--line-strong); margin-top:clamp(22px,2.6vw,30px); }
+  .ghead, .grow{ display:grid; grid-template-columns:minmax(0,1fr) 84px 62px 62px 62px 54px; gap:14px; align-items:center; padding:9px clamp(14px,1.8vw,20px); }
+  .ghead{ border-bottom:1px solid var(--line-strong); background:rgba(255,255,255,.14); color:var(--ink-2); font:500 9.5px/1 "IBM Plex Mono",monospace; letter-spacing:.07em; text-transform:uppercase; }
+  .ghead span:not(:first-child){ text-align:right; }
+  .grow{ border-bottom:1px solid var(--line); }
+  .grow:last-child{ border-bottom:0; }
+  .grow:nth-of-type(even){ background:rgba(255,255,255,.12); }
+  .grow .bar{ display:block; height:7px; background:rgba(23,22,28,.08); border:1px solid var(--line); }
+  .grow .bar i{ display:block; height:100%; background:var(--page); }
+  .grow .nv{ text-align:right; color:var(--ink); font:600 12.5px/1 "IBM Plex Mono",monospace; }
+  .grow .nv.dim{ color:var(--ink-2); font-weight:500; }
+  .grow .flag{ margin-left:8px; padding:3px 6px; border:1px solid var(--purple); color:var(--purple); font:600 9px/1 "IBM Plex Mono",monospace; letter-spacing:.06em; text-transform:uppercase; }
+  .more{ border-top:1px solid var(--line-strong); }
+  .more summary{ list-style:none; cursor:pointer; padding:12px clamp(14px,1.8vw,20px); color:var(--ink-2); font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.05em; }
+  .more summary::-webkit-details-marker{ display:none; }
+  .more summary:hover{ color:var(--ink); background:rgba(255,255,255,.14); }
+  .more summary::before{ content:"+ "; color:var(--ink); }
+  .more[open] summary::before{ content:"\2212 "; }
+  .more .sm-close, .more[open] .sm-open{ display:none; }
+  .more[open] .sm-close{ display:inline; }
+  .more .grow:first-of-type{ border-top:1px solid var(--line); }
+
+  /* equations */
+  .eq{ margin:clamp(18px,2.2vw,26px) 0 0; border:1px solid var(--line-strong); background:rgba(255,255,255,.1); display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); }
+  .eq > span{ display:flex; flex-direction:column; align-items:flex-start; justify-content:space-between; gap:14px; min-width:0; padding:clamp(16px,1.9vw,22px) clamp(14px,1.7vw,20px); border-left:1px solid var(--line); color:var(--ink); font:500 14.5px/1.2 "IBM Plex Mono",monospace; }
+  .eq > span:first-child{ border-left:0; }
+  .eq em{ color:var(--ink-2); font:500 10px/1 "IBM Plex Mono",monospace; font-style:normal; letter-spacing:.09em; text-transform:uppercase; }
+  .eq .expr{ display:flex; align-items:center; gap:7px; }
+  .eq .frac{ display:inline-flex; flex-direction:column; align-items:center; gap:3px; font-size:12.5px; }
+  .eq .frac > span:first-child{ padding:0 5px 3px; border-bottom:1px solid var(--ink); }
+  .eq sub{ font-size:.72em; }
 
   /* pipeline strip */
-  .flow{ display:flex; flex-wrap:wrap; align-items:center; gap:10px 8px; margin:clamp(22px,2.6vw,30px) 0 4px; }
-  .flow .node{ padding:11px 15px; border:1px solid var(--line-strong); background:rgba(255,255,255,.14); font:600 12.5px/1 "IBM Plex Mono",monospace; color:var(--ink); }
+  .flow{ display:flex; flex-wrap:wrap; align-items:center; gap:9px 7px; margin:clamp(20px,2.4vw,28px) 0 0; }
+  .flow .node{ padding:11px 14px; border:1px solid var(--line-strong); background:rgba(255,255,255,.14); font:600 12.5px/1 "IBM Plex Mono",monospace; color:var(--ink); }
   .flow .node.io{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
-  .flow .node.pick{ position:relative; background:color-mix(in srgb,var(--page) 26%,transparent); border-color:var(--ink); }
-  .flow .node sup{ font-size:.7em; }
+  .flow .node.opt{ border-style:dashed; color:var(--ink-2); }
   .flow .arr{ color:var(--ink-2); font:500 15px/1 "IBM Plex Mono",monospace; }
-  .flow-note{ margin:12px 0 0; max-width:60ch; color:var(--ink-2); font-size:12.5px; line-height:1.55; }
-  .flow-note sup{ color:var(--ink); font-weight:600; }
+
+  /* definition grid */
+  .defs{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 clamp(24px,3vw,44px); margin-top:clamp(24px,2.8vw,34px); }
+  .defs h3{ margin:0; padding-bottom:9px; border-bottom:1px solid var(--line-strong); color:var(--ink-2); font:500 10px/1 "IBM Plex Mono",monospace; letter-spacing:.08em; text-transform:uppercase; }
+  .defs dl{ margin:0; }
+  .defs dt{ margin-top:16px; }
+  .defs dd{ margin:6px 0 0; color:var(--ink-2); font-size:13px; line-height:1.55; }
+
+  /* triptych */
+  .trip{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:clamp(10px,1.4vw,18px); margin-top:clamp(22px,2.6vw,30px); }
 
   /* params */
   .spec2{ border:1px solid var(--line-strong); }
-  .spec2 .row{ display:grid; grid-template-columns:132px 96px minmax(0,1fr); gap:18px; align-items:baseline; padding:14px clamp(18px,2.3vw,26px); border-bottom:1px solid var(--line); font-size:13.5px; }
+  .spec2 .row{ display:grid; grid-template-columns:126px 92px minmax(0,1fr); gap:18px; align-items:baseline; padding:13px clamp(16px,2.1vw,24px); border-bottom:1px solid var(--line); font-size:13.5px; }
   .spec2 .row:last-child{ border-bottom:0; }
   .spec2 .row:nth-child(even){ background:rgba(255,255,255,.13); }
   .spec2 .nm{ font:600 13.5px/1.3 "IBM Plex Mono",monospace; color:var(--ink); }
   .spec2 .ty{ color:var(--ink-2); font:500 10px/1.3 "IBM Plex Mono",monospace; letter-spacing:.04em; text-transform:uppercase; }
   .spec2 .ds{ color:var(--ink-2); line-height:1.5; }
   .spec2 .ds b{ color:var(--ink); font-weight:600; }
+  .subh{ margin:clamp(28px,3.2vw,40px) 0 12px; color:var(--ink); font:600 13px/1 "IBM Plex Mono",monospace; }
+  .subh:first-of-type{ margin-top:0; }
 
-  @media (max-width:900px){
-    .api-hero{ grid-template-columns:1fr; row-gap:32px; }
-    .two{ grid-template-columns:1fr; }
+  @media (max-width:980px){
+    .hero2{ grid-template-columns:1fr; row-gap:30px; }
+    .two, .band{ grid-template-columns:1fr; }
+    .defs{ grid-template-columns:1fr; }
+    .defs > div + div h3{ margin-top:30px; }
   }
   @media (max-width:760px){
     body.doc-page{ padding:0; background:var(--paper); }
-    .api{ padding:38px 20px 34px 23px; }
-    .flow .node{ font-size:11.5px; padding:9px 12px; }
+    .api{ padding:34px 20px 30px 22px; }
+    .calls{ grid-template-columns:1fr; }
+    .calls > div{ border-right:0; border-bottom:1px solid var(--line); }
+    .calls > div:last-child{ border-bottom:0; }
+    .ghead{ display:none; }
+    .grow{ grid-template-columns:minmax(0,1fr) auto; gap:9px 12px; padding-block:13px; }
+    .grow .rcp{ grid-column:1 / -1; }
+    .grow .bar{ grid-column:1; }
+    .grow .nv.dim{ display:none; }
+    .trip{ grid-template-columns:1fr; }
+    .keys{ grid-template-columns:1fr; }
+    .keys .key:nth-child(odd){ border-right:0; }
+    .keys .key:nth-child(3){ border-bottom:1px solid var(--line); }
+    .key{ grid-template-columns:20px 1fr auto; row-gap:8px; }
+    .key .rcp{ grid-column:1 / -1; }
     .spec2 .row{ grid-template-columns:1fr; gap:5px; }
     .spec2 .ty{ order:3; }
+    .flow .node{ font-size:11.5px; padding:9px 12px; }
+    .eq{ grid-template-columns:1fr; }
+    .eq > span{ border-left:0; border-top:1px solid var(--line); }
+    .eq > span:first-child{ border-top:0; }
   }
+  @media (prefers-reduced-motion:reduce){ *{ transition:none !important; } }
 </style>
 </head>
 <body class="doc-page" style="--page:var(--gold)">
@@ -111,97 +254,449 @@
     </header>
 
     <main class="api">
-      <section class="api-hero">
-        <div class="col-a">
+      <section class="hero2">
+        <div>
           <p class="sec-h"><span class="sq"></span> high-level api</p>
-          <h1>One call: <span class="u">compress()</span>.</h1>
-          <p class="lead">Hand it a raster tile, get back an OpenZL frame. geozl picks the best graph for that tile — you don't touch the graph at all. The same call rumi builds on.</p>
+          <h1>Measure, pick, <span class="u">run</span>.</h1>
+          <p class="lead">Three calls cover the whole surface. <code>profile</code> measures every candidate graph on your tile, <code>compress</code> runs the search and keeps the winner, <code>decompress</code> hands the array back.</p>
+          <div class="runrow">
+            <a href="https://colab.research.google.com/github/asterisk-labs/geozl/blob/main/docs/notebooks/high-level-api.ipynb" target="_blank" rel="noopener noreferrer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+              Run in Colab
+            </a>
+            <a href="notebooks/high-level-api.ipynb">Download the notebook</a>
+          </div>
         </div>
-        <div class="oneliner">
-          <span class="tag">the whole thing</span>
-          <pre>frame = geozl.compress(tile)</pre>
-        </div>
+        <figure class="fig">
+          <img src="assets/img/tile-montblanc.webp" width="512" height="512" alt="A 512 by 512 elevation tile over the Mont Blanc massif, a valley running diagonally between two ridges.">
+          <figcaption class="figbar">
+            <span>GLO&#8209;30 &#183; N45 E006 &#183; 512&#178;</span>
+            <span class="ramp">~290 m <i></i> ~2 280 m</span>
+          </figcaption>
+        </figure>
       </section>
 
       <section>
-        <p class="sec-h"><span class="sq"></span> a worked example</p>
+        <p class="sec-h"><span class="sq"></span> the three calls <span class="sig">geozl 0.7.6</span></p>
+        <div class="calls">
+          <div>
+            <span class="n">profile<em>(tile)</em></span>
+            <p>Compresses and decompresses every graph in the grid and returns one row each. A benchmark you run to decide, not part of the compress path.</p>
+          </div>
+          <div>
+            <span class="n">compress<em>(tile)</em></span>
+            <p>Searches the same grid and keeps the graph that wins this tile. Returns the frame as <code>bytes</code>.</p>
+          </div>
+          <div>
+            <span class="n">decompress<em>(frame)</em></span>
+            <p>The array back. <code>dtype</code> and <code>width</code> say how to read the bytes, because the frame does not carry them.</p>
+          </div>
+        </div>
+        <p class="note">Every number on this page comes from one run on the tile above, a 512&#215;512 window of the <a href="https://registry.opendata.aws/copernicus-dem/" target="_blank" rel="noopener noreferrer">Copernicus DEM GLO&#8209;30</a> over the Mont Blanc massif, public on AWS Open Data (&#169; ESA / Airbus / DLR). Elevation is in whole metres, so <code>int16</code> holds it exactly, and smooth terrain is where spatial predictors shine. For results across datasets see the <a href="benchmark.html">Benchmark</a> page.</p>
+      </section>
+
+      <section>
+        <p class="sec-h"><span class="sq"></span> the tile</p>
         <div class="two">
           <div>
-            <div class="lbl">python — read a real DEM, compress it</div>
-            <div class="code"><pre><span class="c"># Copernicus DEM GLO-30, a 1°×1° tile over the Mont Blanc massif.</span>
-<span class="c"># Elevation in whole metres, so int16 holds it without loss.</span>
-import rasterio, numpy as np, geozl
+            <div class="lbl">python</div>
+            <div class="code"><pre>import numpy as np
+import rasterio
+from rasterio.windows import Window
+import geozl
 
 url = ("https://copernicus-dem-30m.s3.amazonaws.com/"
        "Copernicus_DSM_COG_10_N45_00_E006_00_DEM/"
        "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif")
 
 with rasterio.open(url) as src:
-    dem = src.read(1)                     <span class="c"># metres, float32</span>
+    tile = np.round(
+        src.read(1, window=Window(1000, 1000, 512, 512))
+    ).astype(np.int16)
 
-scene = np.round(dem).astype(np.int16)    <span class="c"># -> int16, lossless here</span>
-
-<span class="c"># Tile the scene and compress each tile on its own. Each tile</span>
-<span class="c"># gets the graph that wins it — that is where selection lives.</span>
-H, W = scene.shape
-tiles  = [scene[r:r+512, c:c+512]
-          for r in range(0, H, 512)
-          for c in range(0, W, 512)]
-
-frames = [geozl.<span class="fn">compress</span>(t, optim="balanced", lam=0.5)
-          for t in tiles]
-
-<span class="c"># Frames are self-describing: no options to decompress.</span>
-back = [geozl.<span class="fn">decompress</span>(f, dtype="int16") for f in frames]
-assert all(np.array_equal(a, b) for a, b in zip(tiles, back))</pre></div>
-            <p class="cap">Dataset: <a href="https://registry.opendata.aws/copernicus-dem/" target="_blank" rel="noopener noreferrer">Copernicus DEM GLO-30</a>, public COG on AWS Open Data (© ESA / Airbus / DLR). Numbers below are representative of one alpine tile, not a benchmark — see the <a href="benchmark.html">Benchmark</a> page for measured results.</p>
+raw = tile.nbytes</pre></div>
+            <div class="out">(512, 512) int16 0.52 MB</div>
           </div>
           <div>
-            <div class="lbl">what it prints</div>
-            <div class="repl">
-              <div class="rr"><span class="rk">scene</span><span class="rv">3600² · int16</span></div>
-              <div class="rr"><span class="rk">raw</span><span class="rv">24.7 MB</span></div>
-              <div class="rr"><span class="rk">frames</span><span class="rv">10.6 MB</span></div>
-              <div class="rr"><span class="rk">ratio</span><span class="rv hot">2.33×</span></div>
-              <div class="rr"><span class="rk">decode</span><span class="rv">1.8 GB/s</span></div>
-              <div class="rr"><span class="rk">round trip</span><span class="rv">lossless</span></div>
+            <div class="readout">
+              <div><span class="k">shape</span><span class="v">512 &#215; 512</span></div>
+              <div><span class="k">dtype</span><span class="v">int16</span></div>
+              <div><span class="k">raw</span><span class="v">524 288 B</span></div>
+              <div><span class="k">best frame</span><span class="v">116.5 kB</span></div>
+              <div><span class="k">lossless</span><span class="v hot">4.50&#215;</span></div>
+              <div><span class="k">at &#177;2 m</span><span class="v hot">8.14&#215;</span></div>
             </div>
           </div>
         </div>
       </section>
 
       <section>
-        <p class="sec-h"><span class="sq"></span> how the call works</p>
+        <p class="sec-h"><span class="sq"></span> what a graph is</p>
         <div class="prose">
-          <p>One call builds a small graph for the tile — <strong>predictor → zigzag → entropy backend</strong> — and searches for the graph that scores best on it. The predictor turns each pixel into a small residual against its neighbours; zigzag folds that signed residual to unsigned so the entropy stage packs it tightly; the entropy backend does the final coding.</p>
-          <p>Two things you set decide the search. <strong><code>method</code></strong> is a <strong>prior</strong>: it seeds the search from a predictor you expect to fit, but never pins it — if a different graph wins the tile, even one that drops the predictor and hands the bytes straight to <code>zstd</code>, that graph is kept. <strong><code>optim</code></strong> is the objective the search minimizes.</p>
+          <p>Every candidate has the same shape. An optional <strong>predictor</strong>, then <strong>zigzag</strong> to fold the signed residual to unsigned, then a <strong>backend</strong> that does the actual coding. The recipe string names the pieces in order, so <code>planar&gt;zigzag&gt;transpose&gt;entropy</code> is one graph and <code>id&gt;store_lo</code> is another.</p>
         </div>
 
         <div class="flow">
           <span class="node io">tile</span>
-          <span class="arr">→</span>
-          <span class="node pick">predictor<sup>★</sup></span>
-          <span class="arr">→</span>
+          <span class="arr">&#8594;</span>
+          <span class="node opt">predictor</span>
+          <span class="arr">&#8594;</span>
           <span class="node">zigzag</span>
-          <span class="arr">→</span>
-          <span class="node pick">entropy<sup>★</sup></span>
-          <span class="arr">→</span>
+          <span class="arr">&#8594;</span>
+          <span class="node opt">layout</span>
+          <span class="arr">&#8594;</span>
+          <span class="node">backend</span>
+          <span class="arr">&#8594;</span>
           <span class="node io">frame</span>
         </div>
-        <p class="flow-note"><sup>★</sup> chosen per tile by <code>optim</code>. <b>store</b> keeps the smallest frame, <b>speed</b> the fastest to decode, <b>balanced</b> minimizes <code>bytes + lam · decode</code> — where <code>lam</code> is the one knob that trades size against decode time.</p>
+
+        <div class="defs">
+          <div>
+            <h3>Predictors &#183; <code>method</code> seeds the search from one</h3>
+            <dl>
+              <dt><span class="rcp"><a class="tk pred" href="codecs/planar.html">planar</a></span></dt>
+              <dd>Predicts each pixel from its neighbours as <code>W + N &#8722; NW</code>, the local gradient. Good default for smooth fields.</dd>
+              <dt><span class="rcp"><a class="tk pred" href="codecs/delta-w.html">delta_w</a><a class="tk pred" href="codecs/delta-n.html">delta_n</a></span></dt>
+              <dd>The plain difference from the west or the north neighbour.</dd>
+              <dt><span class="rcp"><a class="tk pred" href="codecs/med.html">med</a></span></dt>
+              <dd>The median predictor, JPEG&#8209;LS style. Picks among <code>W</code>, <code>N</code> and <code>W+N&#8722;NW</code> by the local gradient. Best ratio on many tiles, slower to decode.</dd>
+              <dt><span class="rcp"><a class="tk pred" href="codecs/average.html">average</a></span></dt>
+              <dd>Predicts from the average of the neighbours.</dd>
+              <dt><span class="rcp"><a class="tk pred" href="codecs/wp-static.html">wp_static</a></span></dt>
+              <dd>Fits a small weighted predictor to the tile and stores the weights in the frame header.</dd>
+              <dt><span class="rcp"><span class="tk pred">delta_1d</span></span></dt>
+              <dd>OpenZL's built&#8209;in 1d integer delta, with no spatial notion at all.</dd>
+              <dt><span class="rcp"><span class="tk pred">id</span></span></dt>
+              <dd>No predictor. The raw stream goes straight to a backend, the escape hatch for a tile a predictor does not help.</dd>
+            </dl>
+          </div>
+          <div>
+            <h3>Layout and backends &#183; what closes the graph</h3>
+            <dl>
+              <dt><span class="rcp"><span class="tk back">entropy</span></span></dt>
+              <dd>Adaptive FSE and Huffman.</dd>
+              <dt><span class="rcp"><span class="tk back">zstd</span><span class="tk back">field_lz</span></span></dt>
+              <dd>LZ backends, which also catch the repetition that entropy coding alone misses.</dd>
+              <dt><span class="rcp"><span class="tk split">transpose</span></span></dt>
+              <dd>Splits the <code>int16</code> into byte lanes, the low byte and the high byte as separate streams, then codes them. This is the byte shuffle blosc and EOPF use, so <code>id&gt;transpose&gt;zstd</code> is exactly the EOPF baseline.</dd>
+              <dt><span class="rcp"><span class="tk split">store_lo</span></span></dt>
+              <dd>Transposes, then stores the low lane raw because it is sensor noise and not worth coding, and entropy&#8209;codes the high lanes. Wins on Sentinel&#8209;2, where the low byte is irreducible.</dd>
+            </dl>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <p class="sec-h"><span class="sq"></span> profile <span class="sig">measure the candidates</span></p>
+        <div class="two">
+          <div class="prose">
+            <p><code>profile</code> compresses and decompresses every graph in the grid and returns one row per graph. The timing runs in C with the checksum off, so the speed is the pure codec and not the Python call or frame verification.</p>
+            <p><code>method</code> sets the prior. <code>"planar"</code> builds the grid from <code>planar</code> and <code>id</code>, <code>None</code> sweeps every predictor, <code>"none"</code> is the <code>id</code> branch alone. <code>reps</code> is how many times each graph is timed, and the fastest rep is kept.</p>
+          </div>
+          <div>
+            <div class="lbl">python</div>
+            <div class="code"><pre>rows = geozl.<span class="fn">profile</span>(tile, method=None,
+                     reps=5, max_error=0)
+
+rows[0]['graph'], rows[0]['ratio']</pre></div>
+            <div class="out">('planar&gt;zigzag&gt;transpose&gt;entropy', <b>4.50</b>)</div>
+          </div>
+        </div>
+
+        <div class="chart">
+          <div class="lbl">profile &#183; 48 graphs on one tile <span class="lg"><span><i class="l-front"></i> pareto front</span><span><i class="l-rest"></i> dominated</span></span></div>
+          <div class="cbody"><svg class="plot" viewBox="0 0 1100 560" role="img" aria-label="Every graph in the grid placed by compression ratio against decode speed, with the Pareto front drawn and the three optim winners numbered">
+<g class="grid">
+<line x1="76" y1="413.3" x2="1066" y2="413.3"/>
+<line x1="76" y1="276.9" x2="1066" y2="276.9"/>
+<line x1="76" y1="140.4" x2="1066" y2="140.4"/>
+<line x1="336.5" y1="34" x2="336.5" y2="502.0"/>
+<line x1="597.1" y1="34" x2="597.1" y2="502.0"/>
+<line x1="857.6" y1="34" x2="857.6" y2="502.0"/>
+</g>
+<g class="ticks">
+<text class="ax" x="64" y="417.3" text-anchor="end">2.0&#215;</text>
+<text class="ax" x="64" y="280.9" text-anchor="end">3.0&#215;</text>
+<text class="ax" x="64" y="144.4" text-anchor="end">4.0&#215;</text>
+<text class="ax" x="336.5" y="522" text-anchor="middle">400</text>
+<text class="ax" x="597.1" y="522" text-anchor="middle">800</text>
+<text class="ax" x="857.6" y="522" text-anchor="middle">1200</text>
+</g>
+<line class="axis" x1="76" y1="34" x2="76" y2="502.0"/>
+<line class="axis" x1="76" y1="502.0" x2="1066" y2="502.0"/>
+<text class="axl" x="76" y="22">&#8593; ratio</text>
+<text class="axl" x="1066" y="544" text-anchor="end">decode MB/s &#8594;</text>
+<polyline class="front" points="1020.3,413.3 746.1,405.1 570.7,121.3 387.8,72.2"/>
+<rect class="pt on" x="383.8" y="68.2" width="8" height="8"><title>planar>zigzag>transpose>entropy &#183; 4.50&#215; &#183; 479 MB/s</title></rect>
+<rect class="pt" x="327.4" y="69.6" width="8" height="8"><title>planar>zigzag>entropy &#183; 4.49&#215; &#183; 392 MB/s</title></rect>
+<rect class="pt" x="268.7" y="70.9" width="8" height="8"><title>wp_static>zigzag>transpose>entropy &#183; 4.48&#215; &#183; 302 MB/s</title></rect>
+<rect class="pt" x="361.7" y="73.7" width="8" height="8"><title>wp_static>zigzag>entropy &#183; 4.46&#215; &#183; 445 MB/s</title></rect>
+<rect class="pt" x="360.3" y="107.8" width="8" height="8"><title>wp_static>zigzag>transpose>zstd &#183; 4.21&#215; &#183; 443 MB/s</title></rect>
+<rect class="pt on" x="566.7" y="117.3" width="8" height="8"><title>planar>zigzag>transpose>zstd &#183; 4.14&#215; &#183; 760 MB/s</title></rect>
+<rect class="pt" x="270.7" y="154.2" width="8" height="8"><title>med>zigzag>transpose>zstd &#183; 3.87&#215; &#183; 305 MB/s</title></rect>
+<rect class="pt" x="271.9" y="158.3" width="8" height="8"><title>med>zigzag>transpose>entropy &#183; 3.84&#215; &#183; 307 MB/s</title></rect>
+<rect class="pt" x="272.6" y="159.6" width="8" height="8"><title>med>zigzag>entropy &#183; 3.83&#215; &#183; 308 MB/s</title></rect>
+<rect class="pt" x="278.9" y="159.6" width="8" height="8"><title>wp_static>zigzag>field_lz &#183; 3.83&#215; &#183; 318 MB/s</title></rect>
+<rect class="pt" x="442.3" y="176.0" width="8" height="8"><title>average>zigzag>transpose>zstd &#183; 3.71&#215; &#183; 569 MB/s</title></rect>
+<rect class="pt" x="313.8" y="176.0" width="8" height="8"><title>planar>zigzag>field_lz &#183; 3.71&#215; &#183; 371 MB/s</title></rect>
+<rect class="pt" x="209.7" y="193.7" width="8" height="8"><title>med>zigzag>field_lz &#183; 3.58&#215; &#183; 211 MB/s</title></rect>
+<rect class="pt" x="307.8" y="193.7" width="8" height="8"><title>average>zigzag>field_lz &#183; 3.58&#215; &#183; 362 MB/s</title></rect>
+<rect class="pt" x="372.6" y="210.1" width="8" height="8"><title>delta_w>zigzag>transpose>zstd &#183; 3.46&#215; &#183; 462 MB/s</title></rect>
+<rect class="pt" x="297.2" y="211.5" width="8" height="8"><title>wp_static>zigzag>zstd &#183; 3.45&#215; &#183; 346 MB/s</title></rect>
+<rect class="pt" x="425.3" y="211.5" width="8" height="8"><title>delta_n>zigzag>transpose>zstd &#183; 3.45&#215; &#183; 542 MB/s</title></rect>
+<rect class="pt" x="225.8" y="218.3" width="8" height="8"><title>delta_n>zigzag>field_lz &#183; 3.40&#215; &#183; 236 MB/s</title></rect>
+<rect class="pt" x="380.3" y="219.7" width="8" height="8"><title>planar>zigzag>zstd &#183; 3.39&#215; &#183; 473 MB/s</title></rect>
+<rect class="pt" x="365.7" y="226.5" width="8" height="8"><title>average>zigzag>entropy &#183; 3.34&#215; &#183; 451 MB/s</title></rect>
+<rect class="pt" x="289.5" y="226.5" width="8" height="8"><title>average>zigzag>transpose>entropy &#183; 3.34&#215; &#183; 334 MB/s</title></rect>
+<rect class="pt" x="243.0" y="233.3" width="8" height="8"><title>delta_w>zigzag>field_lz &#183; 3.29&#215; &#183; 263 MB/s</title></rect>
+<rect class="pt" x="243.2" y="234.7" width="8" height="8"><title>delta_1d>field_lz &#183; 3.28&#215; &#183; 263 MB/s</title></rect>
+<rect class="pt" x="235.3" y="234.7" width="8" height="8"><title>med>zigzag>zstd &#183; 3.28&#215; &#183; 251 MB/s</title></rect>
+<rect class="pt" x="224.9" y="238.8" width="8" height="8"><title>delta_w>zigzag>transpose>entropy &#183; 3.25&#215; &#183; 235 MB/s</title></rect>
+<rect class="pt" x="334.6" y="238.8" width="8" height="8"><title>average>zigzag>zstd &#183; 3.25&#215; &#183; 403 MB/s</title></rect>
+<rect class="pt" x="333.2" y="241.5" width="8" height="8"><title>delta_w>zigzag>entropy &#183; 3.23&#215; &#183; 401 MB/s</title></rect>
+<rect class="pt" x="543.4" y="242.9" width="8" height="8"><title>delta_1d>entropy &#183; 3.22&#215; &#183; 724 MB/s</title></rect>
+<rect class="pt" x="370.6" y="255.1" width="8" height="8"><title>delta_n>zigzag>transpose>entropy &#183; 3.13&#215; &#183; 458 MB/s</title></rect>
+<rect class="pt" x="318.6" y="256.5" width="8" height="8"><title>delta_n>zigzag>entropy &#183; 3.12&#215; &#183; 379 MB/s</title></rect>
+<rect class="pt" x="130.2" y="259.2" width="8" height="8"><title>delta_n>zigzag>zstd &#183; 3.10&#215; &#183; 89 MB/s</title></rect>
+<rect class="pt" x="274.6" y="266.0" width="8" height="8"><title>delta_w>zigzag>zstd &#183; 3.05&#215; &#183; 311 MB/s</title></rect>
+<rect class="pt" x="264.7" y="268.8" width="8" height="8"><title>delta_1d>zstd &#183; 3.03&#215; &#183; 296 MB/s</title></rect>
+<rect class="pt" x="288.8" y="286.5" width="8" height="8"><title>delta_1d>transpose>zstd &#183; 2.90&#215; &#183; 333 MB/s</title></rect>
+<rect class="pt" x="263.2" y="334.3" width="8" height="8"><title>delta_1d>transpose>entropy &#183; 2.55&#215; &#183; 294 MB/s</title></rect>
+<rect class="pt" x="198.9" y="388.8" width="8" height="8"><title>id>field_lz &#183; 2.15&#215; &#183; 195 MB/s</title></rect>
+<rect class="pt on" x="742.1" y="401.1" width="8" height="8"><title>id>transpose>zstd &#183; 2.06&#215; &#183; 1029 MB/s</title></rect>
+<rect class="pt on" x="1016.3" y="409.3" width="8" height="8"><title>planar>zigzag>store_lo &#183; 2.00&#215; &#183; 1450 MB/s</title></rect>
+<rect class="pt" x="317.6" y="409.3" width="8" height="8"><title>med>zigzag>store_lo &#183; 2.00&#215; &#183; 377 MB/s</title></rect>
+<rect class="pt" x="887.2" y="410.7" width="8" height="8"><title>delta_n>zigzag>store_lo &#183; 1.99&#215; &#183; 1252 MB/s</title></rect>
+<rect class="pt" x="273.2" y="410.7" width="8" height="8"><title>delta_w>zigzag>store_lo &#183; 1.99&#215; &#183; 309 MB/s</title></rect>
+<rect class="pt" x="310.5" y="410.7" width="8" height="8"><title>wp_static>zigzag>store_lo &#183; 1.99&#215; &#183; 366 MB/s</title></rect>
+<rect class="pt" x="348.4" y="410.7" width="8" height="8"><title>average>zigzag>store_lo &#183; 1.99&#215; &#183; 424 MB/s</title></rect>
+<rect class="pt" x="250.6" y="421.6" width="8" height="8"><title>id>zstd &#183; 1.91&#215; &#183; 274 MB/s</title></rect>
+<rect class="pt" x="485.5" y="448.9" width="8" height="8"><title>delta_1d>store_lo &#183; 1.71&#215; &#183; 635 MB/s</title></rect>
+<rect class="pt" x="272.6" y="461.2" width="8" height="8"><title>id>entropy &#183; 1.62&#215; &#183; 308 MB/s</title></rect>
+<rect class="pt" x="270.2" y="466.6" width="8" height="8"><title>id>transpose>entropy &#183; 1.58&#215; &#183; 304 MB/s</title></rect>
+<rect class="pt" x="591.4" y="470.7" width="8" height="8"><title>id>store_lo &#183; 1.55&#215; &#183; 798 MB/s</title></rect>
+<rect class="pick" x="381.3" y="65.7" width="13" height="13"/>
+<text class="num" x="398.8" y="66.2">1</text>
+<rect class="pick" x="324.9" y="67.1" width="13" height="13"/>
+<text class="num" x="342.4" y="67.6">2</text>
+<rect class="pick" x="588.9" y="468.2" width="13" height="13"/>
+<text class="num" x="606.4" y="468.7">3</text>
+<rect class="base" x="739.6" y="398.6" width="13" height="13"/>
+<text class="num" x="757.1" y="399.1">4</text>
+</svg></div>
+          <div class="keys"><div class="key"><span class="kn pick">1</span><span class="kl">store</span><span class="kv">4.50&#215;</span><span class="rcp"><a class="tk pred" href="codecs/planar.html">planar</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk split">transpose</span><i class="gt">&gt;</i><span class="tk back">entropy</span></span></div><div class="key"><span class="kn pick">2</span><span class="kl">balanced</span><span class="kv">4.49&#215;</span><span class="rcp"><a class="tk pred" href="codecs/planar.html">planar</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk back">entropy</span></span></div><div class="key"><span class="kn pick">3</span><span class="kl">speed</span><span class="kv">1.55&#215;</span><span class="rcp"><span class="tk pred">id</span><i class="gt">&gt;</i><span class="tk split">store_lo</span></span></div><div class="key"><span class="kn base">4</span><span class="kl">EOPF baseline</span><span class="kv">2.06&#215;</span><span class="rcp"><span class="tk pred">id</span><i class="gt">&gt;</i><span class="tk split">transpose</span><i class="gt">&gt;</i><span class="tk back">zstd</span></span></div></div>
+        </div>
+
+        <p class="note">Forty&#8209;eight graphs, four of them worth anything. Every point below the dashed line is beaten on both axes at once by something above it, and the four that survive are what <code>optim</code> is really choosing between. One caveat on reading this. <code>speed</code> minimises a <b>modelled</b> decode cost rather than the measured <code>decode_mbps</code> plotted here, so its pick does not have to land on the measured front.</p>
+
+        <div class="gtab">
+          <div class="ghead">
+            <span>graph</span><span></span><span>ratio</span><span>enc MB/s</span><span>dec MB/s</span><span>shan %</span>
+          </div>
+          <div class="grow"><span class="rcp"><a class="tk pred" href="codecs/planar.html">planar</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk split">transpose</span><i class="gt">&gt;</i><span class="tk back">entropy</span></span><span class="bar"><i style="width:100.0%"></i></span><span class="nv">4.50&#215;</span><span class="nv dim">163</span><span class="nv dim">479</span><span class="nv dim">346</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/planar.html">planar</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk back">entropy</span></span><span class="bar"><i style="width:99.8%"></i></span><span class="nv">4.49&#215;</span><span class="nv dim">23</span><span class="nv dim">392</span><span class="nv dim">345</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/wp-static.html">wp_static</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk split">transpose</span><i class="gt">&gt;</i><span class="tk back">entropy</span></span><span class="bar"><i style="width:99.6%"></i></span><span class="nv">4.48&#215;</span><span class="nv dim">26</span><span class="nv dim">302</span><span class="nv dim">345</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/wp-static.html">wp_static</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk back">entropy</span></span><span class="bar"><i style="width:99.1%"></i></span><span class="nv">4.46&#215;</span><span class="nv dim">25</span><span class="nv dim">445</span><span class="nv dim">343</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/wp-static.html">wp_static</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk split">transpose</span><i class="gt">&gt;</i><span class="tk back">zstd</span></span><span class="bar"><i style="width:93.6%"></i></span><span class="nv">4.21&#215;</span><span class="nv dim">20</span><span class="nv dim">443</span><span class="nv dim">324</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/planar.html">planar</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk split">transpose</span><i class="gt">&gt;</i><span class="tk back">zstd</span></span><span class="bar"><i style="width:92.0%"></i></span><span class="nv">4.14&#215;</span><span class="nv dim">62</span><span class="nv dim">760</span><span class="nv dim">319</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/med.html">med</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk split">transpose</span><i class="gt">&gt;</i><span class="tk back">zstd</span></span><span class="bar"><i style="width:86.0%"></i></span><span class="nv">3.87&#215;</span><span class="nv dim">62</span><span class="nv dim">305</span><span class="nv dim">298</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/med.html">med</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk split">transpose</span><i class="gt">&gt;</i><span class="tk back">entropy</span></span><span class="bar"><i style="width:85.3%"></i></span><span class="nv">3.84&#215;</span><span class="nv dim">263</span><span class="nv dim">307</span><span class="nv dim">295</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/med.html">med</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk back">entropy</span></span><span class="bar"><i style="width:85.1%"></i></span><span class="nv">3.83&#215;</span><span class="nv dim">132</span><span class="nv dim">308</span><span class="nv dim">295</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/wp-static.html">wp_static</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk back">field_lz</span></span><span class="bar"><i style="width:85.1%"></i></span><span class="nv">3.83&#215;</span><span class="nv dim">15</span><span class="nv dim">318</span><span class="nv dim">294</span></div><details class="more"><summary><span class="sm-open">Show the other 38</span><span class="sm-close">Hide</span></summary><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/average.html">average</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk split">transpose</span><i class="gt">&gt;</i><span class="tk back">zstd</span></span><span class="bar"><i style="width:82.4%"></i></span><span class="nv">3.71&#215;</span><span class="nv dim">62</span><span class="nv dim">569</span><span class="nv dim">286</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/planar.html">planar</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk back">field_lz</span></span><span class="bar"><i style="width:82.4%"></i></span><span class="nv">3.71&#215;</span><span class="nv dim">31</span><span class="nv dim">371</span><span class="nv dim">285</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/med.html">med</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk back">field_lz</span></span><span class="bar"><i style="width:79.6%"></i></span><span class="nv">3.58&#215;</span><span class="nv dim">28</span><span class="nv dim">211</span><span class="nv dim">275</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/average.html">average</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk back">field_lz</span></span><span class="bar"><i style="width:79.6%"></i></span><span class="nv">3.58&#215;</span><span class="nv dim">27</span><span class="nv dim">362</span><span class="nv dim">275</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/delta-w.html">delta_w</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk split">transpose</span><i class="gt">&gt;</i><span class="tk back">zstd</span></span><span class="bar"><i style="width:76.9%"></i></span><span class="nv">3.46&#215;</span><span class="nv dim">34</span><span class="nv dim">462</span><span class="nv dim">266</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/wp-static.html">wp_static</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk back">zstd</span></span><span class="bar"><i style="width:76.7%"></i></span><span class="nv">3.45&#215;</span><span class="nv dim">17</span><span class="nv dim">346</span><span class="nv dim">266</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/delta-n.html">delta_n</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk split">transpose</span><i class="gt">&gt;</i><span class="tk back">zstd</span></span><span class="bar"><i style="width:76.7%"></i></span><span class="nv">3.45&#215;</span><span class="nv dim">40</span><span class="nv dim">542</span><span class="nv dim">265</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/delta-n.html">delta_n</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk back">field_lz</span></span><span class="bar"><i style="width:75.6%"></i></span><span class="nv">3.40&#215;</span><span class="nv dim">10</span><span class="nv dim">236</span><span class="nv dim">262</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/planar.html">planar</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk back">zstd</span></span><span class="bar"><i style="width:75.3%"></i></span><span class="nv">3.39&#215;</span><span class="nv dim">40</span><span class="nv dim">473</span><span class="nv dim">261</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/average.html">average</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk back">entropy</span></span><span class="bar"><i style="width:74.2%"></i></span><span class="nv">3.34&#215;</span><span class="nv dim">127</span><span class="nv dim">451</span><span class="nv dim">257</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/average.html">average</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk split">transpose</span><i class="gt">&gt;</i><span class="tk back">entropy</span></span><span class="bar"><i style="width:74.2%"></i></span><span class="nv">3.34&#215;</span><span class="nv dim">202</span><span class="nv dim">334</span><span class="nv dim">257</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/delta-w.html">delta_w</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk back">field_lz</span></span><span class="bar"><i style="width:73.1%"></i></span><span class="nv">3.29&#215;</span><span class="nv dim">12</span><span class="nv dim">263</span><span class="nv dim">253</span></div><div class="grow"><span class="rcp"><span class="tk pred">delta_1d</span><i class="gt">&gt;</i><span class="tk back">field_lz</span></span><span class="bar"><i style="width:72.9%"></i></span><span class="nv">3.28&#215;</span><span class="nv dim">28</span><span class="nv dim">263</span><span class="nv dim">253</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/med.html">med</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk back">zstd</span></span><span class="bar"><i style="width:72.9%"></i></span><span class="nv">3.28&#215;</span><span class="nv dim">40</span><span class="nv dim">251</span><span class="nv dim">252</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/delta-w.html">delta_w</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk split">transpose</span><i class="gt">&gt;</i><span class="tk back">entropy</span></span><span class="bar"><i style="width:72.2%"></i></span><span class="nv">3.25&#215;</span><span class="nv dim">119</span><span class="nv dim">235</span><span class="nv dim">250</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/average.html">average</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk back">zstd</span></span><span class="bar"><i style="width:72.2%"></i></span><span class="nv">3.25&#215;</span><span class="nv dim">40</span><span class="nv dim">403</span><span class="nv dim">250</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/delta-w.html">delta_w</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk back">entropy</span></span><span class="bar"><i style="width:71.8%"></i></span><span class="nv">3.23&#215;</span><span class="nv dim">36</span><span class="nv dim">401</span><span class="nv dim">249</span></div><div class="grow"><span class="rcp"><span class="tk pred">delta_1d</span><i class="gt">&gt;</i><span class="tk back">entropy</span></span><span class="bar"><i style="width:71.6%"></i></span><span class="nv">3.22&#215;</span><span class="nv dim">93</span><span class="nv dim">724</span><span class="nv dim">248</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/delta-n.html">delta_n</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk split">transpose</span><i class="gt">&gt;</i><span class="tk back">entropy</span></span><span class="bar"><i style="width:69.6%"></i></span><span class="nv">3.13&#215;</span><span class="nv dim">83</span><span class="nv dim">458</span><span class="nv dim">240</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/delta-n.html">delta_n</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk back">entropy</span></span><span class="bar"><i style="width:69.3%"></i></span><span class="nv">3.12&#215;</span><span class="nv dim">73</span><span class="nv dim">379</span><span class="nv dim">240</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/delta-n.html">delta_n</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk back">zstd</span></span><span class="bar"><i style="width:68.9%"></i></span><span class="nv">3.10&#215;</span><span class="nv dim">23</span><span class="nv dim">89</span><span class="nv dim">239</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/delta-w.html">delta_w</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk back">zstd</span></span><span class="bar"><i style="width:67.8%"></i></span><span class="nv">3.05&#215;</span><span class="nv dim">22</span><span class="nv dim">311</span><span class="nv dim">235</span></div><div class="grow"><span class="rcp"><span class="tk pred">delta_1d</span><i class="gt">&gt;</i><span class="tk back">zstd</span></span><span class="bar"><i style="width:67.3%"></i></span><span class="nv">3.03&#215;</span><span class="nv dim">23</span><span class="nv dim">296</span><span class="nv dim">233</span></div><div class="grow"><span class="rcp"><span class="tk pred">delta_1d</span><i class="gt">&gt;</i><span class="tk split">transpose</span><i class="gt">&gt;</i><span class="tk back">zstd</span></span><span class="bar"><i style="width:64.4%"></i></span><span class="nv">2.90&#215;</span><span class="nv dim">26</span><span class="nv dim">333</span><span class="nv dim">223</span></div><div class="grow"><span class="rcp"><span class="tk pred">delta_1d</span><i class="gt">&gt;</i><span class="tk split">transpose</span><i class="gt">&gt;</i><span class="tk back">entropy</span></span><span class="bar"><i style="width:56.7%"></i></span><span class="nv">2.55&#215;</span><span class="nv dim">131</span><span class="nv dim">294</span><span class="nv dim">196</span></div><div class="grow"><span class="rcp"><span class="tk pred">id</span><i class="gt">&gt;</i><span class="tk back">field_lz</span></span><span class="bar"><i style="width:47.8%"></i></span><span class="nv">2.15&#215;</span><span class="nv dim">13</span><span class="nv dim">195</span><span class="nv dim">165</span></div><div class="grow"><span class="rcp"><span class="tk pred">id</span><i class="gt">&gt;</i><span class="tk split">transpose</span><i class="gt">&gt;</i><span class="tk back">zstd</span></span><span class="flag">baseline</span><span class="bar"><i style="width:45.8%"></i></span><span class="nv">2.06&#215;</span><span class="nv dim">45</span><span class="nv dim">1029</span><span class="nv dim">159</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/planar.html">planar</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk split">store_lo</span></span><span class="bar"><i style="width:44.4%"></i></span><span class="nv">2.00&#215;</span><span class="nv dim">396</span><span class="nv dim">1450</span><span class="nv dim">154</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/med.html">med</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk split">store_lo</span></span><span class="bar"><i style="width:44.4%"></i></span><span class="nv">2.00&#215;</span><span class="nv dim">313</span><span class="nv dim">377</span><span class="nv dim">154</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/delta-n.html">delta_n</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk split">store_lo</span></span><span class="bar"><i style="width:44.2%"></i></span><span class="nv">1.99&#215;</span><span class="nv dim">237</span><span class="nv dim">1252</span><span class="nv dim">153</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/delta-w.html">delta_w</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk split">store_lo</span></span><span class="bar"><i style="width:44.2%"></i></span><span class="nv">1.99&#215;</span><span class="nv dim">133</span><span class="nv dim">309</span><span class="nv dim">153</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/wp-static.html">wp_static</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk split">store_lo</span></span><span class="bar"><i style="width:44.2%"></i></span><span class="nv">1.99&#215;</span><span class="nv dim">27</span><span class="nv dim">366</span><span class="nv dim">153</span></div><div class="grow"><span class="rcp"><a class="tk pred" href="codecs/average.html">average</a><i class="gt">&gt;</i><span class="tk mid">zigzag</span><i class="gt">&gt;</i><span class="tk split">store_lo</span></span><span class="bar"><i style="width:44.2%"></i></span><span class="nv">1.99&#215;</span><span class="nv dim">253</span><span class="nv dim">424</span><span class="nv dim">153</span></div><div class="grow"><span class="rcp"><span class="tk pred">id</span><i class="gt">&gt;</i><span class="tk back">zstd</span></span><span class="bar"><i style="width:42.4%"></i></span><span class="nv">1.91&#215;</span><span class="nv dim">24</span><span class="nv dim">274</span><span class="nv dim">147</span></div><div class="grow"><span class="rcp"><span class="tk pred">delta_1d</span><i class="gt">&gt;</i><span class="tk split">store_lo</span></span><span class="bar"><i style="width:38.0%"></i></span><span class="nv">1.71&#215;</span><span class="nv dim">200</span><span class="nv dim">635</span><span class="nv dim">131</span></div><div class="grow"><span class="rcp"><span class="tk pred">id</span><i class="gt">&gt;</i><span class="tk back">entropy</span></span><span class="bar"><i style="width:36.0%"></i></span><span class="nv">1.62&#215;</span><span class="nv dim">153</span><span class="nv dim">308</span><span class="nv dim">125</span></div><div class="grow"><span class="rcp"><span class="tk pred">id</span><i class="gt">&gt;</i><span class="tk split">transpose</span><i class="gt">&gt;</i><span class="tk back">entropy</span></span><span class="bar"><i style="width:35.1%"></i></span><span class="nv">1.58&#215;</span><span class="nv dim">129</span><span class="nv dim">304</span><span class="nv dim">121</span></div><div class="grow"><span class="rcp"><span class="tk pred">id</span><i class="gt">&gt;</i><span class="tk split">store_lo</span></span><span class="bar"><i style="width:34.4%"></i></span><span class="nv">1.55&#215;</span><span class="nv dim">193</span><span class="nv dim">798</span><span class="nv dim">119</span></div></details>
+        </div>
+        <p class="note"><code>shannon_pct</code> is the frame size against the tile's order&#8209;0 entropy. Over 100 means the graph beat that entropy by finding structure the byte histogram misses, which every spatial predictor here does by a wide margin.</p>
+      </section>
+
+      <section>
+        <p class="sec-h"><span class="sq"></span> compress <span class="sig">run it for real</span></p>
+        <div class="band">
+          <div class="prose">
+          <p><code>compress</code> searches the grid and keeps the best graph for the tile. <code>optim</code> sets what best means. <strong>store</strong> minimises the frame size, <strong>speed</strong> minimises decode cost with size breaking ties, <strong>balanced</strong> minimises a weighted mix of the two.</p>
+          <p>The selector scores each candidate and keeps the argmin, with <code>b</code> the measured compressed bytes and <code>d</code> the modelled decode cost. Normalising by the per&#8209;tile minimum makes <code>lam</code> a pure weight that means the same across tiles of different size, so <code>lam=0</code> is <code>store</code> and a large <code>lam</code> is <code>speed</code>.</p>
+          </div>
+          <aside class="side">
+            <span class="st">a prior, not a pin</span>
+            <code>method</code> seeds the search from a predictor you expect to fit, but it never fixes the outcome. If a different graph wins the tile, even one that drops the predictor entirely and hands the bytes straight to <code>zstd</code>, <b>that graph is the one kept.</b>
+          </aside>
+        </div>
+
+        <div class="eq">
+          <span><em>store</em><span class="expr">b<sub>i</sub></span></span>
+          <span><em>speed</em><span class="expr">d<sub>i</sub></span></span>
+          <span><em>balanced</em><span class="expr"><span class="frac"><span>b<sub>i</sub></span><span>min b</span></span> + &#955; &#183; <span class="frac"><span>d<sub>i</sub></span><span>min d</span></span></span></span>
+        </div>
+
+        <div class="lbl">python &#183; return_graph gives back the recipe that won</div>
+        <div class="code"><pre>for optim, kw in [("store", {}), ("speed", {}), ("balanced", {"lam": 0.5})]:
+    frame, recipe = geozl.<span class="fn">compress</span>(tile, optim=optim, return_graph=True, **kw)
+    print(f"{optim:9} {raw/len(frame):5.2f}x  {recipe}")</pre></div>
+        <div class="out">store      <b>4.50x</b>  planar&gt;zigzag&gt;transpose&gt;entropy
+speed      <b>1.55x</b>  id&gt;store_lo
+balanced   <b>4.49x</b>  planar&gt;zigzag&gt;entropy</div>
+
+        <p class="note" style="margin-top:clamp(24px,2.8vw,34px)">Once <code>profile</code> has told you the winner you can skip the search altogether, since <code>graph=</code> takes a recipe string straight from the table.</p>
+
+        <div class="lbl">python &#183; pin the recipe, no search</div>
+        <div class="code"><pre>best  = rows[0]['graph']
+frame = geozl.<span class="fn">compress</span>(tile, graph=best)</pre></div>
+        <div class="out">planar&gt;zigzag&gt;transpose&gt;entropy <b>4.50x</b></div>
+      </section>
+
+      <section>
+        <p class="sec-h"><span class="sq"></span> max_error <span class="sig">bounded&#8209;error lossy</span></p>
+        <div class="band">
+          <div class="prose">
+            <p>By default <code>compress</code> is lossless, and so is any <code>max_error</code> of 0 or less. Pass a positive <code>max_error</code> and it prepends a <a href="codecs/quant-linear.html">quantisation step</a> that trades exactness for ratio with a hard guarantee. No reconstructed value moves by more than <code>max_error</code>.</p>
+            <p>The quantiser is uniform, and the rounding to the nearest multiple of the step is what costs at most half a step. What travels in the frame depends on the type. On integers the encoder stores the reconstruction and the decoder copies it. On floats it stores the index, because quantising a float is what turns it into the small integers the downstream predictors compress, and the decoder multiplies back. Both forms reconstruct the same values.</p>
+          </div>
+          <aside class="side">
+            <span class="st">two caveats for integers</span>
+            The step is floored at 1 and truncated to a whole number, since an index cannot be finer than the sample. So <code>max_error=1.2</code> gives a step of 2 and behaves exactly like <code>max_error=1</code>, and anything below 0.5 gives a step of 1, which is an exact round trip. <b>That is why the curve is a staircase and not a smooth slope.</b>
+          </aside>
+        </div>
+
+        <div class="eq">
+          <span><em>step</em><span class="expr">&#916; = 2 &#183; max_error</span></span>
+          <span><em>index</em><span class="expr">q = round(x / &#916;)</span></span>
+          <span><em>reconstruction</em><span class="expr">x&#770; = q &#183; &#916;</span></span>
+          <span><em>guarantee</em><span class="expr">|x &#8722; x&#770;| &#8804; &#916; / 2</span></span>
+        </div>
+
+        <div class="chart">
+          <div class="lbl">frame size against the error budget</div>
+          <div class="cbody"><svg class="plot" viewBox="0 0 1100 470" role="img" aria-label="Frame size falling as the error budget grows, against the lossless reference line, with the knee of the curve marked">
+<g class="grid">
+<line x1="76" y1="340.4" x2="1066" y2="340.4"/>
+<line x1="76" y1="268.8" x2="1066" y2="268.8"/>
+<line x1="76" y1="197.2" x2="1066" y2="197.2"/>
+<line x1="76" y1="125.6" x2="1066" y2="125.6"/>
+</g>
+<g class="ticks">
+<text class="ax" x="64" y="344.4" text-anchor="end">25</text>
+<text class="ax" x="64" y="272.8" text-anchor="end">50</text>
+<text class="ax" x="64" y="201.2" text-anchor="end">75</text>
+<text class="ax" x="64" y="129.6" text-anchor="end">100</text>
+<text class="ax" x="76.0" y="432" text-anchor="middle">0.5</text>
+<text class="ax" x="217.4" y="432" text-anchor="middle">1</text>
+<text class="ax" x="358.9" y="432" text-anchor="middle">2</text>
+<text class="ax" x="500.3" y="432" text-anchor="middle">4</text>
+<text class="ax" x="641.7" y="432" text-anchor="middle">8</text>
+<text class="ax" x="783.1" y="432" text-anchor="middle">16</text>
+<text class="ax" x="924.6" y="432" text-anchor="middle">32</text>
+<text class="ax" x="1066.0" y="432" text-anchor="middle">64</text>
+</g>
+<line class="axis" x1="76" y1="34" x2="76" y2="412.0"/>
+<line class="axis" x1="76" y1="412.0" x2="1066" y2="412.0"/>
+<text class="axl" x="76" y="22">&#8593; frame kB</text>
+<text class="axl" x="1066" y="454" text-anchor="end">max_error, metres &#8594;</text>
+<line class="lossless" x1="76" y1="78.4" x2="1066" y2="78.4"/>
+<text class="ll" x="86" y="69.4">lossless &#183; 116.5 kB</text>
+<polyline class="curve" points="76.0,78.4 118.9,78.4 162.0,78.4 205.2,79.6 248.2,158.4 291.3,160.4 334.3,202.4 377.3,227.2 420.3,241.6 463.4,250.4 506.4,260.8 549.5,266.4 592.5,270.4 635.6,272.8 678.6,280.8 721.7,287.2 764.7,296.8 807.7,304.8 850.8,317.6 893.8,331.2 936.9,341.6 979.9,362.4 1023.0,368.8 1066.0,372.0"/>
+<rect class="cd" x="72.5" y="74.9" width="7" height="7"><title>&#177;0.5 m &#183; 116.5 kB &#183; 4.50&#215;</title></rect>
+<rect class="cd" x="115.4" y="74.9" width="7" height="7"><title>&#177;0.617 m &#183; 116.5 kB &#183; 4.50&#215;</title></rect>
+<rect class="cd" x="158.5" y="74.9" width="7" height="7"><title>&#177;0.762 m &#183; 116.5 kB &#183; 4.50&#215;</title></rect>
+<rect class="cd" x="201.7" y="76.1" width="7" height="7"><title>&#177;0.942 m &#183; 116.1 kB &#183; 4.52&#215;</title></rect>
+<rect class="cd" x="244.7" y="154.9" width="7" height="7"><title>&#177;1.163 m &#183; 88.6 kB &#183; 5.92&#215;</title></rect>
+<rect class="cd" x="287.8" y="156.9" width="7" height="7"><title>&#177;1.436 m &#183; 87.9 kB &#183; 5.97&#215;</title></rect>
+<rect class="cd" x="330.8" y="198.9" width="7" height="7"><title>&#177;1.773 m &#183; 73.2 kB &#183; 7.16&#215;</title></rect>
+<rect class="cd" x="373.8" y="223.7" width="7" height="7"><title>&#177;2.189 m &#183; 64.5 kB &#183; 8.12&#215;</title></rect>
+<rect class="cd" x="416.8" y="238.1" width="7" height="7"><title>&#177;2.703 m &#183; 59.5 kB &#183; 8.81&#215;</title></rect>
+<rect class="cd" x="459.9" y="246.9" width="7" height="7"><title>&#177;3.338 m &#183; 56.4 kB &#183; 9.29&#215;</title></rect>
+<rect class="cd" x="502.9" y="257.3" width="7" height="7"><title>&#177;4.122 m &#183; 52.8 kB &#183; 9.93&#215;</title></rect>
+<rect class="cd" x="546.0" y="262.9" width="7" height="7"><title>&#177;5.091 m &#183; 50.8 kB &#183; 10.31&#215;</title></rect>
+<rect class="cd" x="589.0" y="266.9" width="7" height="7"><title>&#177;6.286 m &#183; 49.4 kB &#183; 10.60&#215;</title></rect>
+<rect class="cd" x="632.1" y="269.3" width="7" height="7"><title>&#177;7.763 m &#183; 48.6 kB &#183; 10.79&#215;</title></rect>
+<rect class="cd" x="675.1" y="277.3" width="7" height="7"><title>&#177;9.586 m &#183; 45.8 kB &#183; 11.45&#215;</title></rect>
+<rect class="cd" x="718.2" y="283.7" width="7" height="7"><title>&#177;11.837 m &#183; 43.6 kB &#183; 12.03&#215;</title></rect>
+<rect class="cd" x="761.2" y="293.3" width="7" height="7"><title>&#177;14.617 m &#183; 40.2 kB &#183; 13.04&#215;</title></rect>
+<rect class="cd" x="804.2" y="301.3" width="7" height="7"><title>&#177;18.05 m &#183; 37.4 kB &#183; 14.01&#215;</title></rect>
+<rect class="cd" x="847.3" y="314.1" width="7" height="7"><title>&#177;22.289 m &#183; 33.0 kB &#183; 15.91&#215;</title></rect>
+<rect class="cd" x="890.3" y="327.7" width="7" height="7"><title>&#177;27.524 m &#183; 28.2 kB &#183; 18.59&#215;</title></rect>
+<rect class="cd" x="933.4" y="338.1" width="7" height="7"><title>&#177;33.988 m &#183; 24.6 kB &#183; 21.34&#215;</title></rect>
+<rect class="cd" x="976.4" y="358.9" width="7" height="7"><title>&#177;41.971 m &#183; 17.3 kB &#183; 30.29&#215;</title></rect>
+<rect class="cd" x="1019.5" y="365.3" width="7" height="7"><title>&#177;51.828 m &#183; 15.1 kB &#183; 34.78&#215;</title></rect>
+<rect class="cd" x="1062.5" y="368.5" width="7" height="7"><title>&#177;64 m &#183; 14.0 kB &#183; 37.57&#215;</title></rect>
+<rect class="knee" x="412.8" y="234.1" width="15" height="15"/>
+<text class="num alt" x="432.3" y="234.6">5</text>
+</svg></div>
+          <div class="keys one"><div class="key"><span class="kn base">5</span><span class="kl">knee</span><span class="kv">8.81&#215;</span><span class="kd">&#177;2.7 m of error takes the frame to 59.5 kB, 49% off the lossless size. Past it you keep paying error for almost nothing.</span></div></div>
+        </div>
+
+        <p class="note">Each point is one <code>compress</code> call on the same tile. The first four sit on the lossless line because their step truncates to 1. Past the knee you keep paying error and the frame barely shrinks, so <b>&#177;2.7 m buys 49% off the lossless frame</b> and everything after that is a worse trade.</p>
+
+        <div class="lbl">python &#183; check the bound holds</div>
+        <div class="code"><pre>frame = geozl.<span class="fn">compress</span>(tile, max_error=2.0)
+back  = geozl.<span class="fn">decompress</span>(frame, dtype="int16", width=512)
+err   = np.abs(back.astype(np.int32) - tile.astype(np.int32)).max()</pre></div>
+        <div class="out">ratio <b>8.14x</b>   max abs error <b>2</b>   bound 2</div>
+      </section>
+
+      <section>
+        <p class="sec-h"><span class="sq"></span> decompress <span class="sig">get the array back</span></p>
+        <div class="two">
+          <div class="prose">
+            <p>geozl works one level below the array. A tile enters OpenZL as a numeric stream described by one thing, the bytes per element. An <code>int16</code> and a <code>uint16</code> are both two bytes to the frame, which stores the exact bytes but not the sign, and not that they were 512&#215;512 rather than a flat vector.</p>
+            <p>So on the way out you say how to read the bytes. <code>dtype</code> reinterprets each element, and leaving it off gives an unsigned view of the right width. <code>width</code> reshapes to 2d, and leaving it off gives a flat 1d array.</p>
+            <p>This is deliberate. geozl is the fast primitive that carries no metadata it does not need to compress. The layer above it, rumi, owns the dataset, wraps each frame with the real dtype and shape, and decompresses with no arguments at all.</p>
+          </div>
+          <div>
+            <div class="lbl">python</div>
+            <div class="code"><pre>back = geozl.<span class="fn">decompress</span>(
+    frame, dtype="int16", width=512
+)</pre></div>
+            <div class="out">(512, 512) int16</div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <p class="sec-h"><span class="sq"></span> the loop <span class="sig">measure, pick, run</span></p>
+        <div class="lbl">python</div>
+        <div class="code"><pre>rows  = geozl.<span class="fn">profile</span>(tile)                              <span class="c"># see what wins</span>
+best  = rows[0]['graph']                                <span class="c"># take the top recipe</span>
+frame = geozl.<span class="fn">compress</span>(tile, graph=best, max_error=4)   <span class="c"># pin it, no search</span>
+back  = geozl.<span class="fn">decompress</span>(frame, dtype='int16', width=512)</pre></div>
+        <div class="out">planar&gt;zigzag&gt;transpose&gt;entropy <b>9.93x</b> lossy
+0.05 MB
+max error 4.00</div>
+
+        <div class="trip">
+          <figure class="fig">
+            <img src="assets/img/loop-orig.webp" width="420" height="420" alt="The original elevation tile.">
+            <figcaption class="figbar"><span>original</span></figcaption>
+          </figure>
+          <figure class="fig">
+            <img src="assets/img/loop-recon.webp" width="420" height="420" alt="The tile reconstructed after a lossy round trip, visually identical to the original.">
+            <figcaption class="figbar"><span>reconstructed</span></figcaption>
+          </figure>
+          <figure class="fig">
+            <img src="assets/img/loop-err.webp" width="420" height="420" alt="The difference between the two, mostly quantisation noise with structure along the valley floor and the ridges.">
+            <figcaption class="figbar"><span>error &#183; stretched to &#177;5 m</span></figcaption>
+          </figure>
+        </div>
+        <p class="note">Ten times smaller, and every value within 4 m of where it started. The error panel is stretched to &#177;5 m so there is anything to see at all. What structure is left follows the valley floor and the ridge lines, which is exactly where the terrain stops being locally planar.</p>
       </section>
 
       <section>
         <p class="sec-h"><span class="sq"></span> parameters</p>
+
+        <p class="subh">compress(tile, ...) &#8594; bytes</p>
         <div class="spec2">
-          <div class="row"><span class="nm">tile</span><span class="ty">ndarray</span><span class="ds">A 2-D array, or 1-D with <code>width</code> given. Native byte order; 1, 2, 4 or 8 bytes per element.</span></div>
-          <div class="row"><span class="nm">method</span><span class="ty">str · None</span><span class="ds"><b>Predictor prior.</b> <code>planar</code> (default), <code>med</code>, <code>delta_w</code>, <code>delta_n</code>, <code>average</code>, <code>wp_static</code>, <code>none</code>, or <code>None</code> to search every predictor unbiased.</span></div>
-          <div class="row"><span class="nm">optim</span><span class="ty">str</span><span class="ds"><b>Objective.</b> <code>store</code> (default) smallest frame · <code>speed</code> fastest decode · <code>balanced</code> the trade-off.</span></div>
-          <div class="row"><span class="nm">lam</span><span class="ty">float</span><span class="ds"><b>The balanced knob:</b> <code>bytes + lam · decode</code>. Required with <code>optim="balanced"</code>, must be &gt; 0; leave unset otherwise.</span></div>
-          <div class="row"><span class="nm">max_error</span><span class="ty">float · None</span><span class="ds"><code>None</code> or negative is lossless. A positive bound adds a lossy quant step that keeps every value within that error.</span></div>
-          <div class="row"><span class="nm">width</span><span class="ty">int · None</span><span class="ds">Row width for a 1-D input. Read from <code>tile.shape[-1]</code> for a 2-D array.</span></div>
+          <div class="row"><span class="nm">tile</span><span class="ty">ndarray</span><span class="ds">A 2&#8209;D array, or 1&#8209;D with <code>width</code> given. Native byte order, 1, 2, 4 or 8 bytes per element.</span></div>
+          <div class="row"><span class="nm">method</span><span class="ty">str &#183; None</span><span class="ds"><b>Predictor prior.</b> <code>planar</code> (default), <code>med</code>, <code>delta_w</code>, <code>delta_n</code>, <code>average</code>, <code>wp_static</code>, <code>none</code>, or <code>None</code> to search every predictor unbiased.</span></div>
+          <div class="row"><span class="nm">optim</span><span class="ty">str</span><span class="ds"><b>Objective.</b> <code>store</code> (default) smallest frame &#183; <code>speed</code> fastest decode &#183; <code>balanced</code> the trade&#8209;off.</span></div>
+          <div class="row"><span class="nm">lam</span><span class="ty">float</span><span class="ds"><b>The balanced weight.</b> Required with <code>optim="balanced"</code>, must be &gt; 0, leave unset otherwise.</span></div>
+          <div class="row"><span class="nm">graph</span><span class="ty">str &#183; None</span><span class="ds"><b>Pins a recipe</b> and skips the search entirely. Takes a string straight from the <code>profile</code> table, such as <code>planar&gt;zigzag&gt;transpose&gt;entropy</code>.</span></div>
+          <div class="row"><span class="nm">max_error</span><span class="ty">float &#183; None</span><span class="ds"><code>None</code> or anything &#8804; 0 is lossless. A positive bound adds the quant step that keeps every value within that error.</span></div>
+          <div class="row"><span class="nm">width</span><span class="ty">int &#183; None</span><span class="ds">Row width for a 1&#8209;D input. Read from <code>tile.shape[-1]</code> for a 2&#8209;D array.</span></div>
+          <div class="row"><span class="nm">return_graph</span><span class="ty">bool</span><span class="ds">Returns <code>(frame, recipe)</code> instead of just the frame, so you can see which graph won.</span></div>
         </div>
-        <p class="cap">Returns the frame as <code>bytes</code>. Raises <code>ValueError</code> for a bad argument and <code>RuntimeError</code>, carrying the encoder's own message, if compression fails.</p>
+        <p class="note">Raises <code>ValueError</code> for a bad argument and <code>RuntimeError</code>, carrying the encoder's own message, if compression fails.</p>
+
+        <p class="subh">profile(tile, ...) &#8594; list[dict]</p>
+        <div class="spec2">
+          <div class="row"><span class="nm">method</span><span class="ty">str &#183; None</span><span class="ds">The same prior as above. Here it decides which grid gets built and measured.</span></div>
+          <div class="row"><span class="nm">reps</span><span class="ty">int</span><span class="ds">How many times each graph is compressed and decompressed to time it. The fastest rep is kept.</span></div>
+          <div class="row"><span class="nm">max_error</span><span class="ty">float</span><span class="ds">Profiles the lossy path, so the whole grid is measured with the quant step in front.</span></div>
+          <div class="row"><span class="nm">&#8594; row</span><span class="ty">dict</span><span class="ds"><code>graph</code>, <code>ratio</code>, <code>encode_mbps</code>, <code>decode_mbps</code>, <code>shannon_pct</code>. Sorted by ratio, best first.</span></div>
+        </div>
+
+        <p class="subh">decompress(frame, ...) &#8594; ndarray</p>
+        <div class="spec2">
+          <div class="row"><span class="nm">dtype</span><span class="ty">str &#183; None</span><span class="ds">Reinterprets each element, so <code>"int16"</code> reads the 2&#8209;byte elements as signed. Left off, you get an unsigned view of the right width.</span></div>
+          <div class="row"><span class="nm">width</span><span class="ty">int &#183; None</span><span class="ds">Reshapes to 2d. Left off, you get a flat 1&#8209;D array.</span></div>
+        </div>
       </section>
     </main>
 
@@ -218,5 +713,6 @@ assert all(np.array_equal(a, b) for a, b in zip(tiles, back))</pre></div>
     </footer>
 
   </div>
+  <script src="assets/js/main.js"></script>
 </body>
 </html>
