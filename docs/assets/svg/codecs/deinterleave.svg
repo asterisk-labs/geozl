@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220" width="360" height="220" role="img" aria-label="deinterleave splits one interleaved stream into an even lane and an odd lane by position">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+    svg{
+      --paper:#F1EDE4; --ink:#17161C; --ink-2:#625D53; --purple:#4A2BE8; --green:#A9FFA6; --ease:cubic-bezier(.22,.7,.2,1);
+      font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+
+    .lab{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; letter-spacing:.05em; }
+    .tv{ fill:var(--ink); font:600 16px/1 "IBM Plex Mono",monospace; text-anchor:middle; }
+    .fx2{ fill:var(--ink-2); font:500 11.5px/1 "IBM Plex Mono",monospace; }
+    .dot{ fill:var(--paper); stroke:var(--ink); stroke-width:1.3; }
+    .cap{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; opacity:0; }
+    .di-a{ fill:color-mix(in srgb,var(--purple) 22%,var(--paper)); stroke:var(--ink); stroke-width:1.4; }
+    .di-b{ fill:color-mix(in srgb,var(--green) 48%,var(--paper)); stroke:var(--ink); stroke-width:1.4; }
+
+    #di-a0{ animation:mvA0 9s var(--ease) infinite; }
+    #di-b0{ animation:mvB0 9s var(--ease) infinite; }
+    #di-a1{ animation:mvA1 9s var(--ease) infinite; }
+    #di-b1{ animation:mvB1 9s var(--ease) infinite; }
+    #di-a2{ animation:mvA2 9s var(--ease) infinite; }
+    #di-b2{ animation:mvB2 9s var(--ease) infinite; }
+    #di-lanes{ animation:diLanes 9s var(--ease) infinite; }
+    #di-counts{ animation:diCounts 9s var(--ease) infinite; }
+    #dot1{ animation:dot1 9s var(--ease) infinite; }
+    #dot2{ animation:dot2 9s var(--ease) infinite; }
+    #dot3{ animation:dot3 9s var(--ease) infinite; }
+    #cap1{ animation:cap1 9s var(--ease) infinite; }
+    #cap2{ animation:cap2 9s var(--ease) infinite; }
+    #cap3{ animation:cap3 9s var(--ease) infinite; }
+    
+    /* each tile: interleaved position held, glides to its lane, holds, resets */
+    @keyframes mvA0{ 0%,34%{transform:translate(45px,90px)} 46%,92%{transform:translate(114px,40px)} 96%,100%{transform:translate(45px,90px)} }
+    @keyframes mvB0{ 0%,34%{transform:translate(91px,90px)} 46%,92%{transform:translate(114px,140px)} 96%,100%{transform:translate(91px,90px)} }
+    @keyframes mvA1{ 0%,34%{transform:translate(137px,90px)} 46%,92%{transform:translate(160px,40px)} 96%,100%{transform:translate(137px,90px)} }
+    @keyframes mvB1{ 0%,34%{transform:translate(183px,90px)} 46%,92%{transform:translate(160px,140px)} 96%,100%{transform:translate(183px,90px)} }
+    @keyframes mvA2{ 0%,34%{transform:translate(229px,90px)} 46%,92%{transform:translate(206px,40px)} 96%,100%{transform:translate(229px,90px)} }
+    @keyframes mvB2{ 0%,34%{transform:translate(275px,90px)} 46%,92%{transform:translate(206px,140px)} 96%,100%{transform:translate(275px,90px)} }
+    @keyframes diLanes{ 0%,32%{opacity:0} 40%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes diCounts{ 0%,64%{opacity:0} 70%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes dot1{ 0%,3%{fill:var(--paper)} 7%,92%{fill:var(--purple)} 97%,100%{fill:var(--paper)} }
+    @keyframes dot2{ 0%,33%{fill:var(--paper)} 37%,92%{fill:var(--purple)} 97%,100%{fill:var(--paper)} }
+    @keyframes dot3{ 0%,65%{fill:var(--paper)} 69%,92%{fill:var(--purple)} 97%,100%{fill:var(--paper)} }
+    @keyframes cap1{ 0%,3%{opacity:0} 7%,27%{opacity:1} 31%,100%{opacity:0} }
+    @keyframes cap2{ 0%,33%{opacity:0} 37%,58%{opacity:1} 62%,100%{opacity:0} }
+    @keyframes cap3{ 0%,65%{opacity:0} 69%,90%{opacity:1} 97%,100%{opacity:0} }
+    
+    @media (prefers-reduced-motion:reduce){
+      *{ animation:none !important; }
+      #di-a0{ transform:translate(114px,40px); } #di-a1{ transform:translate(160px,40px); } #di-a2{ transform:translate(206px,40px); }
+      #di-b0{ transform:translate(114px,140px); } #di-b1{ transform:translate(160px,140px); } #di-b2{ transform:translate(206px,140px); }
+      #di-lanes,#di-counts{ opacity:1; }
+      #dot1,#dot2,#dot3{ fill:var(--purple); }
+      #cap1,#cap2{ opacity:0; } #cap3{ opacity:1; }
+    }
+  ]]></style>
+
+          <text x="20" y="20" class="lab">interleaved &#8594; two lanes by position</text>
+
+          <g id="di-lanes">
+            <text x="22" y="64"  class="lab">lane 0 &#183; even</text>
+            <text x="22" y="164" class="lab">lane 1 &#183; odd</text>
+          </g>
+
+          <g id="di-counts">
+            <text x="256" y="64"  class="fx2">n = 3</text>
+            <text x="256" y="164" class="fx2">n = 3</text>
+          </g>
+
+          <!-- tiles: position is fully driven by the animation (start interleaved) -->
+          <g id="di-a0"><rect class="di-a" width="40" height="40"/><text class="tv" x="20" y="26">a0</text></g>
+          <g id="di-b0"><rect class="di-b" width="40" height="40"/><text class="tv" x="20" y="26">b0</text></g>
+          <g id="di-a1"><rect class="di-a" width="40" height="40"/><text class="tv" x="20" y="26">a1</text></g>
+          <g id="di-b1"><rect class="di-b" width="40" height="40"/><text class="tv" x="20" y="26">b1</text></g>
+          <g id="di-a2"><rect class="di-a" width="40" height="40"/><text class="tv" x="20" y="26">a2</text></g>
+          <g id="di-b2"><rect class="di-b" width="40" height="40"/><text class="tv" x="20" y="26">b2</text></g>
+
+          <!-- step indicator + captions -->
+          <g id="di-steps">
+            <rect id="dot1" class="dot" x="20" y="199" width="9" height="9"/>
+            <rect id="dot2" class="dot" x="33" y="199" width="9" height="9"/>
+            <rect id="dot3" class="dot" x="46" y="199" width="9" height="9"/>
+            <text id="cap1" class="cap" x="67" y="207">one interleaved stream</text>
+            <text id="cap2" class="cap" x="67" y="207">even &#8594; lane 0 &#183; odd &#8594; lane 1</text>
+            <text id="cap3" class="cap" x="67" y="207">no header, rebuilt from lane counts</text>
+          </g>
+        </svg>

@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 210" width="360" height="210" role="img" aria-label="delta_n rewrites each value as a difference from its north neighbour. the first row is a seed and columns are independent">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+    svg{
+      --paper:#F1EDE4; --ink:#17161C; --ink-2:#625D53; --purple:#4A2BE8; --ease:cubic-bezier(.22,.7,.2,1);
+      font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+
+    .lab{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; letter-spacing:.05em; }
+    .tile{ fill:var(--paper); stroke:var(--ink); stroke-width:1.4; }
+    .tile-r{ fill:color-mix(in srgb,var(--purple) 11%,var(--paper)); stroke:var(--ink); stroke-width:1.4; }
+    .tv{ fill:var(--ink); font:600 16px/1 "IBM Plex Mono",monospace; text-anchor:middle; }
+    .rv{ fill:var(--purple); font:600 15px/1 "IBM Plex Mono",monospace; text-anchor:middle; }
+
+    #dn-clip rect{ animation:dnWipe 5.4s var(--ease) infinite; }
+    #dn-edge{ animation:dnEdge 5.4s var(--ease) infinite; }
+    #dn-res{ animation:dnHold 5.4s step-end infinite; }
+    #dn-arrows path{ animation:dnArrow 5.4s var(--ease) infinite; }
+    @keyframes dnWipe{ 0%{height:0} 8%{height:0} 72%{height:162px} 100%{height:162px} }
+    @keyframes dnEdge{ 0%{transform:translateY(34px);opacity:0} 8%{transform:translateY(34px);opacity:1}
+      72%{transform:translateY(196px);opacity:1} 84%{opacity:0} 100%{transform:translateY(196px);opacity:0} }
+    @keyframes dnHold{ 0%,92%{opacity:1} 96%,100%{opacity:0} }
+    @keyframes dnArrow{ 0%,10%{opacity:0} 26%,72%{opacity:.85} 84%,100%{opacity:0} }
+    
+    @media (prefers-reduced-motion:reduce){
+      *{ animation:none !important; }
+      #dn-clip rect{ height:162px; } #dn-res{ opacity:1; } #dn-edge{ display:none; }
+      #dn-arrows path{ opacity:.85; }
+    }
+  ]]></style>
+
+          <clipPath id="dn-clip"><rect x="206" y="34" width="52" height="0"/></clipPath>
+
+          <text x="44" y="26" class="lab">input</text>
+          <text x="196" y="26" class="lab">residual &#183; value &#8722; N</text>
+
+          <!-- input column: x=40, w=44, h=26; y = 38,71,104,137,170 -->
+          <g transform="translate(40,38)"><rect class="tile" width="44" height="26"/><text class="tv" x="22" y="18">40</text></g>
+          <g transform="translate(40,71)"><rect class="tile" width="44" height="26"/><text class="tv" x="22" y="18">42</text></g>
+          <g transform="translate(40,104)"><rect class="tile" width="44" height="26"/><text class="tv" x="22" y="18">43</text></g>
+          <g transform="translate(40,137)"><rect class="tile" width="44" height="26"/><text class="tv" x="22" y="18">43</text></g>
+          <g transform="translate(40,170)"><rect class="tile" width="44" height="26"/><text class="tv" x="22" y="18">46</text></g>
+
+          <!-- north arrows in the gaps between input tiles, pointing up -->
+          <g id="dn-arrows" fill="none" stroke="var(--ink)" stroke-width="1.5">
+            <path d="M62,70 L62,65" marker-end="url(#dna)"/>
+            <path d="M62,103 L62,98" marker-end="url(#dna)"/>
+            <path d="M62,136 L62,131" marker-end="url(#dna)"/>
+            <path d="M62,169 L62,164" marker-end="url(#dna)"/>
+          </g>
+
+          <!-- seed label, always visible to the left of the first residual tile -->
+          <text class="lab" x="204" y="55" text-anchor="end" style="fill:var(--ink-2)">seed</text>
+
+          <!-- residual column, revealed top-to-bottom -->
+          <g id="dn-res" clip-path="url(#dn-clip)">
+            <g transform="translate(210,38)"><rect class="tile-r" width="44" height="26"/><text class="rv" x="22" y="18" style="fill:var(--ink-2)">40</text></g>
+            <g transform="translate(210,71)"><rect class="tile-r" width="44" height="26"/><text class="rv" x="22" y="18">+2</text></g>
+            <g transform="translate(210,104)"><rect class="tile-r" width="44" height="26"/><text class="rv" x="22" y="18">+1</text></g>
+            <g transform="translate(210,137)"><rect class="tile-r" width="44" height="26"/><text class="rv" x="22" y="18">0</text></g>
+            <g transform="translate(210,170)"><rect class="tile-r" width="44" height="26"/><text class="rv" x="22" y="18">+3</text></g>
+          </g>
+
+          <!-- moving edge, tracks the reveal -->
+          <rect id="dn-edge" x="206" y="0" width="52" height="3" fill="var(--purple)"/>
+
+          <defs>
+            <marker id="dna" markerWidth="8" markerHeight="8" refX="3" refY="1.5" orient="0">
+              <path d="M0,7 L3,1 L6,7 z" fill="var(--ink)"/>
+            </marker>
+          </defs>
+        </svg>

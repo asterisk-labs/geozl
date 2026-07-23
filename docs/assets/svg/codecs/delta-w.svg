@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 210" width="360" height="210" role="img" aria-label="delta_w rewrites each value as a difference from its west neighbour; the first value of the row is a seed">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+    svg{
+      --paper:#F1EDE4; --ink:#17161C; --ink-2:#625D53; --purple:#4A2BE8; --ease:cubic-bezier(.22,.7,.2,1);
+      font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+
+    .lab{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; letter-spacing:.05em; }
+    .tile{ fill:var(--paper); stroke:var(--ink); stroke-width:1.4; }
+    .tile-r{ fill:color-mix(in srgb,var(--purple) 11%,var(--paper)); stroke:var(--ink); stroke-width:1.4; }
+    .tv{ fill:var(--ink); font:600 16px/1 "IBM Plex Mono",monospace; text-anchor:middle; }
+    .rv{ fill:var(--purple); font:600 15px/1 "IBM Plex Mono",monospace; text-anchor:middle; }
+
+    #dw-clip rect{ animation:dwWipe 5.4s var(--ease) infinite; }
+    #dw-edge{ animation:dwEdge 5.4s var(--ease) infinite; }
+    #dw-res{ animation:dwHold 5.4s step-end infinite; }
+    #dw-arrows path{ animation:dwArrow 5.4s var(--ease) infinite; }
+    @keyframes dwWipe{ 0%{width:0} 8%{width:0} 72%{width:316px} 100%{width:316px} }
+    @keyframes dwEdge{ 0%{transform:translateX(20px);opacity:0} 8%{transform:translateX(20px);opacity:1}
+      72%{transform:translateX(336px);opacity:1} 84%{opacity:0} 100%{transform:translateX(336px);opacity:0} }
+    @keyframes dwHold{ 0%,92%{opacity:1} 96%,100%{opacity:0} }
+    @keyframes dwArrow{ 0%,10%{opacity:0} 26%,72%{opacity:.85} 84%,100%{opacity:0} }
+    
+    @media (prefers-reduced-motion:reduce){
+      *{ animation:none !important; }
+      #dw-clip rect{ width:316px; } #dw-res{ opacity:1; } #dw-edge{ display:none; }
+      #dw-arrows path{ opacity:.85; }
+    }
+  ]]></style>
+
+          <clipPath id="dw-clip"><rect x="20" y="116" width="0" height="80"/></clipPath>
+
+          <text x="24" y="28" class="lab">input row</text>
+
+          <!-- input row: tiles at x = 24 + i*53, width 44 -->
+          <g transform="translate(24,40)"><rect class="tile" width="44" height="44"/><text class="tv" x="22" y="28">40</text></g>
+          <g transform="translate(77,40)"><rect class="tile" width="44" height="44"/><text class="tv" x="22" y="28">42</text></g>
+          <g transform="translate(130,40)"><rect class="tile" width="44" height="44"/><text class="tv" x="22" y="28">43</text></g>
+          <g transform="translate(183,40)"><rect class="tile" width="44" height="44"/><text class="tv" x="22" y="28">43</text></g>
+          <g transform="translate(236,40)"><rect class="tile" width="44" height="44"/><text class="tv" x="22" y="28">46</text></g>
+          <g transform="translate(289,40)"><rect class="tile" width="44" height="44"/><text class="tv" x="22" y="28">48</text></g>
+
+          <!-- west arrows, sitting in the gaps between tiles (never over the digits) -->
+          <g id="dw-arrows" fill="none" stroke="var(--ink)" stroke-width="1.5">
+            <path d="M76,62 L69,62" marker-end="url(#dwa)"/>
+            <path d="M129,62 L122,62" marker-end="url(#dwa)"/>
+            <path d="M182,62 L175,62" marker-end="url(#dwa)"/>
+            <path d="M235,62 L228,62" marker-end="url(#dwa)"/>
+            <path d="M288,62 L281,62" marker-end="url(#dwa)"/>
+          </g>
+
+          <text x="24" y="108" class="lab">residual &#183; value &#8722; W</text>
+
+          <!-- residual row, revealed left-to-right -->
+          <g id="dw-res" clip-path="url(#dw-clip)">
+            <text class="lab" x="46" y="130" text-anchor="middle" style="fill:var(--ink-2)">seed</text>
+            <g transform="translate(24,134)"><rect class="tile-r" width="44" height="44"/><text class="rv" x="22" y="28" style="fill:var(--ink-2)">40</text></g>
+            <g transform="translate(77,134)"><rect class="tile-r" width="44" height="44"/><text class="rv" x="22" y="28">+2</text></g>
+            <g transform="translate(130,134)"><rect class="tile-r" width="44" height="44"/><text class="rv" x="22" y="28">+1</text></g>
+            <g transform="translate(183,134)"><rect class="tile-r" width="44" height="44"/><text class="rv" x="22" y="28">0</text></g>
+            <g transform="translate(236,134)"><rect class="tile-r" width="44" height="44"/><text class="rv" x="22" y="28">+3</text></g>
+            <g transform="translate(289,134)"><rect class="tile-r" width="44" height="44"/><text class="rv" x="22" y="28">+2</text></g>
+          </g>
+
+          <!-- moving edge, tracks the reveal -->
+          <rect id="dw-edge" x="-1.5" y="130" width="3" height="52" fill="var(--purple)"/>
+
+          <defs>
+            <marker id="dwa" markerWidth="8" markerHeight="8" refX="1.5" refY="3" orient="0">
+              <path d="M7,0 L1,3 L7,6 z" fill="var(--ink)"/>
+            </marker>
+          </defs>
+        </svg>

@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220" width="360" height="220" role="img" aria-label="wp_static predicts a pixel as W plus a weighted kernel over N, NW, NE and NN, using fixed weights carried in the header">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+    svg{
+      --paper:#F1EDE4; --ink:#17161C; --ink-2:#625D53; --purple:#4A2BE8; --tint-add:color-mix(in srgb,var(--purple) 15%,var(--paper)); --ease:cubic-bezier(.22,.7,.2,1);
+      font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+
+    .lab{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; letter-spacing:.05em; }
+    .tile{ fill:var(--paper); stroke:var(--ink); stroke-width:1.4; }
+    .tv{ fill:var(--ink); font:600 16px/1 "IBM Plex Mono",monospace; text-anchor:middle; }
+    .cn{ fill:var(--ink-2); font:600 8.5px/1 "IBM Plex Mono",monospace; }
+    .fx{ fill:var(--ink); font:600 12px/1 "IBM Plex Mono",monospace; }
+    .fx2{ fill:var(--ink-2); font:500 11.5px/1 "IBM Plex Mono",monospace; }
+    .dot{ fill:var(--paper); stroke:var(--ink); stroke-width:1.3; }
+    .cap{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; opacity:0; }
+
+    #wps-NN,#wps-NW,#wps-N,#wps-NE,#wps-W{ animation:s1addFill 10s var(--ease) infinite; }
+    #wps-weights{ animation:s2op 10s var(--ease) infinite; }
+    #wps-kp{ animation:s3op 10s var(--ease) infinite; }
+    #wps-r{ animation:s4op 10s var(--ease) infinite; }
+    #wps-target{ animation:s4tgtFill 10s var(--ease) infinite; }
+    #wps-orig{ animation:wpsOrig 10s step-end infinite; }
+    #wps-resid{ animation:wpsResid 10s step-end infinite; }
+    #dot1{ animation:dot1 10s var(--ease) infinite; }
+    #dot2{ animation:dot2 10s var(--ease) infinite; }
+    #dot3{ animation:dot3 10s var(--ease) infinite; }
+    #dot4{ animation:dot4 10s var(--ease) infinite; }
+    #cap1{ animation:cap1 10s var(--ease) infinite; }
+    #cap2{ animation:cap2 10s var(--ease) infinite; }
+    #cap3{ animation:cap3 10s var(--ease) infinite; }
+    #cap4{ animation:cap4 10s var(--ease) infinite; }
+    
+    @keyframes s1addFill{ 0%,2%{fill:var(--paper)} 7%,92%{fill:var(--tint-add)} 97%,100%{fill:var(--paper)} }
+    @keyframes s2op{ 0%,25%{opacity:0} 30%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes s3op{ 0%,48%{opacity:0} 53%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes s4op{ 0%,71%{opacity:0} 76%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes s4tgtFill{ 0%,71%{fill:var(--paper)} 76%,92%{fill:var(--tint-add)} 97%,100%{fill:var(--paper)} }
+    @keyframes wpsOrig{ 0%,71%{opacity:1} 76%{opacity:0} 92%{opacity:0} 97%,100%{opacity:1} }
+    @keyframes wpsResid{ 0%,73%{opacity:0} 78%{opacity:1} 92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes dot1{ 0%,3%{fill:var(--paper)} 7%,92%{fill:var(--purple)} 97%,100%{fill:var(--paper)} }
+    @keyframes dot2{ 0%,26%{fill:var(--paper)} 30%,92%{fill:var(--purple)} 97%,100%{fill:var(--paper)} }
+    @keyframes dot3{ 0%,49%{fill:var(--paper)} 53%,92%{fill:var(--purple)} 97%,100%{fill:var(--paper)} }
+    @keyframes dot4{ 0%,72%{fill:var(--paper)} 76%,92%{fill:var(--purple)} 97%,100%{fill:var(--paper)} }
+    @keyframes cap1{ 0%,3%{opacity:0} 7%,22%{opacity:1} 25%,100%{opacity:0} }
+    @keyframes cap2{ 0%,26%{opacity:0} 30%,45%{opacity:1} 48%,100%{opacity:0} }
+    @keyframes cap3{ 0%,49%{opacity:0} 53%,68%{opacity:1} 71%,100%{opacity:0} }
+    @keyframes cap4{ 0%,72%{opacity:0} 76%,92%{opacity:1} 97%,100%{opacity:0} }
+    
+    @media (prefers-reduced-motion:reduce){
+      *{ animation:none !important; }
+      #wps-NN,#wps-NW,#wps-N,#wps-NE,#wps-W{ fill:var(--tint-add); } #wps-target{ fill:var(--tint-add); }
+      #wps-orig{ opacity:0; } #wps-resid{ opacity:1; }
+      #wps-weights,#wps-kp,#wps-r{ opacity:1; }
+      #dot1,#dot2,#dot3,#dot4{ fill:var(--purple); }
+      #cap1,#cap2,#cap3{ opacity:0; } #cap4{ opacity:1; }
+    }
+  ]]></style>
+
+          <text x="20" y="20" class="lab">W plus a kernel over N, NW, NE, NN</text>
+
+          <!-- faded corner cells -->
+          <g opacity="0.34">
+            <g transform="translate(24,34)"><rect class="tile" width="40" height="40"/><text class="tv" x="20" y="26">44</text></g>
+            <g transform="translate(120,34)"><rect class="tile" width="40" height="40"/><text class="tv" x="20" y="26">46</text></g>
+            <g transform="translate(120,130)"><rect class="tile" width="40" height="40"/><text class="tv" x="20" y="26">34</text></g>
+          </g>
+
+          <!-- kernel taps (animated fill) + corner labels + values -->
+          <g transform="translate(72,34)"><rect id="wps-NN" class="tile" width="40" height="40"/><text class="cn" x="4" y="12">NN</text><text class="tv" x="20" y="28">43</text></g>
+          <g transform="translate(24,82)"><rect id="wps-NW" class="tile" width="40" height="40"/><text class="cn" x="4" y="12">NW</text><text class="tv" x="20" y="28">46</text></g>
+          <g transform="translate(72,82)"><rect id="wps-N"  class="tile" width="40" height="40"/><text class="cn" x="4" y="12">N</text><text class="tv" x="20" y="28">44</text></g>
+          <g transform="translate(120,82)"><rect id="wps-NE" class="tile" width="40" height="40"/><text class="cn" x="4" y="12">NE</text><text class="tv" x="20" y="28">45</text></g>
+          <g transform="translate(24,130)"><rect id="wps-W" class="tile" width="40" height="40"/><text class="cn" x="4" y="12">W</text><text class="tv" x="20" y="28">20</text></g>
+
+          <!-- target -->
+          <rect id="wps-target" x="72" y="130" width="40" height="40" fill="var(--paper)" stroke="var(--purple)" stroke-width="2.2"/>
+          <text id="wps-orig" class="tv" x="92" y="157">43</text>
+          <text id="wps-resid" x="92" y="157" text-anchor="middle" fill="var(--purple)" style="font:700 14px 'IBM Plex Mono',monospace;opacity:0">+1</text>
+
+          <!-- right column: weights, kernel+prediction, residual -->
+          <g id="wps-weights">
+            <text x="176" y="54" class="lab">static weights &#183; header</text>
+            <text x="176" y="72" class="fx2">c = [2, &#8722;1, 1, &#8722;1]  shift 1</text>
+          </g>
+          <g id="wps-kp">
+            <text x="176" y="100" class="fx">K = weighted taps &gt;&gt; shift</text>
+            <text x="176" y="118" class="fx2">= 22</text>
+            <text x="176" y="148" class="fx">P = W + K = 20 + 22 = 42</text>
+          </g>
+          <text id="wps-r" x="176" y="174" class="fx2">residual = 43 &#8722; 42 = +1</text>
+
+          <!-- step indicator + captions -->
+          <g id="wps-steps">
+            <rect id="dot1" class="dot" x="20" y="199" width="9" height="9"/>
+            <rect id="dot2" class="dot" x="33" y="199" width="9" height="9"/>
+            <rect id="dot3" class="dot" x="46" y="199" width="9" height="9"/>
+            <rect id="dot4" class="dot" x="59" y="199" width="9" height="9"/>
+            <text id="cap1" class="cap" x="80" y="207">the five causal neighbours</text>
+            <text id="cap2" class="cap" x="80" y="207">fixed weights from the header</text>
+            <text id="cap3" class="cap" x="80" y="207">kernel K, then P = W + K</text>
+            <text id="cap4" class="cap" x="80" y="207">store the residual</text>
+          </g>
+        </svg>

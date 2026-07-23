@@ -4,15 +4,94 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="geozl high-level API — the compress() one-liner.">
-<meta name="theme-color" content="#EFEBE2">
+<meta name="theme-color" content="#F1EDE4">
 <title>geozl — high-level API</title>
 <link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
+<style>
+  /* api-high: a reference page that flows past one sheet */
+  body.doc-page{ align-items:flex-start; }
+  .doc-page .sheet{ overflow:visible; min-height:min(820px,calc(100svh - clamp(32px,5.2vw,68px))); }
+
+  .api{ flex:1 1 auto; min-width:0; padding:clamp(44px,5.4vw,78px) clamp(28px,5vw,70px) clamp(30px,4vw,52px); }
+  .api section{ padding:clamp(38px,4.6vw,60px) 0; border-bottom:1px solid var(--line); }
+  .api section:last-of-type{ border-bottom:0; }
+
+  .sec-h{ display:inline-flex; align-items:center; gap:9px; margin:0 0 clamp(20px,2.6vw,30px); color:var(--ink-2); font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.09em; text-transform:uppercase; }
+  .sec-h .sq{ width:9px; height:9px; background:var(--page); border:1px solid var(--ink); }
+
+  /* hero */
+  .api-hero{ display:grid; grid-template-columns:minmax(0,1.1fr) minmax(320px,.92fr); column-gap:clamp(40px,6vw,84px); align-items:end; border-bottom:1px solid var(--line-strong); }
+  .api-hero .col-a{ min-width:0; }
+  .api-hero h1{ margin:0 0 22px; max-width:12ch; font-size:clamp(46px,6.3vw,84px); font-weight:600; line-height:.92; letter-spacing:-.052em; }
+  .api-hero h1 .u{ box-shadow:inset 0 -.10em 0 var(--page); }
+  .api-hero .lead{ margin:0; max-width:44ch; color:var(--ink-2); font-size:clamp(16px,1.5vw,19px); line-height:1.58; }
+  .oneliner{ position:relative; align-self:end; margin-top:clamp(28px,3vw,0px); }
+  .oneliner .tag{ display:inline-block; margin-bottom:-1px; padding:5px 11px; background:var(--page); color:var(--ink); font:600 10px/1 "IBM Plex Mono",monospace; letter-spacing:.06em; text-transform:uppercase; border:1px solid var(--ink); }
+  .oneliner pre{ margin:0; padding:clamp(20px,2.4vw,28px); background:var(--paper-2); border:1px solid var(--line-strong); font:600 clamp(14px,1.35vw,17px)/1.75 "IBM Plex Mono",monospace; color:var(--ink); white-space:pre; overflow-x:auto; }
+
+  /* code + repl */
+  .code{ position:relative; margin-top:6px; background:var(--paper-2); border:1px solid var(--line-strong); overflow-x:auto; }
+  .code pre{ margin:0; padding:clamp(18px,2.2vw,26px); font:500 13px/1.72 "IBM Plex Mono",monospace; color:var(--ink); white-space:pre; }
+  .code .c{ color:var(--ink-2); font-weight:400; font-style:italic; }
+  .code .fn{ box-shadow:inset 0 -.085em 0 var(--page); }
+  .lbl{ padding:11px clamp(18px,2.2vw,26px); border:1px solid var(--line-strong); border-bottom:0; background:rgba(255,255,255,.14); color:var(--ink-2); font:500 10px/1 "IBM Plex Mono",monospace; letter-spacing:.07em; text-transform:uppercase; }
+  .lbl + .code{ margin-top:0; border-top:0; }
+
+  .two{ display:grid; grid-template-columns:minmax(0,1.35fr) minmax(260px,.8fr); gap:clamp(22px,2.6vw,32px); align-items:start; }
+
+  .repl{ border:1px solid var(--line-strong); background:rgba(255,255,255,.1); }
+  .repl .rr{ display:grid; grid-template-columns:auto 1fr; gap:16px; align-items:baseline; padding:12px clamp(16px,2vw,22px); border-bottom:1px solid var(--line); font:500 12.5px/1.3 "IBM Plex Mono",monospace; }
+  .repl .rr:last-child{ border-bottom:0; }
+  .repl .rr:nth-child(even){ background:rgba(255,255,255,.12); }
+  .repl .rk{ color:var(--ink-2); letter-spacing:.02em; }
+  .repl .rv{ color:var(--ink); text-align:right; font-weight:600; }
+  .repl .rv.hot{ color:var(--wine); }
+  .cap{ margin:14px 0 0; color:var(--ink-2); font-size:12px; line-height:1.55; }
+  .cap a{ color:var(--ink); text-underline-offset:2px; }
+
+  .prose{ max-width:62ch; color:var(--ink-2); font-size:15.5px; line-height:1.62; }
+  .prose p{ margin:0 0 15px; }
+  .prose strong{ color:var(--ink); font-weight:600; }
+  .prose code, .desc code, .cap code{ font-family:"IBM Plex Mono",monospace; font-size:.9em; color:var(--ink); background:rgba(23,22,28,.055); padding:1px 5px; }
+
+  /* pipeline strip */
+  .flow{ display:flex; flex-wrap:wrap; align-items:center; gap:10px 8px; margin:clamp(22px,2.6vw,30px) 0 4px; }
+  .flow .node{ padding:11px 15px; border:1px solid var(--line-strong); background:rgba(255,255,255,.14); font:600 12.5px/1 "IBM Plex Mono",monospace; color:var(--ink); }
+  .flow .node.io{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+  .flow .node.pick{ position:relative; background:color-mix(in srgb,var(--page) 26%,transparent); border-color:var(--ink); }
+  .flow .node sup{ font-size:.7em; }
+  .flow .arr{ color:var(--ink-2); font:500 15px/1 "IBM Plex Mono",monospace; }
+  .flow-note{ margin:12px 0 0; max-width:60ch; color:var(--ink-2); font-size:12.5px; line-height:1.55; }
+  .flow-note sup{ color:var(--ink); font-weight:600; }
+
+  /* params */
+  .spec2{ border:1px solid var(--line-strong); }
+  .spec2 .row{ display:grid; grid-template-columns:132px 96px minmax(0,1fr); gap:18px; align-items:baseline; padding:14px clamp(18px,2.3vw,26px); border-bottom:1px solid var(--line); font-size:13.5px; }
+  .spec2 .row:last-child{ border-bottom:0; }
+  .spec2 .row:nth-child(even){ background:rgba(255,255,255,.13); }
+  .spec2 .nm{ font:600 13.5px/1.3 "IBM Plex Mono",monospace; color:var(--ink); }
+  .spec2 .ty{ color:var(--ink-2); font:500 10px/1.3 "IBM Plex Mono",monospace; letter-spacing:.04em; text-transform:uppercase; }
+  .spec2 .ds{ color:var(--ink-2); line-height:1.5; }
+  .spec2 .ds b{ color:var(--ink); font-weight:600; }
+
+  @media (max-width:900px){
+    .api-hero{ grid-template-columns:1fr; row-gap:32px; }
+    .two{ grid-template-columns:1fr; }
+  }
+  @media (max-width:760px){
+    body.doc-page{ padding:0; background:var(--paper); }
+    .api{ padding:38px 20px 34px 23px; }
+    .flow .node{ font-size:11.5px; padding:9px 12px; }
+    .spec2 .row{ grid-template-columns:1fr; gap:5px; }
+    .spec2 .ty{ order:3; }
+  }
+</style>
 </head>
-<body style="--page:var(--gold)">
+<body class="doc-page" style="--page:var(--gold)">
   <div class="sheet">
     <span class="reg tl">+</span><span class="reg tr">+</span>
     <span class="reg bl">+</span><span class="reg br">+</span>
@@ -24,18 +103,106 @@
       </a>
       <nav class="nav" aria-label="Sections">
         <a href="docs.html">Docs</a>
-        <a href="api-high.html">High-level</a>
+        <a href="api-high.html" class="here">High-level</a>
         <a href="api-low.html">Low-level</a>
         <a href="benchmark.html">Benchmark</a>
         <a href="links.html">Links</a>
       </nav>
     </header>
 
-    <main class="page page-skeleton">
-      <p class="kicker"><span class="k-sq"></span> high-level api</p>
-      <h1>One call: <span class="u">compress()</span>.</h1>
-      <p class="lead">The one-liner that turns a raster into an OpenZL frame — the same call rumi builds on. Reference coming next.</p>
-      <div class="soon"><span class="s-sq"></span> Skeleton. Next: <code>geozl.compress()</code> reference — params, format version, frame layout.</div>
+    <main class="api">
+      <section class="api-hero">
+        <div class="col-a">
+          <p class="sec-h"><span class="sq"></span> high-level api</p>
+          <h1>One call: <span class="u">compress()</span>.</h1>
+          <p class="lead">Hand it a raster tile, get back an OpenZL frame. geozl picks the best graph for that tile — you don't touch the graph at all. The same call rumi builds on.</p>
+        </div>
+        <div class="oneliner">
+          <span class="tag">the whole thing</span>
+          <pre>frame = geozl.compress(tile)</pre>
+        </div>
+      </section>
+
+      <section>
+        <p class="sec-h"><span class="sq"></span> a worked example</p>
+        <div class="two">
+          <div>
+            <div class="lbl">python — read a real DEM, compress it</div>
+            <div class="code"><pre><span class="c"># Copernicus DEM GLO-30, a 1°×1° tile over the Mont Blanc massif.</span>
+<span class="c"># Elevation in whole metres, so int16 holds it without loss.</span>
+import rasterio, numpy as np, geozl
+
+url = ("https://copernicus-dem-30m.s3.amazonaws.com/"
+       "Copernicus_DSM_COG_10_N45_00_E006_00_DEM/"
+       "Copernicus_DSM_COG_10_N45_00_E006_00_DEM.tif")
+
+with rasterio.open(url) as src:
+    dem = src.read(1)                     <span class="c"># metres, float32</span>
+
+scene = np.round(dem).astype(np.int16)    <span class="c"># -> int16, lossless here</span>
+
+<span class="c"># Tile the scene and compress each tile on its own. Each tile</span>
+<span class="c"># gets the graph that wins it — that is where selection lives.</span>
+H, W = scene.shape
+tiles  = [scene[r:r+512, c:c+512]
+          for r in range(0, H, 512)
+          for c in range(0, W, 512)]
+
+frames = [geozl.<span class="fn">compress</span>(t, optim="balanced", lam=0.5)
+          for t in tiles]
+
+<span class="c"># Frames are self-describing: no options to decompress.</span>
+back = [geozl.<span class="fn">decompress</span>(f, dtype="int16") for f in frames]
+assert all(np.array_equal(a, b) for a, b in zip(tiles, back))</pre></div>
+            <p class="cap">Dataset: <a href="https://registry.opendata.aws/copernicus-dem/" target="_blank" rel="noopener noreferrer">Copernicus DEM GLO-30</a>, public COG on AWS Open Data (© ESA / Airbus / DLR). Numbers below are representative of one alpine tile, not a benchmark — see the <a href="benchmark.html">Benchmark</a> page for measured results.</p>
+          </div>
+          <div>
+            <div class="lbl">what it prints</div>
+            <div class="repl">
+              <div class="rr"><span class="rk">scene</span><span class="rv">3600² · int16</span></div>
+              <div class="rr"><span class="rk">raw</span><span class="rv">24.7 MB</span></div>
+              <div class="rr"><span class="rk">frames</span><span class="rv">10.6 MB</span></div>
+              <div class="rr"><span class="rk">ratio</span><span class="rv hot">2.33×</span></div>
+              <div class="rr"><span class="rk">decode</span><span class="rv">1.8 GB/s</span></div>
+              <div class="rr"><span class="rk">round trip</span><span class="rv">lossless</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <p class="sec-h"><span class="sq"></span> how the call works</p>
+        <div class="prose">
+          <p>One call builds a small graph for the tile — <strong>predictor → zigzag → entropy backend</strong> — and searches for the graph that scores best on it. The predictor turns each pixel into a small residual against its neighbours; zigzag folds that signed residual to unsigned so the entropy stage packs it tightly; the entropy backend does the final coding.</p>
+          <p>Two things you set decide the search. <strong><code>method</code></strong> is a <strong>prior</strong>: it seeds the search from a predictor you expect to fit, but never pins it — if a different graph wins the tile, even one that drops the predictor and hands the bytes straight to <code>zstd</code>, that graph is kept. <strong><code>optim</code></strong> is the objective the search minimizes.</p>
+        </div>
+
+        <div class="flow">
+          <span class="node io">tile</span>
+          <span class="arr">→</span>
+          <span class="node pick">predictor<sup>★</sup></span>
+          <span class="arr">→</span>
+          <span class="node">zigzag</span>
+          <span class="arr">→</span>
+          <span class="node pick">entropy<sup>★</sup></span>
+          <span class="arr">→</span>
+          <span class="node io">frame</span>
+        </div>
+        <p class="flow-note"><sup>★</sup> chosen per tile by <code>optim</code>. <b>store</b> keeps the smallest frame, <b>speed</b> the fastest to decode, <b>balanced</b> minimizes <code>bytes + lam · decode</code> — where <code>lam</code> is the one knob that trades size against decode time.</p>
+      </section>
+
+      <section>
+        <p class="sec-h"><span class="sq"></span> parameters</p>
+        <div class="spec2">
+          <div class="row"><span class="nm">tile</span><span class="ty">ndarray</span><span class="ds">A 2-D array, or 1-D with <code>width</code> given. Native byte order; 1, 2, 4 or 8 bytes per element.</span></div>
+          <div class="row"><span class="nm">method</span><span class="ty">str · None</span><span class="ds"><b>Predictor prior.</b> <code>planar</code> (default), <code>med</code>, <code>delta_w</code>, <code>delta_n</code>, <code>average</code>, <code>wp_static</code>, <code>none</code>, or <code>None</code> to search every predictor unbiased.</span></div>
+          <div class="row"><span class="nm">optim</span><span class="ty">str</span><span class="ds"><b>Objective.</b> <code>store</code> (default) smallest frame · <code>speed</code> fastest decode · <code>balanced</code> the trade-off.</span></div>
+          <div class="row"><span class="nm">lam</span><span class="ty">float</span><span class="ds"><b>The balanced knob:</b> <code>bytes + lam · decode</code>. Required with <code>optim="balanced"</code>, must be &gt; 0; leave unset otherwise.</span></div>
+          <div class="row"><span class="nm">max_error</span><span class="ty">float · None</span><span class="ds"><code>None</code> or negative is lossless. A positive bound adds a lossy quant step that keeps every value within that error.</span></div>
+          <div class="row"><span class="nm">width</span><span class="ty">int · None</span><span class="ds">Row width for a 1-D input. Read from <code>tile.shape[-1]</code> for a 2-D array.</span></div>
+        </div>
+        <p class="cap">Returns the frame as <code>bytes</code>. Raises <code>ValueError</code> for a bad argument and <code>RuntimeError</code>, carrying the encoder's own message, if compression fails.</p>
+      </section>
     </main>
 
     <footer class="colophon">
@@ -51,6 +218,5 @@
     </footer>
 
   </div>
-  <script src="assets/js/main.js" defer></script>
 </body>
 </html>

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="geozl planar predicts each pixel from the plane through W, N and NW.">
+<meta name="theme-color" content="#F1EDE4">
+<title>geozl · planar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" href="../assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body style="--page:var(--purple)">
+  <div class="sheet">
+    <span class="reg tl">+</span><span class="reg tr">+</span>
+    <span class="reg bl">+</span><span class="reg br">+</span>
+
+    <header class="masthead">
+      <a class="lockup vt-lockup" href="../index.html" aria-label="geozl home">
+        <img class="marksvg" src="../assets/svg/mark.svg" alt="">
+        <span class="wm-sm">GeoZL</span>
+      </a>
+      <nav class="nav" aria-label="Sections">
+        <a href="../docs.html" class="here">Docs</a>
+        <a href="../api-high.html">High-level</a>
+        <a href="../api-low.html">Low-level</a>
+        <a href="../benchmark.html">Benchmark</a>
+        <a href="../links.html">Links</a>
+      </nav>
+    </header>
+
+    <main class="codoc">
+      <div class="col-text">
+        <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> predictor &middot; 2D <span class="sep">/</span> lossless</p>
+        <h1 class="name">planar</h1>
+        <p class="subtitle">The plane through <span class="u">W, N and NW</span>.</p>
+        <p class="desc">A true two-dimensional predictor. Each pixel is predicted by the plane passing
+        through three neighbours the decoder already holds, <b>W + N − NW</b>. Row zero falls back to the
+        horizontal predictor, column zero to the vertical one. The prediction carries no left-dependency
+        beyond W, so a row still <b>decodes as a fast prefix sum</b>. On any locally planar gradient the
+        residuals collapse to zero.</p>
+        <dl class="spec">
+          <dt>ctid</dt><dd>0x72D703</dd>
+          <dt>header</dt><dd>uint32 &middot; row width in samples</dd>
+          <dt>widths</dt><dd>8 &middot; 16 &middot; 32 &middot; 64-bit integers</dd>
+          <dt>decode</dt><dd>fold N&minus;NW from the row above, then prefix-sum the row</dd>
+        </dl>
+
+        <div class="actions">
+          <!-- TODO replace href="#" with the source-code link -->
+          <a class="btn-code" href="#">
+            <span>Code</span>
+            <svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+          </a>
+          <span class="usage mono">geozl.lossless.Planar(width)</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <object class="diagram" type="image/svg+xml" data="../assets/svg/codecs/planar.svg"
+                aria-label="planar predicts a pixel from the plane through its west, north and north-west neighbours. P equals W plus N minus NW"></object>
+        <span class="p-cap">exact on any plane, residuals collapse to zero</span>
+      </div>
+    </main>
+
+    <footer class="footer pager">
+      <span class="pg-mid mono">0x72D703</span>
+    </footer>
+  </div>
+  <script src="../assets/js/main.js"></script>
+</body>
+</html>

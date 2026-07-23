@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220" role="img"
+     aria-label="average predicts each pixel from the floor average of its west and north neighbours">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+    svg{
+      --paper:#F1EDE4; --ink:#17161C; --ink-2:#625D53; --purple:#4A2BE8;
+      --tint-add:color-mix(in srgb,var(--purple) 15%,var(--paper));
+      --ease:cubic-bezier(.22,.7,.2,1);
+      font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+
+    /* element vocabulary */
+    .lab{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; letter-spacing:.05em; }
+    .tile{ fill:var(--paper); stroke:var(--ink); stroke-width:1.4; }
+    .tv{ fill:var(--ink); font:600 16px/1 "IBM Plex Mono",monospace; text-anchor:middle; }
+    .nlab{ fill:var(--ink); font:600 10px/1 "IBM Plex Mono",monospace; text-anchor:middle; }
+    .fx{ fill:var(--ink); font:600 12px/1 "IBM Plex Mono",monospace; }
+    .fx2{ fill:var(--ink-2); font:500 11.5px/1 "IBM Plex Mono",monospace; }
+    .dot{ fill:var(--paper); stroke:var(--ink); stroke-width:1.3; }
+    .cap{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; opacity:0; }
+    #avg-target{ fill:var(--paper); stroke:var(--purple); stroke-width:2.2; }
+    #avg-resid{ fill:var(--purple); font:700 15px "IBM Plex Mono",monospace; text-anchor:middle; opacity:0; }
+    #avg-arrows{ fill:none; stroke:var(--ink); stroke-width:1.5; }
+    .arrowhead{ fill:var(--ink); }
+
+    /* 3-beat loop: neighbours -> floor of their average -> residual */
+    #avg-N,#avg-W{ animation:s1addFill 8s var(--ease) infinite; }
+    #avg-nlabels{ animation:s1op 8s var(--ease) infinite; }
+    #avg-arrows,#avg-p{ animation:s2op 8s var(--ease) infinite; }
+    #avg-r{ animation:s3op 8s var(--ease) infinite; }
+    #avg-target{ animation:s3tgtFill 8s var(--ease) infinite; }
+    #avg-orig{ animation:avgOrig 8s step-end infinite; }
+    #avg-resid{ animation:avgResid 8s step-end infinite; }
+    #dot1{ animation:dot1 8s var(--ease) infinite; }
+    #dot2{ animation:dot2 8s var(--ease) infinite; }
+    #dot3{ animation:dot3 8s var(--ease) infinite; }
+    #cap1{ animation:cap1 8s var(--ease) infinite; }
+    #cap2{ animation:cap2 8s var(--ease) infinite; }
+    #cap3{ animation:cap3 8s var(--ease) infinite; }
+
+    @keyframes s1op{ 0%,2%{opacity:0} 7%,92%{opacity:1} 96%,100%{opacity:0} }
+    @keyframes s2op{ 0%,33%{opacity:0} 38%,92%{opacity:1} 96%,100%{opacity:0} }
+    @keyframes s3op{ 0%,66%{opacity:0} 71%,92%{opacity:1} 96%,100%{opacity:0} }
+    @keyframes s1addFill{ 0%,2%{fill:var(--paper)} 7%,92%{fill:var(--tint-add)} 96%,100%{fill:var(--paper)} }
+    @keyframes s3tgtFill{ 0%,66%{fill:var(--paper)} 71%,92%{fill:var(--tint-add)} 96%,100%{fill:var(--paper)} }
+    @keyframes avgOrig{ 0%,66%{opacity:1} 71%{opacity:0} 92%{opacity:0} 96%,100%{opacity:1} }
+    @keyframes avgResid{ 0%,68%{opacity:0} 73%{opacity:1} 92%{opacity:1} 96%,100%{opacity:0} }
+    @keyframes dot1{ 0%,3%{fill:var(--paper)} 7%,92%{fill:var(--purple)} 96%,100%{fill:var(--paper)} }
+    @keyframes dot2{ 0%,34%{fill:var(--paper)} 38%,92%{fill:var(--purple)} 96%,100%{fill:var(--paper)} }
+    @keyframes dot3{ 0%,67%{fill:var(--paper)} 71%,92%{fill:var(--purple)} 96%,100%{fill:var(--paper)} }
+    @keyframes cap1{ 0%,3%{opacity:0} 7%,27%{opacity:1} 31%,100%{opacity:0} }
+    @keyframes cap2{ 0%,34%{opacity:0} 38%,58%{opacity:1} 62%,100%{opacity:0} }
+    @keyframes cap3{ 0%,67%{opacity:0} 71%,90%{opacity:1} 96%,100%{opacity:0} }
+
+    @media (prefers-reduced-motion:reduce){
+      *{ animation:none !important; }
+      #avg-N,#avg-W,#avg-target{ fill:var(--tint-add); }
+      #avg-orig{ opacity:0; } #avg-resid{ opacity:1; }
+      #avg-nlabels,#avg-arrows,#avg-p,#avg-r{ opacity:1; }
+      #dot1,#dot2,#dot3{ fill:var(--purple); }
+      #cap1,#cap2{ opacity:0; } #cap3{ opacity:1; }
+    }
+  ]]></style>
+
+  <text x="20" y="20" class="lab">predict from the average of W and N</text>
+
+  <!-- faded context cells (NW present but unused) -->
+  <g opacity="0.36">
+    <g transform="translate(30,40)"><rect class="tile" width="42" height="42"/><text class="tv" x="21" y="27">43</text></g>
+    <g transform="translate(134,40)"><rect class="tile" width="42" height="42"/><text class="tv" x="21" y="27">46</text></g>
+    <g transform="translate(134,92)"><rect class="tile" width="42" height="42"/><text class="tv" x="21" y="27">34</text></g>
+    <g transform="translate(30,144)"><rect class="tile" width="42" height="42"/><text class="tv" x="21" y="27">33</text></g>
+    <g transform="translate(82,144)"><rect class="tile" width="42" height="42"/><text class="tv" x="21" y="27">34</text></g>
+    <g transform="translate(134,144)"><rect class="tile" width="42" height="42"/><text class="tv" x="21" y="27">35</text></g>
+  </g>
+
+  <!-- W and N + values -->
+  <rect id="avg-N" class="tile" x="82" y="40" width="42" height="42"/>
+  <rect id="avg-W" class="tile" x="30" y="92" width="42" height="42"/>
+  <text class="tv" x="103" y="67">45</text>
+  <text class="tv" x="51"  y="119">20</text>
+  <g id="avg-nlabels">
+    <text class="nlab" x="103" y="36">N</text>
+    <text class="nlab" x="20"  y="118">W</text>
+  </g>
+
+  <!-- target -->
+  <rect id="avg-target" x="82" y="92" width="42" height="42"/>
+  <text id="avg-orig" class="tv" x="103" y="119">33</text>
+  <text id="avg-resid" x="103" y="119">+1</text>
+
+  <!-- arrows -->
+  <g id="avg-arrows">
+    <path d="M72,113 L81,113" marker-end="url(#pa)"/>
+    <path d="M103,82 L103,91" marker-end="url(#pa)"/>
+  </g>
+
+  <!-- formula -->
+  <g id="avg-p">
+    <text x="182" y="62"  class="fx">P = floor((W+N)/2)</text>
+    <text x="182" y="86"  class="fx2">= floor((20+45)/2)</text>
+    <text x="182" y="110" class="fx2">= floor(32.5) = 32</text>
+  </g>
+  <text id="avg-r" x="182" y="150" class="fx">residual = 33 &#8722; 32 = +1</text>
+
+  <!-- step indicator + captions -->
+  <g id="avg-steps">
+    <rect id="dot1" class="dot" x="20" y="199" width="9" height="9"/>
+    <rect id="dot2" class="dot" x="33" y="199" width="9" height="9"/>
+    <rect id="dot3" class="dot" x="46" y="199" width="9" height="9"/>
+    <text id="cap1" class="cap" x="67" y="207">west and north neighbours</text>
+    <text id="cap2" class="cap" x="67" y="207">floor of their average</text>
+    <text id="cap3" class="cap" x="67" y="207">store the residual</text>
+  </g>
+
+  <defs>
+    <marker id="pa" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path class="arrowhead" d="M0,0 L6,3 L0,6 z"/>
+    </marker>
+  </defs>
+</svg>

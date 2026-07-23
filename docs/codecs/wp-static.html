@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="geozl wp_static, a frozen JPEG XL weighted predictor with header-stored weights.">
+<meta name="theme-color" content="#F1EDE4">
+<title>geozl · wp_static</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" href="../assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body style="--page:var(--purple)">
+  <div class="sheet">
+    <span class="reg tl">+</span><span class="reg tr">+</span>
+    <span class="reg bl">+</span><span class="reg br">+</span>
+
+    <header class="masthead">
+      <a class="lockup vt-lockup" href="../index.html" aria-label="geozl home">
+        <img class="marksvg" src="../assets/svg/mark.svg" alt="">
+        <span class="wm-sm">GeoZL</span>
+      </a>
+      <nav class="nav" aria-label="Sections">
+        <a href="../docs.html" class="here">Docs</a>
+        <a href="../api-high.html">High-level</a>
+        <a href="../api-low.html">Low-level</a>
+        <a href="../benchmark.html">Benchmark</a>
+        <a href="../links.html">Links</a>
+      </nav>
+    </header>
+
+    <main class="codoc">
+      <div class="col-text">
+        <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> predictor &middot; 2D <span class="sep">/</span> lossless</p>
+        <h1 class="name">wp_static</h1>
+        <p class="subtitle">A frozen <span class="u">weighted predictor</span>.</p>
+        <p class="desc">A frozen take on the JPEG XL self-correcting weighted predictor. The original
+        retunes its weights on every sample from recent errors. Freezing them leaves a fixed linear
+        function of five causal neighbours, <b>W plus a kernel K over N, NW, NE and NN</b>. W enters with
+        weight one, so <b>P = W + K</b> and a row still decodes as a prefix sum. The four weights and a
+        right shift are trained per tile and ride in the header, and the defaults turn it back into planar.</p>
+        <dl class="spec">
+          <dt>ctid</dt><dd>0x72D707</dd>
+          <dt>header</dt><dd>uint32 width &middot; uint8 shift &middot; 4&times;int16 coeffs</dd>
+          <dt>widths</dt><dd>8 &middot; 16 &middot; 32 &middot; 64-bit integers</dd>
+          <dt>decode</dt><dd>P = W + ((&#931; c&#7522;&middot;tap&#7522; + round) &gt;&gt; shift), prefix sum per row</dd>
+        </dl>
+
+        <div class="actions">
+          <!-- TODO replace href="#" with the source-code link -->
+          <a class="btn-code" href="#">
+            <span>Code</span>
+            <svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+          </a>
+          <span class="usage mono">geozl.lossless.WpStatic(width)</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <object class="diagram" type="image/svg+xml" data="../assets/svg/codecs/wp-static.svg"
+                aria-label="wp_static predicts a pixel as W plus a weighted kernel over N, NW, NE and NN, using fixed weights carried in the header"></object>
+      </div>
+    </main>
+
+    <footer class="footer pager">
+      <span class="pg-mid mono">0x72D707</span>
+    </footer>
+  </div>
+  <script src="../assets/js/main.js"></script>
+</body>
+</html>

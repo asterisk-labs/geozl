@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220" width="360" height="220" role="img" aria-label="med is the median edge detector. Because NW sits above max of W and N, it predicts the minimum, clamping to the near side of the edge">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+    svg{
+      --paper:#F1EDE4; --ink:#17161C; --ink-2:#625D53; --purple:#4A2BE8; --orange:#FE6B37; --tint-add:color-mix(in srgb,var(--purple) 15%,var(--paper)); --tint-sub:color-mix(in srgb,var(--orange) 18%,var(--paper)); --ease:cubic-bezier(.22,.7,.2,1);
+      font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+
+    .lab{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; letter-spacing:.05em; }
+    .tile{ fill:var(--paper); stroke:var(--ink); stroke-width:1.4; }
+    .tv{ fill:var(--ink); font:600 16px/1 "IBM Plex Mono",monospace; text-anchor:middle; }
+    .nlab{ fill:var(--ink); font:600 10px/1 "IBM Plex Mono",monospace; text-anchor:middle; }
+    .br{ fill:var(--ink-2); font:500 11px/1 "IBM Plex Mono",monospace; }
+    .brA{ fill:var(--purple); font:600 11px/1 "IBM Plex Mono",monospace; }
+    .fx{ fill:var(--ink); font:600 12px/1 "IBM Plex Mono",monospace; }
+    .fx2{ fill:var(--ink-2); font:500 11.5px/1 "IBM Plex Mono",monospace; }
+    .dot{ fill:var(--paper); stroke:var(--ink); stroke-width:1.3; }
+    .cap{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; opacity:0; }
+
+    #med-W { animation:s1addFill 10s var(--ease) infinite; }
+    #med-N { animation:s1addFill 10s var(--ease) infinite; }
+    #med-NW{ animation:s1subFill 10s var(--ease) infinite; }
+    #med-nlabels{ animation:s1op 10s var(--ease) infinite; }
+    #med-branches{ animation:s2op 10s var(--ease) infinite; }
+    #med-active{ animation:s3op 10s var(--ease) infinite; }
+    #med-p{ animation:s3op 10s var(--ease) infinite; }
+    #med-r{ animation:s4op 10s var(--ease) infinite; }
+    #med-target{ animation:s4tgtFill 10s var(--ease) infinite; }
+    #med-orig{ animation:medOrig 10s step-end infinite; }
+    #med-resid{ animation:medResid 10s step-end infinite; }
+    #dot1{ animation:dot1 10s var(--ease) infinite; }
+    #dot2{ animation:dot2 10s var(--ease) infinite; }
+    #dot3{ animation:dot3 10s var(--ease) infinite; }
+    #dot4{ animation:dot4 10s var(--ease) infinite; }
+    #cap1{ animation:cap1 10s var(--ease) infinite; }
+    #cap2{ animation:cap2 10s var(--ease) infinite; }
+    #cap3{ animation:cap3 10s var(--ease) infinite; }
+    #cap4{ animation:cap4 10s var(--ease) infinite; }
+    
+    /* reveal windows , enter at the beat start, hold to 92%, fade only at the very end */
+    @keyframes s1op{ 0%,2%{opacity:0} 7%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes s2op{ 0%,25%{opacity:0} 30%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes s3op{ 0%,48%{opacity:0} 53%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes s4op{ 0%,71%{opacity:0} 76%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes s1addFill{ 0%,2%{fill:var(--paper)} 7%,92%{fill:var(--tint-add)} 97%,100%{fill:var(--paper)} }
+    @keyframes s1subFill{ 0%,2%{fill:var(--paper)} 7%,92%{fill:var(--tint-sub)} 97%,100%{fill:var(--paper)} }
+    @keyframes s4tgtFill{ 0%,71%{fill:var(--paper)} 76%,92%{fill:var(--tint-add)} 97%,100%{fill:var(--paper)} }
+    @keyframes medOrig{ 0%,71%{opacity:1} 76%{opacity:0} 92%{opacity:0} 97%,100%{opacity:1} }
+    @keyframes medResid{ 0%,73%{opacity:0} 78%{opacity:1} 92%{opacity:1} 97%,100%{opacity:0} }
+    
+    /* progress dots fill at each beat start, stay lit */
+    @keyframes dot1{ 0%,3%{fill:var(--paper)} 7%,92%{fill:var(--purple)} 97%,100%{fill:var(--paper)} }
+    @keyframes dot2{ 0%,26%{fill:var(--paper)} 30%,92%{fill:var(--purple)} 97%,100%{fill:var(--paper)} }
+    @keyframes dot3{ 0%,49%{fill:var(--paper)} 53%,92%{fill:var(--purple)} 97%,100%{fill:var(--paper)} }
+    @keyframes dot4{ 0%,72%{fill:var(--paper)} 76%,92%{fill:var(--purple)} 97%,100%{fill:var(--paper)} }
+    
+    /* captions , one per beat, held for the whole beat, crisp change between beats */
+    @keyframes cap1{ 0%,3%{opacity:0} 7%,22%{opacity:1} 25%,100%{opacity:0} }
+    @keyframes cap2{ 0%,26%{opacity:0} 30%,45%{opacity:1} 48%,100%{opacity:0} }
+    @keyframes cap3{ 0%,49%{opacity:0} 53%,68%{opacity:1} 71%,100%{opacity:0} }
+    @keyframes cap4{ 0%,72%{opacity:0} 76%,92%{opacity:1} 97%,100%{opacity:0} }
+    
+    @media (prefers-reduced-motion:reduce){
+      *{ animation:none !important; }
+      #med-W,#med-N{ fill:var(--tint-add); } #med-NW{ fill:var(--tint-sub); } #med-target{ fill:var(--tint-add); }
+      #med-orig{ opacity:0; } #med-resid{ opacity:1; }
+      #med-nlabels,#med-branches,#med-active,#med-p,#med-r{ opacity:1; }
+      #dot1,#dot2,#dot3,#dot4{ fill:var(--purple); }
+      #cap1,#cap2,#cap3{ opacity:0; } #cap4{ opacity:1; }
+    }
+  ]]></style>
+
+          <text x="20" y="20" class="lab">median edge detector, pick the middle of three</text>
+
+          <!-- faded context cells -->
+          <g opacity="0.36">
+            <g transform="translate(134,40)"><rect class="tile" width="42" height="42"/><text class="tv" x="21" y="27">45</text></g>
+            <g transform="translate(134,92)"><rect class="tile" width="42" height="42"/><text class="tv" x="21" y="27">22</text></g>
+            <g transform="translate(30,144)"><rect class="tile" width="42" height="42"/><text class="tv" x="21" y="27">21</text></g>
+            <g transform="translate(82,144)"><rect class="tile" width="42" height="42"/><text class="tv" x="21" y="27">22</text></g>
+            <g transform="translate(134,144)"><rect class="tile" width="42" height="42"/><text class="tv" x="21" y="27">23</text></g>
+          </g>
+
+          <!-- causal neighbours (animated) + values -->
+          <rect id="med-NW" class="tile" x="30" y="40" width="42" height="42"/>
+          <rect id="med-N"  class="tile" x="82" y="40" width="42" height="42"/>
+          <rect id="med-W"  class="tile" x="30" y="92" width="42" height="42"/>
+          <text class="tv" x="51"  y="67">46</text>
+          <text class="tv" x="103" y="67">44</text>
+          <text class="tv" x="51"  y="119">20</text>
+
+          <g id="med-nlabels">
+            <text class="nlab" x="51"  y="36">NW</text>
+            <text class="nlab" x="103" y="36">N</text>
+            <text class="nlab" x="20"  y="118" text-anchor="middle">W</text>
+          </g>
+
+          <!-- target -->
+          <rect id="med-target" x="82" y="92" width="42" height="42" fill="var(--paper)" stroke="var(--purple)" stroke-width="2.2"/>
+          <text id="med-orig" class="tv" x="103" y="119">21</text>
+          <text id="med-resid" x="103" y="119" text-anchor="middle" fill="var(--purple)" style="font:700 15px 'IBM Plex Mono',monospace;opacity:0">+1</text>
+
+          <!-- three branches (dim) -->
+          <g id="med-branches">
+            <text x="182" y="54"  class="br">NW &#8805; max(W,N) &#8594; min</text>
+            <text x="182" y="78"  class="br">NW &#8804; min(W,N) &#8594; max</text>
+            <text x="182" y="100" class="br">else &#8594; W + N &#8722; NW</text>
+          </g>
+
+          <!-- active branch overlay -->
+          <g id="med-active">
+            <rect x="176" y="40" width="170" height="19" fill="var(--tint-add)"/>
+            <text x="182" y="54" class="brA">NW &#8805; max(W,N) &#8594; min</text>
+          </g>
+
+          <!-- result: P revealed in step 3, residual in step 4 -->
+          <text id="med-p" x="182" y="140" class="fx">P = min(20, 44) = 20</text>
+          <text id="med-r" x="182" y="164" class="fx2">residual = 21 &#8722; 20 = +1</text>
+
+          <!-- step indicator + per-step caption -->
+          <g id="med-steps">
+            <rect id="dot1" class="dot" x="20" y="199" width="9" height="9"/>
+            <rect id="dot2" class="dot" x="33" y="199" width="9" height="9"/>
+            <rect id="dot3" class="dot" x="46" y="199" width="9" height="9"/>
+            <rect id="dot4" class="dot" x="59" y="199" width="9" height="9"/>
+            <text id="cap1" class="cap" x="80" y="207">the three causal neighbours</text>
+            <text id="cap2" class="cap" x="80" y="207">three possible predictions</text>
+            <text id="cap3" class="cap" x="80" y="207">NW &#8805; max(W,N) &#8594; take the min</text>
+            <text id="cap4" class="cap" x="80" y="207">store the residual</text>
+          </g>
+        </svg>

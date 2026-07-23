@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="geozl delta_n stores each value as a difference from its north neighbour.">
+<meta name="theme-color" content="#F1EDE4">
+<title>geozl · delta_n</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" href="../assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body style="--page:var(--purple)">
+  <div class="sheet">
+    <span class="reg tl">+</span><span class="reg tr">+</span>
+    <span class="reg bl">+</span><span class="reg br">+</span>
+
+    <header class="masthead">
+      <a class="lockup vt-lockup" href="../index.html" aria-label="geozl home">
+        <img class="marksvg" src="../assets/svg/mark.svg" alt="">
+        <span class="wm-sm">GeoZL</span>
+      </a>
+      <nav class="nav" aria-label="Sections">
+        <a href="../docs.html" class="here">Docs</a>
+        <a href="../api-high.html">High-level</a>
+        <a href="../api-low.html">Low-level</a>
+        <a href="../benchmark.html">Benchmark</a>
+        <a href="../links.html">Links</a>
+      </nav>
+    </header>
+
+    <main class="codoc">
+      <div class="col-text">
+        <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> predictor <span class="sep">/</span> lossless</p>
+        <h1 class="name">delta_n</h1>
+        <p class="subtitle">Each value, minus its <span class="u">north neighbour</span>.</p>
+        <p class="desc">The vertical twin of <b>delta_w</b>. Every sample is stored as the difference from
+        the one directly above it, and the first row is kept whole as a seed. <b>Columns are independent</b>,
+        with no horizontal carry, so the transform shines on smooth vertical gradients, where each
+        residual collapses toward zero for the entropy stage.</p>
+        <dl class="spec">
+          <dt>ctid</dt><dd>0x72D702</dd>
+          <dt>header</dt><dd>uint32 &middot; row width in samples</dd>
+          <dt>widths</dt><dd>8 &middot; 16 &middot; 32 &middot; 64-bit integers</dd>
+          <dt>decode</dt><dd>r&#7522; + row above, per column</dd>
+        </dl>
+
+        <div class="actions">
+          <!-- TODO replace href="#" with the source-code link -->
+          <a class="btn-code" href="#">
+            <span>Code</span>
+            <svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+          </a>
+          <span class="usage mono">geozl.lossless.DeltaN(width)</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <object class="diagram" style="--ar:360/210" type="image/svg+xml" data="../assets/svg/codecs/delta-n.svg"
+                aria-label="delta_n rewrites each value as a difference from its north neighbour. the first row is a seed and columns are independent"></object>
+        <span class="p-cap">columns are independent, no horizontal carry</span>
+      </div>
+    </main>
+
+    <footer class="footer pager">
+      <span class="pg-mid mono">0x72D702</span>
+    </footer>
+  </div>
+  <script src="../assets/js/main.js"></script>
+</body>
+</html>

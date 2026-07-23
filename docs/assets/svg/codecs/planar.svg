@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220" width="360" height="220" role="img" aria-label="planar predicts a pixel from the plane through its west, north and north-west neighbours. P equals W plus N minus NW">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+    svg{
+      --paper:#F1EDE4; --ink:#17161C; --ink-2:#625D53; --purple:#4A2BE8; --orange:#FE6B37; --tint-add:color-mix(in srgb,var(--purple) 15%,var(--paper)); --tint-sub:color-mix(in srgb,var(--orange) 18%,var(--paper)); --ease:cubic-bezier(.22,.7,.2,1);
+      font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+
+    .lab{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; letter-spacing:.05em; }
+    .tile{ fill:var(--paper); stroke:var(--ink); stroke-width:1.4; }
+    .tv{ fill:var(--ink); font:600 16px/1 "IBM Plex Mono",monospace; text-anchor:middle; }
+    .nlab{ fill:var(--ink); font:600 10px/1 "IBM Plex Mono",monospace; text-anchor:middle; }
+    .fx{ fill:var(--ink); font:600 12px/1 "IBM Plex Mono",monospace; }
+    .fx2{ fill:var(--ink-2); font:500 11.5px/1 "IBM Plex Mono",monospace; }
+
+    /* 7s loop, four ~1.6s beats. Each step enters and then HOLDS before the
+       next begins, so there is time to read it. The grid and its numbers never
+       fade, the steps only annotate them.
+       1 neighbours · 2 arrows · 3 prediction · 4 residual */
+    #pl-W { animation:plAdd 7s var(--ease) infinite; }
+    #pl-N { animation:plAdd 7s var(--ease) infinite; }
+    #pl-NW{ animation:plSub 7s var(--ease) infinite; }
+    #pl-nlabels{ animation:plStep1 7s var(--ease) infinite; }
+    #pl-arrows { animation:plStep2 7s var(--ease) infinite; }
+    #pl-fpred  { animation:plStep3 7s var(--ease) infinite; }
+    #pl-target { animation:plTgt 7s var(--ease) infinite; }
+    #pl-orig   { animation:plOrig 7s step-end infinite; }
+    #pl-resid  { animation:plResid 7s step-end infinite; }
+    #pl-fres   { animation:plStep4 7s var(--ease) infinite; }
+
+    @keyframes plStep1{ 0%,2%{opacity:0} 7%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes plStep2{ 0%,25%{opacity:0} 30%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes plStep3{ 0%,48%{opacity:0} 53%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes plStep4{ 0%,71%{opacity:0} 76%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes plAdd { 0%,2%{fill:var(--paper)} 7%,92%{fill:var(--tint-add)} 97%,100%{fill:var(--paper)} }
+    @keyframes plSub { 0%,2%{fill:var(--paper)} 7%,92%{fill:var(--tint-sub)} 97%,100%{fill:var(--paper)} }
+    @keyframes plTgt { 0%,71%{fill:var(--paper)} 76%,92%{fill:var(--tint-add)} 97%,100%{fill:var(--paper)} }
+    @keyframes plOrig { 0%,71%{opacity:1} 76%{opacity:0} 92%{opacity:0} 97%,100%{opacity:1} }
+    @keyframes plResid{ 0%,73%{opacity:0} 78%{opacity:1} 92%{opacity:1} 97%,100%{opacity:0} }
+    
+    @media (prefers-reduced-motion:reduce){
+      *{ animation:none !important; }
+      #pl-W,#pl-N{ fill:var(--tint-add); } #pl-NW{ fill:var(--tint-sub); } #pl-target{ fill:var(--tint-add); }
+      #pl-orig{ opacity:0; } #pl-resid{ opacity:1; }
+      #pl-nlabels,#pl-arrows,#pl-fpred,#pl-fres{ opacity:1; }
+    }
+  ]]></style>
+
+          <text x="20" y="20" class="lab">predict each pixel from W, N, NW</text>
+
+          <!-- faded context cells -->
+          <g opacity="0.36">
+            <g transform="translate(134,40)"><rect class="tile" width="42" height="42"/><text class="tv" x="21" y="27">44</text></g>
+            <g transform="translate(134,92)"><rect class="tile" width="42" height="42"/><text class="tv" x="21" y="27">47</text></g>
+            <g transform="translate(30,144)"><rect class="tile" width="42" height="42"/><text class="tv" x="21" y="27">46</text></g>
+            <g transform="translate(82,144)"><rect class="tile" width="42" height="42"/><text class="tv" x="21" y="27">48</text></g>
+            <g transform="translate(134,144)"><rect class="tile" width="42" height="42"/><text class="tv" x="21" y="27">50</text></g>
+          </g>
+
+          <!-- causal neighbours (animated fills) + their values -->
+          <rect id="pl-NW" class="tile" x="30" y="40" width="42" height="42"/>
+          <rect id="pl-N"  class="tile" x="82" y="40" width="42" height="42"/>
+          <rect id="pl-W"  class="tile" x="30" y="92" width="42" height="42"/>
+          <text class="tv" x="51"  y="67">40</text>
+          <text class="tv" x="103" y="67">42</text>
+          <text class="tv" x="51"  y="119">43</text>
+
+          <g id="pl-nlabels">
+            <text class="nlab" x="51"  y="36">NW</text>
+            <text class="nlab" x="103" y="36">N</text>
+            <text class="nlab" x="20"  y="118" text-anchor="middle">W</text>
+          </g>
+
+          <!-- target -->
+          <rect id="pl-target" x="82" y="92" width="42" height="42" fill="var(--paper)" stroke="var(--purple)" stroke-width="2.2"/>
+          <text id="pl-orig" class="tv" x="103" y="119">45</text>
+          <text id="pl-resid" x="103" y="119" text-anchor="middle" fill="var(--purple)" style="font:700 15px 'IBM Plex Mono',monospace;opacity:0">0</text>
+
+          <!-- arrows into target: two add (ink), one subtract (dashed orange) -->
+          <g id="pl-arrows">
+            <g fill="none" stroke="var(--ink)" stroke-width="1.5">
+              <path d="M72,113 L81,113" marker-end="url(#pa)"/>
+              <path d="M103,82 L103,91" marker-end="url(#pa)"/>
+            </g>
+            <path d="M71,81 L80,90" fill="none" stroke="var(--orange)" stroke-width="1.5" stroke-dasharray="3 2.5" marker-end="url(#pao)"/>
+          </g>
+
+          <!-- formula -->
+          <g id="pl-fpred">
+            <text x="190" y="66" class="fx">P = W + N &#8722; NW</text>
+            <text x="190" y="90" class="fx2">= 43 + 42 &#8722; 40 = 45</text>
+          </g>
+          <g id="pl-fres">
+            <text x="190" y="132" class="fx">residual = value &#8722; P</text>
+            <text x="190" y="156" class="fx2">= 45 &#8722; 45 = 0</text>
+          </g>
+
+          <defs>
+            <marker id="pa" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="var(--ink)"/></marker>
+            <marker id="pao" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="var(--orange)"/></marker>
+          </defs>
+        </svg>

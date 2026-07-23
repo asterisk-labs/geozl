@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220" width="360" height="220" role="img" aria-label="quant_linear snaps a continuous value to the nearest quantization step, staying within plus or minus max_error, and stores the small integer index">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+    svg{
+      --paper:#F1EDE4; --ink:#17161C; --ink-2:#625D53; --orange:#FE6B37; --page:var(--orange); --ease:cubic-bezier(.22,.7,.2,1);
+      font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+
+    .lab{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; letter-spacing:.05em; }
+    .fx{ fill:var(--ink); font:600 12px/1 "IBM Plex Mono",monospace; }
+    .fx2{ fill:var(--ink-2); font:500 11.5px/1 "IBM Plex Mono",monospace; }
+    .dot{ fill:var(--paper); stroke:var(--ink); stroke-width:1.3; }
+    .cap{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; opacity:0; }
+
+    /* quant_linear-specific svg classes */
+    .axlab{ fill:var(--ink-2); font:500 10px/1 "IBM Plex Mono",monospace; text-anchor:middle; }
+    .q{ fill:var(--page); font:700 12px/1 "IBM Plex Mono",monospace; text-anchor:middle; }
+
+    #ql-value{ animation:s1op 10s var(--ease) infinite; }
+    #ql-snap{ animation:s2op 10s var(--ease) infinite; }
+    #ql-result{ animation:s3op 10s var(--ease) infinite; }
+    #dot1{ animation:dot1 10s var(--ease) infinite; }
+    #dot2{ animation:dot2 10s var(--ease) infinite; }
+    #dot3{ animation:dot3 10s var(--ease) infinite; }
+    #cap1{ animation:cap1 10s var(--ease) infinite; }
+    #cap2{ animation:cap2 10s var(--ease) infinite; }
+    #cap3{ animation:cap3 10s var(--ease) infinite; }
+
+    /* step 3 carries two lines of math, so it holds far longer than 1 and 2 */
+    @keyframes s1op{ 0%,2%{opacity:0} 7%,93%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes s2op{ 0%,26%{opacity:0} 31%,93%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes s3op{ 0%,50%{opacity:0} 55%,93%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes dot1{ 0%,3%{fill:var(--paper)} 7%,93%{fill:var(--page)} 97%,100%{fill:var(--paper)} }
+    @keyframes dot2{ 0%,27%{fill:var(--paper)} 31%,93%{fill:var(--page)} 97%,100%{fill:var(--paper)} }
+    @keyframes dot3{ 0%,51%{fill:var(--paper)} 55%,93%{fill:var(--page)} 97%,100%{fill:var(--paper)} }
+    @keyframes cap1{ 0%,3%{opacity:0} 7%,22%{opacity:1} 25%,100%{opacity:0} }
+    @keyframes cap2{ 0%,27%{opacity:0} 31%,46%{opacity:1} 49%,100%{opacity:0} }
+    @keyframes cap3{ 0%,51%{opacity:0} 55%,93%{opacity:1} 97%,100%{opacity:0} }
+
+    @media (prefers-reduced-motion:reduce){
+      *{ animation:none !important; }
+      #ql-value,#ql-snap,#ql-result{ opacity:1; }
+      #dot1,#dot2,#dot3{ fill:var(--page); }
+      #cap1,#cap2{ opacity:0; } #cap3{ opacity:1; }
+    }
+  ]]></style>
+
+  <text x="20" y="20" class="lab">snap each value to the nearest step</text>
+
+  <!-- base axis + ticks, one step = scale = 4, so max_error = 2 -->
+  <line x1="40" y1="120" x2="320" y2="120" stroke="var(--ink)" stroke-width="1.4"/>
+  <g stroke="var(--ink)" stroke-width="1.4">
+    <line x1="50"  y1="113" x2="50"  y2="127"/>
+    <line x1="110" y1="113" x2="110" y2="127"/>
+    <line x1="170" y1="113" x2="170" y2="127"/>
+    <line x1="230" y1="113" x2="230" y2="127"/>
+    <line x1="290" y1="113" x2="290" y2="127"/>
+  </g>
+  <g class="axlab">
+    <text x="50" y="140">24</text><text x="110" y="140">28</text><text x="170" y="140">32</text>
+    <text x="230" y="140">36</text><text x="290" y="140">40</text>
+  </g>
+
+  <!-- step 1, the continuous value sitting between two steps -->
+  <g id="ql-value">
+    <line x1="185" y1="92" x2="185" y2="113" stroke="var(--ink)" stroke-width="1.1" stroke-dasharray="3 3"/>
+    <circle cx="185" cy="86" r="6" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.6"/>
+    <text x="185" y="70" class="fx" text-anchor="middle">x = 33</text>
+  </g>
+
+  <!-- step 2, snap to the nearest step, inside the error band -->
+  <g id="ql-snap">
+    <rect x="140" y="108" width="60" height="24" fill="var(--page)" opacity="0.20"/>
+    <text x="170" y="153" class="axlab" fill="var(--page)">&#177;max_error</text>
+    <circle cx="170" cy="120" r="6.5" fill="var(--page)" stroke="var(--ink)" stroke-width="1.6"/>
+    <text x="148" y="102" class="q">q = 8</text>
+  </g>
+
+  <!-- step 3, the reconstruction and its bounded error -->
+  <g id="ql-result">
+    <text x="180" y="170" class="fx" text-anchor="middle">x&#770; = q &#183; scale = 32</text>
+    <text x="180" y="187" class="fx2" text-anchor="middle">|x &#8722; x&#770;| = 1 &#8804; max_error = 2</text>
+  </g>
+
+  <!-- step indicator + captions -->
+  <g id="ql-steps">
+    <rect id="dot1" class="dot" x="20" y="200" width="9" height="9"/>
+    <rect id="dot2" class="dot" x="33" y="200" width="9" height="9"/>
+    <rect id="dot3" class="dot" x="46" y="200" width="9" height="9"/>
+    <text id="cap1" class="cap" x="67" y="208">a value between two steps</text>
+    <text id="cap2" class="cap" x="67" y="208">snap to nearest, within &#177;max_error</text>
+    <text id="cap3" class="cap" x="67" y="208">store q, a small integer</text>
+  </g>
+</svg>

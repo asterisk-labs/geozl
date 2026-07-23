@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="geozl quant_linear, uniform near-lossless quantization within a bounded error.">
+<meta name="theme-color" content="#F1EDE4">
+<title>geozl · quant_linear</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" href="../assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body style="--page:var(--orange)">
+  <div class="sheet">
+    <span class="reg tl">+</span><span class="reg tr">+</span>
+    <span class="reg bl">+</span><span class="reg br">+</span>
+
+    <header class="masthead">
+      <a class="lockup vt-lockup" href="../index.html" aria-label="geozl home">
+        <img class="marksvg" src="../assets/svg/mark.svg" alt="">
+        <span class="wm-sm">GeoZL</span>
+      </a>
+      <nav class="nav" aria-label="Sections">
+        <a href="../docs.html" class="here">Docs</a>
+        <a href="../api-high.html">High-level</a>
+        <a href="../api-low.html">Low-level</a>
+        <a href="../benchmark.html">Benchmark</a>
+        <a href="../links.html">Links</a>
+      </nav>
+    </header>
+
+    <main class="codoc">
+      <div class="col-text">
+        <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> near-lossless <span class="sep">/</span> lossy</p>
+        <h1 class="name">quant_linear</h1>
+        <p class="subtitle">Uniform steps, <span class="u">bounded error</span>.</p>
+        <p class="desc">Near-lossless quantization on a uniform grid. It rounds every value to the nearest
+        multiple of a step, <b>q = round(x / scale)</b> with <b>scale = 2·max_error</b>, so each
+        reconstruction lands within <b>±max_error</b> of the original. What travels is the small integer
+        index q, which the stages downstream compress far better than the raw value. A near-lossless codec
+        sits <b>once at the head of the graph</b>, so the loss happens a single time and every stage after
+        it stays exact.</p>
+        <dl class="spec">
+          <dt>ctid</dt><dd>0x72D780</dd>
+          <dt>header</dt><dd>dtype + scale &middot; 9 bytes</dd>
+          <dt>types</dt><dd>unsigned &middot; signed &middot; float &middot; 16/32/64-bit</dd>
+          <dt>error</dt><dd>|x &minus; x&#770;| &#8804; max_error</dd>
+        </dl>
+
+        <div class="actions">
+          <!-- TODO replace href="#" with the source-code link -->
+          <a class="btn-code" href="#">
+            <span>Code</span>
+            <svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+          </a>
+          <span class="usage mono">geozl.lossy.QuantLinear(max_error, dtype)</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <object class="diagram" type="image/svg+xml" data="../assets/svg/codecs/quant-linear.svg"
+                aria-label="quant_linear snaps a continuous value to the nearest quantization step, staying within plus or minus max_error, and stores the small integer index"></object>
+      </div>
+    </main>
+
+    <footer class="footer pager">
+      <span class="pg-mid mono">0x72D780</span>
+    </footer>
+  </div>
+  <script src="../assets/js/main.js"></script>
+</body>
+</html>
