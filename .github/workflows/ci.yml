@@ -27,8 +27,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install cmake ninja numpy cffi openzl pytest pytest-cov anybadge
 
-      - name: Build the kernels lib and install geozl
-        run: make python FULL=OFF
+      # FULL=ON or libgeozl is missing and geozl.compress cannot run at all.
+      - name: Build the library and install geozl
+        run: make python FULL=ON
 
       - name: Run pytest with coverage
         run: |
@@ -88,8 +89,7 @@ jobs:
       - name: Install build tools
         run: python -m pip install --upgrade pip cmake ninja
 
-      # FULL=ON compiles the bindings and the library that links OpenZL, which the
-      # test job never builds. Warnings are errors, scoped to geozl code only.
+      # Warnings are errors here, scoped to geozl code only.
       - name: Build the full library and bindings
         run: make build FULL=ON CMAKE_FLAGS=-DGEOZL_WERROR=ON
 

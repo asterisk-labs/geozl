@@ -5,13 +5,10 @@ from .lossy.quant_linear import dtype_code
 
 LOSSLESS = -1.0
 
-# Predictor priors. method seeds the search here; the winner may still drop the
-# predictor. None is unbiased over all; "none" is the no-predictor branch alone.
+# Predictor priors. A name expands to {that predictor, id}; None is unbiased
+# over all; "none" is the no-predictor branch alone.
 PRIORS = ("planar", "med", "delta_w", "delta_n", "average", "wp_static",
           "delta_1d", "none")
-
-OPTIMS = ("store", "speed", "balanced")
-_OPTIM_CODE = {"store": 0, "speed": 1, "balanced": 2}
 
 # An OpenZL numeric stream is 1, 2, 4 or 8 bytes per element.
 _ELT_WIDTHS = frozenset((1, 2, 4, 8))
@@ -37,27 +34,15 @@ def _prepare(tile, width):
     return arr, int(width), elt
 
 
-def compress(tile, *, method="planar", optim="store", lam=None, graph=None,
-             width=None, max_error=None, return_graph=False):
-    """Compress a 2d tile into one OpenZL frame, choosing the graph per tile.
+def compress(tile, *, method, width=None, max_error=None):
+    """Compress a 2d tile into one OpenZL frame through the graph method names.
 
-    method is the predictor prior (PRIORS, or None for unbiased). optim is
-    "store", "speed" or "balanced"; lam is the balanced knob (required there).
-    graph runs one recipe directly, skipping the search. max_error <= 0 is
-    lossless. Returns the frame as bytes, or (frame, recipe) if return_graph.
+    method is a recipe, the same string profile puts in its "graph" column, and
+    it has to apply to the element width: the transpose and store_lo terminals
+    want 2 to 8 bytes. max_error <= 0 is lossless. Returns the frame as bytes.
     """
-    if method is not None and method not in PRIORS:
-        raise ValueError(f"method {method!r} is not one of {PRIORS} or None")
-    if optim not in OPTIMS:
-        raise ValueError(f"optim {optim!r} is not one of {OPTIMS}")
-    if optim == "balanced":
-        if lam is None:
-            raise ValueError("optim='balanced' needs lam, the frame/decode knob")
-        lam = float(lam)
-        if not lam > 0.0:
-            raise ValueError(f"lam must be > 0, got {lam}")
-    elif lam is not None:
-        raise ValueError(f"lam only applies to optim='balanced', not {optim!r}")
+    if not isinstance(method, str) or not method:
+        raise ValueError(f"method must be a recipe name, got {method!r}")
 
     lib = _load_lib_full()
     arr, width, elt = _prepare(tile, width)
@@ -75,22 +60,15 @@ def compress(tile, *, method="planar", optim="store", lam=None, graph=None,
     cap = 1024 + n * elt + n * elt // 2
     dst = np.empty(cap, np.uint8)
     out_size = ffi.new("size_t*")
-    chosen = ffi.new("char[]", 64) if return_graph else ffi.NULL
     err_ctx = ffi.new("char[]", 256)
     rc = lib.geozl_2d_compress_c(
-        (method or "").encode("utf-8"), (graph or "").encode("utf-8"),
-        _OPTIM_CODE[optim], lam if lam is not None else 0.0, width, err,
-        int(code), _ptr(arr), n, elt, _ptr(dst), cap, out_size, chosen,
-        64 if return_graph else 0, err_ctx, len(err_ctx))
+        method.encode("utf-8"), width, err, int(code), _ptr(arr), n, elt,
+        _ptr(dst), cap, out_size, err_ctx, len(err_ctx))
     if rc != 0:
         reason = ffi.string(err_ctx).decode("utf-8", "replace")
-        raise RuntimeError(f"geozl.compress failed (method={method!r} "
-                           f"optim={optim!r} graph={graph!r}): {reason} "
-                           f"(ZL error code {rc})")
-    frame = dst[:out_size[0]].tobytes()
-    if return_graph:
-        return frame, ffi.string(chosen).decode("utf-8")
-    return frame
+        raise RuntimeError(f"geozl.compress failed (method={method!r}): "
+                           f"{reason} (ZL error code {rc})")
+    return dst[:out_size[0]].tobytes()
 
 
 def decompress(frame, *, dtype=None, width=None):
@@ -150,7 +128,8 @@ def profile(tile, *, method="planar", width=None, max_error=None, reps=5):
 
     A diagnostic, not on the compress path. Timing runs in C (checksum off) so
     the numbers are the pure codec. shannon_pct is frame size against the tile's
-    order-0 entropy (over 100 means structure was exploited).
+    order-0 entropy (over 100 means structure was exploited). Every "graph" it
+    returns is a method compress takes.
     """
     lib = _load_lib_full()
     arr, width, elt = _prepare(tile, width)
@@ -171,9 +150,8 @@ def profile(tile, *, method="planar", width=None, max_error=None, reps=5):
         dec = ffi.new("double*")
         err_ctx = ffi.new("char[]", 256)
         rc = lib.geozl_2d_bench_c(
-            (method or "").encode("utf-8"), name.encode("utf-8"), width, err,
-            int(code), _ptr(arr), arr.size, elt, reps, comp, enc, dec, err_ctx,
-            len(err_ctx))
+            name.encode("utf-8"), width, err, int(code), _ptr(arr), arr.size,
+            elt, reps, comp, enc, dec, err_ctx, len(err_ctx))
         if rc != 0:
             continue
         size = int(comp[0])

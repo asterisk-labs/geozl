@@ -38,34 +38,24 @@ GEOZL_API ZL_NodeID geozl_node_floatmult(ZL_Compressor *c, double base);
 GEOZL_API ZL_NodeID geozl_node_quant_linear(ZL_Compressor *c, double max_error,
                                             int dtype);
 
-// 2d high-level compression. A tile is compressed through one graph chosen out
-// of the grid {predictor prior + id} x {entropy, field_lz, zstd, store_lo}.
-// method is the prior (a name, "none", or NULL for unbiased). graph runs one
-// candidate directly by recipe name. optim picks what the selector minimizes
-// (store/speed/balanced), lam is the balanced weight. max_error < 0 is lossless.
+// 2d high-level compression through the graph method names, as geozl_2d_grid_c
+// spells it, e.g. "planar>zigzag>transpose>entropy". The transpose and store_lo
+// terminals need 2 to 8 bytes per element. max_error < 0 is lossless.
 #define GEOZL_2D_LOSSLESS (-1.0)
 
-#define GEOZL_2D_OPTIM_STORE 0
-#define GEOZL_2D_OPTIM_SPEED 1
-#define GEOZL_2D_OPTIM_BALANCED 2
-
-GEOZL_API ZL_Report geozl_2d_compress(const char *method, const char *graph,
-                                      int optim, double lam, uint32_t width,
+GEOZL_API ZL_Report geozl_2d_compress(const char *method, uint32_t width,
                                       double max_error, int dtype,
                                       const void *src, size_t numElts,
                                       size_t eltWidth, void *dst,
                                       size_t dstCapacity, size_t *outSize,
-                                      char *chosenGraph, size_t chosenGraphSize,
                                       char *errCtx, size_t errCtxSize);
 
-// Returns 0 or the ZL_ErrorCode. The winning recipe lands in chosenGraph
-// (may be NULL), the reason in errCtx, the size in *outSize.
-GEOZL_API int geozl_2d_compress_c(const char *method, const char *graph,
-                                  int optim, double lam, uint32_t width,
+// Returns 0 or the ZL_ErrorCode. The reason lands in errCtx, the size in
+// *outSize.
+GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
                                   double max_error, int dtype, const void *src,
                                   size_t numElts, size_t eltWidth, void *dst,
                                   size_t dstCapacity, size_t *outSize,
-                                  char *chosenGraph, size_t chosenGraphSize,
                                   char *errCtx, size_t errCtxSize);
 
 // Decompressed byte size of a frame, or 0 if it cannot be read.

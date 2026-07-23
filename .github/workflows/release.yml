@@ -51,7 +51,8 @@ jobs:
           LD_LIBRARY_PATH="" python -c "import geozl; print(geozl.__version__)"
           LD_LIBRARY_PATH="" python -c "import numpy as np, geozl; \
             t=(np.arange(256*256,dtype=np.uint16)%97).reshape(256,256); \
-            f=geozl.compress(t, method=None); \
+            best=geozl.profile(t, reps=1)[0]['graph']; \
+            f=geozl.compress(t, method=best); \
             d=geozl.decompress(f, dtype=np.uint16).reshape(t.shape); \
             assert (d == t).all(), 'round-trip mismatch'; \
             print('compress', len(f), 'bytes, round-trip ok')"
@@ -92,7 +93,8 @@ jobs:
           python -c "import geozl; print(geozl.__version__)"
           python -c "import numpy as np, geozl; \
             t=(np.arange(256*256,dtype=np.uint16)%97).reshape(256,256); \
-            f=geozl.compress(t, method=None); \
+            best=geozl.profile(t, reps=1)[0]['graph']; \
+            f=geozl.compress(t, method=best); \
             d=geozl.decompress(f, dtype=np.uint16).reshape(t.shape); \
             assert (d == t).all(), 'round-trip mismatch'; \
             print('compress', len(f), 'bytes, round-trip ok')"

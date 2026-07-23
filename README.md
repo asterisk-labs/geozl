@@ -43,7 +43,7 @@ geozl has two entry points: a high-level API that compresses a tile in one call,
 
 ### High-level API
 
-`geozl.compress` takes a tile and returns a frame. With the default method it sweeps every predictor and keeps the smallest one.
+Two calls. `geozl.profile` measures every candidate graph on your tile and ranks them; `geozl.compress` runs the one you name and returns the frame. It never searches, so the slow call happens once and the fast one happens on every tile after that.
 
 ```python
 import numpy as np
@@ -51,10 +51,16 @@ import geozl
 
 tile = np.random.randint(0, 4096, (1024, 1024), dtype=np.uint16)
 
-frame = geozl.compress(tile)                 # sweep, keep the smallest frame
-frame = geozl.compress(tile, method="med")   # or name one predictor
-frame = geozl.compress(tile, max_error=2)    # near-lossless, absolute bound
+rows = geozl.profile(tile)                        # the slow call, run once
+best = rows[0]["graph"]                           # "planar>zigzag>transpose>entropy"
+
+frame = geozl.compress(tile, method=best)         # the fast call, run always
+frame = geozl.compress(tile, method=best, max_error=2)  # near-lossless, absolute bound
+
+back = geozl.decompress(frame, dtype="uint16", width=1024)
 ```
+
+`method` is required and takes a full recipe string, exactly as `profile` spells it. Nothing is substituted, so a recipe that does not apply to the element width fails rather than falling back. The transpose and `store_lo` terminals need 2 to 8 bytes per element, so a `uint8` tile wants something like `planar>zigzag>entropy`.
 
 ### Low-level API
 

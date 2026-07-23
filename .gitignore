@@ -87,3 +87,5 @@ oom-*
 .vscode/settings.json
 
 *.jp2
+
+.coverage

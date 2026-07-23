@@ -11,6 +11,12 @@ geozl = pytest.importorskip("geozl")
 
 _DISABLE = 2  # ZL_TernaryParam_disable
 
+# quant_linear writes -step on integers, where the reconstruction travels in
+# place of the index. Derived, not written out, so a change to that rule breaks
+# the anchor loudly instead of quietly stopping these cases from running.
+_QL_MAX_ERROR = 50
+_QL_SCALE = geozl.lossy.QuantLinear(_QL_MAX_ERROR, np.uint16)._scale
+
 
 def _compress(node, arr):
     c = zl.Compressor()
@@ -34,11 +40,21 @@ def _decode(frame):
     return d.decompress(frame)
 
 
-def _locate(frame, needle):
-    at = frame.find(needle)
-    if at < 0 or frame.find(needle, at + 1) >= 0:
-        return -1
-    return at
+def _place(build, needle, tries=64):
+    """A frame where needle appears exactly once, plus where it landed.
+
+    Absent means the header no longer holds what this test thinks it does,
+    which is a bug worth failing on rather than skipping. Two copies is only
+    the payload colliding, and another tile shifts it.
+    """
+    for i in range(tries):
+        frame = bytearray(build(i))
+        at = frame.find(needle)
+        if at < 0:
+            sys.exit(4)
+        if frame.find(needle, at + 1) < 0:
+            return frame, at
+    sys.exit(2)
 
 
 # width that does not divide the tile, the encoder must reject it
@@ -49,33 +65,31 @@ def _case_width_encode():
 
 # same width fault, forged into the codec header
 def _case_width_decode():
-    arr = np.arange(200, dtype=np.uint16)
-    frame = bytearray(_compress(geozl.lossless.DeltaW(200), arr))
-    at = _locate(frame, struct.pack("<I", 200))
-    if at < 0:
-        sys.exit(2)
+    def build(i):
+        return _compress(geozl.lossless.DeltaW(200),
+                         np.arange(200, dtype=np.uint16) + i)
+
+    frame, at = _place(build, struct.pack("<I", 200))
     frame[at:at + 4] = struct.pack("<I", 7)
     _decode(bytes(frame))
 
 
-# dtype byte outside the type enum
+def _ql_build(i):
+    arr = np.arange(256, dtype=np.uint16).reshape(16, 16) + i
+    return _compress(geozl.lossy.QuantLinear(_QL_MAX_ERROR, np.uint16), arr)
+
+
+# dtype byte outside the type enum. The header is <Bd, so it sits right before
+# the scale.
 def _case_dtype():
-    arr = np.arange(256, dtype=np.uint16).reshape(16, 16)
-    frame = bytearray(_compress(geozl.lossy.QuantLinear(50, np.uint16), arr))
-    at = _locate(frame, struct.pack("<d", 100.0))
-    if at < 1:
-        sys.exit(2)
+    frame, at = _place(_ql_build, struct.pack("<d", _QL_SCALE))
     frame[at - 1] = 200
     _decode(bytes(frame))
 
 
 # non-finite scale the integer path cannot truncate to int64
 def _case_scale():
-    arr = np.arange(256, dtype=np.uint16).reshape(16, 16)
-    frame = bytearray(_compress(geozl.lossy.QuantLinear(50, np.uint16), arr))
-    at = _locate(frame, struct.pack("<d", 100.0))
-    if at < 0:
-        sys.exit(2)
+    frame, at = _place(_ql_build, struct.pack("<d", _QL_SCALE))
     frame[at:at + 8] = struct.pack("<d", float("inf"))
     _decode(bytes(frame))
 
@@ -83,11 +97,11 @@ def _case_scale():
 # shift wider than the accumulator. Two rows force the planar default, so the
 # coeffs are a known anchor with the shift byte right before them.
 def _case_shift():
-    arr = np.tile(np.arange(1, 101, dtype=np.uint16), (2, 1))
-    frame = bytearray(_compress(geozl.lossless.WpStatic(100), arr))
-    at = _locate(frame, struct.pack("<4h", 1, -1, 0, 0))
-    if at < 1:
-        sys.exit(2)
+    def build(i):
+        arr = np.tile(np.arange(1, 101, dtype=np.uint16), (2, 1)) + i
+        return _compress(geozl.lossless.WpStatic(100), arr)
+
+    frame, at = _place(build, struct.pack("<4h", 1, -1, 0, 0))
     frame[at - 1] = 200
     _decode(bytes(frame))
 
@@ -116,13 +130,16 @@ def _child(name):
 @pytest.mark.parametrize("name", list(_CASES))
 def test_decode_rejects_bad_header(name):
     r = _child(name)
+    assert r.returncode != 4, \
+        "the anchor is gone, this case has stopped testing anything"
     if r.returncode == 2:
         pytest.skip("could not place the corruption")
     assert r.returncode == 0, r.stderr or f"exit {r.returncode}"
 
 
 if __name__ == "__main__":
-    # 0 rejected cleanly, 3 slipped through, a signal means it corrupted memory
+    # 0 rejected cleanly, 3 slipped through, 4 the anchor is gone, a signal
+    # means it corrupted memory
     try:
         _CASES[sys.argv[1]]()
     except SystemExit:
