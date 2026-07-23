@@ -64,21 +64,6 @@ svg,img{ display:block; max-width:100%; }
     var(--paper);
   border:1px solid var(--line-strong);
 }
-.landing .sheet::before{
-  content:"";
-  position:absolute;
-  z-index:4;
-  inset:0 auto 0 0;
-  width:4px;
-  pointer-events:none;
-  background:linear-gradient(to bottom,
-    var(--purple) 0 20%,
-    var(--gold) 20% 40%,
-    var(--green) 40% 60%,
-    var(--orange) 60% 80%,
-    var(--wine) 80% 100%);
-}
-
 .reg{
   position:absolute;
   z-index:5;
@@ -745,7 +730,6 @@ h1.name{ margin:0 0 8px; font-size:clamp(38px,5.2vw,70px); font-weight:600; line
     min-height:100svh;
     border:0;
   }
-  .landing .sheet::before{ width:3px; }
   .reg{ display:none; }
   .masthead{
     min-height:58px;
