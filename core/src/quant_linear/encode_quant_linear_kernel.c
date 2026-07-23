@@ -39,6 +39,42 @@
     }                                                                          \
   } while (0)
 
+// Store the reconstruction instead of the index, so the decoder is a copy. The
+// result is exactly what QL_DEC_U would have produced from the index.
+#define QL_ENC_UV(T)                                                           \
+  do {                                                                         \
+    const T *s = (const T *)src;                                               \
+    T *d = (T *)dst;                                                           \
+    const uint64_t isc = (uint64_t)(scale < 1.0 ? 1.0 : scale);                \
+    const uint64_t half = isc >> 1;                                            \
+    const uint64_t cap = (uint64_t)(T)(~(T)0);                                 \
+    for (size_t i = 0; i < nbElts; ++i) {                                      \
+      const uint64_t q = (uint64_t)(((unsigned __int128)s[i] + half) / isc);   \
+      const unsigned __int128 r = (unsigned __int128)q * isc;                  \
+      d[i] = (T)(r < cap ? (uint64_t)r : cap);                                 \
+    }                                                                          \
+  } while (0)
+
+// Signed counterpart, matching QL_DEC_I including the clamp at both ends.
+#define QL_ENC_IV(T, LO, HI)                                                   \
+  do {                                                                         \
+    const T *s = (const T *)src;                                               \
+    T *d = (T *)dst;                                                           \
+    const int64_t isc = (int64_t)(scale < 1.0 ? 1.0 : scale);                  \
+    const int64_t half = isc >> 1;                                             \
+    for (size_t i = 0; i < nbElts; ++i) {                                      \
+      const __int128 v = (__int128)s[i];                                       \
+      const __int128 m = v < 0 ? -v : v;                                       \
+      const __int128 q = v < 0 ? -((m + half) / isc) : (m + half) / isc;       \
+      __int128 r = q * isc;                                                    \
+      if (r < (LO))                                                            \
+        r = (LO);                                                              \
+      if (r > (HI))                                                            \
+        r = (HI);                                                              \
+      d[i] = (T)(int64_t)r;                                                    \
+    }                                                                          \
+  } while (0)
+
 // Float of value width WT to a signed integer index of the same width IT.
 #define QL_ENC_F(WT, IT, MINV, MAXV)                                           \
   do {                                                                         \
@@ -86,9 +122,48 @@ void quant_linear_encode(void *dst, const void *src, double scale, int dtype,
                          size_t nbElts) {
   if (dtype < QL_U8 || dtype > QL_F64)
     return;
-  if (scale == 0.0) { // max_error 0, exact passthrough
+  // A negative scale means store the reconstruction, not the index, so the
+  // decoder only copies. Only integers can do that, their reconstruction has
+  // the same type as the input. The step itself is the magnitude.
+  const int store_values = scale < 0.0 && dtype <= QL_I64;
+  if (scale < 0.0)
+    scale = -scale;
+  // scale 0 is exact. scale 1 is exact too on integers, where the index is
+  // the value itself, so both skip the loop.
+  if (scale == 0.0 || (scale == 1.0 && dtype <= QL_I64)) {
     size_t w[] = {1, 2, 4, 8, 1, 2, 4, 8, 2, 4, 8};
     memcpy(dst, src, nbElts * w[dtype]);
+    return;
+  }
+  if (store_values) {
+    switch ((ql_dtype)dtype) {
+    case QL_U8:
+      QL_ENC_UV(uint8_t);
+      break;
+    case QL_U16:
+      QL_ENC_UV(uint16_t);
+      break;
+    case QL_U32:
+      QL_ENC_UV(uint32_t);
+      break;
+    case QL_U64:
+      QL_ENC_UV(uint64_t);
+      break;
+    case QL_I8:
+      QL_ENC_IV(int8_t, INT8_MIN, INT8_MAX);
+      break;
+    case QL_I16:
+      QL_ENC_IV(int16_t, INT16_MIN, INT16_MAX);
+      break;
+    case QL_I32:
+      QL_ENC_IV(int32_t, INT32_MIN, INT32_MAX);
+      break;
+    case QL_I64:
+      QL_ENC_IV(int64_t, INT64_MIN, INT64_MAX);
+      break;
+    default:
+      break;
+    }
     return;
   }
   switch ((ql_dtype)dtype) {

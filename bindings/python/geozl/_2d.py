@@ -43,7 +43,7 @@ def compress(tile, *, method="planar", optim="store", lam=None, graph=None,
 
     method is the predictor prior (PRIORS, or None for unbiased). optim is
     "store", "speed" or "balanced"; lam is the balanced knob (required there).
-    graph runs one recipe directly, skipping the search. max_error < 0 is
+    graph runs one recipe directly, skipping the search. max_error <= 0 is
     lossless. Returns the frame as bytes, or (frame, recipe) if return_graph.
     """
     if method is not None and method not in PRIORS:
@@ -63,7 +63,7 @@ def compress(tile, *, method="planar", optim="store", lam=None, graph=None,
     arr, width, elt = _prepare(tile, width)
     n = arr.size
 
-    if max_error is None or max_error < 0:
+    if max_error is None or max_error <= 0:
         err, code = LOSSLESS, 0
     else:
         code = dtype_code(arr.dtype)
@@ -156,7 +156,7 @@ def profile(tile, *, method="planar", width=None, max_error=None, reps=5):
     arr, width, elt = _prepare(tile, width)
     raw = arr.nbytes
     ideal = raw * _order0_bits(arr) / 8.0
-    if max_error is None or max_error < 0:
+    if max_error is None or max_error <= 0:
         err, code = LOSSLESS, 0
     else:
         code = dtype_code(arr.dtype)

@@ -37,8 +37,12 @@ ZL_Report DI_geozl_quant_linear(ZL_Decoder *dictx, const ZL_Input *ins[]) {
   if (dtype < QL_U8 || dtype > QL_F64 || qlw[dtype] != eltWidth)
     return ZL_returnError(ZL_ErrorCode_corruption);
 
-  // scale is a positive step, the encoder never writes inf, nan or <= 0
-  if (!isfinite(scale) || scale <= 0.0)
+  // The encoder never writes inf or nan. A negative scale means the stream
+  // already holds reconstructed values and only integers can carry those, the
+  // float reconstruction does not share the index type.
+  if (!isfinite(scale))
+    return ZL_returnError(ZL_ErrorCode_corruption);
+  if (scale < 0.0 && dtype > QL_I64)
     return ZL_returnError(ZL_ErrorCode_corruption);
 
   ZL_Output *out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);

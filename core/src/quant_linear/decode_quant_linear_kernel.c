@@ -79,7 +79,12 @@ void quant_linear_decode(void *dst, const void *src, double scale, int dtype,
                          size_t nbElts) {
   if (dtype < QL_U8 || dtype > QL_F64)
     return;
-  if (scale == 0.0) {
+  // A negative scale means the encoder already stored the reconstruction, so
+  // there is nothing to undo. scale 0 is exact, and on integers so is scale 1,
+  // where the index is the value itself. All three are a plain copy.
+  if (scale < 0.0 && dtype <= QL_I64)
+    scale = 0.0;
+  if (scale == 0.0 || (scale == 1.0 && dtype <= QL_I64)) {
     size_t w[] = {1, 2, 4, 8, 1, 2, 4, 8, 2, 4, 8};
     memcpy(dst, src, nbElts * w[dtype]);
     return;

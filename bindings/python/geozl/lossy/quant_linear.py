@@ -77,6 +77,9 @@ class QuantLinearDecoder(_ext.CustomDecoder):
             raise ValueError(f"{_NAME}: bad dtype in codec header")
         if not math.isfinite(scale):
             raise ValueError(f"{_NAME}: bad scale in codec header")
+        if scale < 0.0 and dtype > _LAST_INT_CODE:
+            raise ValueError(f"{_NAME}: a stored reconstruction needs an "
+                             f"integer type, got dtype {dtype}")
         out = state.create_output(0, n, elt)
         lib.quant_linear_decode(_ptr(out.mut_content.as_nparray()),
                                 _ptr(inp.content.as_nparray()),
@@ -84,19 +87,36 @@ class QuantLinearDecoder(_ext.CustomDecoder):
         out.commit(n)
 
 
+# Codes 0..7 are the integer types, 8..10 the floats.
+_LAST_INT_CODE = 7
+
+
 class QuantLinear:
     """Head of graph lossy node. Quantizes to a uniform step of 2*max_error,
     which bounds the per element error by max_error. Disable ContentChecksum on
-    the CCtx, the round trip is not bit exact."""
+    the CCtx, the round trip is not bit exact.
 
-    def __init__(self, max_error, dtype):
+    store_indices picks what travels in the stream. None, the default, stores
+    the reconstruction on integers so the decoder only copies, and the index on
+    floats where that is the only option. True forces the index everywhere, which
+    compresses a little better and costs a multiply per element on decode.
+    """
+
+    def __init__(self, max_error, dtype, store_indices=None):
         code = dtype_code(dtype)
         if code is None:
             raise ValueError(f"quant_linear does not support dtype {dtype!r}")
-        scale = 2.0 * float(max_error)
-        if scale <= 0.0:
+        step = 2.0 * float(max_error)
+        if step <= 0.0:
             raise ValueError("max_error must be positive")
-        self._scale = scale
+        is_int = code <= _LAST_INT_CODE
+        if store_indices is False and not is_int:
+            raise ValueError("quant_linear stores the index on floats, the "
+                             "reconstruction is not an integer stream")
+        if store_indices is None:
+            store_indices = not is_int
+        # A negative scale is the wire signal for a stored reconstruction.
+        self._scale = step if store_indices else -step
         self._dtype = code
 
     def __call__(self, compressor, successor):

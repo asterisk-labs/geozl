@@ -110,7 +110,11 @@ ZL_NodeID geozl_node_floatmult(ZL_Compressor *c, double base) {
 
 ZL_NodeID geozl_node_quant_linear(ZL_Compressor *c, double max_error,
                                   int dtype) {
-  const double scale = 2.0 * max_error;
+  // Integers store the reconstruction, signalled by a negative scale, so the
+  // decoder only copies. Floats keep the index stream, their reconstruction is
+  // a float and would not compress like the integer indices do.
+  const double step = 2.0 * max_error;
+  const double scale = dtype <= QL_I64 ? -step : step;
   const ZL_TypedEncoderDesc desc = EI_QUANT_LINEAR(GEOZL_CTID_QUANT_LINEAR);
   ZL_NodeID base = ZL_Compressor_registerTypedEncoder(c, &desc);
   if (!ZL_NodeID_isValid(base))
