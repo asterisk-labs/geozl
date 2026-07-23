@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="geozl low-level API — build the OpenZL graph yourself in Python.">
+<meta name="description" content="geozl low-level API. The recipe string is an OpenZL graph. Build it node by node, get the same frame back.">
 <meta name="theme-color" content="#F1EDE4">
 <title>geozl — low-level API</title>
 <link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
@@ -11,8 +11,255 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
+<style>
+  /* Mismo esqueleto que api-high. Lo que cambia es el color de pagina y el
+     panel del hero, que aqui es un DAG en vez de una foto del tile. */
+  body.doc-page{ align-items:flex-start; }
+  .doc-page .sheet{ overflow:visible; min-height:min(820px,calc(100svh - clamp(32px,5.2vw,68px))); }
+
+  .api{ flex:1 1 auto; min-width:0; padding:clamp(30px,3.8vw,54px) clamp(28px,5vw,70px) clamp(30px,4vw,52px); }
+  .api section{ padding:clamp(40px,4.8vw,64px) 0; border-bottom:1px solid var(--line); }
+  .api section.hero2{ padding-top:0; }
+  .api section:last-of-type{ border-bottom:0; padding-bottom:clamp(20px,2.4vw,32px); }
+
+  .sec-h{ display:flex; align-items:baseline; flex-wrap:wrap; gap:9px; margin:0 0 clamp(20px,2.6vw,30px); color:var(--ink-2); font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.09em; text-transform:uppercase; }
+  .sec-h .sq{ width:9px; height:9px; background:var(--page); border:1px solid var(--ink); transform:translateY(1px); }
+  .sec-h .sig{ letter-spacing:.02em; text-transform:none; opacity:.62; }
+  .sec-h .sig::before{ content:"/ "; opacity:.5; }
+
+  .note{ margin:14px 0 0; max-width:76ch; color:var(--ink-2); font-size:12.5px; line-height:1.6; }
+  .note a{ color:var(--ink); box-shadow:inset 0 -1px 0 var(--line-strong); }
+  .note b{ color:var(--ink); font-weight:600; }
+  .band{ display:grid; grid-template-columns:minmax(0,1fr) minmax(230px,.44fr); gap:clamp(26px,3.6vw,58px); align-items:start; }
+  .band > *{ min-width:0; }
+  .side{ margin:0; padding-top:13px; border-top:1px solid var(--line-strong); color:var(--ink-2); font-size:12.5px; line-height:1.6; }
+  .side b{ color:var(--ink); font-weight:600; }
+  .side .st{ display:block; margin-bottom:8px; color:var(--ink); font:500 10px/1 "IBM Plex Mono",monospace; letter-spacing:.09em; text-transform:uppercase; }
+  .side code{ font-family:"IBM Plex Mono",monospace; font-size:.9em; color:var(--ink); background:rgba(23,22,28,.045); padding:1px 3px; }
+  .prose{ max-width:64ch; color:var(--ink-2); font-size:15.5px; line-height:1.62; }
+  .prose p{ margin:0 0 15px; }
+  .prose p:last-child{ margin-bottom:0; }
+  .prose strong{ color:var(--ink); font-weight:600; }
+  .prose a{ color:var(--ink); box-shadow:inset 0 -1px 0 var(--line-strong); }
+  .prose code, .note code, .ds code, .defs dd code, .calls code, .kd code, .side code{ font-family:"IBM Plex Mono",monospace; font-size:.88em; color:var(--ink); background:rgba(23,22,28,.045); padding:1px 3px; border-radius:1px; }
+
+  html{ scroll-behavior:smooth; }
+  .api section{ scroll-margin-top:18px; }
+
+  .hero2{ position:relative; display:grid;
+    grid-template-columns:minmax(0,1.28fr) minmax(320px,.82fr);
+    grid-template-rows:auto auto auto 1fr auto;
+    column-gap:clamp(44px,6vw,88px);
+    min-height:calc(100svh - 235px);
+    padding:0 0 clamp(22px,2.6vw,34px); border-bottom:1px solid var(--line-strong); }
+  .hero2::before{ content:""; position:absolute; left:calc(62% - 1px); top:0; bottom:clamp(22px,2.6vw,34px); width:1px; background:var(--line); pointer-events:none; }
+  .hero2 .sec-h{ grid-column:1; grid-row:1; margin:0 0 clamp(22px,3vw,38px); }
+  .hero2 h1{ grid-column:1; grid-row:2; max-width:none; margin:0 0 22px; white-space:nowrap;
+    font-size:clamp(30px,4.15vw,58px); font-weight:600; line-height:.94; letter-spacing:-.05em; }
+  .hero2 .lead{ grid-column:1; grid-row:3; align-self:start; max-width:58ch; margin:0;
+    color:var(--ink-2); font-size:clamp(14.5px,1.16vw,16.5px); line-height:1.6; }
+  .hero2 .lead p{ margin:0 0 11px; }
+  .hero2 .lead p:last-child{ margin-bottom:0; }
+  .hero2 .lead .l-top{ margin-bottom:15px; color:var(--ink); font-size:clamp(17px,1.6vw,21px); line-height:1.42; font-weight:500; }
+  .hero2 .lead code{ color:var(--ink); font:600 .88em/1 "IBM Plex Mono",monospace; }
+  .hero2 .fig{ grid-column:2; grid-row:1 / 5; align-self:stretch; display:flex; flex-direction:column; }
+
+  .runrow{ grid-column:1; grid-row:4; display:flex; flex-wrap:wrap; gap:9px; align-self:end; padding-top:clamp(22px,2.6vw,34px); }
+  .runrow a{ display:inline-flex; align-items:center; gap:9px; padding:10px 14px; border:1px solid var(--line-strong); background:rgba(255,255,255,.16); color:var(--ink); font:500 11.5px/1 "IBM Plex Mono",monospace; transition:background var(--duration) var(--ease); }
+  .runrow a:hover{ background:color-mix(in srgb,var(--page) 22%,transparent); }
+  .runrow a img{ width:16px; height:16px; flex:0 0 auto; }
+
+  .next{ grid-column:1 / -1; grid-row:5; justify-self:center; align-self:end;
+    display:inline-flex; flex-direction:column; align-items:center; gap:12px;
+    margin-top:clamp(20px,2.4vw,32px); color:var(--ink); }
+  .next .nx{ display:grid; place-items:center; width:54px; height:54px; flex:0 0 auto;
+    background:var(--page); border:1px solid var(--ink);
+    transition:transform var(--duration) var(--ease); }
+  .next .nx svg{ width:26px; height:26px; stroke:var(--ink); animation:nudge 1.9s var(--ease) infinite; }
+  @media (prefers-reduced-motion:reduce){ .next .nx svg{ animation:none; } }
+  .next:hover .nx{ transform:translateY(5px); }
+  .next .nx-t{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .next .nx-k{ color:var(--ink-2); font:500 10px/1 "IBM Plex Mono",monospace; letter-spacing:.11em; text-transform:uppercase; }
+  .next .nx-n{ color:var(--ink); font:600 17px/1 "Space Grotesk",system-ui,sans-serif; letter-spacing:-.025em; }
+  @keyframes nudge{ 0%,100%{ transform:translateY(0); } 22%{ transform:translateY(6px); } 44%{ transform:translateY(0); } 60%{ transform:translateY(4px); } 76%{ transform:translateY(0); } }
+
+  .fig{ position:relative; margin:0; border:1px solid var(--line-strong); background:var(--paper-2); }
+  .figbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 12px; border-top:1px solid var(--line-strong); color:var(--ink-2); font:500 10px/1.3 "IBM Plex Mono",monospace; letter-spacing:.04em; }
+
+  /* DAG del hero. Se dibuja a mano porque el grafo es el tema de la pagina. */
+  .dagwrap{ flex:1 1 auto; min-height:0; display:flex; padding:clamp(10px,1.4vw,18px) clamp(6px,1vw,12px); }
+  .dag{ width:100%; height:auto; align-self:center; overflow:visible; }
+  .dag .box{ fill:rgba(255,255,255,.2); stroke:var(--line-strong); stroke-width:1; }
+  .dag .box.io{ fill:var(--ink); stroke:var(--ink); }
+  .dag .box.cust{ fill:color-mix(in srgb,var(--page) 34%,transparent); stroke:var(--ink); }
+  .dag .box.leaf{ fill:rgba(23,22,28,.075); stroke:var(--line-strong); }
+  .dag .nm{ fill:var(--ink); font:600 12px/1 "IBM Plex Mono",monospace; }
+  .dag .nm.inv{ fill:var(--paper); }
+  .dag .sub{ fill:var(--ink-2); font:500 9.5px/1 "IBM Plex Mono",monospace; letter-spacing:.02em; }
+  .dag .sub.inv{ fill:var(--paper); opacity:.72; }
+  .dag .lnk{ stroke:var(--ink); stroke-opacity:.42; stroke-width:1.2; fill:none; }
+  .dag .ty{ fill:var(--ink-2); font:500 9px/1 "IBM Plex Mono",monospace; letter-spacing:.06em; }
+  .dag g.node{ cursor:crosshair; }
+  .dag g.node .box{ transition:fill 110ms var(--ease); }
+  .dag g.node.hi .box{ fill:color-mix(in srgb,var(--page) 55%,transparent); }
+  .dag g.node.hi .box.io{ fill:var(--ink); }
+
+  /* three-up */
+  .calls{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); border:1px solid var(--line-strong); }
+  .calls > div{ padding:clamp(18px,2.1vw,24px); border-right:1px solid var(--line); min-width:0; }
+  .calls > div:last-child{ border-right:0; }
+  .calls .n{ display:block; margin-bottom:9px; color:var(--ink); font:600 14px/1 "IBM Plex Mono",monospace; }
+  .calls .n em{ color:var(--ink-2); font-style:normal; font-weight:500; }
+  .calls p{ margin:0; color:var(--ink-2); font-size:13px; line-height:1.55; }
+  .calls code{ font-family:"IBM Plex Mono",monospace; font-size:.92em; color:var(--ink); }
+
+  .lbl{ padding:11px clamp(16px,2vw,24px); border:1px solid var(--line-strong); border-bottom:0; background:rgba(255,255,255,.14); color:var(--ink-2); font:500 10px/1 "IBM Plex Mono",monospace; letter-spacing:.07em; text-transform:uppercase; }
+  .code{ background:var(--paper-2); border:1px solid var(--line-strong); overflow-x:auto; }
+  .code pre{ margin:0; padding:clamp(16px,2vw,24px); font:500 12.8px/1.72 "IBM Plex Mono",monospace; color:var(--ink); white-space:pre; }
+  .code .c{ color:var(--ink-2); font-weight:400; font-style:italic; }
+  .code .fn{ box-shadow:inset 0 -.085em 0 var(--page); }
+  .code .kw{ color:var(--ink-2); }
+  .lbl + .code{ border-top:0; }
+  .out{ border:1px solid var(--line-strong); border-top:0; background:rgba(255,255,255,.1); padding:13px clamp(16px,2vw,24px); color:var(--ink-2); font:500 12.5px/1.7 "IBM Plex Mono",monospace; white-space:pre; overflow-x:auto; }
+  .out b{ color:var(--ink); font-weight:600; }
+  .out.bad{ color:var(--wine); }
+  .out.bad b{ color:var(--wine); }
+  .stack{ margin-top:clamp(22px,2.6vw,32px); }
+  .stack:first-child{ margin-top:0; }
+
+  .two{ display:grid; grid-template-columns:minmax(0,1.32fr) minmax(250px,.78fr); gap:clamp(20px,2.4vw,30px); align-items:start; }
+  .two > *, .defs > div{ min-width:0; }
+  .readout{ border:1px solid var(--line-strong); background:rgba(255,255,255,.1); }
+  .readout div{ display:flex; justify-content:space-between; gap:14px; padding:11px clamp(14px,1.8vw,20px); border-bottom:1px solid var(--line); font:500 12.5px/1.3 "IBM Plex Mono",monospace; }
+  .readout div:last-child{ border-bottom:0; }
+  .readout div:nth-child(even){ background:rgba(255,255,255,.12); }
+  .readout .k{ color:var(--ink-2); }
+  .readout .v{ color:var(--ink); font-weight:600; text-align:right; }
+  .readout .v.hot{ color:var(--wine); }
+
+  .rcp{ display:inline-flex; align-items:center; flex-wrap:wrap; gap:2px; font:500 12px/1 "IBM Plex Mono",monospace; }
+  .rcp .gt{ color:var(--ink-2); font-style:normal; opacity:.55; padding:0 1px; }
+  .rcp .tk{ padding:4px 6px; border:1px solid transparent; color:var(--ink); white-space:nowrap; }
+  .rcp a.tk{ transition:border-color var(--duration) var(--ease); }
+  .rcp a.tk:hover{ border-color:var(--line-strong); }
+  .rcp .pred{ background:color-mix(in srgb,var(--purple) 15%,transparent); }
+  .rcp .split{ background:color-mix(in srgb,var(--green) 42%,transparent); }
+  .rcp .mid{ color:var(--ink-2); }
+  .rcp .back{ background:rgba(23,22,28,.075); font-weight:600; }
+
+  /* tabla de tipos */
+  .types{ border:1px solid var(--line-strong); margin-top:clamp(22px,2.6vw,30px); }
+  .thead, .trow{ display:grid; grid-template-columns:104px 128px minmax(0,1fr); gap:18px; align-items:baseline; padding:12px clamp(14px,1.8vw,20px); }
+  .thead{ border-bottom:1px solid var(--line-strong); background:rgba(255,255,255,.14); color:var(--ink-2); font:500 9.5px/1 "IBM Plex Mono",monospace; letter-spacing:.07em; text-transform:uppercase; }
+  .trow{ border-bottom:1px solid var(--line); }
+  .trow:last-child{ border-bottom:0; }
+  .trow:nth-of-type(even){ background:rgba(255,255,255,.12); }
+  .trow .tn{ color:var(--ink); font:600 13px/1.3 "IBM Plex Mono",monospace; }
+  .trow .tw{ color:var(--ink-2); font:500 11.5px/1.4 "IBM Plex Mono",monospace; }
+  .trow .td{ color:var(--ink-2); font-size:13px; line-height:1.55; }
+  .trow .td b{ color:var(--ink); font-weight:600; }
+
+  /* libro mayor de streams */
+  .ledger{ border:1px solid var(--line-strong); margin-top:clamp(22px,2.6vw,30px); }
+  .lhead, .lrow{ display:grid; grid-template-columns:minmax(0,1.5fr) 82px 84px 62px 96px; gap:14px; align-items:center; padding:10px clamp(14px,1.8vw,20px); }
+  .lhead{ border-bottom:1px solid var(--line-strong); background:rgba(255,255,255,.14); color:var(--ink-2); font:500 9.5px/1 "IBM Plex Mono",monospace; letter-spacing:.07em; text-transform:uppercase; }
+  .lhead span:not(:first-child){ text-align:right; }
+  .lrow{ border-bottom:1px solid var(--line); }
+  .lrow:last-child{ border-bottom:0; }
+  .lrow:nth-of-type(even){ background:rgba(255,255,255,.12); }
+  .lrow .en{ color:var(--ink); font:500 12.5px/1.3 "IBM Plex Mono",monospace; }
+  .lrow .en i{ font-style:normal; color:var(--ink-2); opacity:.6; }
+  .lrow .nv{ text-align:right; color:var(--ink); font:600 12.5px/1 "IBM Plex Mono",monospace; }
+  .lrow .nv.dim{ color:var(--ink-2); font-weight:500; }
+  .lrow.fin{ border-top:1px solid var(--line-strong); background:rgba(255,255,255,.2); }
+  .lrow.fin .nv{ color:var(--wine); }
+
+  /* rejilla de definiciones */
+  .defs{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 clamp(24px,3vw,44px); margin-top:clamp(24px,2.8vw,34px); }
+  .defs h3{ margin:0; padding-bottom:9px; border-bottom:1px solid var(--line-strong); color:var(--ink-2); font:500 10px/1 "IBM Plex Mono",monospace; letter-spacing:.08em; text-transform:uppercase; }
+  .defs dl{ margin:0; }
+  .defs dt{ margin-top:16px; }
+  .defs dd{ margin:6px 0 0; color:var(--ink-2); font-size:13px; line-height:1.55; }
+
+  /* tira de pipeline */
+  .flow{ display:flex; flex-wrap:wrap; align-items:center; gap:9px 7px; margin:clamp(20px,2.4vw,28px) 0 0; }
+  .flow .node{ padding:11px 14px; border:1px solid var(--line-strong); background:rgba(255,255,255,.14); font:600 12.5px/1 "IBM Plex Mono",monospace; color:var(--ink); }
+  .flow .node.io{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+  .flow .node.opt{ border-style:dashed; color:var(--ink-2); }
+  .flow .arr{ color:var(--ink-2); font:500 15px/1 "IBM Plex Mono",monospace; }
+
+  /* parametros */
+  .spec2{ border:1px solid var(--line-strong); }
+  .spec2 .row{ display:grid; grid-template-columns:190px 108px minmax(0,1fr); gap:18px; align-items:baseline; padding:13px clamp(16px,2.1vw,24px); border-bottom:1px solid var(--line); font-size:13.5px; }
+  .spec2 .row:last-child{ border-bottom:0; }
+  .spec2 .row:nth-child(even){ background:rgba(255,255,255,.13); }
+  .spec2 .nm{ font:600 13px/1.35 "IBM Plex Mono",monospace; color:var(--ink); word-break:break-word; }
+  .spec2 .ty{ color:var(--ink-2); font:500 10px/1.3 "IBM Plex Mono",monospace; letter-spacing:.04em; text-transform:uppercase; }
+  .spec2 .ds{ color:var(--ink-2); line-height:1.5; }
+  .spec2 .ds b{ color:var(--ink); font-weight:600; }
+  .subh{ margin:clamp(28px,3.2vw,40px) 0 12px; color:var(--ink); font:600 13px/1 "IBM Plex Mono",monospace; }
+  .subh:first-of-type{ margin-top:0; }
+
+  .tip{ position:fixed; left:0; top:0; z-index:60; pointer-events:none; opacity:0; transform:translateY(3px);
+    min-width:180px; max-width:300px; padding:11px 13px; border:1px solid var(--ink); background:var(--paper);
+    box-shadow:3px 3px 0 rgba(23,22,28,.14);
+    transition:opacity 110ms var(--ease), transform 110ms var(--ease); }
+  .tip.on{ opacity:1; transform:translateY(0); }
+  .tip .t-g{ display:block; margin-bottom:9px; padding-bottom:8px; border-bottom:1px solid var(--line);
+    color:var(--ink); font:600 12px/1.35 "IBM Plex Mono",monospace; word-break:break-word; }
+  .tip dl{ display:grid; grid-template-columns:auto 1fr; gap:5px 14px; margin:0;
+    font:500 11.5px/1 "IBM Plex Mono",monospace; }
+  .tip dt{ color:var(--ink-2); }
+  .tip dd{ margin:0; text-align:right; color:var(--ink); font-weight:600; }
+  .tip dd.hot{ color:var(--wine); }
+
+  @media (min-width:901px) and (max-height:880px){
+    .hero2{ min-height:calc(100svh - 205px); }
+    .hero2 .sec-h{ margin-bottom:22px; }
+    .hero2 h1{ font-size:clamp(30px,3.4vw,46px); margin-bottom:16px; }
+    .hero2 .lead .l-top{ font-size:18px; margin-bottom:12px; }
+    .hero2 .lead{ font-size:14.5px; line-height:1.55; }
+    .next{ margin-top:22px; }
+  }
+  @media (min-width:901px) and (max-height:760px){
+    .hero2{ min-height:calc(100svh - 185px); }
+    .hero2 h1{ font-size:clamp(28px,3vw,40px); margin-bottom:13px; }
+    .hero2 .lead .l-top{ font-size:17px; }
+    .hero2 .lead p{ margin-bottom:9px; }
+    .runrow{ padding-top:22px; }
+    .next{ margin-top:16px; }
+  }
+  @media (max-width:980px){
+    .hero2{ grid-template-columns:1fr; grid-template-rows:repeat(6,auto); row-gap:0; min-height:0; }
+    .hero2::before{ display:none; }
+    .hero2 h1{ white-space:normal; max-width:13ch; }
+    .hero2 .fig{ grid-column:1; grid-row:5; margin-top:30px; }
+    .next{ grid-row:6; margin-top:28px; }
+    .runrow{ grid-row:4; }
+    .two, .band{ grid-template-columns:1fr; }
+    .defs{ grid-template-columns:1fr; }
+    .defs > div + div h3{ margin-top:30px; }
+  }
+  @media (max-width:760px){
+    body.doc-page{ padding:0; background:var(--paper); }
+    .api{ padding:34px 20px 30px 22px; }
+    .calls{ grid-template-columns:1fr; }
+    .calls > div{ border-right:0; border-bottom:1px solid var(--line); }
+    .calls > div:last-child{ border-bottom:0; }
+    .thead, .lhead{ display:none; }
+    .trow{ grid-template-columns:1fr auto; gap:6px 12px; }
+    .trow .td{ grid-column:1 / -1; }
+    .lrow{ grid-template-columns:minmax(0,1fr) auto; gap:7px 12px; padding-block:13px; }
+    .lrow .en{ grid-column:1 / -1; }
+    .lrow .nv.dim:nth-child(3){ display:none; }
+    .spec2 .row{ grid-template-columns:1fr; gap:5px; }
+    .spec2 .ty{ order:3; }
+    .flow .node{ font-size:11.5px; padding:9px 12px; }
+  }
+  @media (prefers-reduced-motion:reduce){ *{ transition:none !important; } }
+</style>
 </head>
-<body style="--page:var(--green)">
+<body class="doc-page" style="--page:var(--green)">
   <div class="sheet">
     <span class="reg tl">+</span><span class="reg tr">+</span>
     <span class="reg bl">+</span><span class="reg br">+</span>
@@ -31,11 +278,534 @@
       </nav>
     </header>
 
-    <main class="page">
-      <p class="kicker"><span class="k-sq"></span> low-level api</p>
-      <h1>Build the <span class="u">graph</span> yourself.</h1>
-      <p class="lead">Assemble the OpenZL DAG by hand in Python for full control over transforms and codecs. More work, more power — all still Python.</p>
-      <div class="soon"><span class="s-sq"></span> The graph-building walkthrough is in progress: predictors, quantizers and entropy stages, wired node by node.</div>
+    <main class="api">
+      <section class="hero2" id="top">
+        <p class="sec-h"><span class="sq"></span> low-level api</p>
+        <h1>One recipe, <span class="u">by hand</span>.</h1>
+        <div class="lead">
+          <p class="l-top">A recipe string is a compression graph. This page builds one.</p>
+          <p>The high-level page ends with a winner, <code>planar&gt;zigzag&gt;transpose&gt;entropy</code>. Here that same graph gets assembled node by node in OpenZL and returns the same 116.5 kB frame, because the string was never anything more than a shorthand for these four calls.</p>
+          <p>OpenZL is a graph over typed streams. A <b>node</b> rewrites a stream and hands you its outputs. A <b>graph</b> closes a branch by turning a stream into bytes. Compression walks the tree and the frame records the walk.</p>
+          <p>Which is why <code>DCtx</code> needs no compressor to read a frame. It replays what the frame says happened.</p>
+        </div>
+        <div class="runrow">
+          <a href="https://colab.research.google.com/github/asterisk-labs/geozl/blob/main/docs/notebooks/low-level-api.ipynb" target="_blank" rel="noopener noreferrer">
+            <img src="assets/svg/colab.svg" width="24" height="24" alt="">
+            Run in Colab
+          </a>
+          <a href="https://github.com/asterisk-labs/geozl" target="_blank" rel="noopener noreferrer">
+            <img src="assets/svg/github.svg" width="24" height="24" alt="">
+            Code
+          </a>
+        </div>
+        <figure class="fig">
+          <div class="dagwrap">
+          <svg class="dag" viewBox="0 0 420 646" role="img" aria-label="The graph planar to zigzag to convert to transpose split to two entropy leaves, with the stream type and size on every edge">
+            <g class="node" data-n="input" data-t="Numeric" data-e="262 144" data-w="2 B" data-b="524 288 B" data-note="the tile, flattened">
+              <rect class="box io" x="66" y="8" width="288" height="46"/>
+              <text class="nm inv" x="210" y="30" text-anchor="middle">tile</text>
+              <text class="sub inv" x="210" y="44" text-anchor="middle">Numeric · 262 144 × 2 B</text>
+            </g>
+            <path class="lnk" d="M210 54 L210 96"/>
+            <text class="ty" x="220" y="79">Numeric</text>
+
+            <g class="node" data-n="planar" data-t="Numeric" data-e="262 144" data-w="2 B" data-b="524 288 B" data-note="custom codec · W + N − NW">
+              <rect class="box cust" x="66" y="96" width="288" height="46"/>
+              <text class="nm" x="210" y="118" text-anchor="middle">planar</text>
+              <text class="sub" x="210" y="132" text-anchor="middle">custom encoder · id 101</text>
+            </g>
+            <path class="lnk" d="M210 142 L210 184"/>
+            <text class="ty" x="220" y="167">Numeric</text>
+
+            <g class="node" data-n="zl.zigzag" data-t="Numeric" data-e="262 144" data-w="2 B" data-b="524 288 B" data-note="fold signed to unsigned">
+              <rect class="box" x="66" y="184" width="288" height="46"/>
+              <text class="nm" x="210" y="206" text-anchor="middle">zigzag</text>
+              <text class="sub" x="210" y="220" text-anchor="middle">signed → unsigned</text>
+            </g>
+            <path class="lnk" d="M210 230 L210 272"/>
+            <text class="ty" x="220" y="255">Numeric</text>
+
+            <g class="node" data-n="zl.convert_num_to_struct_le" data-t="Struct" data-e="262 144" data-w="2 B" data-b="524 288 B" data-note="retype only, no bytes move">
+              <rect class="box" x="42" y="272" width="336" height="46"/>
+              <text class="nm" x="210" y="294" text-anchor="middle">convert_num_to_struct_le</text>
+              <text class="sub" x="210" y="308" text-anchor="middle">retype, zero cost</text>
+            </g>
+            <path class="lnk" d="M210 318 L210 360"/>
+            <text class="ty" x="220" y="343">Struct</text>
+
+            <g class="node" data-n="zl.transpose_split" data-t="Serial ×2" data-e="262 144" data-w="1 B" data-b="2 × 262 144 B" data-note="one output per byte lane">
+              <rect class="box" x="66" y="360" width="288" height="46"/>
+              <text class="nm" x="210" y="382" text-anchor="middle">transpose_split</text>
+              <text class="sub" x="210" y="396" text-anchor="middle">2 lanes out</text>
+            </g>
+            <path class="lnk" d="M210 406 L210 424 L130 424 L130 476"/>
+            <path class="lnk" d="M210 406 L210 424 L290 424 L290 476"/>
+            <text class="ty" x="34" y="459">Serial</text>
+            <text class="ty" x="316" y="459">Serial</text>
+
+            <g class="node" data-n="entropy · lane 0" data-t="Serial" data-e="262 144" data-w="1 B" data-b="262 144 B" data-note="the low byte, carries the frame">
+              <rect class="box leaf" x="46" y="476" width="168" height="52"/>
+              <text class="nm" x="130" y="499" text-anchor="middle">entropy</text>
+              <text class="sub" x="130" y="514" text-anchor="middle">lane 0 · low byte</text>
+            </g>
+            <g class="node" data-n="entropy · lane 1" data-t="Serial" data-e="262 144" data-w="1 B" data-b="262 144 B" data-note="the high byte, almost all zero">
+              <rect class="box leaf" x="206" y="476" width="168" height="52"/>
+              <text class="nm" x="290" y="499" text-anchor="middle">entropy</text>
+              <text class="sub" x="290" y="514" text-anchor="middle">lane 1 · high byte</text>
+            </g>
+            <path class="lnk" d="M130 528 L130 566 L210 566 L210 590"/>
+            <path class="lnk" d="M290 528 L290 566 L210 566 L210 590"/>
+
+            <g class="node" data-n="frame" data-t="bytes" data-e="—" data-w="—" data-b="116.5 kB" data-note="4.50× on the Mont Blanc tile">
+              <rect class="box io" x="66" y="590" width="288" height="46"/>
+              <text class="nm inv" x="210" y="612" text-anchor="middle">frame</text>
+              <text class="sub inv" x="210" y="626" text-anchor="middle">116.5 kB · 4.50×</text>
+            </g>
+          </svg>
+          </div>
+          <figcaption class="figbar">
+            <span>planar&gt;zigzag&gt;transpose&gt;entropy</span>
+            <span>4 nodes · 2 leaves</span>
+          </figcaption>
+        </figure>
+        <a class="next" href="#model"><span class="nx"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></span><span class="nx-t"><span class="nx-k">keep reading</span><span class="nx-n">The model</span></span></a>
+      </section>
+
+      <section id="model">
+        <p class="sec-h"><span class="sq"></span> the model <span class="sig">openzl 0.2.0 · format 24</span></p>
+        <div class="calls">
+          <div>
+            <span class="n">Node<em> · a codec</em></span>
+            <p>Rewrites one stream into one or more. It never decides where its outputs go, so a node on its own is not a graph. <code>zigzag</code>, <code>transpose_split</code> and <code>planar</code> are all nodes.</p>
+          </div>
+          <div>
+            <span class="n">Graph<em> · a destination</em></span>
+            <p>Takes a stream and is responsible for it from there. <code>entropy</code> and <code>zstd</code> are graphs that end in bytes. A node plus a destination for every output is also a graph.</p>
+          </div>
+          <div>
+            <span class="n">Frame<em> · the walk</em></span>
+            <p>Records which codecs ran and in what order, so <code>DCtx</code> replays it without ever seeing your <code>Compressor</code>. One decompressor, every frame.</p>
+          </div>
+        </div>
+        <p class="note">Everything on this page runs against <b>openzl 0.2.0</b> from PyPI, writing frame format version 24. Custom codecs are the one exception to the universal decompressor, and the <a href="#custom">codec section</a> covers exactly what that costs you.</p>
+      </section>
+
+      <section id="types">
+        <p class="sec-h"><span class="sq"></span> streams are typed <span class="sig">and the type gates the codec</span></p>
+        <div class="band">
+          <div class="prose">
+            <p>Every stream in the graph carries one of four types, and each codec declares which it accepts. Half of the errors you will hit at this level are type errors, not logic errors, so it pays to read the pipeline as a sequence of types before reading it as a sequence of transforms.</p>
+            <p>The gates are narrow on purpose. <strong>zstd only takes Serial</strong>, because it is a byte compressor and has no notion of an element. <strong>field_lz takes Struct or Numeric</strong>, because it matches on field boundaries. <strong>entropy takes all three</strong>, because an order-0 model only needs a symbol alphabet.</p>
+            <p>That is where <code>convert_num_to_struct_le</code> earns its place in the recipe. <code>transpose_split</code> wants Struct, zigzag produced Numeric, and the conversion is a retype with no bytes moved.</p>
+          </div>
+          <aside class="side">
+            <span class="st">why the recipe reads the way it does</span>
+            The grammar of a recipe string hides the conversions. <code>planar&gt;zigzag&gt;zstd</code> is really four nodes, since zstd cannot see a Numeric stream and geozl inserts <code>convert_num_to_serial_le</code> for you. <b>At this level you insert it yourself.</b>
+          </aside>
+        </div>
+
+        <div class="types">
+          <div class="thead"><span>type</span><span>element</span><span>what accepts it</span></div>
+          <div class="trow"><span class="tn">Serial</span><span class="tw">1 byte, flat</span><span class="td">A plain byte string with no structure. <b>zstd</b>, <b>entropy</b>, <b>flatpack</b>, <b>store</b>. Every transpose lane lands here.</span></div>
+          <div class="trow"><span class="tn">Struct</span><span class="tw">N bytes, fixed</span><span class="td">Fixed-width records whose interior is opaque. <b>transpose_split</b>, <b>field_lz</b>, <b>entropy</b>, <b>tokenize</b>. This is the type that knows an element is 2 bytes wide.</span></div>
+          <div class="trow"><span class="tn">Numeric</span><span class="tw">1, 2, 4 or 8 bytes</span><span class="td">Integers in native order, the only type with arithmetic meaning. <b>zigzag</b>, <b>delta_int</b>, <b>bitpack</b>, <b>range_pack</b>, and every geozl predictor.</span></div>
+          <div class="trow"><span class="tn">String</span><span class="tw">variable</span><span class="td">Variable-length fields carried with a separate lengths stream. Unused by geozl, which only ever sees rectangular numeric arrays.</span></div>
+        </div>
+        <p class="note">A tile enters as <code>zl.Input(zl.Type.Numeric, arr)</code>. The width comes from the array dtype, so an <code>int16</code> and a <code>uint16</code> both arrive as 2-byte elements, which is the reason <a href="api-high.html#decompress">decompress needs a <code>dtype</code></a>. The frame keeps the width and drops the sign.</p>
+      </section>
+
+      <section id="build">
+        <p class="sec-h"><span class="sq"></span> build the recipe <span class="sig">four nodes, inside out</span></p>
+        <div class="prose">
+          <p>Graphs are assembled from the leaf backwards. Calling a node gives you a graph that runs that node and forwards to the successor you named, so the last stage of the pipeline is the first thing you construct and the head node is the last.</p>
+        </div>
+
+        <div class="flow">
+          <span class="node io">entropy</span>
+          <span class="arr">&#8592;</span>
+          <span class="node">transpose_split</span>
+          <span class="arr">&#8592;</span>
+          <span class="node">convert</span>
+          <span class="arr">&#8592;</span>
+          <span class="node">zigzag</span>
+          <span class="arr">&#8592;</span>
+          <span class="node opt">planar</span>
+        </div>
+
+        <div class="stack">
+          <div class="lbl">python · assemble the graph</div>
+          <div class="code"><pre>import numpy as np
+import openzl.ext as zl
+
+compressor = zl.Compressor()
+
+<span class="c"># the head is a codec OpenZL does not ship, so it registers first</span>
+planar = compressor.<span class="fn">register_custom_encoder</span>(PlanarEncoder())
+planar = compressor.<span class="fn">parameterize_node</span>(
+    planar, local_params=zl.LocalParams({WIDTH: 512})
+)
+
+<span class="c"># then the tail, leaf first</span>
+lanes  = zl.nodes.TransposeSplit()(compressor, successor=zl.graphs.Entropy())
+packed = zl.nodes.ConvertNumToStructLE()(compressor, successor=lanes)
+folded = zl.nodes.Zigzag()(compressor, successor=packed)
+graph  = compressor.<span class="fn">build_static_graph</span>(planar, [folded])
+
+compressor.<span class="fn">select_starting_graph</span>(graph)</pre></div>
+        </div>
+
+        <div class="band" style="margin-top:clamp(24px,2.8vw,34px)">
+          <div class="prose">
+            <p>Two calling conventions show up here and the difference matters. A node object is <strong>callable</strong>, which builds and registers a graph in one step and returns a <code>GraphID</code>. That form is only available when the node has one outcome to route.</p>
+            <p><code>build_static_graph</code> is the general form. It takes a bare <code>NodeID</code> and a list of successors, one per outcome, which is what you need for <code>planar</code> because <code>register_custom_encoder</code> hands back a node and not a graph.</p>
+          </div>
+          <aside class="side">
+            <span class="st">an outcome is not an output</span>
+            <code>transpose_split</code> emits one stream per lane but declares a single <b>variable</b> outcome, so all of its lanes share one successor slot. Asking for two successors is a build error, not a runtime one. <a href="#dynamic">Routing lanes apart</a> needs a different tool.
+          </aside>
+        </div>
+      </section>
+
+      <section id="ledger">
+        <p class="sec-h"><span class="sq"></span> nothing shrinks until the leaf</p>
+        <div class="prose">
+          <p>The useful thing about reading a graph edge by edge is watching the byte count refuse to move. A predictor does not make data smaller, it makes data <strong>compressible</strong>, and every node before the backend is a rewrite that costs exactly as many bytes as it was given.</p>
+        </div>
+
+        <div class="ledger">
+          <div class="lhead"><span>edge</span><span>type</span><span>elements</span><span>width</span><span>bytes</span></div>
+          <div class="lrow"><span class="en">tile <i>in</i></span><span class="nv dim">Numeric</span><span class="nv dim">262 144</span><span class="nv dim">2 B</span><span class="nv">524 288</span></div>
+          <div class="lrow"><span class="en">planar <i>residuals</i></span><span class="nv dim">Numeric</span><span class="nv dim">262 144</span><span class="nv dim">2 B</span><span class="nv">524 288</span></div>
+          <div class="lrow"><span class="en">zigzag <i>folded</i></span><span class="nv dim">Numeric</span><span class="nv dim">262 144</span><span class="nv dim">2 B</span><span class="nv">524 288</span></div>
+          <div class="lrow"><span class="en">convert <i>retyped</i></span><span class="nv dim">Struct</span><span class="nv dim">262 144</span><span class="nv dim">2 B</span><span class="nv">524 288</span></div>
+          <div class="lrow"><span class="en">transpose <i>lane 0</i></span><span class="nv dim">Serial</span><span class="nv dim">262 144</span><span class="nv dim">1 B</span><span class="nv">262 144</span></div>
+          <div class="lrow"><span class="en">transpose <i>lane 1</i></span><span class="nv dim">Serial</span><span class="nv dim">262 144</span><span class="nv dim">1 B</span><span class="nv">262 144</span></div>
+          <div class="lrow fin"><span class="en">frame <i>out</i></span><span class="nv dim">bytes</span><span class="nv dim">—</span><span class="nv dim">—</span><span class="nv">116 522</span></div>
+        </div>
+
+        <p class="note">Where the 116.5 kB sits is worth a second. The high-level table has <code>planar&gt;zigzag&gt;store_lo</code> landing at <b>2.00×</b>, and store_lo is this same graph with lane 0 written out raw. Storing 262 144 raw bytes and hitting exactly 2.00× on a 524 288 byte tile means <b>lane 1 rounds to nothing</b>. The high byte of a planar residual over smooth terrain is a sign bit and little else. So the frame you are looking at is the low lane, entropy-coded from 256 kB down to about 116 kB, plus change.</p>
+      </section>
+
+      <section id="custom">
+        <p class="sec-h"><span class="sq"></span> planar <span class="sig">the codec openzl does not have</span></p>
+        <div class="band">
+          <div class="prose">
+            <p>OpenZL ships <code>delta_int</code>, which is a one-dimensional difference and has no idea the stream is a raster. Every geozl predictor exists because that is the wrong prior for a height field, and they enter the graph as <strong>custom codecs</strong>, a matched encoder and decoder pair that OpenZL calls at the right point in the walk.</p>
+            <p>The contract is a description both halves must agree on, an <code>id</code>, the input types, and the output types. The encoder writes into an output it asks the state to create and commits an element count. Anything the decoder needs that is not in the stream travels in the <strong>codec header</strong>, which for planar is the row width, since a flat numeric stream has forgotten it was 512 wide.</p>
+          </div>
+          <aside class="side">
+            <span class="st">the price of a custom codec</span>
+            The id space is yours to version. OpenZL will not check that the encoder that wrote id 101 and the decoder that reads it agree, so <b>you own that compatibility forever</b>. It is also why a compressor holding a custom codec cannot be serialized unless you name the node explicitly.
+          </aside>
+        </div>
+
+        <div class="stack">
+          <div class="lbl">python · the encoder</div>
+          <div class="code"><pre>PLANAR_ID, WIDTH = 101, 1
+
+class PlanarEncoder(zl.CustomEncoder):
+    def multi_input_description(self):
+        return zl.MultiInputCodecDescription(
+            id=PLANAR_ID,
+            name="planar",
+            input_types=[zl.Type.Numeric],
+            singleton_output_types=[zl.Type.Numeric],
+        )
+
+    def <span class="fn">encode</span>(self, state):
+        src = state.inputs[0].content.as_nparray()
+        w   = state.get_local_int_param(WIDTH)
+        res = planar_forward(src.reshape(-1, w)).reshape(-1)
+
+        out = state.<span class="fn">create_output</span>(0, src.size, 2)
+        out.mut_content.as_nparray()[:] = res.view(np.uint16)
+        out.<span class="fn">commit</span>(src.size)
+
+        state.<span class="fn">send_codec_header</span>(np.uint32(w).tobytes())</pre></div>
+        </div>
+
+        <div class="stack">
+          <div class="lbl">python · the decoder, registered on the DCtx and not the Compressor</div>
+          <div class="code"><pre>class PlanarDecoder(zl.CustomDecoder):
+    def multi_input_description(self):
+        return zl.MultiInputCodecDescription(
+            id=PLANAR_ID,
+            name="planar",
+            input_types=[zl.Type.Numeric],
+            singleton_output_types=[zl.Type.Numeric],
+        )
+
+    def <span class="fn">decode</span>(self, state):
+        src = state.singleton_inputs[0].content.as_nparray()
+        w   = int(np.frombuffer(state.<span class="fn">codec_header</span>, dtype=np.uint32)[0])
+        rec = planar_inverse(src, src.size // w, w).reshape(-1)
+
+        out = state.<span class="fn">create_output</span>(0, src.size, 2)
+        out.mut_content.as_nparray()[:] = rec.view(np.uint16)
+        out.<span class="fn">commit</span>(src.size)</pre></div>
+        </div>
+
+        <div class="band" style="margin-top:clamp(24px,2.8vw,34px)">
+          <div class="prose">
+            <p>The prediction itself is four lines and all of it happens in <code>uint16</code>. Working in the unsigned view is not a detail you can skip, because the residual has to wrap for the reconstruction to close, and a signed overflow would be undefined at the C level and a numpy warning here.</p>
+          </div>
+          <aside class="side">
+            <span class="st">why zigzag comes next</span>
+            The residual is stored as <code>uint16</code> but read as signed, and small negatives look like huge unsigned values to an entropy model. <b>zigzag folds them back next to zero</b>, which is the whole reason it sits between every predictor and every backend in the recipe grammar.
+          </aside>
+        </div>
+
+        <div class="stack">
+          <div class="lbl">python · W + N − NW, with the edges falling back to a plain delta</div>
+          <div class="code"><pre>def planar_forward(a):
+    a = a.astype(np.uint16)
+    p = np.zeros_like(a)
+    p[1:, 1:] = a[1:, :-1] + a[:-1, 1:] - a[:-1, :-1]   <span class="c"># W + N − NW</span>
+    p[0, 1:]  = a[0, :-1]                               <span class="c"># first row  → W</span>
+    p[1:, 0]  = a[:-1, 0]                               <span class="c"># first col  → N</span>
+    return (a - p).astype(np.uint16).view(np.int16)</pre></div>
+        </div>
+      </section>
+
+      <section id="dynamic">
+        <p class="sec-h"><span class="sq"></span> when static is not enough <span class="sig">store_lo</span></p>
+        <div class="prose">
+          <p>Everything so far was decided before any data arrived. That is a static graph, and it covers most of the recipe grid. It does not cover <code>store_lo</code>, which wants lane 0 sent to <strong>store</strong> and every other lane sent to <strong>entropy</strong>, because the two lanes are different kinds of data and deserve different treatment.</p>
+          <p>The obvious attempt fails, and the error is the clearest statement of the rule.</p>
+        </div>
+
+        <div class="stack">
+          <div class="lbl">python · one successor per lane</div>
+          <div class="code"><pre>compressor.<span class="fn">build_static_graph</span>(
+    zl.nodes.TransposeSplit().base_node,
+    [zl.graphs.Store()(compressor), zl.graphs.Entropy()(compressor)],
+)</pre></div>
+          <div class="out bad">RuntimeError: <b>Graph invalid</b>
+nb of outcomes (2) is incorrect for node 'zl.transpose_split' (1)</div>
+        </div>
+
+        <div class="band" style="margin-top:clamp(24px,2.8vw,34px)">
+          <div class="prose">
+            <p>A variable-output node has one outcome no matter how many streams it emits, because the lane count is a property of the data and the graph was built without it. Two lanes for <code>int16</code>, four for <code>int32</code>, and a static shape cannot be right for both.</p>
+            <p>The tool for this is a <strong>function graph</strong>, which is a graph whose body is a function that runs during compression with the streams in hand. It receives edges instead of ids, calls <code>run_node</code> to advance them, and <code>set_destination</code> to close each one. Now the lane count is known, because the split already happened.</p>
+          </div>
+          <aside class="side">
+            <span class="st">three ways to branch</span>
+            A <b>static graph</b> is fixed at build time. A <b>selector</b> looks at one stream and picks among graphs you gave it, which is how <code>optim</code> would work if it ran inside OpenZL. A <b>function graph</b> is the general case and can run nodes, inspect their outputs, and route each one.
+          </aside>
+        </div>
+
+        <div class="stack">
+          <div class="lbl">python · the function graph</div>
+          <div class="code"><pre>class LaneRouter(zl.FunctionGraph):
+    def function_graph_description(self):
+        return zl.FunctionGraphDescription(
+            name="store_lo",
+            input_type_masks=[zl.TypeMask.Numeric],
+        )
+
+    def <span class="fn">graph</span>(self, state):
+        edge = state.edges[0]
+        (packed,) = edge.<span class="fn">run_node</span>(zl.nodes.ConvertNumToStructLE().base_node)
+        lanes     = packed.<span class="fn">run_node</span>(zl.nodes.TransposeSplit().base_node)
+
+        lanes[0].<span class="fn">set_destination</span>(state.custom_graphs[0])   <span class="c"># low byte  → store</span>
+        for lane in lanes[1:]:
+            lane.<span class="fn">set_destination</span>(state.custom_graphs[1])   <span class="c"># the rest  → entropy</span></pre></div>
+        </div>
+
+        <div class="stack">
+          <div class="lbl">python · wire it in, with the two destinations passed as custom graphs</div>
+          <div class="code"><pre>router = compressor.<span class="fn">register_function_graph</span>(LaneRouter())
+router = compressor.<span class="fn">parameterize_graph</span>(router, custom_graphs=[
+    zl.graphs.Store()(compressor),
+    zl.graphs.Entropy()(compressor),
+])
+
+folded = zl.nodes.Zigzag()(compressor, successor=router)
+compressor.<span class="fn">select_starting_graph</span>(
+    compressor.<span class="fn">build_static_graph</span>(planar, [folded])
+)</pre></div>
+          <div class="out">planar&gt;zigzag&gt;store_lo   <b>2.00x</b>   exact round trip</div>
+        </div>
+
+        <p class="note">Passing the destinations as <code>custom_graphs</code> rather than closing over them keeps the router reusable. The same class serves <code>store_lo</code> on a DEM and a different pair of backends on Sentinel-2, where the low byte is sensor noise and the trade lands somewhere else entirely.</p>
+      </section>
+
+      <section id="contexts">
+        <p class="sec-h"><span class="sq"></span> compress and decompress <span class="sig">CCtx and DCtx</span></p>
+        <div class="band">
+          <div class="prose">
+            <p>A <code>Compressor</code> is the graph. A <code>CCtx</code> is a run of it, and the two are separate because a graph is expensive to build and cheap to reuse across a whole dataset of tiles.</p>
+            <p>One parameter is not optional. <code>FormatVersion</code> pins the frame format you emit, and leaving it unset is an error rather than a default, because the right answer is the newest version your readers support and only you know what that is.</p>
+          </div>
+          <aside class="side">
+            <span class="st">what geozl sets for you</span>
+            <code>profile</code> turns the checksum off so the timings are the codec and not the verification. At this level <code>CompressedChecksum</code> and <code>ContentChecksum</code> are both yours, and both default on. <b>Leave them on for anything you intend to keep.</b>
+          </aside>
+        </div>
+
+        <div class="stack">
+          <div class="lbl">python · compress</div>
+          <div class="code"><pre>cctx = zl.CCtx()
+cctx.<span class="fn">ref_compressor</span>(compressor)
+cctx.<span class="fn">set_parameter</span>(zl.CParam.FormatVersion, zl.MAX_FORMAT_VERSION)
+
+frame = cctx.<span class="fn">compress</span>([zl.Input(zl.Type.Numeric, tile.reshape(-1))])</pre></div>
+          <div class="out">524 288 B in   <b>116 522 B</b> out   <b>4.50x</b></div>
+        </div>
+
+        <div class="stack">
+          <div class="lbl">python · decompress, with no compressor in sight</div>
+          <div class="code"><pre>dctx = zl.DCtx()
+dctx.<span class="fn">register_custom_decoder</span>(PlanarDecoder())
+
+out  = dctx.<span class="fn">decompress</span>(frame)
+back = out[0].content.as_nparray().view(np.int16).reshape(512, 512)</pre></div>
+          <div class="out">(512, 512) int16   exact <b>True</b></div>
+        </div>
+
+        <div class="band" style="margin-top:clamp(24px,2.8vw,34px)">
+          <div class="prose">
+            <p>The single line that carries the whole design is the one that is missing. <code>DCtx</code> never sees <code>compressor</code>. It reads the frame, finds the codecs the frame says ran, and inverts them, which is what makes every OpenZL frame readable by one decompressor no matter which specialised graph produced it.</p>
+            <p>The custom codec is the seam in that promise. Drop the <code>register_custom_decoder</code> line and the frame becomes unreadable, not corrupt but unresolvable, because id 101 means nothing to a stock build.</p>
+          </div>
+          <aside class="side">
+            <span class="st">the same seam, upstream</span>
+            This is why <a href="api-high.html">the high-level API</a> is worth having. <code>geozl.decompress</code> registers every geozl codec on the context before it touches the frame, so a graph you never chose is still a graph you can read.
+          </aside>
+        </div>
+
+        <div class="stack">
+          <div class="lbl">python · without the decoder</div>
+          <div class="code"><pre>zl.DCtx().<span class="fn">decompress</span>(frame)</pre></div>
+          <div class="out bad">RuntimeError: <b>Graph invalid</b>
+no decoder registered for custom codec id 101</div>
+        </div>
+      </section>
+
+      <section id="frame">
+        <p class="sec-h"><span class="sq"></span> reading a frame <span class="sig">and a compressor</span></p>
+        <div class="two">
+          <div class="prose">
+            <p><code>FrameInfo</code> parses the header without decompressing anything, which is enough to size a buffer or check that a frame holds what you expected before you pay for the rest of it.</p>
+            <p>What it will not tell you is the shape or the sign. One numeric output of 524 288 bytes at 2 bytes per element is all the frame knows, and turning that back into a signed 512 by 512 raster is the caller's job, or rumi's.</p>
+          </div>
+          <div>
+            <div class="lbl">python</div>
+            <div class="code"><pre>fi = zl.<span class="fn">FrameInfo</span>(frame)
+
+fi.num_outputs
+fi.output_type(0)
+fi.output_content_size(0)</pre></div>
+            <div class="out">1
+Type.Numeric
+524288</div>
+          </div>
+        </div>
+
+        <div class="band" style="margin-top:clamp(26px,3vw,36px)">
+          <div class="prose">
+            <p>A compressor can also be written down. <code>serialize</code> gives a compact binary description of the graph and <code>serialize_to_json</code> the readable form, which is the fastest way to check that the thing you built is the thing you meant to build.</p>
+            <p>The example below is the EOPF baseline, <code>id&gt;transpose&gt;zstd</code>, chosen because it uses nothing but stock codecs. A graph containing <code>planar</code> will refuse to serialize until you give the custom node an explicit stable name, which is the same versioning problem wearing a different hat.</p>
+          </div>
+          <aside class="side">
+            <span class="st">note what is absent</span>
+            No parser, no dtype, no shape, no tile. A serialized compressor is a <b>plan</b>, and it is portable to any machine with the same OpenZL build. It is not a description of your data.
+          </aside>
+        </div>
+
+        <div class="stack">
+          <div class="lbl">json · compressor.serialize_to_json(), trimmed</div>
+          <div class="code"><pre>{
+  "graphs": {
+    "#1": {
+      "type": "static",
+      "node": "zl.transpose_split",
+      "successors": [ "zl.zstd#0" ]
+    },
+    "#2": {
+      "type": "static",
+      "node": "zl.convert_num_to_struct_le",
+      "successors": [ "#1" ]
+    },
+    "zl.zstd#0": {
+      "type": "parameterized",
+      "base": "zl.zstd",
+      "params": { "ints": { 100: 3 } }
+    }
+  },
+  "start": "#2"
+}</pre></div>
+        </div>
+
+        <p class="note">The <code>zli</code> command line tool goes further at runtime. <code>zli compress --trace</code> records a trace of the walk that the <a href="https://openzl.org/tools/trace" target="_blank" rel="noopener noreferrer">OpenZL visualizer</a> renders as an interactive graph with the compressed size attributed to every branch, which is the fastest way to find out which lane is actually costing you the frame.</p>
+      </section>
+
+      <section id="loop">
+        <p class="sec-h"><span class="sq"></span> the loop <span class="sig">same graph, same bytes</span></p>
+        <div class="prose">
+          <p>The point of the exercise is that the two paths meet. The recipe string from <code>profile</code> and the graph assembled here are the same object described twice, so the frames compare equal byte for byte.</p>
+        </div>
+        <div class="stack">
+          <div class="lbl">python</div>
+          <div class="code"><pre>import geozl
+
+rows = geozl.<span class="fn">profile</span>(tile)
+high = geozl.<span class="fn">compress</span>(tile, graph=rows[0]['graph'])   <span class="c"># the recipe string</span>
+low  = cctx.<span class="fn">compress</span>([zl.Input(zl.Type.Numeric, tile.reshape(-1))])
+
+high == low</pre></div>
+          <div class="out">planar&gt;zigzag&gt;transpose&gt;entropy
+116 522 B  ==  116 522 B   <b>True</b></div>
+        </div>
+        <p class="note">Which is the honest argument for staying on the high-level API. Everything on this page is what <code>geozl.compress</code> already does, forty-eight times, before it hands you the winner. Drop down here when you want a predictor that does not exist yet, a routing decision the grid does not offer, or a graph pinned into a pipeline where the search is a cost you refuse to pay twice.</p>
+      </section>
+
+      <section id="reference">
+        <p class="sec-h"><span class="sq"></span> reference</p>
+
+        <p class="subh">Compressor</p>
+        <div class="spec2">
+          <div class="row"><span class="nm">build_static_graph</span><span class="ty">node, list</span><span class="ds"><b>The general form.</b> Takes a <code>NodeID</code> and one successor <code>GraphID</code> per outcome. Variable outputs count as a single outcome.</span></div>
+          <div class="row"><span class="nm">node(compressor, successor)</span><span class="ty">→ GraphID</span><span class="ds">The shorthand. Node objects are callable, and the successor may be a <code>GraphID</code> or an unparameterized graph object.</span></div>
+          <div class="row"><span class="nm">parameterize_node</span><span class="ty">→ NodeID</span><span class="ds">Attaches <code>local_params</code> or a stable <code>name</code> to a node without rebuilding it. Where the tile width reaches <code>planar</code>.</span></div>
+          <div class="row"><span class="nm">parameterize_graph</span><span class="ty">→ GraphID</span><span class="ds">The same for graphs, and how a function graph receives its <code>custom_graphs</code> and <code>custom_nodes</code>.</span></div>
+          <div class="row"><span class="nm">register_custom_encoder</span><span class="ty">→ NodeID</span><span class="ds">Adds a codec OpenZL does not ship. The matching decoder goes on the <code>DCtx</code>, not here.</span></div>
+          <div class="row"><span class="nm">register_function_graph</span><span class="ty">→ GraphID</span><span class="ds">Adds a graph whose body runs at compression time with the streams available.</span></div>
+          <div class="row"><span class="nm">register_selector_graph</span><span class="ty">→ GraphID</span><span class="ds">Adds a graph that inspects one input and returns one of the graphs it was given. Cheaper than a function graph when all you need is a choice.</span></div>
+          <div class="row"><span class="nm">select_starting_graph</span><span class="ty">GraphID</span><span class="ds">Names the head. Nothing compresses until this is set.</span></div>
+          <div class="row"><span class="nm">serialize · serialize_to_json</span><span class="ty">→ bytes · str</span><span class="ds">Writes the graph out. Fails on unnamed custom nodes.</span></div>
+        </div>
+
+        <p class="subh">CCtx and DCtx</p>
+        <div class="spec2">
+          <div class="row"><span class="nm">ref_compressor</span><span class="ty">Compressor</span><span class="ds">Borrows the graph for this context. The compressor stays alive and reusable across every tile in the dataset.</span></div>
+          <div class="row"><span class="nm">set_parameter</span><span class="ty">CParam, int</span><span class="ds"><b>FormatVersion is required.</b> Also <code>CompressionLevel</code>, <code>DecompressionLevel</code>, <code>CompressedChecksum</code>, <code>ContentChecksum</code>, <code>MinStreamSize</code>, <code>PermissiveCompression</code>.</span></div>
+          <div class="row"><span class="nm">compress</span><span class="ty">list[Input] → bytes</span><span class="ds">Takes a list, because a graph may have several inputs. geozl always passes exactly one.</span></div>
+          <div class="row"><span class="nm">decompress</span><span class="ty">bytes → list[Output]</span><span class="ds">Needs no compressor. Returns one output per leaf the frame declares.</span></div>
+          <div class="row"><span class="nm">register_custom_decoder</span><span class="ty">CustomDecoder</span><span class="ds">Required once per custom codec id in the frame, and the seam in the universal decompressor.</span></div>
+        </div>
+
+        <p class="subh">Custom codec</p>
+        <div class="spec2">
+          <div class="row"><span class="nm">multi_input_description</span><span class="ty">→ description</span><span class="ds">The contract. <code>id</code>, <code>input_types</code>, <code>singleton_output_types</code> and optionally <code>variable_output_types</code>. Encoder and decoder must agree exactly.</span></div>
+          <div class="row"><span class="nm">state.create_output</span><span class="ty">idx, elts, width</span><span class="ds">Allocates output <code>idx</code> with room for <code>elts</code> elements of <code>width</code> bytes. Write through <code>mut_content</code>, then <code>commit</code> the real count.</span></div>
+          <div class="row"><span class="nm">state.send_codec_header</span><span class="ty">bytes</span><span class="ds">Side channel for anything the decoder needs that is not in the stream. Read back as <code>state.codec_header</code>.</span></div>
+          <div class="row"><span class="nm">state.get_local_int_param</span><span class="ty">key → int</span><span class="ds">Reads a value attached at build time by <code>parameterize_node</code>. Compile-time configuration, not per-frame data.</span></div>
+        </div>
+
+        <p class="subh">Function graph</p>
+        <div class="spec2">
+          <div class="row"><span class="nm">function_graph_description</span><span class="ty">→ description</span><span class="ds"><code>input_type_masks</code> declares what the graph accepts. <code>custom_graphs</code> and <code>custom_nodes</code> can be declared here or supplied later by <code>parameterize_graph</code>.</span></div>
+          <div class="row"><span class="nm">state.edges</span><span class="ty">list[Edge]</span><span class="ds">One edge per input, each wrapping a live stream you can read with <code>edge.input</code>.</span></div>
+          <div class="row"><span class="nm">edge.run_node</span><span class="ty">NodeID → list[Edge]</span><span class="ds">Runs a codec now and returns one edge per output. This is where a variable-output node finally has a known lane count.</span></div>
+          <div class="row"><span class="nm">edge.set_destination</span><span class="ty">GraphID</span><span class="ds">Closes the branch. Every edge must be either advanced or closed before the function returns.</span></div>
+          <div class="row"><span class="nm">state.custom_graphs</span><span class="ty">list[GraphID]</span><span class="ds">The graphs handed in at parameterization, in order. Keeps the routing logic independent of the backends it routes to.</span></div>
+        </div>
+
+        <p class="note">Names and signatures track <b>openzl 0.2.0</b>. OpenZL is explicit that its API and codec set will keep moving, so pin the version, and read <a href="https://facebook.github.io/openzl" target="_blank" rel="noopener noreferrer">the upstream docs</a> before porting a graph across a release.</p>
+      </section>
     </main>
 
     <footer class="colophon">
@@ -51,5 +821,67 @@
     </footer>
 
   </div>
+  <script src="assets/js/main.js"></script>
+  <script>
+  /* Tooltip del DAG. Mismo patron que los plots de api-high, pero aqui los nodos
+     son cajas grandes asi que basta con el hover directo sobre el grupo. */
+  (() => {
+    "use strict";
+    const dag = document.querySelector(".dag");
+    if (!dag) return;
+
+    const tip = document.createElement("div");
+    tip.className = "tip";
+    tip.setAttribute("role", "status");
+    document.body.appendChild(tip);
+
+    let current = null;
+
+    const hide = () => {
+      if (current) current.classList.remove("hi");
+      current = null;
+      tip.classList.remove("on");
+    };
+
+    const place = (x, y) => {
+      const w = tip.offsetWidth, h = tip.offsetHeight, pad = 16;
+      let left = x + pad, top = y - h - pad;
+      if (left + w > innerWidth - 8) left = x - w - pad;
+      if (top < 8) top = y + pad;
+      tip.style.left = Math.max(8, left) + "px";
+      tip.style.top = top + "px";
+      tip.classList.add("on");
+    };
+
+    const show = (el, x, y) => {
+      if (current !== el) {
+        if (current) current.classList.remove("hi");
+        current = el;
+        el.classList.add("hi");
+        const d = el.dataset;
+        tip.innerHTML = '<span class="t-g">' + d.n + "</span><dl>"
+          + "<dt>type</dt><dd>" + d.t + "</dd>"
+          + "<dt>elements</dt><dd>" + d.e + "</dd>"
+          + "<dt>width</dt><dd>" + d.w + "</dd>"
+          + '<dt>bytes</dt><dd class="hot">' + d.b + "</dd></dl>";
+      }
+      place(x, y);
+    };
+
+    dag.querySelectorAll("g.node").forEach((g) => {
+      g.setAttribute("tabindex", "0");
+      g.addEventListener("pointermove", (e) => show(g, e.clientX, e.clientY));
+      g.addEventListener("pointerleave", hide);
+      g.addEventListener("focus", () => {
+        const b = g.getBoundingClientRect();
+        show(g, b.left + b.width / 2, b.top + b.height / 2);
+      });
+      g.addEventListener("blur", hide);
+    });
+
+    addEventListener("scroll", hide, { passive: true });
+    addEventListener("resize", hide);
+  })();
+  </script>
 </body>
 </html>
