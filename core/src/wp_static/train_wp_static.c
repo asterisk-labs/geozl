@@ -9,6 +9,8 @@
 
 #include "train_wp_static.h"
 
+#include "common/raster.h" // geozl_row_width
+
 #include <math.h>
 #include <stddef.h>
 #include <string.h>
@@ -57,7 +59,7 @@ static int solve4(double A[4][4], double b[4], double x[4]) {
 }
 
 // Largest neighbour magnitude, to scale the normal equations. Zero maps to one.
-#define WP_MAXABS(T)                                                          \
+#define WP_MAXABS(T)                                                           \
   do {                                                                         \
     const T *s = (const T *)src;                                               \
     for (size_t r = 2; r < rows; ++r) {                                        \
@@ -117,8 +119,9 @@ static double plane_H(const uint32_t *hist, size_t nb) {
   return H;
 }
 
-// 8/16 bit scoring, unchanged: 16 bit zigzag into a lo (plane 0) and hi (plane 1).
-#define WP_SCORE_NARROW(T, ZCAST)                                             \
+// 8/16 bit scoring, unchanged: 16 bit zigzag into a lo (plane 0) and hi (plane
+// 1).
+#define WP_SCORE_NARROW(T, ZCAST)                                              \
   do {                                                                         \
     const T *s = (const T *)src;                                               \
     for (size_t r = 0; r < rows; ++r) {                                        \
@@ -147,7 +150,7 @@ static double plane_H(const uint32_t *hist, size_t nb) {
 
 // 32/64 bit scoring: residual formed exactly as the encoder (unsigned K, signed
 // shift, native-width subtract), then zigzagged and split into NB byte planes.
-#define WP_SCORE_WIDE(T, NB, BITS)                                            \
+#define WP_SCORE_WIDE(T, NB, BITS)                                             \
   do {                                                                         \
     const T *s = (const T *)src;                                               \
     for (size_t r = 0; r < rows; ++r) {                                        \
@@ -164,8 +167,8 @@ static double plane_H(const uint32_t *hist, size_t nb) {
           const uint64_t cN = (uint64_t)cf[m][0], cNW = (uint64_t)cf[m][1],    \
                          cNE = (uint64_t)cf[m][2], cNN = (uint64_t)cf[m][3];   \
           const uint64_t acc =                                                 \
-              cN * N + cNW * NW + cNE * NE + cNN * NN + (uint64_t)rnd[m];       \
-          const int64_t K = (int64_t)acc >> sh[m];                            \
+              cN * N + cNW * NW + cNE * NE + cNN * NN + (uint64_t)rnd[m];      \
+          const int64_t K = (int64_t)acc >> sh[m];                             \
           const T res = (T)(s[row + c] - (Wv + (uint64_t)K));                  \
           const T sgn = (T)(res >> (BITS - 1));                                \
           const T zz = (T)(((T)(res << 1)) ^ (T)((T)0 - sgn));                 \
@@ -176,21 +179,24 @@ static double plane_H(const uint32_t *hist, size_t nb) {
     }                                                                          \
   } while (0)
 
-void wp_static_train(int16_t coeffs[4], uint8_t *shift, const void *src,
-                     size_t width, size_t nb_elts, size_t elt_width) {
+int wp_static_train(int16_t coeffs[4], uint8_t *shift, const void *src,
+                    size_t width, size_t nb_elts, size_t elt_width) {
   coeffs[0] = 1;
   coeffs[1] = -1;
   coeffs[2] = 0;
   coeffs[3] = 0;
   *shift = 0;
 
-  if (nb_elts == 0 ||
-      (elt_width != 1 && elt_width != 2 && elt_width != 4 && elt_width != 8))
-    return;
-  const size_t w = (width == 0 || width > nb_elts) ? nb_elts : width;
+  if (elt_width != 1 && elt_width != 2 && elt_width != 4 && elt_width != 8)
+    return 1;
+  // covers nb_elts == 0 and a width that does not divide it
+  const size_t w = geozl_row_width(width, nb_elts);
+  if (w == 0)
+    return 1;
+  // too small to fit a predictor, the defaults above stand
   const size_t rows = nb_elts / w;
   if (rows < 3 || w < 3)
-    return;
+    return 0;
 
   double sc = 1.0;
   if (elt_width >= 4) {
@@ -226,7 +232,7 @@ void wp_static_train(int16_t coeffs[4], uint8_t *shift, const void *src,
 
   double a[4];
   if (!solve4(M, v, a))
-    return;
+    return 0; // singular, the defaults set at the top stand
 
   int16_t cf[WP_MAX_CAND][4];
   uint8_t sh[WP_MAX_CAND];
@@ -261,7 +267,8 @@ void wp_static_train(int16_t coeffs[4], uint8_t *shift, const void *src,
     ++nc;
   }
 
-  // One 256-bin plane per sample byte: planes 0-1 for narrow, eltWidth for wide.
+  // One 256-bin plane per sample byte: planes 0-1 for narrow, eltWidth for
+  // wide.
   static uint32_t hist[WP_MAX_CAND][WP_MAX_PLANES][256];
   memset(hist, 0, sizeof hist);
   int nplanes;
@@ -289,10 +296,10 @@ void wp_static_train(int16_t coeffs[4], uint8_t *shift, const void *src,
   for (int p = 0; p < nplanes; ++p)
     planar_cost += plane_H(hist[0][p], nb_elts);
 
-  // The order-0 byte-plane proxy is close to the coded size at 1/2 bytes, so the
-  // choice is a plain argmin there (margin 0, unchanged). At 4/8 bytes the proxy
-  // is weaker, so a candidate must beat planar by a small relative margin to be
-  // taken, which stops a tile from ever coming out larger than planar.
+  // The order-0 byte-plane proxy is close to the coded size at 1/2 bytes, so
+  // the choice is a plain argmin there (margin 0, unchanged). At 4/8 bytes the
+  // proxy is weaker, so a candidate must beat planar by a small relative margin
+  // to be taken, which stops a tile from ever coming out larger than planar.
   const double margin = (elt_width >= 4) ? planar_cost * 0.003 : 0.0;
 
   int best = 0;
@@ -312,4 +319,5 @@ void wp_static_train(int16_t coeffs[4], uint8_t *shift, const void *src,
   coeffs[2] = cf[best][2];
   coeffs[3] = cf[best][3];
   *shift = sh[best];
+  return 0;
 }

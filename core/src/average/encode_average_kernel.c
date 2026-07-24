@@ -4,6 +4,8 @@
 
 #include "encode_average_kernel.h"
 
+#include "common/raster.h" // geozl_row_width
+
 #include <stdint.h>
 
 #define AVERAGE_FWD(T)                                                         \
@@ -22,11 +24,13 @@
     }                                                                          \
   } while (0)
 
-void average_encode(void *dst, const void *src, size_t width, size_t nbElts,
-                    size_t eltWidth) {
-  if (nbElts == 0)
-    return;
-  const size_t w = (width == 0 || width > nbElts) ? nbElts : width;
+int average_encode(void *dst, const void *src, size_t width, size_t nbElts,
+                   size_t eltWidth) {
+  // A width that does not divide nbElts would leave the last row short,
+  // and the row loops below assume every row is complete.
+  const size_t w = geozl_row_width(width, nbElts);
+  if (w == 0)
+    return 1;
   switch (eltWidth) {
   case 1:
     AVERAGE_FWD(uint8_t);
@@ -41,8 +45,9 @@ void average_encode(void *dst, const void *src, size_t width, size_t nbElts,
     AVERAGE_FWD(uint64_t);
     break;
   default:
-    break;
+    return 1; // eltWidth must be 1, 2, 4 or 8
   }
+  return 0;
 }
 
 #undef AVERAGE_FWD

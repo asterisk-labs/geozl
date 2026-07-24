@@ -14,6 +14,7 @@
 #include <string.h>
 
 ZL_Report DI_geozl_quant_linear(ZL_Decoder *dictx, const ZL_Input *ins[]) {
+  ZL_RESULT_DECLARE_SCOPE_REPORT(dictx);
   assert(ins != NULL);
   const ZL_Input *in = ins[0];
   assert(in != NULL);
@@ -46,13 +47,12 @@ ZL_Report DI_geozl_quant_linear(ZL_Decoder *dictx, const ZL_Input *ins[]) {
     return ZL_returnError(ZL_ErrorCode_corruption);
 
   ZL_Output *out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);
-  if (out == NULL)
-    return ZL_returnError(ZL_ErrorCode_allocation);
+  ZL_ERR_IF_NULL(out, allocation);
 
-  quant_linear_decode(ZL_Output_ptr(out), ZL_Input_ptr(in), scale, dtype,
-                      nbElts);
+  if (quant_linear_decode(ZL_Output_ptr(out), ZL_Input_ptr(in), scale, dtype,
+                          nbElts))
+    return ZL_returnError(ZL_ErrorCode_corruption);
 
-  if (ZL_isError(ZL_Output_commit(out, nbElts)))
-    return ZL_returnError(ZL_ErrorCode_GENERIC);
+  ZL_ERR_IF_ERR(ZL_Output_commit(out, nbElts));
   return ZL_returnSuccess();
 }

@@ -1,8 +1,6 @@
 #include "decode_delta_w_binding.h"
 #include "decode_delta_w_kernel.h"
 
-#include "common/raster.h" // geozl_row_width
-
 #include "openzl/zl_data.h"
 #include "openzl/zl_errors.h"
 #include "openzl/zl_errors_types.h"
@@ -14,6 +12,7 @@
 #include <string.h>
 
 ZL_Report DI_geozl_delta_w(ZL_Decoder *dictx, const ZL_Input *ins[]) {
+  ZL_RESULT_DECLARE_SCOPE_REPORT(dictx);
   assert(ins != NULL);
   const ZL_Input *in = ins[0];
   assert(in != NULL);
@@ -29,16 +28,14 @@ ZL_Report DI_geozl_delta_w(ZL_Decoder *dictx, const ZL_Input *ins[]) {
   uint32_t width;
   memcpy(&width, header.start, sizeof(width));
 
-  if (nbElts != 0 && geozl_row_width(width, nbElts) == 0)
+  ZL_Output *out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);
+  ZL_ERR_IF_NULL(out, allocation);
+
+  // nbElts 0 is a valid empty stream, the kernel rejects it as a geometry
+  if (nbElts != 0 && delta_w_decode(ZL_Output_ptr(out), ZL_Input_ptr(in), width,
+                                    nbElts, eltWidth))
     return ZL_returnError(ZL_ErrorCode_corruption);
 
-  ZL_Output *out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);
-  if (out == NULL)
-    return ZL_returnError(ZL_ErrorCode_allocation);
-
-  delta_w_decode(ZL_Output_ptr(out), ZL_Input_ptr(in), width, nbElts, eltWidth);
-
-  if (ZL_isError(ZL_Output_commit(out, nbElts)))
-    return ZL_returnError(ZL_ErrorCode_GENERIC);
+  ZL_ERR_IF_ERR(ZL_Output_commit(out, nbElts));
   return ZL_returnSuccess();
 }

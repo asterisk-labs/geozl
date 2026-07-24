@@ -1,8 +1,6 @@
 #include "decode_wp_static_binding.h"
 #include "decode_wp_static_kernel.h"
 
-#include "common/raster.h" // geozl_row_width
-
 #include "openzl/zl_data.h"
 #include "openzl/zl_errors.h"
 #include "openzl/zl_errors_types.h"
@@ -14,6 +12,7 @@
 #include <string.h>
 
 ZL_Report DI_geozl_wp_static(ZL_Decoder *dictx, const ZL_Input *ins[]) {
+  ZL_RESULT_DECLARE_SCOPE_REPORT(dictx);
   assert(ins != NULL);
   const ZL_Input *in = ins[0];
   assert(in != NULL);
@@ -35,21 +34,18 @@ ZL_Report DI_geozl_wp_static(ZL_Decoder *dictx, const ZL_Input *ins[]) {
   shift = hb[4];
   memcpy(coeffs, hb + 5, 4 * sizeof(int16_t));
 
-  if (nbElts != 0 && geozl_row_width(width, nbElts) == 0)
-    return ZL_returnError(ZL_ErrorCode_corruption);
-
   // the kernel folds the sum in 64-bit, so a shift of 64 or more is undefined
   if (shift >= 64)
     return ZL_returnError(ZL_ErrorCode_corruption);
 
   ZL_Output *out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);
-  if (out == NULL)
-    return ZL_returnError(ZL_ErrorCode_allocation);
+  ZL_ERR_IF_NULL(out, allocation);
 
-  wp_static_decode(ZL_Output_ptr(out), ZL_Input_ptr(in), width, nbElts,
-                   eltWidth, coeffs, shift);
+  // nbElts 0 is a valid empty stream, the kernel rejects it as a geometry
+  if (nbElts != 0 && wp_static_decode(ZL_Output_ptr(out), ZL_Input_ptr(in),
+                                      width, nbElts, eltWidth, coeffs, shift))
+    return ZL_returnError(ZL_ErrorCode_corruption);
 
-  if (ZL_isError(ZL_Output_commit(out, nbElts)))
-    return ZL_returnError(ZL_ErrorCode_GENERIC);
+  ZL_ERR_IF_ERR(ZL_Output_commit(out, nbElts));
   return ZL_returnSuccess();
 }

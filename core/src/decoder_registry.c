@@ -21,7 +21,9 @@
 // Each row instantiates a codec's DI_ descriptor macro against its CTid.
 #define REGISTER(ctid, DI_MACRO) DI_MACRO(ctid)
 
-// File scope so the ZL_STREAMTYPELIST compound literals have static storage.
+// One table entry per codec, keyed by CTid. OpenZL copies the stream-type
+// arrays into its own arena when the decoder is registered, so this only needs
+// to live until geozl_register_decoders returns.
 static const ZL_TypedDecoderDesc kDecoders[] = {
     REGISTER(GEOZL_CTID_DELTA_W, DI_DELTA_W),
     REGISTER(GEOZL_CTID_DELTA_N, DI_DELTA_N),

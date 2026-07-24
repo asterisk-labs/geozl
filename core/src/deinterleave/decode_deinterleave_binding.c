@@ -10,6 +10,7 @@
 #include <assert.h>
 
 ZL_Report DI_geozl_deinterleave(ZL_Decoder *dictx, const ZL_Input *ins[]) {
+  ZL_RESULT_DECLARE_SCOPE_REPORT(dictx);
   assert(ins != NULL);
   const ZL_Input *s0 = ins[0];
   const ZL_Input *s1 = ins[1];
@@ -28,13 +29,11 @@ ZL_Report DI_geozl_deinterleave(ZL_Decoder *dictx, const ZL_Input *ins[]) {
   const size_t nbElts = n0 + n1;
 
   ZL_Output *out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);
-  if (out == NULL)
-    return ZL_returnError(ZL_ErrorCode_allocation);
+  ZL_ERR_IF_NULL(out, allocation);
 
   deinterleave_join(ZL_Output_ptr(out), ZL_Input_ptr(s0), ZL_Input_ptr(s1),
                     nbElts, eltWidth);
 
-  if (ZL_isError(ZL_Output_commit(out, nbElts)))
-    return ZL_returnError(ZL_ErrorCode_GENERIC);
+  ZL_ERR_IF_ERR(ZL_Output_commit(out, nbElts));
   return ZL_returnSuccess();
 }

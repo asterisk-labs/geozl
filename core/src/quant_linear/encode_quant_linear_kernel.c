@@ -118,10 +118,10 @@ static float ql_half_to_float(uint16_t h) {
   return f;
 }
 
-void quant_linear_encode(void *dst, const void *src, double scale, int dtype,
-                         size_t nbElts) {
+int quant_linear_encode(void *dst, const void *src, double scale, int dtype,
+                        size_t nbElts) {
   if (dtype < QL_U8 || dtype > QL_F64)
-    return;
+    return 1;
   // A negative scale means store the reconstruction, not the index, so the
   // decoder only copies. Only integers can do that, their reconstruction has
   // the same type as the input. The step itself is the magnitude.
@@ -133,7 +133,7 @@ void quant_linear_encode(void *dst, const void *src, double scale, int dtype,
   if (scale == 0.0 || (scale == 1.0 && dtype <= QL_I64)) {
     size_t w[] = {1, 2, 4, 8, 1, 2, 4, 8, 2, 4, 8};
     memcpy(dst, src, nbElts * w[dtype]);
-    return;
+    return 0;
   }
   if (store_values) {
     switch ((ql_dtype)dtype) {
@@ -164,7 +164,7 @@ void quant_linear_encode(void *dst, const void *src, double scale, int dtype,
     default:
       break;
     }
-    return;
+    return 0;
   }
   switch ((ql_dtype)dtype) {
   case QL_U8:
@@ -211,4 +211,5 @@ void quant_linear_encode(void *dst, const void *src, double scale, int dtype,
     QL_ENC_F(double, int64_t, INT64_MIN, INT64_MAX);
     break;
   }
+  return 0;
 }

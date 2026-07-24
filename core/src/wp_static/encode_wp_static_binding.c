@@ -2,8 +2,6 @@
 #include "encode_wp_static_kernel.h"
 #include "train_wp_static.h"
 
-#include "common/raster.h" // geozl_row_width
-
 #include "openzl/zl_data.h"
 #include "openzl/zl_errors.h"
 #include "openzl/zl_errors_types.h"
@@ -15,6 +13,7 @@
 #include <string.h>
 
 ZL_Report EI_geozl_wp_static(ZL_Encoder *eictx, const ZL_Input *in) {
+  ZL_RESULT_DECLARE_SCOPE_REPORT(eictx);
   assert(in != NULL);
   assert(ZL_Input_type(in) == ZL_Type_numeric);
 
@@ -26,20 +25,18 @@ ZL_Report EI_geozl_wp_static(ZL_Encoder *eictx, const ZL_Input *in) {
                              ? (uint32_t)wp.paramValue
                              : (uint32_t)nbElts;
 
-  if (nbElts != 0 && geozl_row_width(width, nbElts) == 0)
-    return ZL_returnError(ZL_ErrorCode_node_invalid_input);
-
   // the weights are fit to this tile, then carried to the decoder in the header
   int16_t coeffs[4];
   uint8_t shift;
   wp_static_train(coeffs, &shift, ZL_Input_ptr(in), width, nbElts, eltWidth);
 
   ZL_Output *out = ZL_Encoder_createTypedStream(eictx, 0, nbElts, eltWidth);
-  if (out == NULL)
-    return ZL_returnError(ZL_ErrorCode_allocation);
+  ZL_ERR_IF_NULL(out, allocation);
 
-  wp_static_encode(ZL_Output_ptr(out), ZL_Input_ptr(in), width, nbElts,
-                   eltWidth, coeffs, shift);
+  // nbElts 0 is a valid empty stream, the kernel rejects it as a geometry
+  if (nbElts != 0 && wp_static_encode(ZL_Output_ptr(out), ZL_Input_ptr(in),
+                                      width, nbElts, eltWidth, coeffs, shift))
+    return ZL_returnError(ZL_ErrorCode_node_invalid_input);
 
   // header, little endian: uint32 width, uint8 shift, four int16
   // {cN,cNW,cNE,cNN}
@@ -49,7 +46,6 @@ ZL_Report EI_geozl_wp_static(ZL_Encoder *eictx, const ZL_Input *in) {
   memcpy(header + 5, coeffs, 4 * sizeof(int16_t));
   ZL_Encoder_sendCodecHeader(eictx, header, sizeof(header));
 
-  if (ZL_isError(ZL_Output_commit(out, nbElts)))
-    return ZL_returnError(ZL_ErrorCode_GENERIC);
+  ZL_ERR_IF_ERR(ZL_Output_commit(out, nbElts));
   return ZL_returnSuccess();
 }

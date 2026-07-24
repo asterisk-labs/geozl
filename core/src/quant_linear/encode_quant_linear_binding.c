@@ -13,6 +13,7 @@
 #include <string.h>
 
 ZL_Report EI_geozl_quant_linear(ZL_Encoder *eictx, const ZL_Input *in) {
+  ZL_RESULT_DECLARE_SCOPE_REPORT(eictx);
   assert(in != NULL);
   assert(ZL_Input_type(in) == ZL_Type_numeric);
 
@@ -38,11 +39,11 @@ ZL_Report EI_geozl_quant_linear(ZL_Encoder *eictx, const ZL_Input *in) {
     return ZL_returnError(ZL_ErrorCode_node_invalid_input);
 
   ZL_Output *out = ZL_Encoder_createTypedStream(eictx, 0, nbElts, eltWidth);
-  if (out == NULL)
-    return ZL_returnError(ZL_ErrorCode_allocation);
+  ZL_ERR_IF_NULL(out, allocation);
 
-  quant_linear_encode(ZL_Output_ptr(out), ZL_Input_ptr(in), scale, dtype,
-                      nbElts);
+  if (quant_linear_encode(ZL_Output_ptr(out), ZL_Input_ptr(in), scale, dtype,
+                          nbElts))
+    return ZL_returnError(ZL_ErrorCode_node_invalid_input);
 
   // header, little endian: uint8 dtype, then the scale as an IEEE double
   uint8_t header[1 + sizeof(double)];
@@ -50,7 +51,6 @@ ZL_Report EI_geozl_quant_linear(ZL_Encoder *eictx, const ZL_Input *in) {
   memcpy(header + 1, &scale, sizeof(scale));
   ZL_Encoder_sendCodecHeader(eictx, header, sizeof(header));
 
-  if (ZL_isError(ZL_Output_commit(out, nbElts)))
-    return ZL_returnError(ZL_ErrorCode_GENERIC);
+  ZL_ERR_IF_ERR(ZL_Output_commit(out, nbElts));
   return ZL_returnSuccess();
 }

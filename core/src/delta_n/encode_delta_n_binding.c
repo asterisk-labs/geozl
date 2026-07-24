@@ -1,8 +1,6 @@
 #include "encode_delta_n_binding.h"
 #include "encode_delta_n_kernel.h"
 
-#include "common/raster.h" // geozl_row_width
-
 #include "openzl/zl_data.h"
 #include "openzl/zl_errors.h"
 #include "openzl/zl_errors_types.h"
@@ -13,6 +11,7 @@
 #include <stdint.h>
 
 ZL_Report EI_geozl_delta_n(ZL_Encoder *eictx, const ZL_Input *in) {
+  ZL_RESULT_DECLARE_SCOPE_REPORT(eictx);
   // guaranteed by the engine and the codec signature
   assert(in != NULL);
   assert(ZL_Input_type(in) == ZL_Type_numeric);
@@ -26,20 +25,18 @@ ZL_Report EI_geozl_delta_n(ZL_Encoder *eictx, const ZL_Input *in) {
                              ? (uint32_t)wp.paramValue
                              : (uint32_t)nbElts;
 
-  if (nbElts != 0 && geozl_row_width(width, nbElts) == 0)
-    return ZL_returnError(ZL_ErrorCode_node_invalid_input);
-
   // allocation is controlled by the engine
   ZL_Output *out = ZL_Encoder_createTypedStream(eictx, 0, nbElts, eltWidth);
-  if (out == NULL)
-    return ZL_returnError(ZL_ErrorCode_allocation);
+  ZL_ERR_IF_NULL(out, allocation);
 
-  delta_n_encode(ZL_Output_ptr(out), ZL_Input_ptr(in), width, nbElts, eltWidth);
+  // nbElts 0 is a valid empty stream, the kernel rejects it as a geometry
+  if (nbElts != 0 && delta_n_encode(ZL_Output_ptr(out), ZL_Input_ptr(in), width,
+                                    nbElts, eltWidth))
+    return ZL_returnError(ZL_ErrorCode_node_invalid_input);
 
   // the width is all the decoder needs, it rides in the codec header
   ZL_Encoder_sendCodecHeader(eictx, &width, sizeof(width));
 
-  if (ZL_isError(ZL_Output_commit(out, nbElts)))
-    return ZL_returnError(ZL_ErrorCode_GENERIC);
+  ZL_ERR_IF_ERR(ZL_Output_commit(out, nbElts));
   return ZL_returnSuccess();
 }

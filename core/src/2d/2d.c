@@ -239,8 +239,10 @@ static void copy_err(char *dst, size_t cap, const char *src) {
   dst[n] = '\0';
 }
 
-// A named predictor seeds {predictor, id}. "none" is the id branch alone.
-// NULL or "" is unbiased: every predictor plus id.
+// Expands a method string into the predictor list geozl_2d_grid_c enumerates
+// for the Python profiler. A predictor name gives that predictor plus the id
+// pass; "none" or "id" gives the id pass alone; NULL or "" gives every
+// predictor. This does not drive compression, parse_candidate does.
 static int resolve_prior(const char *method, geozl_predictor *out,
                          size_t *outN) {
   static const struct {

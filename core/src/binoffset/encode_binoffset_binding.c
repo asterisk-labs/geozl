@@ -14,18 +14,19 @@
 // explicit header, so the decoder is always table-driven. The Python encoder
 // writes the same layout with optimizer-built tables.
 ZL_Report EI_geozl_binoffset(ZL_Encoder *eictx, const ZL_Input *in) {
+  ZL_RESULT_DECLARE_SCOPE_REPORT(eictx);
   assert(in != NULL);
   assert(ZL_Input_type(in) == ZL_Type_numeric);
 
   const size_t eltWidth = ZL_Input_eltWidth(in);
   const size_t nbElts = ZL_Input_numElts(in);
   if (eltWidth != 1 && eltWidth != 2 && eltWidth != 4 && eltWidth != 8)
-    return ZL_returnError(ZL_ErrorCode_GENERIC);
+    return ZL_returnError(ZL_ErrorCode_node_invalid_input);
 
   ZL_Output *s0 = ZL_Encoder_createTypedStream(eictx, 0, nbElts, 1);
   ZL_Output *s1 = ZL_Encoder_createTypedStream(eictx, 1, nbElts, eltWidth);
-  if (s0 == NULL || s1 == NULL)
-    return ZL_returnError(ZL_ErrorCode_allocation);
+  ZL_ERR_IF_NULL(s0, allocation);
+  ZL_ERR_IF_NULL(s1, allocation);
 
   binoffset_split(ZL_Output_ptr(s0), ZL_Output_ptr(s1), ZL_Input_ptr(in),
                   nbElts, eltWidth);
@@ -43,9 +44,7 @@ ZL_Report EI_geozl_binoffset(ZL_Encoder *eictx, const ZL_Input *in) {
   }
   ZL_Encoder_sendCodecHeader(eictx, header, (size_t)(e - header));
 
-  if (ZL_isError(ZL_Output_commit(s0, nbElts)))
-    return ZL_returnError(ZL_ErrorCode_GENERIC);
-  if (ZL_isError(ZL_Output_commit(s1, nbElts)))
-    return ZL_returnError(ZL_ErrorCode_GENERIC);
+  ZL_ERR_IF_ERR(ZL_Output_commit(s0, nbElts));
+  ZL_ERR_IF_ERR(ZL_Output_commit(s1, nbElts));
   return ZL_returnSuccess();
 }

@@ -18,11 +18,12 @@
 #define GEOZL_PARAM_FLOATMULT_BASE_HI 2
 
 ZL_Report EI_geozl_floatmult(ZL_Encoder *eictx, const ZL_Input *in) {
+  ZL_RESULT_DECLARE_SCOPE_REPORT(eictx);
   assert(in != NULL);
   const size_t eltWidth = ZL_Input_eltWidth(in);
   const size_t nbElts = ZL_Input_numElts(in);
   if (eltWidth != 4 && eltWidth != 8)
-    return ZL_returnError(ZL_ErrorCode_GENERIC);
+    return ZL_returnError(ZL_ErrorCode_node_invalid_input);
 
   ZL_IntParam lo =
       ZL_Encoder_getLocalIntParam(eictx, GEOZL_PARAM_FLOATMULT_BASE_LO);
@@ -30,7 +31,7 @@ ZL_Report EI_geozl_floatmult(ZL_Encoder *eictx, const ZL_Input *in) {
       ZL_Encoder_getLocalIntParam(eictx, GEOZL_PARAM_FLOATMULT_BASE_HI);
   if (lo.paramId != GEOZL_PARAM_FLOATMULT_BASE_LO ||
       hi.paramId != GEOZL_PARAM_FLOATMULT_BASE_HI)
-    return ZL_returnError(ZL_ErrorCode_GENERIC);
+    return ZL_returnError(ZL_ErrorCode_node_invalid_input);
   uint64_t baseBits = ((uint64_t)(uint32_t)hi.paramValue << 32) |
                       (uint64_t)(uint32_t)lo.paramValue;
   double base;
@@ -38,14 +39,12 @@ ZL_Report EI_geozl_floatmult(ZL_Encoder *eictx, const ZL_Input *in) {
 
   ZL_Output *s0 = ZL_Encoder_createTypedStream(eictx, 0, nbElts, eltWidth);
   ZL_Output *s1 = ZL_Encoder_createTypedStream(eictx, 1, nbElts, eltWidth);
-  if (s0 == NULL || s1 == NULL)
-    return ZL_returnError(ZL_ErrorCode_allocation);
+  ZL_ERR_IF_NULL(s0, allocation);
+  ZL_ERR_IF_NULL(s1, allocation);
   floatmult_split(ZL_Output_ptr(s0), ZL_Output_ptr(s1), ZL_Input_ptr(in),
                   nbElts, eltWidth, base, 1.0 / base);
   ZL_Encoder_sendCodecHeader(eictx, &baseBits, sizeof(double));
-  if (ZL_isError(ZL_Output_commit(s0, nbElts)))
-    return ZL_returnError(ZL_ErrorCode_GENERIC);
-  if (ZL_isError(ZL_Output_commit(s1, nbElts)))
-    return ZL_returnError(ZL_ErrorCode_GENERIC);
+  ZL_ERR_IF_ERR(ZL_Output_commit(s0, nbElts));
+  ZL_ERR_IF_ERR(ZL_Output_commit(s1, nbElts));
   return ZL_returnSuccess();
 }

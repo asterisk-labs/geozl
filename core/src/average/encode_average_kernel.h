@@ -4,7 +4,10 @@
 #include <stddef.h>
 
 // Forward Average predictor. @dst must not alias @src.
-void average_encode(void *dst, const void *src, size_t width, size_t nbElts,
-                    size_t eltWidth);
+// Returns 0 on success, nonzero when the geometry is rejected: eltWidth is
+// not 1, 2, 4 or 8, nbElts is 0, or width does not divide nbElts. On a
+// nonzero return dst is left untouched.
+int average_encode(void *dst, const void *src, size_t width, size_t nbElts,
+                   size_t eltWidth);
 
 #endif // GEOZL_CODECS_AVERAGE_ENCODE_KERNEL_H

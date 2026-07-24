@@ -12,6 +12,7 @@
 #include <string.h>
 
 ZL_Report DI_geozl_intmult(ZL_Decoder *dictx, const ZL_Input *ins[]) {
+  ZL_RESULT_DECLARE_SCOPE_REPORT(dictx);
   assert(ins != NULL);
   const ZL_Input *mults = ins[0];
   const ZL_Input *adjs = ins[1];
@@ -39,14 +40,12 @@ ZL_Report DI_geozl_intmult(ZL_Decoder *dictx, const ZL_Input *ins[]) {
     return ZL_returnError(ZL_ErrorCode_corruption);
 
   ZL_Output *out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);
-  if (out == NULL)
-    return ZL_returnError(ZL_ErrorCode_allocation);
+  ZL_ERR_IF_NULL(out, allocation);
 
   if (intmult_join(ZL_Output_ptr(out), ZL_Input_ptr(mults), ZL_Input_ptr(adjs),
                    nbElts, eltWidth, base))
     return ZL_returnError(ZL_ErrorCode_corruption);
 
-  if (ZL_isError(ZL_Output_commit(out, nbElts)))
-    return ZL_returnError(ZL_ErrorCode_GENERIC);
+  ZL_ERR_IF_ERR(ZL_Output_commit(out, nbElts));
   return ZL_returnSuccess();
 }

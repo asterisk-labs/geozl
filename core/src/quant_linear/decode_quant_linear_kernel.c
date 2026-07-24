@@ -48,7 +48,9 @@
       d[i] = (WT)((double)s[i] * scale);                                       \
   } while (0)
 
-// float to IEEE half, round to nearest even, for platforms without _Float16.
+// float to IEEE half, round half up on the magnitude, for platforms without
+// _Float16. Ties go away from zero, not to even; this is the decode output
+// path and does not affect the wire format.
 static uint16_t ql_float_to_half(float f) {
   uint32_t x;
   memcpy(&x, &f, sizeof(x));
@@ -71,14 +73,14 @@ static uint16_t ql_float_to_half(float f) {
   }
   uint16_t h = (uint16_t)(sign | ((uint32_t)exp << 10) | (man >> 13));
   if (man & 0x1000u)
-    h = (uint16_t)(h + 1); // round to nearest even-ish
+    h = (uint16_t)(h + 1); // round half up
   return h;
 }
 
-void quant_linear_decode(void *dst, const void *src, double scale, int dtype,
-                         size_t nbElts) {
+int quant_linear_decode(void *dst, const void *src, double scale, int dtype,
+                        size_t nbElts) {
   if (dtype < QL_U8 || dtype > QL_F64)
-    return;
+    return 1;
   // A negative scale means the encoder already stored the reconstruction, so
   // there is nothing to undo. scale 0 is exact, and on integers so is scale 1,
   // where the index is the value itself. All three are a plain copy.
@@ -87,7 +89,7 @@ void quant_linear_decode(void *dst, const void *src, double scale, int dtype,
   if (scale == 0.0 || (scale == 1.0 && dtype <= QL_I64)) {
     size_t w[] = {1, 2, 4, 8, 1, 2, 4, 8, 2, 4, 8};
     memcpy(dst, src, nbElts * w[dtype]);
-    return;
+    return 0;
   }
   switch ((ql_dtype)dtype) {
   case QL_U8:
@@ -128,4 +130,5 @@ void quant_linear_decode(void *dst, const void *src, double scale, int dtype,
     QL_DEC_F(double, int64_t);
     break;
   }
+  return 0;
 }

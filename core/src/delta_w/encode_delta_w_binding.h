@@ -6,10 +6,9 @@
 
 ZL_Report EI_geozl_delta_w(ZL_Encoder *eictx, const ZL_Input *in);
 
-// Descriptor for ZL_Compressor_registerTypedEncoder. Defined in the .c so the
-// object has a single definition and raises no unused warning in a translation
-// unit that only needs the function.
-
+// Encoder descriptor for ZL_Compressor_registerTypedEncoder, as an X-macro so
+// encoder_registry.c can list every codec in one place. The id is filled in at
+// the point of use.
 #define EI_DELTA_W(id)                                                         \
   {                                                                            \
     .gd = GEOZL_NUM1TO1_GRAPH(id), .transform_f = EI_geozl_delta_w,            \

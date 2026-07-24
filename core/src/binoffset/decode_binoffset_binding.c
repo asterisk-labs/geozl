@@ -12,6 +12,7 @@
 #include <string.h>
 
 ZL_Report DI_geozl_binoffset(ZL_Decoder *dictx, const ZL_Input *ins[]) {
+  ZL_RESULT_DECLARE_SCOPE_REPORT(dictx);
   assert(ins != NULL);
   const ZL_Input *bins = ins[0];
   const ZL_Input *offs = ins[1];
@@ -28,7 +29,8 @@ ZL_Report DI_geozl_binoffset(ZL_Decoder *dictx, const ZL_Input *ins[]) {
   if (ZL_Input_numElts(offs) != nbElts)
     return ZL_returnError(ZL_ErrorCode_corruption);
 
-  // header: uint8 nbBins in 1..=255, then nbBins x { lower : eltWidth, obits : uint8 }
+  // header: uint8 nbBins in 1..=255, then nbBins x { lower : eltWidth, obits :
+  // uint8 }
   ZL_RBuffer header = ZL_Decoder_getCodecHeader(dictx);
   if (header.size < 1)
     return ZL_returnError(ZL_ErrorCode_corruption);
@@ -55,15 +57,13 @@ ZL_Report DI_geozl_binoffset(ZL_Decoder *dictx, const ZL_Input *ins[]) {
   }
 
   ZL_Output *out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);
-  if (out == NULL)
-    return ZL_returnError(ZL_ErrorCode_allocation);
+  ZL_ERR_IF_NULL(out, allocation);
 
   if (binoffset_join_table(ZL_Output_ptr(out), ZL_Input_ptr(bins),
                            ZL_Input_ptr(offs), nbElts, eltWidth, lowers, obits,
                            nbBins))
     return ZL_returnError(ZL_ErrorCode_corruption);
 
-  if (ZL_isError(ZL_Output_commit(out, nbElts)))
-    return ZL_returnError(ZL_ErrorCode_GENERIC);
+  ZL_ERR_IF_ERR(ZL_Output_commit(out, nbElts));
   return ZL_returnSuccess();
 }
