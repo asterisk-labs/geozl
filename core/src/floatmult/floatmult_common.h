@@ -1,14 +1,21 @@
+// Derived from pcodec, https://github.com/pcodec/pcodec, Apache License 2.0.
+// Full licence text in LICENSE.pcodec at the root of this repository.
+// Ported to C from pco/src/data_types/float.rs, namely int_float_to_latent,
+// int_float_from_latent, to_latent_ordered and from_latent_ordered. Only f32
+// and f64 are covered. The port is partial and geozl does not reproduce
+// pcodec's wire format.
+
 #ifndef GEOZL_CODECS_FLOATMULT_COMMON_H
 #define GEOZL_CODECS_FLOATMULT_COMMON_H
 
 #include <stdint.h>
 #include <string.h>
 
-// Shared latent machinery for FloatMult, ported from pcodec
-// data_types/float.rs. int_float_to/from_latent map an integer valued float to
-// a latent that counts consecutive representable integers, so that
-// round(x/base) compresses as a small integer. to/from_latent_ordered is the
-// total order key used elsewhere.
+// Shared latent machinery for FloatMult. fm_int_to/from_latent map an integer
+// valued float to a latent that counts consecutive representable integers, so
+// that round(x/base) compresses as a small integer. fm_ord/fm_unord are the
+// total order key, used by the split and join kernels to measure the gap
+// between a value and its grid multiple.
 
 // ---- f32 ----
 static inline uint32_t fm_ord32(uint32_t bits) {

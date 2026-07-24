@@ -1,3 +1,8 @@
+// Derived from pcodec, https://github.com/pcodec/pcodec, Apache License 2.0.
+// Full licence text in LICENSE.pcodec at the root of this repository.
+// Ported to C from pcodec's IntMult mode. The port is partial and geozl does
+// not reproduce pcodec's wire format.
+
 #include "decode_intmult_kernel.h"
 
 #include <stdint.h>

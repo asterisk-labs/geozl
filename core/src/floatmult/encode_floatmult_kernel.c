@@ -1,3 +1,9 @@
+// Derived from pcodec, https://github.com/pcodec/pcodec, Apache License 2.0.
+// Full licence text in LICENSE.pcodec at the root of this repository.
+// Ported to C from pcodec's FloatMult mode. The latent mapping lives in
+// floatmult_common.h. The port is partial and geozl does not reproduce
+// pcodec's wire format.
+
 #include "encode_floatmult_kernel.h"
 #include "floatmult_common.h"
 

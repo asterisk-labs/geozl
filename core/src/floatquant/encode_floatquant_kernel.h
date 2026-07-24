@@ -1,3 +1,9 @@
+// Derived from pcodec, https://github.com/pcodec/pcodec, Apache License 2.0.
+// Full licence text in LICENSE.pcodec at the root of this repository.
+// Ported to C from pcodec's FloatQuant mode and the ordered latent mapping
+// in pco/src/data_types/float.rs. The port is partial and geozl does not
+// reproduce pcodec's wire format.
+
 #ifndef GEOZL_CODECS_FLOATQUANT_ENCODE_KERNEL_H
 #define GEOZL_CODECS_FLOATQUANT_ENCODE_KERNEL_H
 

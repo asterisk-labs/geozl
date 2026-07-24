@@ -1,3 +1,10 @@
+// Derived from pcodec, https://github.com/pcodec/pcodec, Apache License 2.0.
+// Full licence text in LICENSE.pcodec at the root of this repository.
+// Ported to C from pco/src/histograms.rs and pco/src/bin_optimization.rs,
+// plus the write_short_uints offset packer. Reworked for fixed width lanes
+// and a single chunk, with no delta or mode preprocessing. The port is
+// partial and geozl does not reproduce pcodec's wire format.
+
 #ifndef GEOZL_CODECS_BINOFFSET_ENCODE_KERNEL_H
 #define GEOZL_CODECS_BINOFFSET_ENCODE_KERNEL_H
 

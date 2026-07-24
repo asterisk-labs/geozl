@@ -1,3 +1,10 @@
+// Derived from pcodec, https://github.com/pcodec/pcodec, Apache License 2.0.
+// Full licence text in LICENSE.pcodec at the root of this repository.
+// Ported to C from pcodec's bin and offset reconstruction, the inverse of
+// pco/src/histograms.rs and the write_short_uints packer. Bounds and range
+// errors accumulate into a return flag instead of a Rust Result. The port is
+// partial and geozl does not reproduce pcodec's wire format.
+
 #include "decode_binoffset_kernel.h"
 
 #include <stdint.h>
