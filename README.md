@@ -16,7 +16,7 @@
 
 [OpenZL](https://github.com/facebook/openzl) is a new compression framework that treats compression as a graph of codecs. Each frame carries the recipe needed to decode it, which lets a universal OpenZL decoder follow the graph without knowing how the data was originally encoded.
 
-That model works well for one-dimensional streams, but it does not know that a raster has rows, columns, neighbours, or spatial structure. **geozl adds that missing spatial layer.**
+That model works well for one-dimensional streams, but it does not know that a raster has spatial structure. **geozl adds that missing spatial layer.**
 
 A geozl codec is an OpenZL graph node that understands raster tiles. It transforms a typed numeric stream, stores the metadata needed to reverse that transform in the codec header, and lets the rest of the OpenZL graph continue as usual.
 
@@ -43,7 +43,7 @@ geozl has two entry points: a high-level API that compresses a tile in one call,
 
 ### High-level API
 
-Two calls. `geozl.profile` measures every candidate graph on your tile and ranks them; `geozl.compress` runs the one you name and returns the frame. It never searches, so the slow call happens once and the fast one happens on every tile after that.
+Three calls. `geozl.profile` measures a set of candidate graph on your tile and ranks them; `geozl.compress` runs the one you name and returns the frame. It never searches, so the slow call happens once and the fast one happens on every tile after that. Finally, `geozl.decompress` reverses the frame back to a tile.
 
 ```python
 import numpy as np
@@ -52,15 +52,13 @@ import geozl
 tile = np.random.randint(0, 4096, (1024, 1024), dtype=np.uint16)
 
 rows = geozl.profile(tile)                        # the slow call, run once
-best = rows[0]["graph"]                           # "planar>zigzag>transpose>entropy"
+best = rows[0]["graph"]                           # e.g. "planar>zigzag>transpose>entropy"
 
 frame = geozl.compress(tile, method=best)         # the fast call, run always
 frame = geozl.compress(tile, method=best, max_error=2)  # near-lossless, absolute bound
 
 back = geozl.decompress(frame, dtype="uint16", width=1024)
 ```
-
-`method` is required and takes a full recipe string, exactly as `profile` spells it. Nothing is substituted, so a recipe that does not apply to the element width fails rather than falling back. The transpose and `store_lo` terminals need 2 to 8 bytes per element, so a `uint8` tile wants something like `planar>zigzag>entropy`.
 
 ### Low-level API
 
