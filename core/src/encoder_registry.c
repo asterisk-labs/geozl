@@ -9,10 +9,12 @@
 #include "floatquant/encode_floatquant_binding.h"
 #include "intmult/encode_intmult_binding.h"
 #include "med/encode_med_binding.h"
+#include "nodata/encode_nodata_binding.h"
 #include "planar/encode_planar_binding.h"
 #include "quant_linear/encode_quant_linear_binding.h"
 #include "wp_static/encode_wp_static_binding.h"
 
+#include "common/endian.h"                   // geozl_st_le64
 #include "common/graph_num1to1.h"            // GEOZL_PARAM_WIDTH
 #include "quant_linear/graph_quant_linear.h" // QUANT_LINEAR_PARAM_*
 
@@ -105,6 +107,32 @@ ZL_NodeID geozl_node_floatmult(ZL_Compressor *c, double base) {
   ZL_LocalParams lp = {.intParams = {.intParams = ps, .nbIntParams = 2}};
   ZL_NodeParameters np = {.localParams = &lp};
   ZL_RESULT_OF(ZL_NodeID) r = ZL_Compressor_parameterizeNode(c, node, &np);
+  return ZL_RES_isError(r) ? ZL_NODE_ILLEGAL : ZL_RES_value(r);
+}
+
+ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width, int mode,
+                            uint64_t valueBits) {
+  const ZL_TypedEncoderDesc desc = EI_NODATA(GEOZL_CTID_NODATA);
+  ZL_NodeID base = ZL_Compressor_registerTypedEncoder(c, &desc);
+  if (!ZL_NodeID_isValid(base))
+    return base;
+  // The pattern is 8 bytes whatever the sample width, a copy param rather than
+  // an int param because an int cannot carry a 64-bit double's bits.
+  uint8_t bits[8];
+  geozl_st_le64(bits, valueBits);
+  const ZL_IntParam ip[2] = {
+      {.paramId = GEOZL_NODATA_PARAM_WIDTH, .paramValue = (int)width},
+      {.paramId = GEOZL_NODATA_PARAM_MODE, .paramValue = mode},
+  };
+  const ZL_CopyParam cp = {.paramId = GEOZL_NODATA_PARAM_VALUE,
+                           .paramPtr = bits,
+                           .paramSize = sizeof(bits)};
+  ZL_LocalParams lp = {
+      .intParams = {.intParams = ip, .nbIntParams = 2},
+      .copyParams = {.copyParams = &cp, .nbCopyParams = 1},
+  };
+  ZL_NodeParameters np = {.localParams = &lp};
+  ZL_RESULT_OF(ZL_NodeID) r = ZL_Compressor_parameterizeNode(c, base, &np);
   return ZL_RES_isError(r) ? ZL_NODE_ILLEGAL : ZL_RES_value(r);
 }
 

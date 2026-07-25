@@ -19,6 +19,9 @@
 #include "openzl/codecs/zl_zigzag.h"     // ZL_NODE_ZIGZAG
 #include "openzl/codecs/zl_zstd.h"       // ZL_GRAPH_ZSTD
 
+#include "nodata/encode_nodata_binding.h" // GEOZL_NODATA_MODE_*
+#include "quant_linear/quant_linear_dtype.h" // ql_dtype
+
 #include <float.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -280,27 +283,73 @@ static int resolve_prior(const char *method, geozl_predictor *out,
 
 // One candidate, built alone, so nothing else is registered in the compressor.
 // quant_linear is prepended for lossy. ILLEGAL here means the pair does not
-// apply at this element width, not that the name was wrong; the caller has
-// already parsed it.
+// apply at this element width, not that the name was wrong.
+static int nodata_bits(double v, int dtype, size_t eltWidth, uint64_t *out) {
+  if (dtype == QL_F32 && eltWidth == 4) {
+    const float f = (float)v;
+    uint32_t b;
+    memcpy(&b, &f, sizeof(b));
+    *out = b;
+    return 0;
+  }
+  if (dtype == QL_F64 && eltWidth == 8) {
+    uint64_t b;
+    memcpy(&b, &v, sizeof(b));
+    *out = b;
+    return 0;
+  }
+  if (dtype <= QL_I64) { // the integer codes, signed and unsigned alike
+    const uint64_t bits = (uint64_t)(int64_t)v;
+    *out = (eltWidth == 8) ? bits : (bits & (((uint64_t)1 << (8 * eltWidth)) - 1));
+    return 0;
+  }
+  return 1; // half floats carry no sentinel, NaN still works on them
+}
+
+// The nodata node goes in front of everything, quant_linear included, because
+// a quantizer has no sane answer for a sample that was never measured.
 static ZL_GraphID geozl_2d_graph(ZL_Compressor *c, geozl_predictor p,
                                  geozl_terminal t, uint32_t width,
-                                 size_t eltWidth, double max_error, int dtype) {
+                                 size_t eltWidth, double max_error, int dtype,
+                                 int nodataMode, double nodataValue) {
   ZL_GraphID sel = build_candidate(c, p, t, width, eltWidth);
   if (!ZL_GraphID_isValid(sel))
     return ZL_GRAPH_ILLEGAL;
 
-  if (max_error < 0.0)
+  if (max_error >= 0.0) {
+    ZL_NodeID q = geozl_node_quant_linear(c, max_error, dtype);
+    if (!ZL_NodeID_isValid(q))
+      return ZL_GRAPH_ILLEGAL;
+    sel = ZL_Compressor_registerStaticGraph_fromNode1o(c, q, sel);
+    if (!ZL_GraphID_isValid(sel))
+      return ZL_GRAPH_ILLEGAL;
+  }
+
+  if (nodataMode == GEOZL_NODATA_NONE)
     return sel;
-  ZL_NodeID q = geozl_node_quant_linear(c, max_error, dtype);
-  if (!ZL_NodeID_isValid(q))
+
+  uint64_t bits = 0;
+  int mode = GEOZL_NODATA_MODE_NAN;
+  if (nodataMode == GEOZL_NODATA_VALUE) {
+    if (nodata_bits(nodataValue, dtype, eltWidth, &bits))
+      return ZL_GRAPH_ILLEGAL;
+    mode = GEOZL_NODATA_MODE_VALUE;
+  }
+
+  ZL_NodeID nd = geozl_node_nodata(c, width, mode, bits);
+  if (!ZL_NodeID_isValid(nd))
     return ZL_GRAPH_ILLEGAL;
-  return ZL_Compressor_registerStaticGraph_fromNode1o(c, q, sel);
+  // Outcome 0 is the raster and carries on down the recipe, outcome 1 is the
+  // mask.
+  return ZL_Compressor_registerStaticGraph_fromNode(
+      c, nd, ZL_GRAPHLIST(sel, ZL_GRAPH_COMPRESS_GENERIC));
 }
 
 // errCtx receives the reason on failure and an empty string on success,
 // truncated to errCtxSize. Pass NULL to drop it.
 static ZL_Report compress_impl(const char *method, uint32_t width,
-                               double max_error, int dtype, const void *src,
+                               double max_error, int dtype, int nodataMode,
+                               double nodataValue, const void *src,
                                size_t numElts, size_t eltWidth, void *dst,
                                size_t dstCapacity, size_t *outSize,
                                char *errCtx, size_t errCtxSize, int noChecksum) {
@@ -338,8 +387,8 @@ static ZL_Report compress_impl(const char *method, uint32_t width,
   ZL_TypedRef *in = NULL;
   ZL_CCtx *cctx = NULL;
 
-  ZL_GraphID g =
-      geozl_2d_graph(c, pred, term, width, eltWidth, max_error, dtype);
+  ZL_GraphID g = geozl_2d_graph(c, pred, term, width, eltWidth, max_error,
+                                dtype, nodataMode, nodataValue);
   if (!ZL_GraphID_isValid(g)) {
     if (has_err)
       snprintf(errCtx, errCtxSize,
@@ -408,25 +457,27 @@ done:
 
 // errCtx receives the reason on failure and an empty string on success.
 ZL_Report geozl_2d_compress(const char *method, uint32_t width,
-                            double max_error, int dtype, const void *src,
-                            size_t numElts, size_t eltWidth, void *dst,
-                            size_t dstCapacity, size_t *outSize, char *errCtx,
-                            size_t errCtxSize) {
-  return compress_impl(method, width, max_error, dtype, src, numElts, eltWidth,
-                       dst, dstCapacity, outSize, errCtx, errCtxSize, 0);
+                            double max_error, int dtype, int nodataMode,
+                            double nodataValue, const void *src, size_t numElts,
+                            size_t eltWidth, void *dst, size_t dstCapacity,
+                            size_t *outSize, char *errCtx, size_t errCtxSize) {
+  return compress_impl(method, width, max_error, dtype, nodataMode, nodataValue,
+                       src, numElts, eltWidth, dst, dstCapacity, outSize,
+                       errCtx, errCtxSize, 0);
 }
 
 // Binding entry: like geozl_2d_compress but returns 0 on success or the
 // ZL_ErrorCode on failure, keeping ZL_Report out of foreign bindings. The
 // compressed size lands in *outSize on success.
 GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
-                                  double max_error, int dtype, const void *src,
+                                  double max_error, int dtype, int nodataMode,
+                                  double nodataValue, const void *src,
                                   size_t numElts, size_t eltWidth, void *dst,
                                   size_t dstCapacity, size_t *outSize,
                                   char *errCtx, size_t errCtxSize) {
-  ZL_Report r = geozl_2d_compress(method, width, max_error, dtype, src, numElts,
-                                  eltWidth, dst, dstCapacity, outSize, errCtx,
-                                  errCtxSize);
+  ZL_Report r = geozl_2d_compress(method, width, max_error, dtype, nodataMode,
+                                  nodataValue, src, numElts, eltWidth, dst,
+                                  dstCapacity, outSize, errCtx, errCtxSize);
   return ZL_isError(r) ? (int)ZL_errorCode(r) : 0;
 }
 
@@ -485,10 +536,11 @@ static double now_sec(void) {
 // the first failing round trip. compSize gets the frame size, encSec/decSec the
 // best (minimum) time of the reps.
 GEOZL_API int geozl_2d_bench_c(const char *method, uint32_t width,
-                               double max_error, int dtype,
-                               const void *src, size_t numElts, size_t eltWidth,
-                               size_t reps, size_t *compSize, double *encSec,
-                               double *decSec, char *errCtx, size_t errCtxSize) {
+                               double max_error, int dtype, int nodataMode,
+                               double nodataValue, const void *src,
+                               size_t numElts, size_t eltWidth, size_t reps,
+                               size_t *compSize, double *encSec, double *decSec,
+                               char *errCtx, size_t errCtxSize) {
   // reps == 0 would leave cbuf unwritten and the timings at DBL_MAX
   if (reps == 0)
     return (int)ZL_ErrorCode_parameter_invalid;
@@ -502,8 +554,10 @@ GEOZL_API int geozl_2d_bench_c(const char *method, uint32_t width,
   size_t sz = 0;
   for (size_t i = 0; i < reps; ++i) {
     double t0 = now_sec();
-    ZL_Report r = compress_impl(method, width, max_error, dtype, src, numElts,
-                                eltWidth, cbuf, cap, &sz, errCtx, errCtxSize, 1);
+    ZL_Report r =
+        compress_impl(method, width, max_error, dtype, nodataMode, nodataValue,
+                      src, numElts, eltWidth, cbuf, cap, &sz, errCtx,
+                      errCtxSize, 1);
     double dt = now_sec() - t0;
     if (ZL_isError(r)) {
       free(cbuf);

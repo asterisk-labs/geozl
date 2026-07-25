@@ -9,6 +9,7 @@
 #include "floatquant/decode_floatquant_binding.h"
 #include "intmult/decode_intmult_binding.h"
 #include "med/decode_med_binding.h"
+#include "nodata/decode_nodata_binding.h"
 #include "planar/decode_planar_binding.h"
 #include "quant_linear/decode_quant_linear_binding.h"
 #include "wp_static/decode_wp_static_binding.h"
@@ -36,6 +37,7 @@ static const ZL_TypedDecoderDesc kDecoders[] = {
     REGISTER(GEOZL_CTID_INTMULT, DI_INTMULT),
     REGISTER(GEOZL_CTID_FLOATQUANT, DI_FLOATQUANT),
     REGISTER(GEOZL_CTID_FLOATMULT, DI_FLOATMULT),
+    REGISTER(GEOZL_CTID_NODATA, DI_NODATA),
     REGISTER(GEOZL_CTID_QUANT_LINEAR, DI_QUANT_LINEAR),
 };
 

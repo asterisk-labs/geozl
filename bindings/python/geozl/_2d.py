@@ -13,6 +13,21 @@ PRIORS = ("planar", "med", "delta_w", "delta_n", "average", "wp_static",
 # An OpenZL numeric stream is 1, 2, 4 or 8 bytes per element.
 _ELT_WIDTHS = frozenset((1, 2, 4, 8))
 
+# geozl_nodata_mode
+_NODATA_NONE, _NODATA_NAN, _NODATA_VALUE = 0, 1, 2
+
+
+def _nodata_args(arr, nodata):
+    """Pick the mode the C side gets. A declared sentinel wins. Otherwise a
+    float tile that actually holds NaN gets the automatic path, and everything
+    else gets nothing, so a tile with no missing samples never pays for the
+    mask stream."""
+    if nodata is not None:
+        return _NODATA_VALUE, float(nodata)
+    if arr.dtype.kind == "f" and np.isnan(arr).any():
+        return _NODATA_NAN, 0.0
+    return _NODATA_NONE, 0.0
+
 
 def _is_native(dt):
     return dt.byteorder in ("=", "|") or dt.newbyteorder("=") == dt
@@ -34,12 +49,17 @@ def _prepare(tile, width):
     return arr, int(width), elt
 
 
-def compress(tile, *, method, width=None, max_error=None):
+def compress(tile, *, method, width=None, max_error=None, nodata=None):
     """Compress a 2d tile into one OpenZL frame through the graph method names.
 
     method is a recipe, the same string profile puts in its "graph" column, and
     it has to apply to the element width: the transpose and store_lo terminals
     want 2 to 8 bytes. max_error <= 0 is lossless. Returns the frame as bytes.
+
+    nodata declares the value that marks a sample as never measured, following
+    GDAL, where nodata is a property of the band rather than a switch. Left
+    unset a float tile still gets its NaN handled, since a NaN says so itself,
+    while a sentinel such as -9999 cannot be told from a measurement.
     """
     if not isinstance(method, str) or not method:
         raise ValueError(f"method must be a recipe name, got {method!r}")
@@ -48,13 +68,19 @@ def compress(tile, *, method, width=None, max_error=None):
     arr, width, elt = _prepare(tile, width)
     n = arr.size
 
+    # The dtype code goes through even when lossless, the nodata codec needs it
+    # to read a sentinel at the right width and signedness.
+    code = dtype_code(arr.dtype)
     if max_error is None or max_error <= 0:
-        err, code = LOSSLESS, 0
+        err, code = LOSSLESS, 0 if code is None else code
     else:
-        code = dtype_code(arr.dtype)
         if code is None:
             raise ValueError(f"quant_linear does not support dtype {arr.dtype}")
         err = float(max_error)
+
+    nd_mode, nd_value = _nodata_args(arr, nodata)
+    if nd_mode == _NODATA_VALUE and dtype_code(arr.dtype) is None:
+        raise ValueError(f"nodata needs a dtype geozl knows, got {arr.dtype}")
 
     # Sized past the worst case; an incompressible tile still fits in 1.5x.
     cap = 1024 + n * elt + n * elt // 2
@@ -62,8 +88,8 @@ def compress(tile, *, method, width=None, max_error=None):
     out_size = ffi.new("size_t*")
     err_ctx = ffi.new("char[]", 256)
     rc = lib.geozl_2d_compress_c(
-        method.encode("utf-8"), width, err, int(code), _ptr(arr), n, elt,
-        _ptr(dst), cap, out_size, err_ctx, len(err_ctx))
+        method.encode("utf-8"), width, err, int(code), nd_mode, nd_value,
+        _ptr(arr), n, elt, _ptr(dst), cap, out_size, err_ctx, len(err_ctx))
     if rc != 0:
         reason = ffi.string(err_ctx).decode("utf-8", "replace")
         raise RuntimeError(f"geozl.compress failed (method={method!r}): "
@@ -123,25 +149,35 @@ def _order0_bits(arr):
     return float(-(p * np.log2(p)).sum())
 
 
-def profile(tile, *, method="planar", width=None, max_error=None, reps=5):
+def profile(tile, *, method="planar", width=None, max_error=None, reps=5,
+            nodata=None):
     """Benchmark every candidate graph on one tile, one row each.
 
     A diagnostic, not on the compress path. Timing runs in C (checksum off) so
     the numbers are the pure codec. shannon_pct is frame size against the tile's
     order-0 entropy (over 100 means structure was exploited). Every "graph" it
     returns is a method compress takes.
+
+    nodata means the same as it does in compress, and is passed through so the
+    graph timed here is the one compress would build. Without it a tile holding
+    NaN would be profiled through a different graph than the one it ends up
+    compressed with, and the sizes would not line up.
     """
     lib = _load_lib_full()
     arr, width, elt = _prepare(tile, width)
     raw = arr.nbytes
     ideal = raw * _order0_bits(arr) / 8.0
+    code = dtype_code(arr.dtype)
     if max_error is None or max_error <= 0:
-        err, code = LOSSLESS, 0
+        err, code = LOSSLESS, 0 if code is None else code
     else:
-        code = dtype_code(arr.dtype)
         if code is None:
             raise ValueError(f"quant_linear does not support dtype {arr.dtype}")
         err = float(max_error)
+
+    nd_mode, nd_value = _nodata_args(arr, nodata)
+    if nd_mode == _NODATA_VALUE and dtype_code(arr.dtype) is None:
+        raise ValueError(f"nodata needs a dtype geozl knows, got {arr.dtype}")
 
     rows = []
     for name in _grid_names(method, elt):
@@ -150,8 +186,9 @@ def profile(tile, *, method="planar", width=None, max_error=None, reps=5):
         dec = ffi.new("double*")
         err_ctx = ffi.new("char[]", 256)
         rc = lib.geozl_2d_bench_c(
-            name.encode("utf-8"), width, err, int(code), _ptr(arr), arr.size,
-            elt, reps, comp, enc, dec, err_ctx, len(err_ctx))
+            name.encode("utf-8"), width, err, int(code), nd_mode, nd_value,
+            _ptr(arr), arr.size, elt, reps, comp, enc, dec, err_ctx,
+            len(err_ctx))
         if rc != 0:
             continue
         size = int(comp[0])

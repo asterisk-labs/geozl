@@ -1,7 +1,8 @@
 # geozl build. Common targets, see `make help` for the rest.
 #
 #   make            build and install the Python binding, then smoke load it
-#   make test       run the test suite
+#   make test       run the C tests then the Python suite
+#   make test-c     run the C tests only, no cmake or OpenZL needed
 #   make test-san   run the suite under ASan and UBSan
 #   make fuzz       build and run the decode fuzzer
 #   make clean      remove all build output and generated files
@@ -59,7 +60,29 @@ CMAKE_OPTS  := -G $(GEN) -DCMAKE_BUILD_TYPE=$(BUILD) \
                -DGEOZL_BUILD_FULL=$(FULL) -DGEOZL_BUILD_KERNELS_SHARED=ON \
                -DGEOZL_SANITIZE=$(SAN) $(CMAKE_FLAGS)
 
-.PHONY: all build configure lib python test test-san fuzz install submodules clean help
+# Standalone C tests. The kernels carry no OpenZL dependency, so these compile
+# and run straight from source without configuring cmake, which keeps the first
+# half of `make test` useful on a tree whose submodule is not fetched yet.
+CTEST_DIR     := $(BUILD_DIR)/ctest
+CTEST_SRCS    := $(wildcard test/test_*.c)
+CTEST_BINS    := $(patsubst test/%.c,$(CTEST_DIR)/%,$(CTEST_SRCS))
+CTEST_KERNELS := $(wildcard $(CORE)/src/*/encode_*_kernel.c) \
+                 $(wildcard $(CORE)/src/*/decode_*_kernel.c) \
+                 $(CORE)/src/wp_static/train_wp_static.c
+CTEST_CFLAGS  := -std=c11 -O1 -g -Wall -Wextra -I$(CORE)/src
+
+# No SAN_ENV here, the test binaries are instrumented themselves. Leak
+# detection is left on, that is how a missing free in a kernel shows up.
+ifeq ($(SAN),ON)
+  CTEST_CFLAGS += -fsanitize=address,undefined -fno-omit-frame-pointer
+endif
+ifeq ($(OS),Windows_NT)
+  CTEST_LIBS := -lm
+else
+  CTEST_LIBS := -lm -lpthread
+endif
+
+.PHONY: all build configure lib python test test-c test-san fuzz install submodules clean help
 
 all: python
 
@@ -99,7 +122,17 @@ python: lib
 	$(PYTHON) -m pip install -e $(PY_DIR) -q
 	$(SAN_ENV) $(PYTHON) -c "import geozl; print('geozl', geozl.__version__)"
 
-test: python
+# Every test/test_*.c links against all kernels, so a new test can call any of
+# them without touching this file.
+$(CTEST_DIR)/%: test/%.c $(CTEST_KERNELS)
+	@mkdir -p $(CTEST_DIR)
+	@$(CC) $(CTEST_CFLAGS) $^ $(CTEST_LIBS) -o $@
+
+test-c: $(CTEST_BINS)
+	@if [ -z "$(CTEST_BINS)" ]; then echo "no C tests under test/"; else \
+	  for t in $(CTEST_BINS); do "$$t" || exit 1; done; fi
+
+test: test-c python
 	@$(PYTHON) -c 'import pytest' 2>/dev/null || { echo "pytest not installed"; exit 1; }
 	@$(SAN_ENV) $(PYTHON) -m pytest -q $(PY_DIR); \
 	  rc=$$?; if [ $$rc -eq 5 ]; then echo "no tests collected"; elif [ $$rc -ne 0 ]; then exit $$rc; fi
@@ -138,8 +171,9 @@ clean:
 help:
 	@echo "make            build, stage the kernels lib, editable install, smoke load"
 	@echo "make build      build libgeozl.a and the kernels lib only"
-	@echo "make test       run pytest"
-	@echo "make test-san   run pytest against an ASan and UBSan build"
+	@echo "make test       run the C tests under test/ then pytest"
+	@echo "make test-c     run the C tests only, builds straight from source"
+	@echo "make test-san   run both suites against an ASan and UBSan build"
 	@echo "make fuzz       build the libFuzzer decode fuzzer (needs full LLVM clang)"
 	@echo "make install    cmake --install into PREFIX ($(PREFIX))"
 	@echo "make clean      remove all build output, caches and generated files"

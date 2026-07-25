@@ -218,3 +218,69 @@ def test_shannon_pct_passes_100_when_structure_is_found():
 
 def test_order0_bits_of_a_constant_tile_is_zero():
     assert _2d._order0_bits(np.zeros((8, 8), np.uint8)) == 0.0
+
+
+# nodata. The behaviour of the codec itself lives in test_nodata.py, what
+# belongs here is the argument surface of _2d and, above all, that a tile with
+# nothing missing is untouched by any of it.
+
+def _holed(dtype=np.float32, hole=np.nan):
+    """Bigger than _tile on purpose. profile times with the content checksum
+    off, so its frame runs four bytes under the one compress writes, and a
+    small tile would spend the whole 1% tolerance on those four bytes."""
+    arr = _tile(shape=(64, 64), dtype=np.int32).astype(dtype)
+    arr[8:24, 12:40] = hole
+    return arr
+
+
+def test_a_tile_without_holes_never_reaches_the_codec():
+    """The regression that matters. No missing samples, no mask stream, so the
+    frame has to be exactly the one this tile produced before nodata existed."""
+    arr = _tile()
+    assert _2d._nodata_args(arr, None) == (_2d._NODATA_NONE, 0.0)
+    assert _2d._nodata_args(arr.astype(np.float32), None) == \
+        (_2d._NODATA_NONE, 0.0)
+
+
+def test_nan_only_triggers_on_float():
+    assert _2d._nodata_args(_holed(), None) == (_2d._NODATA_NAN, 0.0)
+    # an integer tile has no NaN to find, whatever it holds
+    assert _2d._nodata_args(_tile(), None) == (_2d._NODATA_NONE, 0.0)
+
+
+def test_a_declared_sentinel_wins_over_the_automatic_path():
+    arr = _holed()
+    assert _2d._nodata_args(arr, -9999) == (_2d._NODATA_VALUE, -9999.0)
+
+
+def test_nodata_needs_a_dtype_geozl_knows():
+    arr = np.zeros((4, 4), np.bool_)
+    with pytest.raises(ValueError, match="nodata needs a dtype"):
+        geozl.compress(arr, method=GRAPH_1B, nodata=1)
+
+
+def test_nodata_survives_a_round_trip_through_the_2d_api():
+    arr = _holed(np.int32, hole=-9999)
+    out = _roundtrip(arr, method=GRAPH, nodata=-9999)
+    assert np.array_equal(out, arr)
+
+
+def test_profile_and_compress_agree_when_the_tile_holds_nan():
+    """profile picks a recipe by timing it, so it has to time the graph compress
+    will actually build. Without nodata reaching the bench the two disagree."""
+    arr = _holed()
+    row = geozl.profile(arr, reps=1)[0]
+    frame = geozl.compress(arr, method=row["graph"])
+    assert len(frame) == pytest.approx(arr.nbytes / row["ratio"], rel=0.01)
+
+
+def test_profile_takes_a_sentinel_too():
+    arr = _holed(np.int32, hole=-9999)
+    row = geozl.profile(arr, reps=1, nodata=-9999)[0]
+    frame = geozl.compress(arr, method=row["graph"], nodata=-9999)
+    assert len(frame) == pytest.approx(arr.nbytes / row["ratio"], rel=0.01)
+
+
+def test_profile_rejects_a_sentinel_on_a_dtype_geozl_cannot_read():
+    with pytest.raises(ValueError, match="nodata needs a dtype"):
+        geozl.profile(np.zeros((4, 4), np.bool_), nodata=1)

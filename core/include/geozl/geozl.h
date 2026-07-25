@@ -38,13 +38,31 @@ GEOZL_API ZL_NodeID geozl_node_floatmult(ZL_Compressor *c, double base);
 GEOZL_API ZL_NodeID geozl_node_quant_linear(ZL_Compressor *c, double max_error,
                                             int dtype);
 
+// Missing-data modes, in the spirit of GDAL. NONE is a tile with nothing
+// missing, NAN detects every non-finite sample itself and only applies to
+// float, VALUE takes a sentinel the caller declares because a value like -9999
+// is indistinguishable from a measurement without being told.
+typedef enum {
+  GEOZL_NODATA_NONE = 0,
+  GEOZL_NODATA_NAN = 1,
+  GEOZL_NODATA_VALUE = 2
+} geozl_nodata_mode;
+
+// mode is GEOZL_NODATA_MODE_NAN or _VALUE from encode_nodata_binding.h, and
+// valueBits is the sentinel's bit pattern at the sample width, ignored for NaN.
+GEOZL_API ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width,
+                                      int mode, uint64_t valueBits);
+
 // 2d high-level compression through the graph method names, as geozl_2d_grid_c
 // spells it, e.g. "planar>zigzag>transpose>entropy". The transpose and store_lo
 // terminals need 2 to 8 bytes per element. max_error < 0 is lossless.
 #define GEOZL_2D_LOSSLESS (-1.0)
 
+// nodataMode is a geozl_nodata_mode. nodataValue is the sentinel, read only
+// for GEOZL_NODATA_VALUE and interpreted at dtype.
 GEOZL_API ZL_Report geozl_2d_compress(const char *method, uint32_t width,
                                       double max_error, int dtype,
+                                      int nodataMode, double nodataValue,
                                       const void *src, size_t numElts,
                                       size_t eltWidth, void *dst,
                                       size_t dstCapacity, size_t *outSize,
@@ -53,7 +71,8 @@ GEOZL_API ZL_Report geozl_2d_compress(const char *method, uint32_t width,
 // Returns 0 or the ZL_ErrorCode. The reason lands in errCtx, the size in
 // *outSize.
 GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
-                                  double max_error, int dtype, const void *src,
+                                  double max_error, int dtype, int nodataMode,
+                                  double nodataValue, const void *src,
                                   size_t numElts, size_t eltWidth, void *dst,
                                   size_t dstCapacity, size_t *outSize,
                                   char *errCtx, size_t errCtxSize);
@@ -66,6 +85,17 @@ GEOZL_API int geozl_2d_decompress_c(const void *frame, size_t frameSize,
                                     void *dst, size_t dstCapacity,
                                     size_t *outSize, char *errCtx,
                                     size_t errCtxSize);
+
+// Times one graph, reps compressions and reps decompressions, all in C so the
+// FFI is crossed once. Returns 0 or the ZL_ErrorCode of the first failing round
+// trip. The nodata pair matches geozl_2d_compress, so the graph timed here is
+// the one compress would build.
+GEOZL_API int geozl_2d_bench_c(const char *method, uint32_t width,
+                               double max_error, int dtype, int nodataMode,
+                               double nodataValue, const void *src,
+                               size_t numElts, size_t eltWidth, size_t reps,
+                               size_t *compSize, double *encSec, double *decSec,
+                               char *errCtx, size_t errCtxSize);
 
 // Recipe names of the grid a method expands to, one per stride-byte slot,
 // count in *outCount. -1 on an unknown method.

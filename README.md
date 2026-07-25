@@ -131,6 +131,7 @@ Lossless codecs are bit-exact transforms over a raster tile. After decoding, the
 | codec | call | CTid | lanes | what it does |
 |---|---|---:|---|---|
 | `deinterleave` | `geozl.lossless.Deinterleave()` | `0x72D704` | both to one successor | separates a two-lane interleaved stream; for complex, view the tile through `geozl.lossless.component_dtype` first, OpenZL has no complex type |
+| `nodata` | `geozl.lossless.Nodata(width, value=None, dtype=None)` | `0x72D70C` | raster, then mask | pulls missing samples into a validity mask and fills the holes; `value=None` takes the tile's NaN |
 
 ## License
 

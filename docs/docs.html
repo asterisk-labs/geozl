@@ -1,113 +1,109 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="geozl codec catalog, every raster transform with an animated diagram.">
-<meta name="theme-color" content="#F1EDE4">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="geozl codec catalog, every raster transform with an animated diagram." name="description"/>
+<meta content="#F1EDE4" name="theme-color"/>
 <title>geozl · documentation</title>
-<link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css">
+<link href="assets/svg/favicon.svg" rel="icon" type="image/svg+xml"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="assets/css/style.css" rel="stylesheet"/>
 </head>
 <body class="is-catalog" style="--page:var(--purple)">
-  <div class="sheet">
-    <span class="reg tl">+</span><span class="reg tr">+</span>
-    <span class="reg bl">+</span><span class="reg br">+</span>
-
-    <header class="masthead">
-      <a class="lockup vt-lockup" href="index.html" aria-label="geozl home">
-        <img class="marksvg" src="assets/svg/mark.svg" alt="">
-        <span class="wm-sm">GeoZL</span>
-      </a>
-      <nav class="nav" aria-label="Sections">
-        <a href="docs.html" class="here">Docs</a>
-        <a href="api-high.html">High-level</a>
-        <a href="api-low.html">Low-level</a>
-        <a href="benchmark.html">Benchmark</a>
-        <a href="links.html">Links</a>
-      </nav>
-    </header>
-
-    <main class="cat">
-      <div class="cat-head">
-        <p class="kicker"><span class="k-sq"></span> documentation</p>
-        <h1>Each transform, <span class="u">drawn</span>.</h1>
-      </div>
-
-      <div class="catalog">
-        <p class="legend">
-          <span class="lg" style="--fam:var(--purple)"><span class="lg-sq"></span> predictors <b>6</b></span>
-          <span class="lg" style="--fam:var(--green)"><span class="lg-sq"></span> split <b>1</b></span>
-          <span class="lg" style="--fam:var(--orange)"><span class="lg-sq"></span> near-lossless <b>1</b></span>
-          <span class="legend-count">8 codecs</span>
-        </p>
-        <div class="cards">
-          <a class="card" style="--fam:var(--purple)" href="codecs/delta-w.html">
-            <div class="card-top"><span class="card-no">01</span><span class="card-ct">0x72D701</span></div>
-            <div class="card-name">delta_w</div>
-            <p class="card-what">Difference from the west neighbour.</p>
-            <span class="card-cta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
-          </a>
-          <a class="card" style="--fam:var(--purple)" href="codecs/delta-n.html">
-            <div class="card-top"><span class="card-no">02</span><span class="card-ct">0x72D702</span></div>
-            <div class="card-name">delta_n</div>
-            <p class="card-what">Difference from the north neighbour.</p>
-            <span class="card-cta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
-          </a>
-          <a class="card" style="--fam:var(--purple)" href="codecs/planar.html">
-            <div class="card-top"><span class="card-no">03</span><span class="card-ct">0x72D703</span></div>
-            <div class="card-name">planar</div>
-            <p class="card-what">The plane W + N − NW.</p>
-            <span class="card-cta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
-          </a>
-          <a class="card" style="--fam:var(--purple)" href="codecs/med.html">
-            <div class="card-top"><span class="card-no">04</span><span class="card-ct">0x72D705</span></div>
-            <div class="card-name">med</div>
-            <p class="card-what">Median edge detector, clamps across edges.</p>
-            <span class="card-cta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
-          </a>
-          <a class="card" style="--fam:var(--purple)" href="codecs/average.html">
-            <div class="card-top"><span class="card-no">05</span><span class="card-ct">0x72D706</span></div>
-            <div class="card-name">average</div>
-            <p class="card-what">Floor average of W and N.</p>
-            <span class="card-cta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
-          </a>
-          <a class="card" style="--fam:var(--purple)" href="codecs/wp-static.html">
-            <div class="card-top"><span class="card-no">06</span><span class="card-ct">0x72D707</span></div>
-            <div class="card-name">wp_static</div>
-            <p class="card-what">Frozen weighted predictor, P = W + K.</p>
-            <span class="card-cta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
-          </a>
-          <a class="card" style="--fam:var(--green)" href="codecs/deinterleave.html">
-            <div class="card-top"><span class="card-no">07</span><span class="card-ct">0x72D704</span></div>
-            <div class="card-name">deinterleave</div>
-            <p class="card-what">Splits one stream into two lanes by position.</p>
-            <span class="card-cta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
-          </a>
-          <a class="card" style="--fam:var(--orange)" href="codecs/quant-linear.html">
-            <div class="card-top"><span class="card-no">08</span><span class="card-ct">0x72D780</span></div>
-            <div class="card-name">quant_linear</div>
-            <p class="card-what">Uniform quantization within ±max_error.</p>
-            <span class="card-cta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></span>
-          </a>
-        </div>
-      </div>
-    </main>
-
-    <footer class="colophon">
-      <span class="by">
+<div class="sheet">
+<span class="reg tl">+</span><span class="reg tr">+</span>
+<span class="reg bl">+</span><span class="reg br">+</span>
+<header class="masthead">
+<a aria-label="geozl home" class="lockup vt-lockup" href="index.html">
+<img alt="" class="marksvg" src="assets/svg/mark.svg"/>
+<span class="wm-sm">GeoZL</span>
+</a>
+<nav aria-label="Sections" class="nav">
+<a class="here" href="docs.html">Docs</a>
+<a href="api-high.html">API</a>
+<a href="benchmark.html">Benchmark</a>
+<a href="links.html">Links</a>
+</nav>
+</header>
+<main class="cat">
+<div class="cat-head">
+<p class="kicker"><span class="k-sq"></span> documentation</p>
+<h1>Each transform, <span class="u">drawn</span>.</h1>
+</div>
+<div class="catalog">
+<p class="legend">
+<span class="lg" style="--fam:var(--purple)"><span class="lg-sq"></span> predictors <b>6</b></span>
+<span class="lg" style="--fam:var(--green)"><span class="lg-sq"></span> split <b>1</b></span>
+<span class="lg" style="--fam:var(--orange)"><span class="lg-sq"></span> near-lossless <b>1</b></span>
+<span class="legend-count">8 codecs</span>
+</p>
+<div class="cards">
+<a class="card" href="codecs/delta-w.html" style="--fam:var(--purple)">
+<div class="card-top"><span class="card-no">01</span><span class="card-ct">0x72D701</span></div>
+<div class="card-name">delta_w</div>
+<p class="card-what">Difference from the west neighbour.</p>
+<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
+</a>
+<a class="card" href="codecs/delta-n.html" style="--fam:var(--purple)">
+<div class="card-top"><span class="card-no">02</span><span class="card-ct">0x72D702</span></div>
+<div class="card-name">delta_n</div>
+<p class="card-what">Difference from the north neighbour.</p>
+<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
+</a>
+<a class="card" href="codecs/planar.html" style="--fam:var(--purple)">
+<div class="card-top"><span class="card-no">03</span><span class="card-ct">0x72D703</span></div>
+<div class="card-name">planar</div>
+<p class="card-what">The plane W + N − NW.</p>
+<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
+</a>
+<a class="card" href="codecs/med.html" style="--fam:var(--purple)">
+<div class="card-top"><span class="card-no">04</span><span class="card-ct">0x72D705</span></div>
+<div class="card-name">med</div>
+<p class="card-what">Median edge detector, clamps across edges.</p>
+<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
+</a>
+<a class="card" href="codecs/average.html" style="--fam:var(--purple)">
+<div class="card-top"><span class="card-no">05</span><span class="card-ct">0x72D706</span></div>
+<div class="card-name">average</div>
+<p class="card-what">Floor average of W and N.</p>
+<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
+</a>
+<a class="card" href="codecs/wp-static.html" style="--fam:var(--purple)">
+<div class="card-top"><span class="card-no">06</span><span class="card-ct">0x72D707</span></div>
+<div class="card-name">wp_static</div>
+<p class="card-what">Frozen weighted predictor, P = W + K.</p>
+<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
+</a>
+<a class="card" href="codecs/deinterleave.html" style="--fam:var(--green)">
+<div class="card-top"><span class="card-no">07</span><span class="card-ct">0x72D704</span></div>
+<div class="card-name">deinterleave</div>
+<p class="card-what">Splits one stream into two lanes by position.</p>
+<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
+</a>
+<a class="card" href="codecs/quant-linear.html" style="--fam:var(--orange)">
+<div class="card-top"><span class="card-no">08</span><span class="card-ct">0x72D780</span></div>
+<div class="card-name">quant_linear</div>
+<p class="card-what">Uniform quantization within ±max_error.</p>
+<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
+</a>
+</div>
+</div>
+</main>
+<footer class="colophon">
+<span class="by">
         Made with
-        <svg class="heart" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        <svg aria-hidden="true" class="heart" fill="currentColor" viewbox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
         by
-        <a class="ast-link" href="https://asterisk.coop" target="_blank" rel="noopener noreferrer">
-          <img class="ast" src="assets/svg/asterisk.svg" alt="">
+        <a class="ast-link" href="https://asterisk.coop" rel="noopener noreferrer" target="_blank">
+<img alt="" class="ast" src="assets/svg/asterisk.svg"/>
           asterisk labs
         </a>
-      </span>
-    </footer>
-  </div>
+</span>
+</footer>
+</div>
 </body>
 </html>

@@ -88,7 +88,7 @@ def test_each_family_registers_only_its_own_decoders():
 
     geozl.lossless.register_decoders(Spy(lossless))
     geozl.lossy.register_decoders(Spy(lossy))
-    assert len(lossless) == 7
+    assert len(lossless) == 8
     assert len(lossy) == 1
     assert not set(lossless) & set(lossy)
 
@@ -102,4 +102,4 @@ def test_register_decoders_covers_both_families():
             return super().register_custom_decoder(dec)
 
     geozl.register_decoders(Spy())
-    assert len(seen) == 8  # seven lossless plus one lossy
+    assert len(seen) == 9  # eight lossless plus one lossy
