@@ -32,14 +32,21 @@ quant_linear its dtype and scale, deinterleave nothing.
 
 - `encode_foo_kernel.{c,h}`, `decode_foo_kernel.{c,h}`. The transform and its
   inverse, pure C, no OpenZL, dispatch by element width. Internal names
-  `foo_encode` and `foo_decode`. They depend only on `<stdint.h>`, `<stddef.h>`,
-  and `<string.h>`.
+  `foo_encode` and `foo_decode`, returning `int`, zero on success and nonzero
+  when the geometry is rejected, so the binding can turn a bad width or element
+  width into an error instead of writing past the buffer. A spatial predictor
+  pulls the row width from `common/raster.h` and, if it scans, the shared
+  prefix sum from `common/scan.h`, otherwise it depends only on `<stdint.h>`,
+  `<stddef.h>`, and `<string.h>`.
 - `encode_foo_binding.{c,h}`, `decode_foo_binding.{c,h}`. The typed encoder and
-  decoder. The header declares the function and, as `extern`, the descriptor,
-  which is defined in the `.c` so it has one definition and no unused warning. The
-  encoder reads its params, creates the output, runs the kernel, writes the
-  header, and commits. The decoder reads the header, rejects a wrong size or
-  stream shape with `ZL_ErrorCode_corruption`, then runs the kernel and commits.
+  decoder. The header declares the function and the encoder descriptor as an
+  X-macro, which `encoder_registry.c` expands so every codec is listed in one
+  place. The encoder reads its params, creates the output, runs the kernel,
+  writes the header, and commits. The decoder reads the header, rejects a wrong
+  size or stream shape with `ZL_ErrorCode_corruption`, then runs the kernel and
+  commits. Both propagate the kernel's return and OpenZL's own errors with
+  `ZL_ERR_IF_ERR` rather than flattening them, so a failure keeps its code and
+  its context string.
 - `spec.md`. The decoder contract, inputs, header layout, the widths accepted,
   and for a near lossless codec the error bound.
 
@@ -61,6 +68,11 @@ On the C side.
    build, so a new folder is picked up on its own and the four files come with it
    by the naming convention. A source outside that convention, like the wp_static
    trainer, is the one case that needs a line, appended after the loop.
+
+On the docs side, a codec that ships to users gets a page at
+`docs/codecs/<name>.html` with its diagram in `docs/assets/svg/codecs/`, and a
+row in the codec table on the site. Match the depth of the neighbouring pages,
+the how and the header layout, not the kernel internals.
 
 ## Verifying
 
@@ -91,4 +103,5 @@ reverse, since both implement the same CTid, header, and kernel.
 - [ ] `core/CMakeLists.txt` only if the codec has a source outside the convention
 - [ ] cdef and module on the Python side, if exposed
 - [ ] listed in the README codec table
+- [ ] page in `docs/codecs/` and a row in the site table, if it ships to users
 - [ ] round trip and cross reader pass
