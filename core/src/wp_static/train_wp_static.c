@@ -12,6 +12,7 @@
 #include "common/raster.h" // geozl_row_width
 
 #include <math.h>
+#include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -268,9 +269,13 @@ int wp_static_train(int16_t coeffs[4], uint8_t *shift, const void *src,
   }
 
   // One 256-bin plane per sample byte: planes 0-1 for narrow, eltWidth for
-  // wide.
-  static uint32_t hist[WP_MAX_CAND][WP_MAX_PLANES][256];
-  memset(hist, 0, sizeof hist);
+  // wide. Heap rather than a static buffer, which two threads compressing at
+  // once would share, and too large to sit on the stack of a worker thread.
+  // Failing to allocate is not an error, the planar defaults set at the top
+  // stand and the tile just does not get a fitted predictor.
+  uint32_t (*hist)[WP_MAX_PLANES][256] = calloc(WP_MAX_CAND, sizeof *hist);
+  if (hist == NULL)
+    return 0;
   int nplanes;
   switch (elt_width) {
   case 1:
@@ -319,5 +324,6 @@ int wp_static_train(int16_t coeffs[4], uint8_t *shift, const void *src,
   coeffs[2] = cf[best][2];
   coeffs[3] = cf[best][3];
   *shift = sh[best];
+  free(hist);
   return 0;
 }

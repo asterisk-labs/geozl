@@ -7,6 +7,8 @@
 #include "openzl/zl_input.h"
 #include "openzl/zl_output.h"
 
+#include "common/endian.h"
+
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
@@ -23,10 +25,9 @@ ZL_Report DI_geozl_average(ZL_Decoder *dictx, const ZL_Input *ins[]) {
 
   // the width is carried in the codec header, written by the encoder
   ZL_RBuffer header = ZL_Decoder_getCodecHeader(dictx);
-  if (header.size != sizeof(uint32_t))
+  if (header.size != 4)
     return ZL_returnError(ZL_ErrorCode_corruption);
-  uint32_t width;
-  memcpy(&width, header.start, sizeof(width));
+  const uint32_t width = geozl_ld_le32((const uint8_t *)header.start);
 
   ZL_Output *out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);
   ZL_ERR_IF_NULL(out, allocation);

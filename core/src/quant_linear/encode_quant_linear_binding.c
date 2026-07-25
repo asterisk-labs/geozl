@@ -8,6 +8,8 @@
 #include "openzl/zl_input.h"
 #include "openzl/zl_output.h"
 
+#include "common/endian.h"
+
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
@@ -46,9 +48,9 @@ ZL_Report EI_geozl_quant_linear(ZL_Encoder *eictx, const ZL_Input *in) {
     return ZL_returnError(ZL_ErrorCode_node_invalid_input);
 
   // header, little endian: uint8 dtype, then the scale as an IEEE double
-  uint8_t header[1 + sizeof(double)];
+  uint8_t header[1 + 8];
   header[0] = (uint8_t)dtype;
-  memcpy(header + 1, &scale, sizeof(scale));
+  geozl_st_le_f64(header + 1, scale);
   ZL_Encoder_sendCodecHeader(eictx, header, sizeof(header));
 
   ZL_ERR_IF_ERR(ZL_Output_commit(out, nbElts));

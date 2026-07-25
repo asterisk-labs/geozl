@@ -8,6 +8,8 @@
 #include "openzl/zl_localParams.h"
 #include "openzl/zl_output.h"
 
+#include "common/endian.h"
+
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
@@ -43,7 +45,9 @@ ZL_Report EI_geozl_floatmult(ZL_Encoder *eictx, const ZL_Input *in) {
   ZL_ERR_IF_NULL(s1, allocation);
   floatmult_split(ZL_Output_ptr(s0), ZL_Output_ptr(s1), ZL_Input_ptr(in),
                   nbElts, eltWidth, base, 1.0 / base);
-  ZL_Encoder_sendCodecHeader(eictx, &baseBits, sizeof(double));
+  uint8_t header[8];
+  geozl_st_le64(header, baseBits);
+  ZL_Encoder_sendCodecHeader(eictx, header, sizeof(header));
   ZL_ERR_IF_ERR(ZL_Output_commit(s0, nbElts));
   ZL_ERR_IF_ERR(ZL_Output_commit(s1, nbElts));
   return ZL_returnSuccess();

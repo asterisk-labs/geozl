@@ -6,6 +6,8 @@
 #include "openzl/zl_input.h"
 #include "openzl/zl_output.h"
 
+#include "common/endian.h"
+
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
@@ -38,7 +40,7 @@ ZL_Report EI_geozl_binoffset(ZL_Encoder *eictx, const ZL_Input *in) {
   *e++ = (uint8_t)nbBins;
   for (unsigned b = 0; b < nbBins; ++b) {
     const uint64_t lower = b ? (uint64_t)1 << (b - 1u) : 0u;
-    memcpy(e, &lower, eltWidth); // little endian
+    geozl_st_le(e, lower, eltWidth);
     e[eltWidth] = (uint8_t)(b ? b - 1u : 0u);
     e += eltWidth + 1;
   }

@@ -8,6 +8,8 @@
 #include "openzl/zl_input.h"
 #include "openzl/zl_output.h"
 
+#include "common/endian.h"
+
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
@@ -40,10 +42,11 @@ ZL_Report EI_geozl_wp_static(ZL_Encoder *eictx, const ZL_Input *in) {
 
   // header, little endian: uint32 width, uint8 shift, four int16
   // {cN,cNW,cNE,cNN}
-  uint8_t header[4 + 1 + 4 * sizeof(int16_t)];
-  memcpy(header, &width, sizeof(width));
+  uint8_t header[4 + 1 + 4 * 2];
+  geozl_st_le32(header, width);
   header[4] = shift;
-  memcpy(header + 5, coeffs, 4 * sizeof(int16_t));
+  for (int i = 0; i < 4; ++i)
+    geozl_st_le_i16(header + 5 + 2 * i, coeffs[i]);
   ZL_Encoder_sendCodecHeader(eictx, header, sizeof(header));
 
   ZL_ERR_IF_ERR(ZL_Output_commit(out, nbElts));

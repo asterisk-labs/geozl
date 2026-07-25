@@ -7,6 +7,8 @@
 #include "openzl/zl_input.h"
 #include "openzl/zl_output.h"
 
+#include "common/endian.h"
+
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
@@ -34,8 +36,7 @@ ZL_Report DI_geozl_intmult(ZL_Decoder *dictx, const ZL_Input *ins[]) {
   ZL_RBuffer header = ZL_Decoder_getCodecHeader(dictx);
   if (header.size != eltWidth)
     return ZL_returnError(ZL_ErrorCode_corruption);
-  uint64_t base = 0;
-  memcpy(&base, header.start, eltWidth);
+  const uint64_t base = geozl_ld_le((const uint8_t *)header.start, eltWidth);
   if (base < 2)
     return ZL_returnError(ZL_ErrorCode_corruption);
 

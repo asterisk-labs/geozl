@@ -7,6 +7,8 @@
 #include "openzl/zl_input.h"
 #include "openzl/zl_output.h"
 
+#include "common/endian.h"
+
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
@@ -24,15 +26,14 @@ ZL_Report DI_geozl_wp_static(ZL_Decoder *dictx, const ZL_Input *ins[]) {
   // header, little endian: uint32 width, uint8 shift, four int16
   // {cN,cNW,cNE,cNN}
   ZL_RBuffer header = ZL_Decoder_getCodecHeader(dictx);
-  if (header.size != 4 + 1 + 4 * sizeof(int16_t))
+  if (header.size != 4 + 1 + 4 * 2)
     return ZL_returnError(ZL_ErrorCode_corruption);
   const uint8_t *hb = (const uint8_t *)header.start;
-  uint32_t width;
+  const uint32_t width = geozl_ld_le32(hb);
+  const uint8_t shift = hb[4];
   int16_t coeffs[4];
-  uint8_t shift;
-  memcpy(&width, hb, sizeof(width));
-  shift = hb[4];
-  memcpy(coeffs, hb + 5, 4 * sizeof(int16_t));
+  for (int i = 0; i < 4; ++i)
+    coeffs[i] = geozl_ld_le_i16(hb + 5 + 2 * i);
 
   // the kernel folds the sum in 64-bit, so a shift of 64 or more is undefined
   if (shift >= 64)

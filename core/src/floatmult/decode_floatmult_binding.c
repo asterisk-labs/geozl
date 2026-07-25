@@ -7,6 +7,8 @@
 #include "openzl/zl_input.h"
 #include "openzl/zl_output.h"
 
+#include "common/endian.h"
+
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
@@ -28,10 +30,9 @@ ZL_Report DI_geozl_floatmult(ZL_Decoder *dictx, const ZL_Input *ins[]) {
 
   // header: base as an f64, 8 bytes little endian. The f32 path narrows it.
   ZL_RBuffer header = ZL_Decoder_getCodecHeader(dictx);
-  if (header.size != sizeof(double))
+  if (header.size != 8)
     return ZL_returnError(ZL_ErrorCode_corruption);
-  double base;
-  memcpy(&base, header.start, sizeof(double));
+  const double base = geozl_ld_le_f64((const uint8_t *)header.start);
   if (!(base > 0.0) && !(base < 0.0)) // reject zero / NaN base
     return ZL_returnError(ZL_ErrorCode_corruption);
 

@@ -8,6 +8,8 @@
 #include "openzl/zl_input.h"
 #include "openzl/zl_output.h"
 
+#include "common/endian.h"
+
 #include <assert.h>
 #include <math.h>
 #include <stdint.h>
@@ -25,12 +27,11 @@ ZL_Report DI_geozl_quant_linear(ZL_Decoder *dictx, const ZL_Input *ins[]) {
 
   // header, little endian: uint8 dtype, then the scale as an IEEE double
   ZL_RBuffer header = ZL_Decoder_getCodecHeader(dictx);
-  if (header.size != 1 + sizeof(double))
+  if (header.size != 1 + 8)
     return ZL_returnError(ZL_ErrorCode_corruption);
   const uint8_t *hb = (const uint8_t *)header.start;
   const int dtype = (int)hb[0];
-  double scale;
-  memcpy(&scale, hb + 1, sizeof(scale));
+  const double scale = geozl_ld_le_f64(hb + 1);
 
   // dtype comes from the header, check it names a real type of the stream
   // width, the same check float_deconstruct makes

@@ -7,6 +7,8 @@
 #include "openzl/zl_input.h"
 #include "openzl/zl_output.h"
 
+#include "common/endian.h"
+
 #include <assert.h>
 #include <stdint.h>
 
@@ -35,7 +37,9 @@ ZL_Report EI_geozl_average(ZL_Encoder *eictx, const ZL_Input *in) {
     return ZL_returnError(ZL_ErrorCode_node_invalid_input);
 
   // the width is all the decoder needs, it rides in the codec header
-  ZL_Encoder_sendCodecHeader(eictx, &width, sizeof(width));
+  uint8_t header[4];
+  geozl_st_le32(header, width);
+  ZL_Encoder_sendCodecHeader(eictx, header, sizeof(header));
 
   ZL_ERR_IF_ERR(ZL_Output_commit(out, nbElts));
   return ZL_returnSuccess();
