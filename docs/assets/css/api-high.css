@@ -1,28 +1,31 @@
-/* geozl — api-high page styles
-   Loaded after style.css, which owns the sheet, the masthead, the colophon and
-   the shared type. Everything here is the horizontal deck and the blocks that
-   only this page uses. */
+/* api-high page styles. Loaded after style.css, which owns the sheet, the
+   masthead, the colophon and the shared type. Everything here is the
+   horizontal deck and the blocks only this page uses. */
 
   /* api-high runs past one sheet, so the page scrolls instead of fitting. */
   body.doc-page{ align-items:flex-start; }
   .doc-page .sheet{ overflow:visible; min-height:min(820px,calc(100svh - clamp(32px,5.2vw,68px))); }
 
-  /* En escritorio las diapositivas son una tira horizontal y el eje de avance
-     es la derecha. En movil vuelven a apilarse hacia abajo. */
+  /* Wide, the slides are a horizontal strip and forward means right. Narrow,
+     they stack back down the page. */
   .api{
     --slide-pad-x:clamp(28px,5vw,70px);
     --slide-pad-y:clamp(30px,3.6vw,50px);
     flex:1 1 auto; min-width:0;
   }
   @media (min-width:981px){
-    /* La hoja se clava al viewport para que la tira herede un alto definido y
-       las diapositivas puedan medir el 100% de el. */
+    /* The sheet is pinned to the viewport so the strip inherits a settled
+       height and a slide can take 100% of it. */
     .doc-page .sheet{ height:calc(100svh - 2*clamp(16px,2.6vw,34px)); min-height:0; overflow:hidden; }
     .api{ min-height:0; display:flex; flex-direction:row; overflow-x:auto; overflow-y:hidden;
       scroll-snap-type:x mandatory; scrollbar-width:none; overscroll-behavior-x:contain; }
     .api::-webkit-scrollbar{ display:none; }
+    /* safe center spreads the spare air of a short slide and falls back to
+       the start on its own as soon as the content overflows, which is when
+       centring would crop the top. */
     .api section{ flex:0 0 100%; width:100%; height:100%; overflow-y:auto; scrollbar-width:none;
-      scroll-snap-align:start; border-bottom:0; border-right:0; }
+      justify-content:safe center; border-bottom:0; border-right:0; }
+    .api section.hero2{ align-content:safe center; }
     .api section::-webkit-scrollbar{ display:none; }
     .api section:last-of-type{ border-right:0; }
   }
@@ -32,7 +35,7 @@
   .api section:not(.hero2){ display:flex; flex-direction:column; }
   .api section{ padding:var(--slide-pad-y) var(--slide-pad-x);
     scroll-snap-align:start; }
-  /* el primer bloque de una diapositiva no necesita separarse del encabezado */
+  /* the first block of a slide needs no gap under the heading */
   .api section > .sec-h + *{ margin-top:0; }
   .api section.fits{ min-height:calc(100svh - 165px); max-height:calc(100svh - 165px); }
   .api section:last-of-type{ border-bottom:0; padding-bottom:clamp(20px,2.4vw,32px); }
@@ -58,13 +61,13 @@
   .prose a{ color:var(--ink); box-shadow:inset 0 -1px 0 var(--line-strong); }
   .prose code, .note code, .ds code, .defs dd code, .calls code{ font-family:"IBM Plex Mono",monospace; font-size:.88em; color:var(--ink); background:rgba(23,22,28,.045); padding:1px 3px; border-radius:1px; }
 
-  /* hero. Titulo y aire calcados de .cat en docs.html, no de .page */
+  /* hero. Title and air traced from .cat in docs.html, not from .page */
   html{ scroll-behavior:smooth; }
   .api section{ scroll-margin-top:18px; }
 
   .hero2{ position:relative; display:grid;
-    /* La columna de la figura vale lo que la figura puede medir, que lo manda
-       el alto disponible. El texto se queda con el resto exacto, sin hueco. */
+    /* The figure column is worth whatever the figure can measure, which the
+       available height decides. Text takes the exact remainder. */
     grid-template-columns:minmax(0,1fr) min(52svh, 42%);
     align-items:start; align-content:start;
     column-gap:clamp(44px,6vw,88px); }
@@ -78,9 +81,9 @@
   .hero2 .lead p:last-child{ margin-bottom:0; }
   .hero2 .lead .l-top{ margin-bottom:15px; color:var(--ink); font-size:clamp(17px,1.6vw,21px); line-height:1.4; font-weight:500; }
   .hero2 .lead code{ color:var(--ink); font:600 .88em/1 "IBM Plex Mono",monospace; }
-  /* Es cuadrada, asi que su alto lo manda el ancho de la columna. Llena la
-     columna y solo la frena el alto disponible, para que no se salga del
-     lienzo en pantallas bajas. */
+  /* Square, so the column width sets its height. It fills the column and only
+     the available height holds it back, which keeps it on the sheet when the
+     viewport is short. */
   .hero2 .fig{ grid-column:2; width:100%; }
   .hero2 .fig img{ aspect-ratio:1; height:auto; object-fit:cover; }
 
@@ -92,13 +95,38 @@
   .runrow a img{ width:16px; height:16px; flex:0 0 auto; }
 
 
-  /* barra de progreso, contador y controles, fijos al viewport */
+  /* Progress, counter and controls. One tick per slide rather than a
+     continuous bar, since the deck is discrete and each tick jumps to its
+     own slide. */
   .colophon{ position:relative; }
-  .deck-bar{ position:absolute; left:0; right:0; top:0; height:2px; background:rgba(23,22,28,.12); }
-  .deck-bar i{ display:block; height:100%; width:0; background:var(--page);
-    box-shadow:0 0 0 1px rgba(23,22,28,.25); transition:width 220ms var(--ease); }
-  .deck-foot{ display:flex; align-items:center; gap:12px; }
-  .deck-no{ color:var(--ink-2); font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.1em; }
+  .deck-rail{ position:absolute; left:0; right:0; top:-1px; z-index:2;
+    display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:2px; }
+  .deck-rail .tick{ position:relative; height:15px; margin-top:-7px; padding:0;
+    border:0; background:none; -webkit-appearance:none; appearance:none; cursor:pointer; }
+  .deck-rail .tick::before{ content:""; position:absolute; left:0; right:0; top:6px; height:2px;
+    background:rgba(23,22,28,.14);
+    transition:background var(--duration) var(--ease), height var(--duration) var(--ease); }
+  .deck-rail .tick.seen::before{ background:color-mix(in srgb,var(--page) 60%,transparent); }
+  .deck-rail .tick:hover::before{ background:var(--ink-2); }
+  .deck-rail .tick.on::before{ top:5px; height:4px; background:var(--page);
+    box-shadow:0 0 0 1px rgba(23,22,28,.3); }
+  .deck-rail .tick:focus-visible{ outline:2px solid var(--ink); outline-offset:1px; }
+
+  /* A slide keeps running under the footer when it holds more than one
+     screen. This is the only thing that says so, so it only shows when true. */
+  .colophon::before{ content:""; position:absolute; left:0; right:0; bottom:100%; height:56px;
+    background:linear-gradient(to top,var(--paper),transparent);
+    opacity:0; pointer-events:none; transition:opacity 160ms var(--ease); }
+  body.more-below .colophon::before{ opacity:1; }
+
+  .deck{ display:flex; align-items:center; min-width:0; }
+  .deck-foot{ display:flex; align-items:center; gap:12px; min-width:0; }
+  .deck-name{ margin:0; min-width:0; flex:0 1 auto; overflow:hidden; white-space:nowrap;
+    text-overflow:ellipsis; color:var(--ink-2);
+    font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.04em; }
+  .deck-name:empty{ display:none; }
+  .deck-name::before{ content:"\00b7\00a0"; opacity:.5; }
+  .deck-no{ flex:0 0 auto; margin:0; color:var(--ink-2); font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.1em; }
   .deck-no b{ color:var(--ink); font-weight:600; }
   .deck-nav{ display:flex; gap:5px; }
   .deck-nav button{ display:grid; place-items:center; width:30px; height:26px; padding:0;
@@ -122,7 +150,7 @@
   .ramp i{ width:70px; height:8px; border:1px solid var(--line-strong);
     background:linear-gradient(90deg,#339 0%,#09f 15%,#0c6 25%,#ff9 50%,#805c54 75%,#fff 100%); }
 
-  /* selector de funcion. Una fila de pestanas sobre un filete, sin cajas. */
+  /* function picker. A row of tabs over a rule, no boxes. */
   .fnpick{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
     gap:clamp(24px,3vw,44px); border-bottom:1px solid var(--line-strong); }
   .fnpick button{ min-width:0; display:flex; flex-direction:column; gap:8px; align-items:flex-start;
@@ -138,15 +166,25 @@
   .fnpick .pk-d{ color:var(--ink-2); font-size:12.5px; line-height:1.5; }
   .fnpick code{ font-family:"IBM Plex Mono",monospace; font-size:.92em; color:var(--ink); }
 
-  .fnbody{ padding-top:clamp(18px,2.2vw,26px); }
-  .fnpanel[hidden]{ display:none; }
+  /* The three panels share one grid cell, so the block always measures the
+     tallest of them. Sized to whichever panel is open it would change height
+     on every tab, and safe center would shift the cards with it. The cards are
+     the navigation of the slide, they have to stay put. */
+  .fnbody{ padding-top:clamp(18px,2.2vw,26px); display:grid; }
+  .fnpanel{ grid-area:1/1; min-width:0; }
+  .fnpanel[hidden]{ display:block; visibility:hidden; }
+
+  /* Only the panel is worth animating now that the frame no longer moves. */
+  .fnbody{ view-transition-name:fnbody; }
+  ::view-transition-old(fnbody),
+  ::view-transition-new(fnbody){ animation-duration:180ms; animation-timing-function:var(--ease); }
   .fnpanel .sig{ margin:0 0 clamp(16px,2vw,22px); display:flex; align-items:baseline; gap:6px 12px;
     flex-wrap:wrap; color:var(--ink-2); font:500 10px/1 "IBM Plex Mono",monospace;
     letter-spacing:.09em; text-transform:uppercase; }
   .fnpanel .sig b{ color:var(--ink); font:600 14px/1.5 "IBM Plex Mono",monospace;
     letter-spacing:0; text-transform:none; word-break:break-word; }
 
-  /* bloques de funcion de la seccion api */
+  /* function blocks in the api section */
   .apifn{ margin-top:clamp(22px,2.6vw,32px); border:1px solid var(--line-strong); }
   .apifn:first-of-type{ margin-top:0; }
   .apifn-h{ display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap;
@@ -168,8 +206,8 @@
   .fnpanel .ty{ margin-left:9px; }
   .fnpanel .ds{ display:block; margin-top:5px; font-size:12.5px; line-height:1.5; }
 
-  /* ritmo vertical. Las secciones son flex, asi que los margenes no colapsan
-     y hay que declarar cada salto una sola vez. */
+  /* vertical rhythm. The sections are flex, so margins do not collapse and
+     every gap has to be declared once. */
   .api section > .band + .lbl,
   .api section > .prose + .lbl,
   .api section > .note + .lbl,
@@ -181,9 +219,9 @@
   .api section > .chart + .note,
   .api section > .gtab + .note,
   .api section > .trip + .note{ margin-top:clamp(15px,1.8vw,20px); }
-  /* Codigo, barra y salida no se encogen nunca. Al llevar overflow-x:auto su
-     min-height se resuelve a 0 y el flex de la seccion los aplasta. Lo que cede
-     es el triptico, que si puede recortarse. */
+  /* Code, label and output never shrink. With overflow-x:auto their min-height
+     resolves to 0 and the section flex crushes them. The triptych is what
+     gives, since it can be cropped. */
   .api section > .lbl,
   .api section > .code,
   .api section > .out{ flex:0 0 auto; }
@@ -262,7 +300,7 @@
   .plot .ll{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; }
   .plot .knee{ fill:none; stroke:var(--purple); stroke-width:2.2; }
 
-  /* realce al pasar el raton, mas guias hasta los ejes */
+  /* hover highlight, plus guides out to the axes */
   .plot .pt, .plot .cd{ cursor:crosshair; }
   .plot .pt.hi{ fill:var(--wine); stroke:var(--ink); stroke-opacity:1; }
   .plot .cd.hi{ fill:var(--wine); }
@@ -336,7 +374,7 @@
   .eq .frac > span:first-child{ padding:0 5px 3px; border-bottom:1px solid var(--ink); }
   .eq sub{ font-size:.72em; }
 
-  /* cadena vertical, columna derecha de la seccion del grafo */
+  /* vertical chain, right column of the graph section */
   .chain{ display:flex; flex-direction:column; align-items:stretch; }
   .cn-h{ margin-bottom:11px; padding-bottom:9px; border-bottom:1px solid var(--line-strong);
     color:var(--ink); font:500 10px/1 "IBM Plex Mono",monospace; letter-spacing:.09em; text-transform:uppercase; }
@@ -382,6 +420,8 @@
     .api{ --slide-pad-y:clamp(26px,3.2vw,42px); --slide-pad-x:clamp(24px,4vw,58px); }
     .api .note{ font-size:12px; }
     .fnpick button{ padding:12px 15px; gap:7px; }
+    .api-overview .fnpick button{ min-height:118px; padding:14px 16px 15px; }
+    .api-overview .fnbody{ margin-top:12px; padding-top:15px; }
     .side-note{ font-size:11.5px; margin-top:13px; padding-top:11px; }
     .fnpick .pk-n{ font-size:15px; }
     .fnpanel .spec2 .row{ padding-block:10px; }
@@ -393,19 +433,24 @@
     .hero2 .lead{ font-size:14.5px; line-height:1.55; }
 
   }
-  /* Por debajo de 800px de alto el grafico y la rejilla de codecs son lo unico
-     que no cabe, asi que se aprietan ellos y no la pagina entera. */
+  /* Under 800px of height the chart and the codec grid are the only things
+     that do not fit, so they tighten instead of the whole page. */
   @media (min-width:901px) and (max-height:800px){
     .plot{ max-height:34svh; }
     .cbody{ padding:10px 10px 2px; }
     .keys .kd, .fnpick .pk-d{ font-size:11.5px; line-height:1.4; }
+    .api-overview .fnpick button{ min-height:100px; padding:12px 14px 13px; }
+    .api-overview .pk-n{ font-size:16px; }
+    /* Holding the tallest panel costs height everywhere, so on a short viewport
+       the parameter grid takes a third column and loses a row instead. */
+    .api-overview .fnpanel .spec2{ grid-template-columns:repeat(3,minmax(0,1fr)); gap:0 26px; }
     .defs h3{ padding-bottom:7px; }
     .defs dt{ margin-top:7px; }
     .defs dd{ font-size:11.5px; line-height:1.4; }
     .code pre{ font-size:11.5px; line-height:1.55; }
     .readout div{ padding-block:7px; font-size:12px; }
   }
-  /* Por debajo de 640 de alto ya no hay margen: se recorta todo lo recortable. */
+  /* Under 640 there is no slack left, so everything trimmable gets trimmed. */
   @media (min-width:901px) and (max-height:640px){
     .api{ --slide-pad-y:14px; --slide-pad-x:clamp(22px,4vw,54px); }
     .hero2 h1{ font-size:clamp(24px,2.6vw,34px); margin-bottom:10px; }
@@ -442,7 +487,16 @@
   @media (max-width:980px){
     html{ scroll-snap-type:none; }
     .api section{ min-height:0; }
-    .deck{ display:none; }
+    /* Stacked, the page runs past nine thousand pixels, so the rail stays
+       within reach instead of hiding in the footer. The credit does not move. */
+    .deck{ position:fixed; z-index:8; left:0; right:0; bottom:0;
+      display:block; padding:0 16px env(safe-area-inset-bottom);
+      background:var(--paper); border-top:1px solid var(--line-strong); }
+    .deck .deck-rail{ top:0; }
+    .deck .deck-foot{ justify-content:space-between; min-height:46px; }
+    .deck-name{ max-width:22ch; }
+    .doc-page .sheet{ padding-bottom:calc(48px + env(safe-area-inset-bottom)); }
+    body.more-below .colophon::before{ opacity:0; }
     .hero2{ grid-template-columns:1fr; row-gap:0; min-height:0; }
     .hero-text{ display:contents; }
     .hero2::before{ display:none; }
@@ -482,7 +536,12 @@
     .eq > span{ border-left:0; border-top:1px solid var(--line); }
     .eq > span:first-child{ border-top:0; }
   }
-  @media (prefers-reduced-motion:reduce){ *{ transition:none !important; } }
+  @media (prefers-reduced-motion:reduce){
+    *{ transition:none !important; }
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*){ animation:none !important; }
+  }
 
 
   /* --- refined Python API story --- */
@@ -512,9 +571,9 @@
   .load-slide .readout div{ padding-block:8px; font-size:11.5px; }
   .load-slide .side-note{ margin-top:12px; padding-top:11px; font-size:11.5px; line-height:1.5; }
 
-  /* Tiras de etapas. Un solo vocabulario para los diagramas de las diapositivas
-     04, 05 y 06. Con filetes en vez de cajas, para que convivan con los bloques
-     de codigo y los readouts. */
+  /* Stage strips. One vocabulary for the diagrams on slides 04, 05 and 06,
+     built from rules rather than boxes so they sit next to the code blocks
+     and the readouts. */
   .flow-h{ display:flex; align-items:baseline; justify-content:space-between; gap:14px;
     margin:0; padding-bottom:9px; border-bottom:1px solid var(--line-strong);
     color:var(--ink); font:500 10px/1 "IBM Plex Mono",monospace; letter-spacing:.09em; text-transform:uppercase; }
@@ -528,7 +587,7 @@
   .flow b{ display:block; color:var(--ink); font:600 12.5px/1.2 "IBM Plex Mono",monospace; }
   .flow .d{ display:block; margin-top:6px; color:var(--ink-2); font-size:11.5px; line-height:1.45; }
   .flow .d code{ font-family:"IBM Plex Mono",monospace; font-size:.92em; color:var(--ink); }
-  /* la etapa de la que trata la diapositiva, subrayada igual que .prose strong */
+  /* the stage the slide is about, underlined like .prose strong */
   .flow > div.on b{ box-shadow:inset 0 -.32em 0 color-mix(in srgb,var(--page) 34%,transparent); }
 
   .profile-visual{ display:grid; grid-template-columns:minmax(310px,.72fr) minmax(0,1.28fr); gap:clamp(22px,3vw,42px); align-items:stretch; min-height:0; }
@@ -557,8 +616,8 @@
   .compress-slide > .code, .decompress-slide > .code{ overflow-x:auto; overflow-y:visible; }
   .compress-slide > .code pre,
   .decompress-slide > .code pre{ padding:14px 20px; font-size:12px; line-height:1.55; }
-  /* Estas dos llevan prosa, tira y codigo en la misma hoja, asi que en pantallas
-     bajas se aprieta la tira antes que el codigo, que es lo que hay que leer. */
+  /* These two carry prose, strip and code on one sheet, so on a short viewport
+     the strip tightens before the code, which is the part to read. */
   @media (min-width:981px) and (max-height:900px){
     .compress-slide .prose, .decompress-slide .prose{ font-size:14px; line-height:1.5; }
     .compress-slide .flow > div, .decompress-slide .flow > div{ padding:10px 14px 11px; }
@@ -622,8 +681,8 @@
   .final-slide .trip{grid-template-columns:1fr}
 }
 
-  /* Iconos de interfaz. Viven en assets/svg y se pintan con mask, asi que
-     siguen tomando el color de CSS como cuando eran svg en linea. */
+  /* Interface icons. They live in assets/svg and paint through mask, so they
+     still take their colour from CSS as they did when inlined. */
   .ic{ display:block; width:14px; height:14px; flex:0 0 auto; background:currentColor;
     -webkit-mask:center/contain no-repeat; mask:center/contain no-repeat; }
   .ic-heart{ -webkit-mask-image:url("../svg/heart.svg"); mask-image:url("../svg/heart.svg"); }

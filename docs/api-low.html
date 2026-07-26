@@ -12,8 +12,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/style.css">
 <style>
-  /* Mismo esqueleto que api-high. Lo que cambia es el color de pagina y el
-     panel del hero, que aqui es un DAG en vez de una foto del tile. */
+  /* Same skeleton as api-high. What changes is the page colour and the hero
+     panel, a DAG here instead of a photo of the tile. */
   body.doc-page{ align-items:flex-start; }
   .doc-page .sheet{ overflow:visible; min-height:min(820px,calc(100svh - clamp(32px,5.2vw,68px))); }
 
@@ -86,7 +86,7 @@
   .fig{ position:relative; margin:0; border:1px solid var(--line-strong); background:var(--paper-2); }
   .figbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 12px; border-top:1px solid var(--line-strong); color:var(--ink-2); font:500 10px/1.3 "IBM Plex Mono",monospace; letter-spacing:.04em; }
 
-  /* DAG del hero. Se dibuja a mano porque el grafo es el tema de la pagina. */
+  /* Hero DAG. Drawn by hand because the graph is what the page is about. */
   .dagwrap{ flex:1 1 auto; min-height:0; display:flex; padding:clamp(10px,1.4vw,18px) clamp(6px,1vw,12px); }
   .dag{ width:100%; height:auto; align-self:center; overflow:visible; }
   .dag .box{ fill:rgba(255,255,255,.2); stroke:var(--line-strong); stroke-width:1; }
@@ -174,7 +174,7 @@
   .lrow.fin{ border-top:1px solid var(--line-strong); background:rgba(255,255,255,.2); }
   .lrow.fin .nv{ color:var(--wine); }
 
-  /* rejilla de definiciones */
+  /* definition grid */
   .defs{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 clamp(24px,3vw,44px); margin-top:clamp(24px,2.8vw,34px); }
   .defs h3{ margin:0; padding-bottom:9px; border-bottom:1px solid var(--line-strong); color:var(--ink-2); font:500 10px/1 "IBM Plex Mono",monospace; letter-spacing:.08em; text-transform:uppercase; }
   .defs dl{ margin:0; }
@@ -823,8 +823,8 @@ high == low</pre></div>
   </div>
   <script src="assets/js/main.js"></script>
   <script>
-  /* Tooltip del DAG. Mismo patron que los plots de api-high, pero aqui los nodos
-     son cajas grandes asi que basta con el hover directo sobre el grupo. */
+  /* DAG tooltip. Same pattern as the api-high plots, but the nodes here are
+     large boxes so a direct hover on the group is enough. */
   (() => {
     "use strict";
     const dag = document.querySelector(".dag");

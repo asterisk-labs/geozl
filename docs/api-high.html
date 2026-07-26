@@ -31,7 +31,7 @@
 </nav>
 </header>
 <main class="api">
-<section class="hero2" id="top">
+<section class="hero2" data-slide="python api" id="top">
 <div class="hero-text">
 <p class="sec-h"><span class="sq"></span> Python API</p>
 <h1>Measure, pick, <span class="u">run</span>.</h1>
@@ -61,7 +61,7 @@
 <span class="xh xh-v"></span><span class="xh xh-h"></span><span class="xh xh-d"></span>
 </figure>
 </section>
-<section class="api-overview" id="api">
+<section class="api-overview" data-slide="the three calls" id="api">
 <p class="sec-h"><span class="sq"></span> the Python API</p>
 <div class="api-intro">
 <span class="api-intro-k">one workflow</span>
@@ -82,12 +82,12 @@
 </div>
 <div class="fnbody">
 <div aria-labelledby="tab-profile" class="fnpanel" id="pan-profile" role="tabpanel">
-<p class="sig">signature <b>profile(tile, *, method="planar", reps=5, max_error=0) → list[dict]</b></p>
-<div class="spec2"><div class="row"><span class="nm">method</span><span class="ty">str · None</span><span class="ds">Selects the predictor family to benchmark. Use None to sweep every predictor.</span></div><div class="row"><span class="nm">reps</span><span class="ty">int</span><span class="ds">Times each recipe repeatedly and keeps the fastest run.</span></div><div class="row"><span class="nm">max_error</span><span class="ty">float</span><span class="ds">Adds the same bounded-error quantisation step to every candidate.</span></div><div class="row"><span class="nm">→ row</span><span class="ty">dict</span><span class="ds">Returns graph, ratio, encode_mbps, decode_mbps and shannon_pct, sorted by ratio.</span></div></div>
+<p class="sig">signature <b>profile(tile, *, method="planar", width=None, max_error=None, reps=5, nodata=None) → list[dict]</b></p>
+<div class="spec2"><div class="row"><span class="nm">method</span><span class="ty">str · None</span><span class="ds">Selects the predictor family to benchmark. Use None to sweep every predictor.</span></div><div class="row"><span class="nm">reps</span><span class="ty">int</span><span class="ds">Times each recipe repeatedly and keeps the fastest run.</span></div><div class="row"><span class="nm">max_error</span><span class="ty">float · None</span><span class="ds">Adds the same bounded-error quantisation step to every candidate. <code>None</code> or anything ≤ 0 stays lossless.</span></div><div class="row"><span class="nm">nodata</span><span class="ty">float · None</span><span class="ds">Profiles through the same graph <code>compress</code> would build for a tile that carries missing samples.</span></div><div class="row"><span class="nm">→ row</span><span class="ty">dict</span><span class="ds">Returns graph, ratio, encode_mbps, decode_mbps and shannon_pct, sorted by ratio.</span></div></div>
 </div>
 <div aria-labelledby="tab-compress" class="fnpanel" hidden="" id="pan-compress" role="tabpanel">
-<p class="sig">signature <b>compress(tile, *, method, width=None, max_error=None) → bytes</b></p>
-<div class="spec2"><div class="row"><span class="nm">tile</span><span class="ty">ndarray</span><span class="ds">A 2‑D array, or 1‑D with <code>width</code> given. Native byte order, 1, 2, 4 or 8 bytes per element.</span></div><div class="row"><span class="nm">method</span><span class="ty">str</span><span class="ds">The graph to run, a full recipe string taken straight from the <code>profile</code> table. The transpose and <code>store_lo</code> terminals split each sample into byte lanes, so they need 2 to 8 bytes per element.</span></div><div class="row"><span class="nm">width</span><span class="ty">int · None</span><span class="ds">Row width for a 1‑D input. Read from <code>tile.shape[-1]</code> for a 2‑D array.</span></div><div class="row"><span class="nm">max_error</span><span class="ty">float · None</span><span class="ds"><code>None</code> or anything ≤ 0 is lossless. A positive bound prepends the quant step that keeps every value within that error.</span></div></div>
+<p class="sig">signature <b>compress(tile, *, method, width=None, max_error=None, nodata=None) → bytes</b></p>
+<div class="spec2"><div class="row"><span class="nm">tile</span><span class="ty">ndarray</span><span class="ds">A 2‑D array, or 1‑D with <code>width</code> given. Native byte order, 1, 2, 4 or 8 bytes per element.</span></div><div class="row"><span class="nm">method</span><span class="ty">str</span><span class="ds">The graph to run, a full recipe string taken straight from the <code>profile</code> table. The transpose and <code>store_lo</code> terminals split each sample into byte lanes, so they need 2 to 8 bytes per element.</span></div><div class="row"><span class="nm">width</span><span class="ty">int · None</span><span class="ds">Row width for a 1‑D input. Read from <code>tile.shape[-1]</code> for a 2‑D array.</span></div><div class="row"><span class="nm">max_error</span><span class="ty">float · None</span><span class="ds"><code>None</code> or anything ≤ 0 is lossless. A positive bound prepends the quant step that keeps every value within that error.</span></div><div class="row"><span class="nm">nodata</span><span class="ty">float · None</span><span class="ds">The value that marks a sample as never measured, as GDAL means it. A float tile holding NaN is handled without declaring anything.</span></div></div>
 </div>
 <div aria-labelledby="tab-decompress" class="fnpanel" hidden="" id="pan-decompress" role="tabpanel">
 <p class="sig">signature <b>decompress(frame, *, dtype=None, width=None) → ndarray</b></p>
@@ -95,7 +95,7 @@
 </div>
 </div>
 </section>
-<section class="load-slide" id="tile">
+<section class="load-slide" data-slide="load the raster" id="tile">
 <p class="sec-h"><span class="sq"></span> load the raster</p>
 <div class="load-lead"><strong>Load one representative raster tile.</strong><span>Read a 512 × 512 window from the Copernicus DEM and cast it to <code>int16</code>. This NumPy array becomes the input to GeoZL.</span></div><div class="two load-grid">
 <div>
@@ -127,14 +127,14 @@ raw = tile.nbytes</pre></div>
 </div>
 </div>
 </section>
-<section class="graph-slide" id="graph">
+<section class="graph-slide" data-slide="the graph model" id="graph">
 <p class="sec-h"><span class="sq"></span> the graph model</p>
 <div class="band">
 <div class="prose">
 <p>OpenZL builds a compressor as a directed graph of modular codecs. GeoZL narrows that freedom down to <strong>48 valid raster recipes</strong>, each one a spatial predictor, a zigzag mapping, an optional byte-lane layout and an encoding backend.</p>
 <p>The recipe string records the exact path, for example <code>planar&gt;zigzag&gt;transpose&gt;entropy</code>. <code>profile</code> measures the 48 candidates on your own tile and <code>compress</code> later runs the one you pick, unchanged.</p>
 </div>
-<aside class="side"><span class="st">where 48 comes from</span>Eight predictors and four backends, doubled by the optional transpose, minus the sixteen paths where <code>field_lz</code> and <code>store_lo</code> cannot take byte lanes.</aside>
+<aside class="side"><span class="st">where 48 comes from</span>Eight predictors, counting the no-predictor branch, times six terminals. A terminal is a layout and a backend together, which is why <code>transpose&gt;zstd</code> and <code>store_lo</code> each count once. On a single-byte element the three transposed terminals drop out and the grid falls to 24.</aside>
 </div>
 <p class="flow-h">the stages <em>predictor and layout are optional</em></p>
 <div class="flow">
@@ -147,7 +147,7 @@ raw = tile.nbytes</pre></div>
 </div>
 <p class="note">Every recipe here is lossless. Setting <code>max_error</code> prepends a quantisation step ahead of the predictor, which is the only stage that discards anything.</p>
 </section>
-<section class="profile-slide" id="profile">
+<section class="profile-slide" data-slide="profile" id="profile">
 <p class="sec-h"><span class="sq"></span> profile <span class="sig">the selection step</span></p>
 <div class="profile-visual">
 <div class="profile-copy">
@@ -246,7 +246,7 @@ best = rows[0]["graph"]</pre></div>
 <rect aria-label="id&gt;store_lo, ratio 1.55, decode 1398 MB per second" class="pt" data-d="1398.0" data-e="375.6" data-g="id&gt;store_lo" data-r="1.55" data-s="119" height="8" role="img" tabindex="0" width="8" x="737.4" y="308.5"></rect>
 <line class="guide" id="gx"></line><line class="guide" id="gy"></line><rect class="halo" height="20" id="halo" width="20"></rect></svg></div>
 </div></div></section>
-<section class="compress-slide" id="compress">
+<section class="compress-slide" data-slide="compress" id="compress">
 <p class="sec-h"><span class="sq"></span> compress <span class="sig">the production step</span></p>
 <div class="band">
 <div class="prose">
@@ -263,11 +263,11 @@ best = rows[0]["graph"]</pre></div>
 <div class="on"><span class="ix">per tile</span><b>frame</b><span class="d">Deterministic output.</span></div>
 </div>
 <div class="lbl">python · choose once, run many times</div>
-<div class="code"><pre>best = geozl.<span class="fn">profile</span>(tile)[0]["graph"]
+<div class="code"><pre>best = geozl.<span class="fn">profile</span>(tile, method=None)[0]["graph"]
 frame = geozl.<span class="fn">compress</span>(tile, method=best)</pre></div>
 <div class="out">524.3 kB → 116.5 kB   <b>4.50×</b></div>
 </section>
-<section class="lossy-slide" id="maxerror">
+<section class="lossy-slide" data-slide="max_error" id="maxerror">
 <p class="sec-h"><span class="sq"></span> max_error <span class="sig">bounded-error compression</span></p>
 <div class="band"><div class="prose"><p>Set <code>max_error</code> to trade exact reconstruction for a smaller frame while keeping a hard per-value error bound. Values at or below zero stay lossless.</p><p>The step is <code>Δ = 2 · max_error</code> and each sample comes back as <code>x̂ = round(x / Δ) · Δ</code>, so <code>|x − x̂| ≤ max_error</code> always holds. For integer rasters that step is discrete, which is why the size curve falls in visible steps rather than a smooth line.</p></div><aside class="side"><span class="st">practical reading</span>Choose the knee of the curve: the point where more error stops buying much more compression.</aside></div>
 <div class="chart">
@@ -331,7 +331,7 @@ frame = geozl.<span class="fn">compress</span>(tile, method=best)</pre></div>
 </div></section>
 
 
-<section class="decompress-slide" id="decompress">
+<section class="decompress-slide" data-slide="decompress" id="decompress">
 <p class="sec-h"><span class="sq"></span> decompress <span class="sig">get the array back</span></p>
 <div class="band">
 <div class="prose">
@@ -353,10 +353,10 @@ frame = geozl.<span class="fn">compress</span>(tile, method=best)</pre></div>
 )</pre></div>
 <div class="out">(512, 512) int16</div>
 </section>
-<section class="final-slide" id="loop">
+<section class="final-slide" data-slide="complete workflow" id="loop">
 <p class="sec-h"><span class="sq"></span> complete workflow <span class="sig">measure, pick, run, restore</span></p>
 <div class="lbl">python</div>
-<div class="code"><pre>rows = geozl.<span class="fn">profile</span>(tile)
+<div class="code"><pre>rows = geozl.<span class="fn">profile</span>(tile, method=None)
 best = rows[0]["graph"]
 
 frame = geozl.<span class="fn">compress</span>(tile, method=best, max_error=4)
@@ -388,12 +388,15 @@ back = geozl.<span class="fn">decompress</span>(frame, dtype="int16", width=512)
           asterisk labs
         </a>
 </span>
-<div class="deck deck-bar"><i></i></div>
-<div class="deck deck-foot">
-<p class="deck-no"><b>01</b> / 16</p>
+<div class="deck">
+<div class="deck-rail"></div>
+<div class="deck-foot">
+<p aria-live="polite" class="deck-no"><b>01</b> / 09</p>
+<p class="deck-name"></p>
 <div class="deck-nav">
 <button aria-label="Previous slide" data-go="-1" type="button"><i aria-hidden="true" class="ic ic-prev"></i></button>
 <button aria-label="Next slide" data-go="1" type="button"><i aria-hidden="true" class="ic ic-next"></i></button>
+</div>
 </div>
 </div>
 </footer>

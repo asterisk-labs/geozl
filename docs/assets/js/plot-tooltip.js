@@ -1,7 +1,7 @@
-/* geozl — tooltip de los graficos. Se engancha a cualquier .plot que tenga
-   puntos con data-r, asi que sirve para el scatter y para la curva. */
-/* Tooltip de los dos graficos. Busca el punto mas cercano al cursor en vez de
-   depender del target, porque los cuadros son de 8px y los marcadores los tapan. */
+/* Chart tooltip. It attaches to any .plot holding data-r points, so it serves
+   the scatter and the curve alike, and it picks the point nearest the cursor
+   rather than trusting the event target, since the squares are 8px and the
+   markers sit on top of them. */
 (() => {
   "use strict";
   const plots = [...document.querySelectorAll(".plot")];
@@ -28,8 +28,8 @@
          <dt>quant step</dt><dd>${d.step}</dd>
        </dl>`;
 
-  /* Sin cache. Medir los puntos en cada movimiento cuesta una fraccion de
-     milisegundo y evita que el scroll horizontal del panel los desfase. */
+  /* No cache. Measuring on every move costs a fraction of a millisecond and
+     keeps the panel's horizontal scroll from putting the points out of step. */
   const pts = plots.map((svg) => [...svg.querySelectorAll("[data-r]")]);
 
   let current = null;
@@ -83,7 +83,7 @@
 
   addEventListener("resize", hide);
 
-  /* Realce cruzado con la tabla y guias hasta los ejes. */
+  /* Cross-highlight with the table, plus guides out to the axes. */
   const scatter = plots[0];
   const halo = scatter.querySelector("#halo");
   const gx = scatter.querySelector("#gx"), gy = scatter.querySelector("#gy");

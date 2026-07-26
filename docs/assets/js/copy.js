@@ -1,5 +1,4 @@
-/* geozl — boton de copiar en la barra de cada bloque de codigo. */
-/* Boton de copiar en la barra de cada bloque de codigo. */
+/* Copy button in the label bar above each code block. */
 (() => {
   "use strict";
   const ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';

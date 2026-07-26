@@ -1,7 +1,6 @@
-/* geozl — lectura de elevacion sobre el tile del hero. La rejilla de 128x128
-   va embebida en base64 para que la pagina funcione tambien en local. */
-/* Lectura de elevacion sobre el tile. La rejilla de 128x128 sale de invertir el
-   colormap terrain de la imagen, asi que el valor es aproximado, no el DEM crudo. */
+/* Elevation readout over the hero tile. The 128x128 grid is inlined as base64
+   so the page works from disk too, and it comes from inverting the terrain
+   colormap, which makes a reading approximate rather than the raw DEM. */
 (() => {
   "use strict";
   const fig = document.querySelector(".hero2 .fig");
@@ -24,8 +23,8 @@
   };
 
   fig.addEventListener("pointermove", (e) => {
-    /* object-fit recorta, asi que hay que deshacer escala y centrado antes de
-       convertir el cursor en pixel del tile. */
+    /* object-fit crops, so scale and centring have to be undone before the
+       cursor becomes a pixel of the tile. */
     const r = img.getBoundingClientRect();
     const iw = img.naturalWidth || 512, ih = img.naturalHeight || 512;
     const fit = getComputedStyle(img).objectFit;
