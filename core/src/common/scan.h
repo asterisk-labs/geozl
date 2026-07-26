@@ -6,6 +6,7 @@
 #ifndef GEOZL_COMMON_SCAN_H
 #define GEOZL_COMMON_SCAN_H
 
+#include <stddef.h> // size_t, used by every scan below
 #include <stdint.h>
 
 #ifndef GEOZL_NO_SIMD // the ISA matrix sets this to force the scalar path
