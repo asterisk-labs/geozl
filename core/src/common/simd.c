@@ -3,29 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Kept in step with scan.h by hand. scan.h is included inline everywhere and
-   cannot pull this in without dragging it into every translation unit. */
-#ifndef GEOZL_NO_SIMD
-#if defined(__AVX2__)
-#define GEOZL_BUILT_AVX2 1
-#define GEOZL_BUILT_SSE2 1
-#elif defined(__SSE2__) || defined(_M_X64) ||                                  \
-    (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
-#define GEOZL_BUILT_SSE2 1
-#elif defined(__aarch64__) || defined(_M_ARM64) || defined(__ARM_NEON)
-#define GEOZL_BUILT_NEON 1
-#endif
-#endif
-
-#ifndef GEOZL_BUILT_SSE2
-#define GEOZL_BUILT_SSE2 0
-#endif
-#ifndef GEOZL_BUILT_AVX2
-#define GEOZL_BUILT_AVX2 0
-#endif
-#ifndef GEOZL_BUILT_NEON
-#define GEOZL_BUILT_NEON 0
-#endif
+/* What the build carries. AVX2 is compiled through a target attribute, so on
+   x86 it is there whether or not the unit was built with -mavx2. */
+#define GEOZL_BUILT_SSE2 GEOZL_SIMD_X86
+#define GEOZL_BUILT_NEON GEOZL_SIMD_HAS_NEON
+#define GEOZL_BUILT_AVX2 GEOZL_SIMD_CAN_AVX2
 
 unsigned geozl_simd_built(void) {
   unsigned m = GEOZL_SIMD_BIT(GEOZL_SIMD_SCALAR);
@@ -77,13 +59,19 @@ static int ceiling_from_env(void) {
   return GEOZL_SIMD_NEON;
 }
 
-int geozl_simd_active(void) {
+int geozl_simd_path = -1;
+
+int geozl_simd_resolve(void) {
   const int ceiling = ceiling_from_env();
   unsigned allowed = 0;
   for (int p = GEOZL_SIMD_SCALAR; p <= ceiling; ++p)
     allowed |= GEOZL_SIMD_BIT(p);
-  return top_of(geozl_simd_built() & geozl_simd_cpu() & allowed);
+  /* Benign race, every writer computes the same value. */
+  geozl_simd_path = top_of(geozl_simd_built() & geozl_simd_cpu() & allowed);
+  return geozl_simd_path;
 }
+
+int geozl_simd_active(void) { return geozl_simd_now(); }
 
 const char *geozl_simd_name(int path) {
   switch (path) {

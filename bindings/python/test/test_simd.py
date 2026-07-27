@@ -73,9 +73,6 @@ def test_vector_and_scalar_agree_byte_for_byte():
 
 @pytest.mark.skipif(platform.machine() not in ("x86_64", "AMD64"),
                     reason="AVX2 is an x86 question")
-@pytest.mark.xfail(reason="no AVX2 path in the x86 build yet, it needs runtime "
-                          "dispatch because a wheel compiled with -mavx2 stops "
-                          "loading on machines without it")
 def test_build_keeps_the_paths_the_cpu_offers():
     info = geozl.simd_info()
     missing = [p for p in info["cpu"] if p not in info["built"]]

@@ -2,42 +2,28 @@
 //
 // Shared verbatim by the horizontal predictor decoders. Changes must keep all
 // four widths in step; test/test_simd.c.
+//
+// On x86 both paths are compiled and the choice is made per call, because a
+// wheel targets the base ISA and would otherwise ship without AVX2 at all.
 
 #ifndef GEOZL_COMMON_SCAN_H
 #define GEOZL_COMMON_SCAN_H
 
-#include <stddef.h> // size_t, used by every scan below
+#include <stddef.h>
 #include <stdint.h>
 
-#ifndef GEOZL_NO_SIMD // the ISA matrix sets this to force the scalar path
-#if defined(__AVX2__)
-#include <immintrin.h>
-#define GEOZL_SCAN_AVX2 1
-#elif defined(__SSE2__) || defined(_M_X64) ||                                  \
-    (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
-#include <emmintrin.h>
-#define GEOZL_SCAN_SSE2 1
-#elif defined(__aarch64__) || defined(_M_ARM64) || defined(__ARM_NEON)
-#include <arm_neon.h>
-#define GEOZL_SCAN_NEON 1
-#endif
-#endif // GEOZL_NO_SIMD
+#include "common/simd.h"
 
-// Define all three unconditionally so callers can use #if GEOZL_SCAN_* under
-// -Wundef. A decoder with its own vectorized paths (planar) keys off these too.
-#ifndef GEOZL_SCAN_AVX2
-#define GEOZL_SCAN_AVX2 0
-#endif
-#ifndef GEOZL_SCAN_SSE2
-#define GEOZL_SCAN_SSE2 0
-#endif
-#ifndef GEOZL_SCAN_NEON
-#define GEOZL_SCAN_NEON 0
-#endif
+#define GEOZL_SCAN_TAIL(T)                                                     \
+  T acc = (i > 0) ? dst[i - 1] : 0;                                            \
+  for (; i < n; ++i) {                                                         \
+    acc = (T)(acc + src[i]);                                                   \
+    dst[i] = acc;                                                              \
+  }
 
-static inline void geozl_scan8(uint8_t *dst, const uint8_t *src, size_t n) {
+#if GEOZL_SIMD_CAN_AVX2
+GEOZL_TARGET_AVX2 static inline void geozl_scan8_avx2(uint8_t *dst, const uint8_t *src, size_t n) {
   size_t i = 0;
-#if GEOZL_SCAN_AVX2
   __m256i carry = _mm256_setzero_si256();
   for (; i + 32 <= n; i += 32) {
     __m256i x = _mm256_loadu_si256((const __m256i *)(src + i));
@@ -54,7 +40,12 @@ static inline void geozl_scan8(uint8_t *dst, const uint8_t *src, size_t n) {
     carry = _mm256_broadcastb_epi8(
         _mm_srli_si128(_mm256_extracti128_si256(x, 1), 15));
   }
-#elif GEOZL_SCAN_SSE2
+  GEOZL_SCAN_TAIL(uint8_t)
+}
+#endif
+#if GEOZL_SIMD_X86
+static inline void geozl_scan8_sse2(uint8_t *dst, const uint8_t *src, size_t n) {
+  size_t i = 0;
   __m128i carry = _mm_setzero_si128();
   for (; i + 16 <= n; i += 16) {
     __m128i x = _mm_loadu_si128((const __m128i *)(src + i));
@@ -66,7 +57,11 @@ static inline void geozl_scan8(uint8_t *dst, const uint8_t *src, size_t n) {
     _mm_storeu_si128((__m128i *)(dst + i), x);
     carry = _mm_set1_epi8((char)(_mm_extract_epi16(x, 7) >> 8));
   }
-#elif GEOZL_SCAN_NEON
+  GEOZL_SCAN_TAIL(uint8_t)
+}
+#elif GEOZL_SIMD_HAS_NEON
+static inline void geozl_scan8_neon(uint8_t *dst, const uint8_t *src, size_t n) {
+  size_t i = 0;
   const uint8x16_t zero = vdupq_n_u8(0);
   uint8x16_t carry = zero;
   for (; i + 16 <= n; i += 16) {
@@ -79,17 +74,30 @@ static inline void geozl_scan8(uint8_t *dst, const uint8_t *src, size_t n) {
     vst1q_u8(dst + i, x);
     carry = vdupq_n_u8(vgetq_lane_u8(x, 15));
   }
+  GEOZL_SCAN_TAIL(uint8_t)
+}
 #endif
-  uint8_t acc = (i > 0) ? dst[i - 1] : 0;
-  for (; i < n; ++i) {
-    acc = (uint8_t)(acc + src[i]);
-    dst[i] = acc;
+
+static inline void geozl_scan8(uint8_t *dst, const uint8_t *src, size_t n) {
+#if GEOZL_SIMD_CAN_AVX2
+  if (geozl_simd_now() >= GEOZL_SIMD_AVX2) {
+    geozl_scan8_avx2(dst, src, n);
+    return;
   }
+#endif
+#if GEOZL_SIMD_X86
+  geozl_scan8_sse2(dst, src, n);
+#elif GEOZL_SIMD_HAS_NEON
+  geozl_scan8_neon(dst, src, n);
+#else
+  size_t i = 0;
+  GEOZL_SCAN_TAIL(uint8_t)
+#endif
 }
 
-static inline void geozl_scan16(uint16_t *dst, const uint16_t *src, size_t n) {
+#if GEOZL_SIMD_CAN_AVX2
+GEOZL_TARGET_AVX2 static inline void geozl_scan16_avx2(uint16_t *dst, const uint16_t *src, size_t n) {
   size_t i = 0;
-#if GEOZL_SCAN_AVX2
   __m256i carry = _mm256_setzero_si256();
   for (; i + 16 <= n; i += 16) {
     __m256i x = _mm256_loadu_si256((const __m256i *)(src + i));
@@ -105,7 +113,12 @@ static inline void geozl_scan16(uint16_t *dst, const uint16_t *src, size_t n) {
     carry = _mm256_broadcastw_epi16(
         _mm_srli_si128(_mm256_extracti128_si256(x, 1), 14));
   }
-#elif GEOZL_SCAN_SSE2
+  GEOZL_SCAN_TAIL(uint16_t)
+}
+#endif
+#if GEOZL_SIMD_X86
+static inline void geozl_scan16_sse2(uint16_t *dst, const uint16_t *src, size_t n) {
+  size_t i = 0;
   __m128i carry = _mm_setzero_si128();
   for (; i + 8 <= n; i += 8) {
     __m128i x = _mm_loadu_si128((const __m128i *)(src + i));
@@ -116,7 +129,11 @@ static inline void geozl_scan16(uint16_t *dst, const uint16_t *src, size_t n) {
     _mm_storeu_si128((__m128i *)(dst + i), x);
     carry = _mm_set1_epi16((short)_mm_extract_epi16(x, 7));
   }
-#elif GEOZL_SCAN_NEON
+  GEOZL_SCAN_TAIL(uint16_t)
+}
+#elif GEOZL_SIMD_HAS_NEON
+static inline void geozl_scan16_neon(uint16_t *dst, const uint16_t *src, size_t n) {
+  size_t i = 0;
   const uint16x8_t zero = vdupq_n_u16(0);
   uint16x8_t carry = zero;
   for (; i + 8 <= n; i += 8) {
@@ -128,17 +145,30 @@ static inline void geozl_scan16(uint16_t *dst, const uint16_t *src, size_t n) {
     vst1q_u16(dst + i, x);
     carry = vdupq_n_u16(vgetq_lane_u16(x, 7));
   }
+  GEOZL_SCAN_TAIL(uint16_t)
+}
 #endif
-  uint16_t acc = (i > 0) ? dst[i - 1] : 0;
-  for (; i < n; ++i) {
-    acc = (uint16_t)(acc + src[i]);
-    dst[i] = acc;
+
+static inline void geozl_scan16(uint16_t *dst, const uint16_t *src, size_t n) {
+#if GEOZL_SIMD_CAN_AVX2
+  if (geozl_simd_now() >= GEOZL_SIMD_AVX2) {
+    geozl_scan16_avx2(dst, src, n);
+    return;
   }
+#endif
+#if GEOZL_SIMD_X86
+  geozl_scan16_sse2(dst, src, n);
+#elif GEOZL_SIMD_HAS_NEON
+  geozl_scan16_neon(dst, src, n);
+#else
+  size_t i = 0;
+  GEOZL_SCAN_TAIL(uint16_t)
+#endif
 }
 
-static inline void geozl_scan32(uint32_t *dst, const uint32_t *src, size_t n) {
+#if GEOZL_SIMD_CAN_AVX2
+GEOZL_TARGET_AVX2 static inline void geozl_scan32_avx2(uint32_t *dst, const uint32_t *src, size_t n) {
   size_t i = 0;
-#if GEOZL_SCAN_AVX2
   __m256i carry = _mm256_setzero_si256();
   for (; i + 8 <= n; i += 8) {
     __m256i x = _mm256_loadu_si256((const __m256i *)(src + i));
@@ -152,7 +182,12 @@ static inline void geozl_scan32(uint32_t *dst, const uint32_t *src, size_t n) {
     carry = _mm256_broadcastd_epi32(
         _mm_shuffle_epi32(_mm256_extracti128_si256(x, 1), 0xFF));
   }
-#elif GEOZL_SCAN_SSE2
+  GEOZL_SCAN_TAIL(uint32_t)
+}
+#endif
+#if GEOZL_SIMD_X86
+static inline void geozl_scan32_sse2(uint32_t *dst, const uint32_t *src, size_t n) {
+  size_t i = 0;
   __m128i carry = _mm_setzero_si128();
   for (; i + 4 <= n; i += 4) {
     __m128i x = _mm_loadu_si128((const __m128i *)(src + i));
@@ -162,7 +197,11 @@ static inline void geozl_scan32(uint32_t *dst, const uint32_t *src, size_t n) {
     _mm_storeu_si128((__m128i *)(dst + i), x);
     carry = _mm_shuffle_epi32(x, _MM_SHUFFLE(3, 3, 3, 3));
   }
-#elif GEOZL_SCAN_NEON
+  GEOZL_SCAN_TAIL(uint32_t)
+}
+#elif GEOZL_SIMD_HAS_NEON
+static inline void geozl_scan32_neon(uint32_t *dst, const uint32_t *src, size_t n) {
+  size_t i = 0;
   const uint32x4_t zero = vdupq_n_u32(0);
   uint32x4_t carry = zero;
   for (; i + 4 <= n; i += 4) {
@@ -173,12 +212,25 @@ static inline void geozl_scan32(uint32_t *dst, const uint32_t *src, size_t n) {
     vst1q_u32(dst + i, x);
     carry = vdupq_n_u32(vgetq_lane_u32(x, 3));
   }
+  GEOZL_SCAN_TAIL(uint32_t)
+}
 #endif
-  uint32_t acc = (i > 0) ? dst[i - 1] : 0;
-  for (; i < n; ++i) {
-    acc += src[i];
-    dst[i] = acc;
+
+static inline void geozl_scan32(uint32_t *dst, const uint32_t *src, size_t n) {
+#if GEOZL_SIMD_CAN_AVX2
+  if (geozl_simd_now() >= GEOZL_SIMD_AVX2) {
+    geozl_scan32_avx2(dst, src, n);
+    return;
   }
+#endif
+#if GEOZL_SIMD_X86
+  geozl_scan32_sse2(dst, src, n);
+#elif GEOZL_SIMD_HAS_NEON
+  geozl_scan32_neon(dst, src, n);
+#else
+  size_t i = 0;
+  GEOZL_SCAN_TAIL(uint32_t)
+#endif
 }
 
 // 64 bit stays scalar: one add per element already saturates memory bandwidth,

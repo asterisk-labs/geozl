@@ -13,9 +13,6 @@
 
 #include "common/scan.h"
 
-#define PLANAR_AVX2 GEOZL_SCAN_AVX2
-#define PLANAR_SSE2 GEOZL_SCAN_SSE2
-#define PLANAR_NEON GEOZL_SCAN_NEON
 #define scan8 geozl_scan8
 #define scan16 geozl_scan16
 #define scan32 geozl_scan32
@@ -26,12 +23,12 @@
 // neighbour and no above left, so above[-1] is taken as zero. above is the
 // row already reconstructed above this one.
 
-static void frow8(uint8_t *d, const uint8_t *res, const uint8_t *above,
+#if GEOZL_SIMD_CAN_AVX2
+GEOZL_TARGET_AVX2 static void frow8_avx2(uint8_t *d, const uint8_t *res, const uint8_t *above,
                   size_t n) {
   uint8_t acc = (uint8_t)(res[0] + above[0]);
   d[0] = acc;
   size_t i = 1;
-#if PLANAR_AVX2
   __m256i carry = _mm256_set1_epi8((char)acc);
   for (; i + 32 <= n; i += 32) {
     __m256i c = _mm256_sub_epi8(
@@ -51,7 +48,19 @@ static void frow8(uint8_t *d, const uint8_t *res, const uint8_t *above,
     carry = _mm256_broadcastb_epi8(
         _mm_srli_si128(_mm256_extracti128_si256(c, 1), 15));
   }
-#elif PLANAR_SSE2
+  acc = d[i - 1];
+  for (; i < n; ++i) {
+    acc = (uint8_t)(acc + (uint8_t)(res[i] + above[i] - above[i - 1]));
+    d[i] = acc;
+  }
+}
+#endif
+#if GEOZL_SIMD_X86
+static void frow8_sse2(uint8_t *d, const uint8_t *res, const uint8_t *above,
+                  size_t n) {
+  uint8_t acc = (uint8_t)(res[0] + above[0]);
+  d[0] = acc;
+  size_t i = 1;
   __m128i carry = _mm_set1_epi8((char)acc);
   for (; i + 16 <= n; i += 16) {
     __m128i c = _mm_sub_epi8(
@@ -66,7 +75,18 @@ static void frow8(uint8_t *d, const uint8_t *res, const uint8_t *above,
     _mm_storeu_si128((__m128i *)(d + i), c);
     carry = _mm_set1_epi8((char)(_mm_extract_epi16(c, 7) >> 8));
   }
-#elif PLANAR_NEON
+  acc = d[i - 1];
+  for (; i < n; ++i) {
+    acc = (uint8_t)(acc + (uint8_t)(res[i] + above[i] - above[i - 1]));
+    d[i] = acc;
+  }
+}
+#elif GEOZL_SIMD_HAS_NEON
+static void frow8_neon(uint8_t *d, const uint8_t *res, const uint8_t *above,
+                  size_t n) {
+  uint8_t acc = (uint8_t)(res[0] + above[0]);
+  d[0] = acc;
+  size_t i = 1;
   const uint8x16_t zero = vdupq_n_u8(0);
   uint8x16_t carry = vdupq_n_u8(acc);
   for (; i + 16 <= n; i += 16) {
@@ -80,20 +100,44 @@ static void frow8(uint8_t *d, const uint8_t *res, const uint8_t *above,
     vst1q_u8(d + i, c);
     carry = vdupq_n_u8(vgetq_lane_u8(c, 15));
   }
-#endif
   acc = d[i - 1];
   for (; i < n; ++i) {
     acc = (uint8_t)(acc + (uint8_t)(res[i] + above[i] - above[i - 1]));
     d[i] = acc;
   }
 }
+#endif
 
-static void frow16(uint16_t *d, const uint16_t *res, const uint16_t *above,
+static void frow8(uint8_t *d, const uint8_t *res, const uint8_t *above,
+                  size_t n) {
+#if GEOZL_SIMD_CAN_AVX2
+  if (geozl_simd_now() >= GEOZL_SIMD_AVX2) {
+    frow8_avx2(d, res, above, n);
+    return;
+  }
+#endif
+#if GEOZL_SIMD_X86
+  frow8_sse2(d, res, above, n);
+#elif GEOZL_SIMD_HAS_NEON
+  frow8_neon(d, res, above, n);
+#else
+  uint8_t acc = (uint8_t)(res[0] + above[0]);
+  d[0] = acc;
+  size_t i = 1;
+  acc = d[i - 1];
+  for (; i < n; ++i) {
+    acc = (uint8_t)(acc + (uint8_t)(res[i] + above[i] - above[i - 1]));
+    d[i] = acc;
+  }
+#endif
+}
+
+#if GEOZL_SIMD_CAN_AVX2
+GEOZL_TARGET_AVX2 static void frow16_avx2(uint16_t *d, const uint16_t *res, const uint16_t *above,
                    size_t n) {
   uint16_t acc = (uint16_t)(res[0] + above[0]);
   d[0] = acc;
   size_t i = 1;
-#if PLANAR_AVX2
   __m256i carry = _mm256_set1_epi16((short)acc);
   for (; i + 16 <= n; i += 16) {
     __m256i c = _mm256_sub_epi16(
@@ -112,7 +156,19 @@ static void frow16(uint16_t *d, const uint16_t *res, const uint16_t *above,
     carry = _mm256_broadcastw_epi16(
         _mm_srli_si128(_mm256_extracti128_si256(c, 1), 14));
   }
-#elif PLANAR_SSE2
+  acc = d[i - 1];
+  for (; i < n; ++i) {
+    acc = (uint16_t)(acc + (uint16_t)(res[i] + above[i] - above[i - 1]));
+    d[i] = acc;
+  }
+}
+#endif
+#if GEOZL_SIMD_X86
+static void frow16_sse2(uint16_t *d, const uint16_t *res, const uint16_t *above,
+                   size_t n) {
+  uint16_t acc = (uint16_t)(res[0] + above[0]);
+  d[0] = acc;
+  size_t i = 1;
   __m128i carry = _mm_set1_epi16((short)acc);
   for (; i + 8 <= n; i += 8) {
     __m128i c = _mm_sub_epi16(
@@ -126,7 +182,18 @@ static void frow16(uint16_t *d, const uint16_t *res, const uint16_t *above,
     _mm_storeu_si128((__m128i *)(d + i), c);
     carry = _mm_set1_epi16((short)_mm_extract_epi16(c, 7));
   }
-#elif PLANAR_NEON
+  acc = d[i - 1];
+  for (; i < n; ++i) {
+    acc = (uint16_t)(acc + (uint16_t)(res[i] + above[i] - above[i - 1]));
+    d[i] = acc;
+  }
+}
+#elif GEOZL_SIMD_HAS_NEON
+static void frow16_neon(uint16_t *d, const uint16_t *res, const uint16_t *above,
+                   size_t n) {
+  uint16_t acc = (uint16_t)(res[0] + above[0]);
+  d[0] = acc;
+  size_t i = 1;
   const uint16x8_t zero = vdupq_n_u16(0);
   uint16x8_t carry = vdupq_n_u16(acc);
   for (; i + 8 <= n; i += 8) {
@@ -140,20 +207,44 @@ static void frow16(uint16_t *d, const uint16_t *res, const uint16_t *above,
     vst1q_u16(d + i, c);
     carry = vdupq_n_u16(vgetq_lane_u16(c, 7));
   }
-#endif
   acc = d[i - 1];
   for (; i < n; ++i) {
     acc = (uint16_t)(acc + (uint16_t)(res[i] + above[i] - above[i - 1]));
     d[i] = acc;
   }
 }
+#endif
 
-static void frow32(uint32_t *d, const uint32_t *res, const uint32_t *above,
+static void frow16(uint16_t *d, const uint16_t *res, const uint16_t *above,
+                   size_t n) {
+#if GEOZL_SIMD_CAN_AVX2
+  if (geozl_simd_now() >= GEOZL_SIMD_AVX2) {
+    frow16_avx2(d, res, above, n);
+    return;
+  }
+#endif
+#if GEOZL_SIMD_X86
+  frow16_sse2(d, res, above, n);
+#elif GEOZL_SIMD_HAS_NEON
+  frow16_neon(d, res, above, n);
+#else
+  uint16_t acc = (uint16_t)(res[0] + above[0]);
+  d[0] = acc;
+  size_t i = 1;
+  acc = d[i - 1];
+  for (; i < n; ++i) {
+    acc = (uint16_t)(acc + (uint16_t)(res[i] + above[i] - above[i - 1]));
+    d[i] = acc;
+  }
+#endif
+}
+
+#if GEOZL_SIMD_CAN_AVX2
+GEOZL_TARGET_AVX2 static void frow32_avx2(uint32_t *d, const uint32_t *res, const uint32_t *above,
                    size_t n) {
   uint32_t acc = res[0] + above[0];
   d[0] = acc;
   size_t i = 1;
-#if PLANAR_AVX2
   __m256i carry = _mm256_set1_epi32((int)acc);
   for (; i + 8 <= n; i += 8) {
     __m256i c = _mm256_sub_epi32(
@@ -170,7 +261,19 @@ static void frow32(uint32_t *d, const uint32_t *res, const uint32_t *above,
     carry = _mm256_broadcastd_epi32(
         _mm_shuffle_epi32(_mm256_extracti128_si256(c, 1), 0xFF));
   }
-#elif PLANAR_SSE2
+  acc = d[i - 1];
+  for (; i < n; ++i) {
+    acc += res[i] + above[i] - above[i - 1];
+    d[i] = acc;
+  }
+}
+#endif
+#if GEOZL_SIMD_X86
+static void frow32_sse2(uint32_t *d, const uint32_t *res, const uint32_t *above,
+                   size_t n) {
+  uint32_t acc = res[0] + above[0];
+  d[0] = acc;
+  size_t i = 1;
   __m128i carry = _mm_set1_epi32((int)acc);
   for (; i + 4 <= n; i += 4) {
     __m128i c = _mm_sub_epi32(
@@ -183,7 +286,18 @@ static void frow32(uint32_t *d, const uint32_t *res, const uint32_t *above,
     _mm_storeu_si128((__m128i *)(d + i), c);
     carry = _mm_shuffle_epi32(c, _MM_SHUFFLE(3, 3, 3, 3));
   }
-#elif PLANAR_NEON
+  acc = d[i - 1];
+  for (; i < n; ++i) {
+    acc += res[i] + above[i] - above[i - 1];
+    d[i] = acc;
+  }
+}
+#elif GEOZL_SIMD_HAS_NEON
+static void frow32_neon(uint32_t *d, const uint32_t *res, const uint32_t *above,
+                   size_t n) {
+  uint32_t acc = res[0] + above[0];
+  d[0] = acc;
+  size_t i = 1;
   const uint32x4_t zero = vdupq_n_u32(0);
   uint32x4_t carry = vdupq_n_u32(acc);
   for (; i + 4 <= n; i += 4) {
@@ -196,12 +310,36 @@ static void frow32(uint32_t *d, const uint32_t *res, const uint32_t *above,
     vst1q_u32(d + i, c);
     carry = vdupq_n_u32(vgetq_lane_u32(c, 3));
   }
-#endif
   acc = d[i - 1];
   for (; i < n; ++i) {
     acc += res[i] + above[i] - above[i - 1];
     d[i] = acc;
   }
+}
+#endif
+
+static void frow32(uint32_t *d, const uint32_t *res, const uint32_t *above,
+                   size_t n) {
+#if GEOZL_SIMD_CAN_AVX2
+  if (geozl_simd_now() >= GEOZL_SIMD_AVX2) {
+    frow32_avx2(d, res, above, n);
+    return;
+  }
+#endif
+#if GEOZL_SIMD_X86
+  frow32_sse2(d, res, above, n);
+#elif GEOZL_SIMD_HAS_NEON
+  frow32_neon(d, res, above, n);
+#else
+  uint32_t acc = res[0] + above[0];
+  d[0] = acc;
+  size_t i = 1;
+  acc = d[i - 1];
+  for (; i < n; ++i) {
+    acc += res[i] + above[i] - above[i - 1];
+    d[i] = acc;
+  }
+#endif
 }
 
 static void frow64(uint64_t *d, const uint64_t *res, const uint64_t *above,
