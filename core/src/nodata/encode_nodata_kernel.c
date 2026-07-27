@@ -38,6 +38,33 @@ int nodata_find_nan(uint64_t *pattern, const void *src, size_t nb_elts,
   }
 }
 
+#define NODATA_MARK_NAN(T, TEST)                                               \
+  do {                                                                         \
+    const T *s = (const T *)src;                                               \
+    size_t n = 0;                                                              \
+    for (size_t i = 0; i < nb_elts; ++i) {                                     \
+      const int hit = TEST(s[i]);                                              \
+      mask[i] = hit ? GEOZL_NODATA_INVALID : GEOZL_NODATA_VALID;               \
+      n += (size_t)hit;                                                        \
+    }                                                                          \
+    return n;                                                                  \
+  } while (0)
+
+size_t nodata_mark_nan(uint8_t *mask, const void *src, size_t nb_elts,
+                       size_t elt_width) {
+  switch (elt_width) {
+  case 2:
+    NODATA_MARK_NAN(uint16_t, NODATA_ISNAN16);
+  case 4:
+    NODATA_MARK_NAN(uint32_t, NODATA_ISNAN32);
+  case 8:
+    NODATA_MARK_NAN(uint64_t, NODATA_ISNAN64);
+  default:
+    memset(mask, GEOZL_NODATA_VALID, nb_elts);
+    return 0;
+  }
+}
+
 #define NODATA_MARK_VALUE(T)                                                   \
   do {                                                                         \
     const T *s = (const T *)src;                                               \

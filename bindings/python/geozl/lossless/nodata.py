@@ -52,11 +52,14 @@ class _Encoder(_ext.CustomEncoder):
             src = _ptr(inp.content.as_nparray())
             mp = _ptr(mask.mut_content.as_nparray())
             if self._pattern is None:
-                # No pattern given, take the first NaN in the tile.
+                # No pattern given, so every NaN is a hole and the first one
+                # supplies the pattern the decoder writes back.
                 found = ffi.new("uint64_t*")
                 if lib.nodata_find_nan(found, src, n, elt):
                     pattern = int(found[0])
-            lib.nodata_mark_value(mp, src, n, elt, pattern)
+                lib.nodata_mark_nan(mp, src, n, elt)
+            else:
+                lib.nodata_mark_value(mp, src, n, elt, pattern)
             lib.nodata_fill(_ptr(vals.mut_content.as_nparray()), src, mp,
                             self._width, n, elt)
         state.send_codec_header(bytes([_RESTORE]) + _pattern_bytes(pattern, elt))

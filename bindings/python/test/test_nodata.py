@@ -51,6 +51,20 @@ def test_nan_round_trips_with_its_payload():
     assert np.array_equal(out.view(np.uint32), tile.view(np.uint32))
 
 
+def test_a_second_nan_payload_is_a_hole_too():
+    """Matching bits instead of testing for NaN left every payload but the
+    first for whatever ran next, and quant_linear has no answer for one."""
+    tile = _smooth(np.float32)
+    holes = _holes()
+    tile[holes] = ODD_NAN
+    other = np.array(0x7FA00042, dtype=np.uint32).view(np.float32)
+    tile[3, 3] = other
+    _, out = _roundtrip(tile, method=GRAPH_WIDE, max_error=2)
+    assert np.isnan(out[3, 3])
+    assert np.isnan(out[holes]).all()
+    assert not np.isnan(out[0, 0])
+
+
 def test_sentinel_round_trips():
     tile = _smooth(np.int32)
     tile[_holes()] = -9999

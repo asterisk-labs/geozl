@@ -12,11 +12,17 @@
 
 // Bit pattern of the first NaN in the tile, IEEE only so elt_width is 2, 4 or
 // 8. Returns 1 when one was found and 0 otherwise. Only NaN counts, an infinity
-// is a value and travels as one. Marking is left to nodata_mark_value, so a
-// tile carrying two different NaN payloads still compresses, it just keeps the
-// odd ones as ordinary samples instead of failing.
+// is a value and travels as one.
 int nodata_find_nan(uint64_t *pattern, const void *src, size_t nb_elts,
                     size_t elt_width);
+
+// Marks every NaN, whatever its payload, and returns how many. A tile can carry
+// more than one payload, and matching bits instead would leave all but the
+// first kind for whatever runs next, which for quant_linear means a NaN the
+// SPEC says it never has to handle. Widths other than 2, 4 and 8 hold no IEEE
+// value, so the mask comes out all valid.
+size_t nodata_mark_nan(uint8_t *mask, const void *src, size_t nb_elts,
+                       size_t elt_width);
 
 // Marks every sample whose bit pattern equals @pattern. Returns how many.
 size_t nodata_mark_value(uint8_t *mask, const void *src, size_t nb_elts,

@@ -43,11 +43,11 @@ ZL_Report EI_geozl_nodata(ZL_Encoder *eictx, const ZL_Input *in) {
   if (nbElts != 0) {
     uint8_t *mp8 = (uint8_t *)ZL_Output_ptr(mask);
     if (mode == GEOZL_NODATA_MODE_NAN) {
-      // A tile with no NaN leaves the pattern at 0, the mask comes out all
-      // valid, and the codec is a pass through. The caller avoids that by not
-      // asking for the node, this only keeps it correct if it does.
+      // The pattern is what gets restored, the marking is the NaN test itself,
+      // so a second payload is a hole too. A tile with no NaN leaves the
+      // pattern at 0, the mask all valid, and the codec a pass through.
       nodata_find_nan(&pattern, ZL_Input_ptr(in), nbElts, eltWidth);
-      nodata_mark_value(mp8, ZL_Input_ptr(in), nbElts, eltWidth, pattern);
+      nodata_mark_nan(mp8, ZL_Input_ptr(in), nbElts, eltWidth);
     } else if (mode == GEOZL_NODATA_MODE_VALUE) {
       ZL_CopyParam vp =
           ZL_Encoder_getLocalCopyParam(eictx, GEOZL_NODATA_PARAM_VALUE);
