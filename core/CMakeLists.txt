@@ -82,6 +82,9 @@ foreach(name IN LISTS GEOZL_CODECS)
         src/${name}/decode_${name}_kernel.c)
 endforeach()
 list(APPEND GEOZL_KERNELS src/wp_static/train_wp_static.c)
+# Python asks the kernels library which vector paths this build carries,
+# so the answer has to live where it can be read without OpenZL.
+list(APPEND GEOZL_KERNELS src/common/simd.c)
 
 if(GEOZL_BUILD_FULL)
     if(GEOZL_USE_SYSTEM_OPENZL)

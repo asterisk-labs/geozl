@@ -2,6 +2,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 from . import lossless, lossy
 from ._2d import compress, decompress, profile
+from ._simd import simd_info
 
 try:
     __version__ = version("geozl")
@@ -17,4 +18,4 @@ def register_decoders(dctx):
 
 
 __all__ = ["lossless", "lossy", "compress", "decompress", "profile",
-           "register_decoders", "__version__"]
+           "register_decoders", "simd_info", "__version__"]

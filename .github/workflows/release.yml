@@ -49,6 +49,11 @@ jobs:
           python -m venv /tmp/v && . /tmp/v/bin/activate
           pip install dist/*.whl
           LD_LIBRARY_PATH="" python -c "import geozl; print(geozl.__version__)"
+          LD_LIBRARY_PATH="" python -c "import geozl, json, sys; \
+            i=geozl.simd_info(); print('simd', json.dumps(i)); \
+            assert i['active'] != 'scalar', 'the wheel shipped without a vector path'; \
+            gap=[p for p in i['cpu'] if p not in i['built']]; \
+            print('::warning::wheel is missing', gap) if gap else None"
           LD_LIBRARY_PATH="" python -c "import numpy as np, geozl; \
             t=(np.arange(256*256,dtype=np.uint16)%97).reshape(256,256); \
             best=geozl.profile(t, reps=1)[0]['graph']; \
@@ -91,6 +96,9 @@ jobs:
           python -m venv /tmp/v && . /tmp/v/bin/activate
           pip install dist/*.whl
           python -c "import geozl; print(geozl.__version__)"
+          python -c "import geozl, json; \
+            i=geozl.simd_info(); print('simd', json.dumps(i)); \
+            assert i['active'] != 'scalar', 'the wheel shipped without a vector path'"
           python -c "import numpy as np, geozl; \
             t=(np.arange(256*256,dtype=np.uint16)%97).reshape(256,256); \
             best=geozl.profile(t, reps=1)[0]['graph']; \
