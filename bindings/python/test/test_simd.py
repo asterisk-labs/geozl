@@ -36,9 +36,20 @@ def run_with(cap, snippet):
     return out.stdout.strip()
 
 
-def usable():
+def both():
+    """Paths this build carries that this processor can also run, before any
+    ceiling."""
     info = geozl.simd_info()
     return [p for p in ORDER if p in info["built"] and p in info["cpu"]]
+
+
+def under(cap):
+    """The same, capped. GEOZL_SIMD is set in this process on the matrix rows
+    that pin a path, so a test that reads active has to apply it too."""
+    paths = both()
+    if cap in ORDER:
+        paths = [p for p in paths if ORDER.index(p) <= ORDER.index(cap)]
+    return paths or ["scalar"]
 
 
 def test_shape():
@@ -55,20 +66,22 @@ def test_scalar_is_always_there():
 
 
 def test_active_is_the_best_of_both():
-    assert usable()
-    assert geozl.simd_info()["active"] == usable()[-1]
+    assert both()
+    assert geozl.simd_info()["active"] == under(os.environ.get("GEOZL_SIMD", ""))[-1]
 
 
 @pytest.mark.parametrize("cap", ORDER)
 def test_env_caps_but_never_raises(cap):
+    """The child gets its own ceiling, whatever this process was given."""
     got = run_with(cap, "import geozl; print(geozl.simd_info()['active'])")
-    under = [p for p in usable() if ORDER.index(p) <= ORDER.index(cap)]
-    assert got == (under[-1] if under else "scalar")
+    assert got == under(cap)[-1]
 
 
 def test_unknown_env_value_is_ignored():
-    got = run_with("turbo", "import geozl; print(geozl.simd_info()['active'])")
-    assert got == geozl.simd_info()["active"]
+    """Against a child with no ceiling, not against this process, which the
+    matrix may have pinned."""
+    snippet = "import geozl; print(geozl.simd_info()['active'])"
+    assert run_with("turbo", snippet) == run_with(None, snippet)
 
 
 @pytest.mark.skipif(geozl.simd_info()["active"] == "scalar",
