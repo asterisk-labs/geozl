@@ -66,9 +66,13 @@ CMAKE_OPTS  := -G $(GEN) -DCMAKE_BUILD_TYPE=$(BUILD) \
 CTEST_DIR     := $(BUILD_DIR)/ctest
 CTEST_SRCS    := $(wildcard test/test_*.c)
 CTEST_BINS    := $(patsubst test/%.c,$(CTEST_DIR)/%,$(CTEST_SRCS))
+# scan.h dispatches through geozl_simd_now, so anything including it needs
+# simd.c at link time. Listed by hand, like train_wp_static.c, because neither
+# matches the kernel glob.
 CTEST_KERNELS := $(wildcard $(CORE)/src/*/encode_*_kernel.c) \
                  $(wildcard $(CORE)/src/*/decode_*_kernel.c) \
-                 $(CORE)/src/wp_static/train_wp_static.c
+                 $(CORE)/src/wp_static/train_wp_static.c \
+                 $(CORE)/src/common/simd.c
 CTEST_CFLAGS  := -std=c11 -O1 -g -Wall -Wextra -I$(CORE)/src
 
 # No SAN_ENV here, the test binaries are instrumented themselves. Leak

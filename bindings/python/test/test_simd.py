@@ -6,8 +6,19 @@ import sys
 import pytest
 
 import geozl
+from geozl import _2d
 
 ORDER = ("scalar", "sse2", "avx2", "neon")
+
+# FULL=OFF leaves libgeozl out, and with it geozl.compress.
+try:
+    _2d._load_lib_full()
+    HAVE_FULL = True
+except OSError:  # pragma: no cover - depends on how the build was configured
+    HAVE_FULL = False
+
+# A GEOZL_NO_SIMD build carries nothing but the scalar path, on purpose.
+VECTORLESS = geozl.simd_info()["built"] == ["scalar"]
 
 
 def run_with(cap, snippet):
@@ -62,6 +73,8 @@ def test_unknown_env_value_is_ignored():
 
 @pytest.mark.skipif(geozl.simd_info()["active"] == "scalar",
                     reason="no vector path to compare against")
+@pytest.mark.skipif(not HAVE_FULL,
+                    reason="libgeozl not built, rebuild with FULL=ON")
 def test_vector_and_scalar_agree_byte_for_byte():
     """Compares the frame and not the array. The array survives a bad fill
     because decode overwrites everything under the mask, the frame does not."""
@@ -79,6 +92,7 @@ def test_vector_and_scalar_agree_byte_for_byte():
 
 @pytest.mark.skipif(platform.machine() not in ("x86_64", "AMD64"),
                     reason="AVX2 is an x86 question")
+@pytest.mark.skipif(VECTORLESS, reason="built with GEOZL_NO_SIMD")
 def test_build_keeps_the_paths_the_cpu_offers():
     info = geozl.simd_info()
     missing = [p for p in info["cpu"] if p not in info["built"]]
