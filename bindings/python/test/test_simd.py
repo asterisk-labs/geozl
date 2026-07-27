@@ -11,9 +11,15 @@ ORDER = ("scalar", "sse2", "avx2", "neon")
 
 
 def run_with(cap, snippet):
-    """The cap is read when the library loads, so it takes a fresh process."""
+    """The cap is read when the library loads, so it takes a fresh process.
+    macOS strips the dyld preload from the child, so reinject the runtime path
+    the way test_malformed does, or a sanitizer build aborts on load."""
     env = dict(os.environ)
     env.pop("GEOZL_SIMD", None) if cap is None else env.update(GEOZL_SIMD=cap)
+    rt = env.get("GEOZL_ASAN_RT")
+    if rt:
+        var = "DYLD_INSERT_LIBRARIES" if sys.platform == "darwin" else "LD_PRELOAD"
+        env[var] = rt
     out = subprocess.run([sys.executable, "-c", snippet], env=env,
                          capture_output=True, text=True, check=True)
     return out.stdout.strip()
