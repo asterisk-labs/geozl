@@ -37,7 +37,11 @@ jobs:
           set -euxo pipefail
           export PATH=/opt/python/cp312-cp312/bin:$PATH
           pip install -q cmake ninja build wheel auditwheel
+          # x86-64-v2 is SSE4.2 and POPCNT, everything from 2009 on, and it is
+          # worth 1.7x on wp_static_decode. AVX2 is not a baseline, it is picked
+          # at runtime. Drop this flag to widen support back to plain x86-64.
           cmake -S core -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_C_FLAGS="-march=x86-64-v2" \
                 -DGEOZL_BUILD_FULL=ON -DGEOZL_BUILD_KERNELS_SHARED=ON
           cmake --build build
           mkdir -p bindings/python/geozl/_lib
@@ -49,11 +53,10 @@ jobs:
           python -m venv /tmp/v && . /tmp/v/bin/activate
           pip install dist/*.whl
           LD_LIBRARY_PATH="" python -c "import geozl; print(geozl.__version__)"
-          LD_LIBRARY_PATH="" python -c "import geozl, json, sys; \
+          LD_LIBRARY_PATH="" python -c "import geozl, json; \
             i=geozl.simd_info(); print('simd', json.dumps(i)); \
-            assert i['active'] != 'scalar', 'the wheel shipped without a vector path'; \
             gap=[p for p in i['cpu'] if p not in i['built']]; \
-            print('::warning::wheel is missing', gap) if gap else None"
+            assert not gap, f'the wheel cannot use {gap} on a cpu that has it'"
           LD_LIBRARY_PATH="" python -c "import numpy as np, geozl; \
             t=(np.arange(256*256,dtype=np.uint16)%97).reshape(256,256); \
             best=geozl.profile(t, reps=1)[0]['graph']; \
@@ -98,7 +101,8 @@ jobs:
           python -c "import geozl; print(geozl.__version__)"
           python -c "import geozl, json; \
             i=geozl.simd_info(); print('simd', json.dumps(i)); \
-            assert i['active'] != 'scalar', 'the wheel shipped without a vector path'"
+            gap=[p for p in i['cpu'] if p not in i['built']]; \
+            assert not gap, f'the wheel cannot use {gap} on a cpu that has it'"
           python -c "import numpy as np, geozl; \
             t=(np.arange(256*256,dtype=np.uint16)%97).reshape(256,256); \
             best=geozl.profile(t, reps=1)[0]['graph']; \

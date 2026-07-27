@@ -1,7 +1,7 @@
 // Prefix sum scans, one per element width: dst[0]=src[0], dst[i]=dst[i-1]+src[i].
 //
-// Shared verbatim by the horizontal predictor decoders. Changes must keep all
-// four widths in step; test/test_simd.c.
+// Shared verbatim by the horizontal predictor decoders, so a change has to keep
+// all four widths in step. 
 //
 // On x86 both paths are compiled and the choice is made per call, because a
 // wheel targets the base ISA and would otherwise ship without AVX2 at all.
