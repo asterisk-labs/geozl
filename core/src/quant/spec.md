@@ -49,11 +49,11 @@ linear curve on an integer type, and a non-zero `nsub` outside the log curve.
 
 Every reconstruction is clamped into the range of the output type and then
 rounded to that width before it is stored. It is not only the top that needs
-clamping, the sqrt curve lands below zero near the bottom of its range and would
-wrap on an unsigned type. Clamping only moves a reconstruction towards the data,
-so the bound holds. The rounding is to nearest rather than the truncation a cast
-would give, since the encoder picks its index by judging candidates through the
-same step.
+clamping, the sqrt curve lands below zero near the bottom of its range, which on
+an unsigned type would wrap. Clamping only ever moves a reconstruction towards
+the data, so the bound survives it. The rounding is to nearest, not the
+truncation a cast would give, because the encoder picks its index by judging
+candidates through the same step.
 
 On integers a `step` of 1 under the linear curve is a copy, since the index and
 the value are the same number.
@@ -66,21 +66,31 @@ A single numeric stream of the original element type and width, with the same
 number of elements as the input.
 
 ### Error bound
-The bound is a property of the curve. The encoder holds to it by picking the
+The bound is a property of the curve, and the encoder holds to it by picking the
 index whose reconstruction, taken back at the output width, is nearest the
-sample, rather than by trusting the algebra, which keeps the bound off the
+sample, rather than by trusting the algebra. That keeps a declared bound off the
 accuracy of `log` and `exp`.
+
+It then measures. The encoder decodes what it just wrote, compares every sample
+against the bound the recipe declared, and where the frame misses it tightens
+the step by the amount it missed by and encodes again, up to twice. A frame that
+still misses is refused rather than written. That is what makes the declared
+error a measurement rather than an argument, and it holds against causes nobody
+predicted. Where the floor is the representation rather than the grid,
+tightening does not converge and refusing is the answer.
 
 - linear, `|x - x^| <= step/2`.
 - sqrt, `|x - x^| <= step * sqrt(x + offset)`.
 - log, `|x - x^| <= (exp(step/2) - 1) * |x|`.
 
 Two cases sit outside the grid and are carried exactly instead, which a relative
-bound allows since it is also satisfied when the two values are identical. Zero
-is one, and it decodes to zero for any parameters. The other is the range where
-the representable values sit too far apart for any grid to meet the bound, below
-the smallest normal on a float type and below roughly `8/b` on an integer one.
-That range is the leading `nsub` indices, spaced by `offset/(nsub+1)`.
+bound allows because it is also satisfied when the two values are identical.
+Zero is one, and it decodes to zero for any parameters. The other is the range
+where the representable values sit too far apart for any grid to meet the bound,
+which is below the smallest normal on a float type and below roughly `8/b` on an
+integer one. That range is the leading `nsub` indices, spaced by
+`offset/(nsub+1)`, and it is the case that defeats rounding the mantissa to a
+fixed number of bits.
 
 The reconstruction is rounded once more when it is stored at the output width,
 half a unit on an integer and a relative eps on a float, so the grid is cut by
@@ -101,3 +111,11 @@ otherwise saturate. A bound smaller than the rounding of a float output type at
 the top of the tile, which f16 reaches at ordinary tolerances. And a shot bound
 that is under half a unit at the noise floor of an integer type, where no grid
 exists and the request is really for lossless.
+
+A sample that is not finite has no index. It encodes as zero, and the nodata
+codec in front is what puts it back on the way out.
+
+The index is computed in a double on both sides, so a bound needing more levels
+than a double counts exactly, 2^53, is refused however wide the index type is.
+Past that point adding one to an index does nothing and the nearest-index search
+the bound rests on stops working.

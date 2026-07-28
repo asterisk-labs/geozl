@@ -47,6 +47,26 @@ if(GEOZL_SANITIZE)
     add_link_options(-fsanitize=address,undefined)
 endif()
 
+# Coverage instrumentation has to reach the library and OpenZL, not just the
+# harness, or libFuzzer has no signal to steer on and mutates blind. Set here,
+# before add_subdirectory(openzl), because the decoders are only reachable once
+# OpenZL has parsed the frame around them. The harness itself links
+# -fsanitize=fuzzer below, which is what brings in libFuzzer's main.
+if(GEOZL_BUILD_FUZZERS)
+    add_compile_options(-fsanitize=fuzzer-no-link)
+    add_link_options(-fsanitize=fuzzer-no-link)
+endif()
+
+# A frame is written on one machine and read on another, so the decoder has to
+# reconstruct the same bits everywhere. Contraction breaks that: a compiler with
+# FMA available folds w*w - offset into one instruction that rounds once instead
+# of twice, and whether it does depends on the target and the compiler version.
+# On arm64 it always does. Fallin and Burtscher hit the same thing between CPU
+# and GPU builds of LC and reached for the same switch (arXiv:2407.15037).
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    set(GEOZL_FP -ffp-contract=off)
+endif()
+
 # Applied to the geozl targets only, so vendored OpenZL keeps its own warnings.
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     set(GEOZL_WARN -Wall -Wextra)
@@ -126,7 +146,7 @@ if(GEOZL_BUILD_FULL)
             ${CMAKE_CURRENT_SOURCE_DIR}/src)
     target_link_libraries(geozl PUBLIC ${GEOZL_OPENZL_TARGET})
     target_compile_definitions(geozl PRIVATE GEOZL_BUILD)
-    target_compile_options(geozl PRIVATE ${GEOZL_WARN})
+    target_compile_options(geozl PRIVATE ${GEOZL_WARN} ${GEOZL_FP})
     if(GEOZL_LIBM)
         target_link_libraries(geozl PRIVATE ${GEOZL_LIBM})
     endif()
@@ -136,13 +156,28 @@ if(GEOZL_BUILD_FULL)
     install(DIRECTORY include/geozl DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
     # libFuzzer harness over the decode path. Needs clang, and GEOZL_SANITIZE=ON
-    # so ASan and UBSan see the decoders.
+    # so ASan and UBSan see the decoders. The instrumentation itself is set
+    # globally above, this only pulls in libFuzzer's main.
     if(GEOZL_BUILD_FUZZERS)
         add_executable(geozl_decode_fuzzer
             ${CMAKE_CURRENT_SOURCE_DIR}/../fuzz/decode_fuzzer.c)
         target_link_libraries(geozl_decode_fuzzer PRIVATE geozl)
-        target_compile_options(geozl_decode_fuzzer PRIVATE -fsanitize=fuzzer)
         target_link_options(geozl_decode_fuzzer PRIVATE -fsanitize=fuzzer)
+
+        # The decode fuzzer reaches the quant codec only through a frame that
+        # still parses, which a mutator hardly ever produces, so it spends its
+        # budget in the OpenZL frame reader. This one drives the codec directly
+        # and asserts the bound on the way back out. Kernels only, no OpenZL.
+        add_executable(geozl_quant_fuzzer
+            ${CMAKE_CURRENT_SOURCE_DIR}/../fuzz/quant_fuzzer.c
+            ${GEOZL_KERNELS})
+        target_include_directories(geozl_quant_fuzzer PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/src)
+        target_link_options(geozl_quant_fuzzer PRIVATE -fsanitize=fuzzer)
+        if(GEOZL_LIBM)
+            target_link_libraries(geozl_quant_fuzzer PRIVATE ${GEOZL_LIBM})
+        endif()
     endif()
 endif()
 
@@ -154,7 +189,7 @@ if(GEOZL_BUILD_KERNELS_SHARED)
     target_include_directories(geozl_kernels PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/src)
-    target_compile_options(geozl_kernels PRIVATE ${GEOZL_WARN})
+    target_compile_options(geozl_kernels PRIVATE ${GEOZL_WARN} ${GEOZL_FP})
     if(GEOZL_LIBM)
         target_link_libraries(geozl_kernels PRIVATE ${GEOZL_LIBM})
     endif()

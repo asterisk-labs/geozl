@@ -319,6 +319,180 @@ int main(void) {
                              sizeof(err)) != 0);
   }
 
+  // Every comparison against a NaN is false, so a pair of clamps lets one
+  // through to a cast, and casting a NaN to an integer is undefined. It has to
+  // land on an index, not on whatever the hardware felt like.
+  {
+    char err[256];
+    quant_spec sp;
+    quant_params p;
+    for (size_t i = 0; i < N; ++i)
+      f32src[i] = (float)(i + 1);
+    f32src[0] = NAN;
+    f32src[1] = -NAN;
+    f32src[2] = INFINITY;
+    f32src[3] = -INFINITY;
+    double lo, hi;
+    int neg;
+    CHECK(quant_scan(f32src, Q_F32, N, &lo, &hi, &neg) == 0);
+    CHECK(lo == 5.0); // the four are skipped, the first real sample is 5
+    CHECK(quant_spec_parse("abs:0.5", &sp, err, sizeof(err)) == 0);
+    CHECK(quant_spec_resolve(&sp, Q_F32, lo, hi, neg, &p, err, sizeof(err)) ==
+          0);
+    CHECK(quant_encode(idx32, f32src, &p, Q_F32, N) == 0);
+    CHECK(idx32[0] == 0 && idx32[1] == 0);
+    CHECK(quant_decode(f32back, idx32, &p, Q_F32, N) == 0);
+    for (size_t i = 4; i < N; ++i)
+      CHECK(fabs((double)f32src[i] - (double)f32back[i]) <= 0.5);
+  }
+
+  // A float reconstruction is rounded to its own width, and that rounding grows
+  // with the magnitude, so a fixed bound stops being free once the data runs
+  // large against it. At 1.6e10 a float32 already steps by 1024.
+  {
+    char err[256];
+    quant_spec sp;
+    quant_params p;
+    for (size_t i = 0; i < N; ++i)
+      f32src[i] = (float)(-1.6392371e10 + (double)i * 4096.0);
+    double lo, hi;
+    int neg;
+    CHECK(quant_scan(f32src, Q_F32, N, &lo, &hi, &neg) == 0);
+    CHECK(quant_spec_parse("abs:1000", &sp, err, sizeof(err)) == 0);
+    CHECK(quant_spec_resolve(&sp, Q_F32, lo, hi, neg, &p, err, sizeof(err)) ==
+          0);
+    CHECK(p.step < 2000.0); // the rounding came out of the step
+    CHECK(quant_encode(idx32, f32src, &p, Q_F32, N) == 0);
+    CHECK(quant_decode(f32back, idx32, &p, Q_F32, N) == 0);
+    for (size_t i = 0; i < N; ++i)
+      CHECK(fabs((double)f32src[i] - (double)f32back[i]) <= 1000.0);
+  }
+
+  // The top of the log grid can sit above the largest finite value of the
+  // output type, and letting it turn into an infinity there costs more than the
+  // bound allows, besides being no answer at all.
+  {
+    char err[256];
+    quant_spec sp;
+    quant_params p;
+    for (size_t i = 0; i < N; ++i)
+      f32src[i] = (float)(3.0e38 * (0.5 + 0.5 * (double)i / (double)N));
+    f32src[N - 1] = 3.3951636e38f;
+    double lo, hi;
+    int neg;
+    CHECK(quant_scan(f32src, Q_F32, N, &lo, &hi, &neg) == 0);
+    CHECK(quant_spec_parse("rel:1%", &sp, err, sizeof(err)) == 0);
+    CHECK(quant_spec_resolve(&sp, Q_F32, lo, hi, neg, &p, err, sizeof(err)) ==
+          0);
+    CHECK(quant_encode(idx32, f32src, &p, Q_F32, N) == 0);
+    CHECK(quant_decode(f32back, idx32, &p, Q_F32, N) == 0);
+    for (size_t i = 0; i < N; ++i) {
+      CHECK(isfinite(f32back[i]));
+      CHECK(fabs((double)f32src[i] - (double)f32back[i]) <=
+            0.01 * fabs((double)f32src[i]));
+    }
+  }
+
+  // The decoder is fed by a frame, so the two numbers it takes on trust have to
+  // survive anything that got past the header checks. A step wide enough to
+  // leave the range of the integer it multiplies, and an index stream whose
+  // extremes are further apart than a signed subtraction can express.
+  {
+    quant_params p;
+    uint8_t u8out[N];
+    memset(&p, 0, sizeof(p));
+    p.curve = QUANT_CURVE_LINEAR;
+    p.step = 8.5926701187887794e245;
+    memset(u16src, 0x5A, sizeof(u16src));
+    CHECK(quant_decode(u8out, u16src, &p, Q_U8, 64) == 0);
+
+    p.curve = QUANT_CURVE_LOG;
+    p.step = 0.02;
+    p.offset = 1.0;
+    p.nsub = 0;
+    idx64[0] = INT64_MIN;
+    idx64[1] = INT64_MAX;
+    for (size_t i = 2; i < 64; ++i)
+      idx64[i] = (int64_t)i;
+    CHECK(quant_decode(f64back, idx64, &p, Q_F64, 64) == 0);
+    for (size_t i = 0; i < 64; ++i)
+      CHECK(isfinite(f64back[i]));
+  }
+
+  // A tile spanning enough decades pushes exp past its own range while the
+  // product with the anchor is still representable, and the index past the
+  // range a double holds exactly, where adding one to it stops doing anything.
+  {
+    char err[256];
+    quant_spec sp;
+    quant_params p;
+    double lo, hi;
+    int neg;
+    for (size_t i = 0; i < N; ++i)
+      f64src[i] = pow(10.0, -47.0 + 308.0 * (double)i / (double)N);
+    CHECK(quant_spec_parse("rel:33.33%", &sp, err, sizeof(err)) == 0);
+    CHECK(quant_scan(f64src, Q_F64, N, &lo, &hi, &neg) == 0);
+    CHECK(quant_spec_resolve(&sp, Q_F64, lo, hi, neg, &p, err, sizeof(err)) ==
+          0);
+    CHECK(quant_encode(idx64, f64src, &p, Q_F64, N) == 0);
+    CHECK(quant_decode(f64back, idx64, &p, Q_F64, N) == 0);
+    for (size_t i = 0; i < N; ++i) {
+      CHECK(isfinite(f64back[i]));
+      CHECK(fabs(f64src[i] - f64back[i]) <= 0.3333 * fabs(f64src[i]));
+    }
+
+    // and the bound that needs more levels than a double counts is refused,
+    // rather than handed to a search that cannot move by one
+    CHECK(quant_spec_parse("shot:a=100,b=1,k=0.5", &sp, err, sizeof(err)) == 0);
+    CHECK(quant_spec_resolve(&sp, Q_F64, 1.0, 1.0e31, 0, &p, err,
+                             sizeof(err)) != 0);
+  }
+
+  // The encoder measures its own round trip rather than trusting the algebra
+  // that produced the parameters, so a coarsened grid has to show up as a
+  // number above one and an untouched one has to not.
+  {
+    char err[256];
+    quant_spec sp;
+    quant_params p;
+    double lo, hi, worst;
+    int neg;
+    for (size_t i = 0; i < N; ++i)
+      f32src[i] = (float)pow(10.0, -6.0 + 12.0 * (double)i / (double)N);
+    CHECK(quant_spec_parse("rel:1%", &sp, err, sizeof(err)) == 0);
+    CHECK(quant_scan(f32src, Q_F32, N, &lo, &hi, &neg) == 0);
+    CHECK(quant_spec_resolve(&sp, Q_F32, lo, hi, neg, &p, err, sizeof(err)) ==
+          0);
+    CHECK(quant_encode(idx32, f32src, &p, Q_F32, N) == 0);
+    CHECK(quant_decode(f32back, idx32, &p, Q_F32, N) == 0);
+    CHECK(quant_verify(f32src, f32back, &sp, Q_F32, N, &worst) == 0);
+    CHECK(worst <= 1.0);
+
+    const quant_params tight = p;
+    p.step *= 3.0;
+    CHECK(quant_encode(idx32, f32src, &p, Q_F32, N) == 0);
+    CHECK(quant_decode(f32back, idx32, &p, Q_F32, N) == 0);
+    CHECK(quant_verify(f32src, f32back, &sp, Q_F32, N, &worst) != 0);
+    CHECK(worst > 2.5);
+
+    // and the correction the encoder applies brings it back under
+    p.step /= worst * 1.02;
+    CHECK(quant_encode(idx32, f32src, &p, Q_F32, N) == 0);
+    CHECK(quant_decode(f32back, idx32, &p, Q_F32, N) == 0);
+    CHECK(quant_verify(f32src, f32back, &sp, Q_F32, N, &worst) == 0);
+    (void)tight;
+
+    // lossless is a byte comparison, since no bound is declared to scale by
+    CHECK(quant_spec_parse(NULL, &sp, err, sizeof(err)) == 0);
+    CHECK(quant_spec_resolve(&sp, Q_F32, lo, hi, neg, &p, err, sizeof(err)) ==
+          0);
+    CHECK(quant_encode(idx32, f32src, &p, Q_F32, N) == 0);
+    CHECK(quant_decode(f32back, idx32, &p, Q_F32, N) == 0);
+    CHECK(quant_verify(f32src, f32back, &sp, Q_F32, N, &worst) == 0);
+    f32back[7] += 1.0f;
+    CHECK(quant_verify(f32src, f32back, &sp, Q_F32, N, &worst) != 0);
+  }
+
   if (failures == 0)
     printf("  ok\n");
   return failures != 0;

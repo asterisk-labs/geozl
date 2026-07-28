@@ -40,7 +40,8 @@ GEOZL_API ZL_NodeID geozl_node_floatmult(ZL_Compressor *c, double base);
 // curve anchors its grid on the smallest magnitude present. Callers building a
 // graph by hand get them from quant_spec_parse and quant_spec_resolve.
 GEOZL_API ZL_NodeID geozl_node_quant(ZL_Compressor *c,
-                                     const quant_params *params, int dtype);
+                                     const quant_params *params,
+                                     const quant_spec *spec, int dtype);
 
 // Missing-data modes, in the spirit of GDAL. NONE is a tile with nothing
 // missing, NAN detects every non-finite sample itself and only applies to

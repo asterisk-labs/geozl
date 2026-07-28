@@ -10,10 +10,8 @@
 #include <math.h>
 #include <stdint.h>
 
-// Spacing of the representable values near zero, one for integers and the
-// smallest subnormal for floats. Where b*|x| drops below that spacing, nothing
-// but x itself is inside the bound, so the log curve carries that range as its
-// leading nsub indices rather than quantizing it.
+// Spacing of the representable values near zero. Where b*|x| drops below it,
+// nothing but x itself is inside the bound and no grid can serve that range.
 static inline double quant_sub(int dtype) {
   switch (dtype) {
   case Q_F16:
@@ -28,7 +26,7 @@ static inline double quant_sub(int dtype) {
 }
 
 // Where the neighbours stop being a fixed distance apart and start being a
-// fixed fraction. The smallest normal for floats, one for integers.
+// fixed fraction.
 static inline double quant_normal_min(int dtype) {
   switch (dtype) {
   case Q_F16:
@@ -42,8 +40,7 @@ static inline double quant_normal_min(int dtype) {
   }
 }
 
-// Relative rounding of the output type, added on top of the grid error when the
-// reconstruction is stored back at that width.
+// Relative rounding of the output type, on top of the grid error.
 static inline double quant_eps(int dtype) {
   switch (dtype) {
   case Q_F16:
@@ -57,9 +54,8 @@ static inline double quant_eps(int dtype) {
   }
 }
 
-// The log grid has ratio exp(step) and rounding to the nearest level lands
-// within a factor exp(step/2), so the bound it holds is exp(step/2) - 1. The
-// other way round, a bound of b needs step = 2*log1p(b).
+// The grid ratio is exp(step) and rounding lands within exp(step/2), so the
+// bound held is exp(step/2) - 1 and a bound of b needs step = 2*log1p(b).
 static inline double quant_log_step(double b_rel) { return 2.0 * log1p(b_rel); }
 
 static inline double quant_log_brel(double step) { return expm1(0.5 * step); }
@@ -78,14 +74,15 @@ static inline double quant_fwd(double x, const quant_params *p) {
     if (a == 0.0)
       return 0.0;
     double m;
-    // offset is (nsub+1)*sub, so sub comes back out of the header instead of
-    // the dtype and both directions divide by the same double.
+    // offset is (nsub+1)*sub, so both directions recover sub the same way.
     if (p->nsub != 0 && a < p->offset) {
       m = nearbyint(a / (p->offset / ((double)p->nsub + 1.0)));
       if (m < 1.0)
         m = 1.0;
     } else {
-      m = (double)p->nsub + 1.0 + nearbyint(log(a / p->offset) / p->step);
+      // a/offset overflows once the tile spans enough decades.
+      m = (double)p->nsub + 1.0 +
+          nearbyint((log(a) - log(p->offset)) / p->step);
       if (m < (double)p->nsub + 1.0)
         m = (double)p->nsub + 1.0;
     }
@@ -110,10 +107,18 @@ static inline double quant_inv(double q, const quant_params *p) {
     if (m == 0.0)
       return 0.0;
     double a;
-    if (p->nsub != 0 && m <= (double)p->nsub)
+    if (p->nsub != 0 && m <= (double)p->nsub) {
       a = m * (p->offset / ((double)p->nsub + 1.0));
-    else
-      a = p->offset * exp((m - (double)p->nsub - 1.0) * p->step);
+    } else {
+      const double t = (m - (double)p->nsub - 1.0) * p->step;
+      a = p->offset * exp(t);
+      // exp alone overflows well before the product does, since offset can
+      // sit far below one. Halving the exponent keeps both in range.
+      if (!isfinite(a) && isfinite(t)) {
+        const double h = 0.5 * t;
+        a = (p->offset * exp(h)) * exp(h);
+      }
+    }
     return q < 0.0 ? -a : a;
   }
   default:
@@ -121,17 +126,90 @@ static inline double quant_inv(double q, const quant_params *p) {
   }
 }
 
-// A warped reconstruction can land outside the output type, the sqrt curve
-// below zero in particular, which would wrap on an unsigned width. Clamping
-// only moves it towards the data, so the bound holds.
-//
-// The limits sit here so encode and decode read the same ones. The integer
-// limits are the largest of each width that survive a round trip through a
-// double.
+// A warped reconstruction lands outside the output type at either end, the
+// sqrt curve below zero and the log curve past the largest finite value.
+// Clamping only moves it towards the data, so the bound holds. NaN goes to
+// zero, since every comparison against it is false and a cast of it to an
+// integer is undefined.
 static inline double quant_clamp(double v, double lo, double hi) {
+  if (v != v)
+    return 0.0;
   return v < lo ? lo : (v > hi ? hi : v);
 }
 
+// The step arrives from a frame that may be damaged and the linear paths use it
+// as an integer multiplier, so it saturates rather than casting out of range.
+static inline uint64_t quant_step_u64(double step) {
+  if (!(step > 1.0))
+    return 1u; // also catches NaN
+  if (step >= 18446744073709549568.0)
+    return UINT64_MAX;
+  return (uint64_t)step;
+}
+
+static inline int64_t quant_step_i64(double step) {
+  if (!(step > 1.0))
+    return 1;
+  if (step >= 9223372036854774784.0)
+    return INT64_MAX;
+  return (int64_t)step;
+}
+
+// Range the index type can hold. Written out rather than taken from the limit
+// macros, since (double)INT64_MAX rounds up to 2^63, which casts back to
+// nothing. One copy, so no call site carries its own.
+static inline double quant_index_lo(int dtype) {
+  switch (dtype) {
+  case Q_I8:
+    return -128.0;
+  case Q_I16:
+  case Q_F16:
+    return -32768.0;
+  case Q_I32:
+  case Q_F32:
+    return -2147483648.0;
+  case Q_I64:
+  case Q_F64:
+    return -9223372036854775808.0;
+  default:
+    return 0.0; // the unsigned widths
+  }
+}
+
+static inline double quant_index_hi(int dtype) {
+  switch (dtype) {
+  case Q_U8:
+    return 255.0;
+  case Q_U16:
+    return 65535.0;
+  case Q_U32:
+    return 4294967295.0;
+  case Q_U64:
+    return 18446744073709549568.0;
+  case Q_I8:
+    return 127.0;
+  case Q_I16:
+  case Q_F16:
+    return 32767.0;
+  case Q_I32:
+  case Q_F32:
+    return 2147483647.0;
+  default:
+    return 9223372036854774784.0;
+  }
+}
+
+// Fold a computed index onto that range. A NaN has no index and lands on zero;
+// a tile that means it should carry the nodata codec in front.
+static inline double quant_index_fit(double q, double lo, double hi) {
+  if (q != q)
+    return 0.0;
+  return q < lo ? lo : (q > hi ? hi : q);
+}
+
+// Range of the output type. Same reason as the index range for writing the
+// integer limits out, and encode and decode both read them from here so a
+// reconstruction cannot be in range on one side and wrapped on the other.
 static inline double quant_value_lo(int dtype) {
   switch (dtype) {
   case Q_I8:
@@ -145,8 +223,9 @@ static inline double quant_value_lo(int dtype) {
   case Q_F16:
     return -65504.0;
   case Q_F32:
+    return -3.40282346638528860e38;
   case Q_F64:
-    return -INFINITY;
+    return -1.79769313486231571e308;
   default:
     return 0.0; // the unsigned widths
   }
@@ -172,15 +251,16 @@ static inline double quant_value_hi(int dtype) {
     return 9223372036854774784.0;
   case Q_F16:
     return 65504.0;
+  case Q_F32:
+    return 3.40282346638528860e38;
   default:
-    return INFINITY;
+    return 1.79769313486231571e308;
   }
 }
 
-// How a reconstruction reaches the output width. Encode and decode both go
-// through these, so the index encode picks as nearest is the one that comes
-// back. The rounding is spelled out because a cast to an integer truncates,
-// which would leave every warped reconstruction up to a unit off.
+// How a reconstruction reaches the output width, on both sides, so the index
+// encode picks as nearest is the one that comes back. The rounding is spelled
+// out because a cast to an integer truncates.
 #define QUANT_RT_INT(v, lo, hi) nearbyint(quant_clamp((v), (lo), (hi)))
 #define QUANT_RT_F16(v, lo, hi)                                                \
   ((double)quant_half_to_float(                                                \

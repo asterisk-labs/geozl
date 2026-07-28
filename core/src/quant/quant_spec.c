@@ -1,4 +1,5 @@
 #include "quant_spec.h"
+#include "quant_half.h" // quant_half_to_float
 
 #include <errno.h>
 #include <math.h>
@@ -110,6 +111,11 @@ int quant_spec_parse(const char *s, quant_spec *out, char *err,
       "unknown error \"%s\"; expected abs:V, rel:P%% or shot:a=A,b=B,k=K", s);
 }
 
+// Every index is computed in a double, on both sides. Past the range a double
+// holds exactly, adding one to an index does nothing and the nearest-index
+// search stops working, so that range is the cap rather than the index width.
+#define QUANT_INDEX_EXACT 9007199254740992.0 // 2^53
+
 double quant_index_max(int dtype) {
   switch (dtype) {
   case Q_U8:
@@ -119,7 +125,7 @@ double quant_index_max(int dtype) {
   case Q_U32:
     return 4294967295.0;
   case Q_U64:
-    return 18446744073709549568.0;
+    return QUANT_INDEX_EXACT;
   case Q_I8:
     return 127.0;
   case Q_I16:
@@ -129,7 +135,7 @@ double quant_index_max(int dtype) {
   case Q_F32:
     return 2147483647.0;
   default:
-    return 9223372036854774784.0;
+    return QUANT_INDEX_EXACT;
   }
 }
 
@@ -143,15 +149,25 @@ int quant_spec_resolve(const quant_spec *sp, int dtype, double minAbs,
 
   switch (sp->curve) {
   case QUANT_CURVE_LINEAR:
-    out->step = 2.0 * sp->abs_err;
     // Integers carry the reconstruction so the decoder only copies, and the
     // index cannot overflow because the kernel floors the step at one. A float
-    // reconstruction is not the integer stream the codec emits, so floats keep
-    // the index and go on to the checks below.
+    // reconstruction is not an integer stream, so floats keep the index.
     if (dtype <= Q_LAST_INT) {
+      out->step = 2.0 * sp->abs_err;
       out->flags |= QUANT_FLAG_STORE_VALUES;
       return 0;
     }
+    // Storing a float reconstruction rounds it by a fraction of its magnitude.
+    // Nothing at ordinary values, most of the budget once the data runs large
+    // against the bound, so it comes out of the step.
+    out->step =
+        2.0 * (sp->abs_err -
+               quant_eps(dtype) * (isfinite(maxAbs) ? fabs(maxAbs) : 0.0));
+    if (!(out->step > 0.0))
+      return fail(err, errSize,
+                  "an absolute bound of %g is at or below the rounding of the "
+                  "output type at %g",
+                  sp->abs_err, maxAbs);
     break;
 
   case QUANT_CURVE_SQRT: {
@@ -165,10 +181,8 @@ int quant_spec_resolve(const quant_spec *sp, int dtype, double minAbs,
     if (!isfinite(maxAbs) || maxAbs <= 0.0)
       return 0; // nothing but zeros and NaN, and zero is a grid level
 
-    // Storing the reconstruction rounds it once more, half a unit on an integer
-    // and a relative eps on a float, and the bound has to absorb that. The
-    // tolerance grows with sqrt(x), so an integer rounding bites hardest at the
-    // bottom of the range and a float one at the top. Take the worse.
+    // Same rounding to absorb, but the tolerance grows with sqrt(x), so an
+    // integer rounding bites hardest at the bottom and a float one at the top.
     const double zero_is_exact = out->offset > 0.0 ? 0.0 : minAbs;
     const double xlo = isfinite(zero_is_exact) ? zero_is_exact : 0.0;
     const double eps = quant_eps(dtype);
@@ -196,9 +210,8 @@ int quant_spec_resolve(const quant_spec *sp, int dtype, double minAbs,
     }
 
     // Below the smallest normal the representable values sit a fixed distance
-    // apart rather than a fixed fraction, so a geometric grid can no longer hit
-    // them and that range is carried exactly. Integers hit the same wall below
-    // roughly 8/b, where a spacing of one stops being small against the bound.
+    // apart rather than a fixed fraction, so no geometric grid reaches them and
+    // that range is carried exactly. Integers hit the same wall below 8/b.
     const double sub = quant_sub(dtype);
     double geo_start, rel_round;
     if (dtype > Q_LAST_INT) {
@@ -218,9 +231,7 @@ int quant_spec_resolve(const quant_spec *sp, int dtype, double minAbs,
       out->offset = geo_start;
     }
 
-    // The reconstruction is stored back at the output width, which rounds it
-    // once more, so the grid is cut by that much and the bound the frame
-    // declares still holds after the cast.
+    // And the grid is cut by the storage rounding, as above.
     const double b = (sp->rel_err - rel_round) / (1.0 + rel_round);
     if (b <= 0.0)
       return fail(err, errSize,
@@ -236,8 +247,8 @@ int quant_spec_resolve(const quant_spec *sp, int dtype, double minAbs,
   }
 
   // Near the top of its range f16 steps further between representable values
-  // than most bounds allow, so the rounding alone can break a bound the grid
-  // would have held. Refuse rather than declare an error the frame misses.
+  // than most bounds allow, so the rounding alone breaks a bound the grid would
+  // have held. Refuse rather than declare an error the frame misses.
   if (dtype > Q_LAST_INT && isfinite(maxAbs) && maxAbs > 0.0) {
     double declared;
     if (sp->curve == QUANT_CURVE_SQRT)
@@ -268,4 +279,100 @@ int quant_spec_resolve(const quant_spec *sp, int dtype, double minAbs,
                                                                          : 4);
   }
   return 0;
+}
+// The bound the recipe promised at x. Read from the spec, not from the resolved
+// parameters, since those are the thing being checked.
+static double declared_at(const quant_spec *sp, double x) {
+  switch (sp->curve) {
+  case QUANT_CURVE_LOG:
+    return sp->rel_err * fabs(x);
+  case QUANT_CURVE_SQRT:
+    return sp->shot_k * sqrt(sp->shot_a + sp->shot_b * fabs(x));
+  default:
+    return sp->abs_err;
+  }
+}
+
+// The values can be wider than a double counts, the difference cannot, so the
+// subtraction happens in the wide integer.
+#define Q_VER_INT(T)                                                           \
+  do {                                                                         \
+    const T *a = (const T *)src;                                               \
+    const T *b = (const T *)dec;                                               \
+    for (size_t i = 0; i < nbElts; ++i) {                                      \
+      const __int128 d = (__int128)a[i] - (__int128)b[i];                      \
+      const double e = (double)(d < 0 ? -d : d);                               \
+      if (e == 0.0)                                                            \
+        continue;                                                              \
+      const double bd = declared_at(sp, (double)a[i]);                         \
+      const double r = bd > 0.0 ? e / bd : INFINITY;                           \
+      if (r > w)                                                               \
+        w = r;                                                                 \
+    }                                                                          \
+  } while (0)
+
+// Identical satisfies any bound, which is what carries zero and the range no
+// grid can serve.
+#define Q_VER_FLT(RA, RB)                                                      \
+  do {                                                                         \
+    for (size_t i = 0; i < nbElts; ++i) {                                      \
+      const double x = (double)(RA), y = (double)(RB);                         \
+      if (!isfinite(x) || x == y)                                              \
+        continue;                                                              \
+      const double bd = declared_at(sp, x);                                    \
+      const double r = bd > 0.0 ? fabs(x - y) / bd : INFINITY;                 \
+      if (r > w)                                                               \
+        w = r;                                                                 \
+    }                                                                          \
+  } while (0)
+
+int quant_verify(const void *src, const void *dec, const quant_spec *sp,
+                 int dtype, size_t nbElts, double *worst) {
+  double w = 0.0;
+  if (dtype < Q_U8 || dtype > Q_F64)
+    return 1;
+  if (sp->mode == QUANT_SPEC_LOSSLESS) {
+    static const size_t bw[] = {1, 2, 4, 8, 1, 2, 4, 8, 2, 4, 8};
+    w = memcmp(src, dec, nbElts * bw[dtype]) == 0 ? 0.0 : INFINITY;
+  } else {
+    switch ((quant_dtype)dtype) {
+    case Q_U8:
+      Q_VER_INT(uint8_t);
+      break;
+    case Q_U16:
+      Q_VER_INT(uint16_t);
+      break;
+    case Q_U32:
+      Q_VER_INT(uint32_t);
+      break;
+    case Q_U64:
+      Q_VER_INT(uint64_t);
+      break;
+    case Q_I8:
+      Q_VER_INT(int8_t);
+      break;
+    case Q_I16:
+      Q_VER_INT(int16_t);
+      break;
+    case Q_I32:
+      Q_VER_INT(int32_t);
+      break;
+    case Q_I64:
+      Q_VER_INT(int64_t);
+      break;
+    case Q_F16:
+      Q_VER_FLT(quant_half_to_float(((const uint16_t *)src)[i]),
+                quant_half_to_float(((const uint16_t *)dec)[i]));
+      break;
+    case Q_F32:
+      Q_VER_FLT(((const float *)src)[i], ((const float *)dec)[i]);
+      break;
+    case Q_F64:
+      Q_VER_FLT(((const double *)src)[i], ((const double *)dec)[i]);
+      break;
+    }
+  }
+  if (worst)
+    *worst = w;
+  return w > 1.0 ? 1 : 0;
 }

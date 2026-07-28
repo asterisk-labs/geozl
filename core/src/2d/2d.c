@@ -313,14 +313,14 @@ static int nodata_bits(double v, int dtype, size_t eltWidth, uint64_t *out) {
 static ZL_GraphID geozl_2d_graph(ZL_Compressor *c, geozl_predictor p,
                                  geozl_terminal t, uint32_t width,
                                  size_t eltWidth, const quant_params *qp,
-                                 int dtype, int nodataMode,
-                                 double nodataValue) {
+                                 const quant_spec *qs, int dtype,
+                                 int nodataMode, double nodataValue) {
   ZL_GraphID sel = build_candidate(c, p, t, width, eltWidth);
   if (!ZL_GraphID_isValid(sel))
     return ZL_GRAPH_ILLEGAL;
 
   if (qp != NULL) {
-    ZL_NodeID q = geozl_node_quant(c, qp, dtype);
+    ZL_NodeID q = geozl_node_quant(c, qp, qs, dtype);
     if (!ZL_NodeID_isValid(q))
       return ZL_GRAPH_ILLEGAL;
     sel = ZL_Compressor_registerStaticGraph_fromNode1o(c, q, sel);
@@ -418,7 +418,7 @@ static ZL_Report compress_impl(const char *method, uint32_t width,
   ZL_TypedRef *in = NULL;
   ZL_CCtx *cctx = NULL;
 
-  ZL_GraphID g = geozl_2d_graph(c, pred, term, width, eltWidth, qp, dtype,
+  ZL_GraphID g = geozl_2d_graph(c, pred, term, width, eltWidth, qp, &sp, dtype,
                                 nodataMode, nodataValue);
   if (!ZL_GraphID_isValid(g)) {
     if (has_err)

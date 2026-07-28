@@ -1,7 +1,7 @@
 #ifndef GEOZL_CODECS_ENCODE_QUANT_KERNEL_H
 #define GEOZL_CODECS_ENCODE_QUANT_KERNEL_H
 
-#include "quant_curve.h" // quant_params
+#include "quant_curve.h" // quant_fwd, quant_inv
 #include "quant_dtype.h" // quant_dtype
 
 #include <stddef.h>
@@ -14,10 +14,9 @@ int quant_encode(void *dst, const void *src, const quant_params *p, int dtype,
                  size_t nbElts);
 
 // Smallest and largest non-zero magnitude, and whether any sample is negative.
-// The log curve anchors its grid on the smallest magnitude, so the parameters
-// cannot be finished without this. NaN and infinity are skipped, the nodata
-// codec deals with those. Returns 0 when the tile holds a finite non-zero
-// sample.
+// The log curve anchors its grid on the smallest, so the parameters cannot be
+// finished without this. Non-finite samples are skipped. Returns 0 when the
+// tile holds a finite non-zero one.
 int quant_scan(const void *src, int dtype, size_t nbElts, double *minAbs,
                double *maxAbs, int *anyNegative);
 

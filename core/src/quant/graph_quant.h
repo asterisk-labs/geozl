@@ -7,16 +7,20 @@
 #include "geozl/ctids.h"    // GEOZL_CTID_QUANT
 #include "openzl/zl_data.h" // ZL_Type_*, ZL_STREAMTYPELIST
 
-#include "quant_curve.h" // quant_params
+#include "quant_curve.h" // quant_fwd, quant_inv
 #include "quant_dtype.h" // quant_dtype
+#include "quant_spec.h"  // quant_spec
 
 #define QUANT_CTID GEOZL_CTID_QUANT
 
-// Local params the graph builder sets on the encode node. The curve parameters
-// go in a copy param because the int plane cannot carry doubles. Int and copy
-// ids live in separate spaces, hence the same number twice.
+// Local params the graph builder sets on the encode node. Doubles cannot ride
+// the int plane, so the parameters and the recipe go in copy params. Int and
+// copy ids are separate spaces, hence DTYPE and PARAMS sharing a number. The
+// recipe travels because the bound it declares is what the encoder measures
+// itself against, and the resolved parameters no longer carry it.
 #define QUANT_PARAM_DTYPE 1
 #define QUANT_PARAM_PARAMS 1
+#define QUANT_PARAM_SPEC 2
 
 #define QUANT_GRAPH                                                            \
   {.CTid = QUANT_CTID,                                                         \

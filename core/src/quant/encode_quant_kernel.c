@@ -5,14 +5,13 @@
 #include <string.h>
 
 // The linear curve stays on exact integer arithmetic so a 64 bit sample does
-// not lose precision through a double. The warped curves go through double,
-// which costs nothing on the float types they are for.
+// not lose precision through a double. The warped curves go through double.
 
 #define Q_ENC_U(T)                                                             \
   do {                                                                         \
     const T *s = (const T *)src;                                               \
     T *d = (T *)dst;                                                           \
-    const uint64_t isc = (uint64_t)(step < 1.0 ? 1.0 : step);                  \
+    const uint64_t isc = quant_step_u64(step);                                 \
     const uint64_t half = isc >> 1;                                            \
     for (size_t i = 0; i < nbElts; ++i)                                        \
       d[i] = (T)(((unsigned __int128)s[i] + half) / isc);                      \
@@ -22,7 +21,7 @@
   do {                                                                         \
     const T *s = (const T *)src;                                               \
     T *d = (T *)dst;                                                           \
-    const int64_t isc = (int64_t)(step < 1.0 ? 1.0 : step);                    \
+    const int64_t isc = quant_step_i64(step);                                  \
     const int64_t half = isc >> 1;                                             \
     for (size_t i = 0; i < nbElts; ++i) {                                      \
       const __int128 v = (__int128)s[i];                                       \
@@ -37,7 +36,7 @@
   do {                                                                         \
     const T *s = (const T *)src;                                               \
     T *d = (T *)dst;                                                           \
-    const uint64_t isc = (uint64_t)(step < 1.0 ? 1.0 : step);                  \
+    const uint64_t isc = quant_step_u64(step);                                 \
     const uint64_t half = isc >> 1;                                            \
     const uint64_t cap = (uint64_t)(T)(~(T)0);                                 \
     for (size_t i = 0; i < nbElts; ++i) {                                      \
@@ -51,7 +50,7 @@
   do {                                                                         \
     const T *s = (const T *)src;                                               \
     T *d = (T *)dst;                                                           \
-    const int64_t isc = (int64_t)(step < 1.0 ? 1.0 : step);                    \
+    const int64_t isc = quant_step_i64(step);                                  \
     const int64_t half = isc >> 1;                                             \
     for (size_t i = 0; i < nbElts; ++i) {                                      \
       const __int128 v = (__int128)s[i];                                       \
@@ -66,25 +65,19 @@
     }                                                                          \
   } while (0)
 
-#define Q_ENC_LIN_F(WT, IT, MINV, MAXV)                                        \
+#define Q_ENC_LIN_F(WT, IT)                                                    \
   do {                                                                         \
     const WT *s = (const WT *)src;                                             \
     IT *d = (IT *)dst;                                                         \
-    for (size_t i = 0; i < nbElts; ++i) {                                      \
-      double q = nearbyint((double)s[i] / step);                               \
-      if (q < (double)(MINV))                                                  \
-        q = (double)(MINV);                                                    \
-      if (q > (double)(MAXV))                                                  \
-        q = (double)(MAXV);                                                    \
-      d[i] = (IT)q;                                                            \
-    }                                                                          \
+    for (size_t i = 0; i < nbElts; ++i)                                        \
+      d[i] = (IT)quant_index_fit(nearbyint((double)s[i] / step), ilo, ihi);    \
   } while (0)
 
-// Pick the index whose reconstruction, taken back at the output width, is
-// nearest the sample. quant_fwd lands on it or one short, and the curves are
-// monotone, so only the neighbour on the side of the residual can be closer.
-// Checking it keeps the bound off the accuracy of log and exp.
-#define Q_ENC_WARP(RD, RT, IT, MINV, MAXV)                                     \
+// Pick the index whose reconstruction, at the output width, is nearest the
+// sample. quant_fwd lands on it or one short, and the curves are monotone, so
+// only the neighbour on the side of the residual can be closer. Checking it
+// keeps the bound off the accuracy of log and exp.
+#define Q_ENC_WARP(RD, RT, IT)                                                 \
   do {                                                                         \
     IT *d = (IT *)dst;                                                         \
     for (size_t i = 0; i < nbElts; ++i) {                                      \
@@ -94,11 +87,7 @@
       const double alt = q + (x > r0 ? 1.0 : -1.0);                            \
       if (fabs(x - RT(quant_inv(alt, p), vlo, vhi)) < fabs(x - r0))            \
         q = alt;                                                               \
-      if (q < (double)(MINV))                                                  \
-        q = (double)(MINV);                                                    \
-      if (q > (double)(MAXV))                                                  \
-        q = (double)(MAXV);                                                    \
-      d[i] = (IT)q;                                                            \
+      d[i] = (IT)quant_index_fit(q, ilo, ihi);                                 \
     }                                                                          \
   } while (0)
 
@@ -121,50 +110,41 @@ int quant_encode(void *dst, const void *src, const quant_params *p, int dtype,
 
   if (p->curve != QUANT_CURVE_LINEAR) {
     const double vlo = quant_value_lo(dtype), vhi = quant_value_hi(dtype);
+    const double ilo = quant_index_lo(dtype), ihi = quant_index_hi(dtype);
     switch ((quant_dtype)dtype) {
     case Q_U8:
-      Q_ENC_WARP(((const uint8_t *)src)[i], QUANT_RT_INT, uint8_t, 0,
-                 UINT8_MAX);
+      Q_ENC_WARP(((const uint8_t *)src)[i], QUANT_RT_INT, uint8_t);
       break;
     case Q_U16:
-      Q_ENC_WARP(((const uint16_t *)src)[i], QUANT_RT_INT, uint16_t, 0,
-                 UINT16_MAX);
+      Q_ENC_WARP(((const uint16_t *)src)[i], QUANT_RT_INT, uint16_t);
       break;
     case Q_U32:
-      Q_ENC_WARP(((const uint32_t *)src)[i], QUANT_RT_INT, uint32_t, 0,
-                 UINT32_MAX);
+      Q_ENC_WARP(((const uint32_t *)src)[i], QUANT_RT_INT, uint32_t);
       break;
     case Q_U64:
-      Q_ENC_WARP(((const uint64_t *)src)[i], QUANT_RT_INT, uint64_t, 0,
-                 18446744073709549568.0);
+      Q_ENC_WARP(((const uint64_t *)src)[i], QUANT_RT_INT, uint64_t);
       break;
     case Q_I8:
-      Q_ENC_WARP(((const int8_t *)src)[i], QUANT_RT_INT, int8_t, INT8_MIN,
-                 INT8_MAX);
+      Q_ENC_WARP(((const int8_t *)src)[i], QUANT_RT_INT, int8_t);
       break;
     case Q_I16:
-      Q_ENC_WARP(((const int16_t *)src)[i], QUANT_RT_INT, int16_t, INT16_MIN,
-                 INT16_MAX);
+      Q_ENC_WARP(((const int16_t *)src)[i], QUANT_RT_INT, int16_t);
       break;
     case Q_I32:
-      Q_ENC_WARP(((const int32_t *)src)[i], QUANT_RT_INT, int32_t, INT32_MIN,
-                 INT32_MAX);
+      Q_ENC_WARP(((const int32_t *)src)[i], QUANT_RT_INT, int32_t);
       break;
     case Q_I64:
-      Q_ENC_WARP(((const int64_t *)src)[i], QUANT_RT_INT, int64_t, INT64_MIN,
-                 9223372036854774784.0);
+      Q_ENC_WARP(((const int64_t *)src)[i], QUANT_RT_INT, int64_t);
       break;
     case Q_F16:
       Q_ENC_WARP(quant_half_to_float(((const uint16_t *)src)[i]), QUANT_RT_F16,
-                 int16_t, INT16_MIN, INT16_MAX);
+                 int16_t);
       break;
     case Q_F32:
-      Q_ENC_WARP(((const float *)src)[i], QUANT_RT_F32, int32_t, INT32_MIN,
-                 INT32_MAX);
+      Q_ENC_WARP(((const float *)src)[i], QUANT_RT_F32, int32_t);
       break;
     case Q_F64:
-      Q_ENC_WARP(((const double *)src)[i], QUANT_RT_F64, int64_t, INT64_MIN,
-                 9223372036854774784.0);
+      Q_ENC_WARP(((const double *)src)[i], QUANT_RT_F64, int64_t);
       break;
     }
     return 0;
@@ -205,6 +185,7 @@ int quant_encode(void *dst, const void *src, const quant_params *p, int dtype,
     return 0;
   }
 
+  const double ilo = quant_index_lo(dtype), ihi = quant_index_hi(dtype);
   switch ((quant_dtype)dtype) {
   case Q_U8:
     Q_ENC_U(uint8_t);
@@ -233,21 +214,17 @@ int quant_encode(void *dst, const void *src, const quant_params *p, int dtype,
   case Q_F16: {
     const uint16_t *s = (const uint16_t *)src;
     int16_t *d = (int16_t *)dst;
-    for (size_t i = 0; i < nbElts; ++i) {
-      double q = nearbyint((double)quant_half_to_float(s[i]) / step);
-      if (q < -32768.0)
-        q = -32768.0;
-      if (q > 32767.0)
-        q = 32767.0;
-      d[i] = (int16_t)q;
-    }
+    for (size_t i = 0; i < nbElts; ++i)
+      d[i] = (int16_t)quant_index_fit(
+          nearbyint((double)quant_half_to_float(s[i]) / step),
+          quant_index_lo(Q_F16), quant_index_hi(Q_F16));
     break;
   }
   case Q_F32:
-    Q_ENC_LIN_F(float, int32_t, INT32_MIN, INT32_MAX);
+    Q_ENC_LIN_F(float, int32_t);
     break;
   case Q_F64:
-    Q_ENC_LIN_F(double, int64_t, INT64_MIN, INT64_MAX);
+    Q_ENC_LIN_F(double, int64_t);
     break;
   }
   return 0;

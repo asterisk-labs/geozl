@@ -36,4 +36,20 @@ typedef struct {
   uint64_t nsub;
 } quant_params;
 
+// The error argument of the 2d API, parsed. The bound it declares is what the
+// encoder measures its own round trip against, so it travels alongside the
+// resolved parameters, which no longer carry it once the grid has been cut.
+typedef enum {
+  QUANT_SPEC_LOSSLESS = 0,
+  QUANT_SPEC_EXPLICIT = 1
+} quant_spec_mode;
+
+typedef struct {
+  unsigned char mode;
+  unsigned char curve;
+  double abs_err;
+  double rel_err;
+  double shot_a, shot_b, shot_k;
+} quant_spec;
+
 #endif // GEOZL_QUANT_PARAMS_H

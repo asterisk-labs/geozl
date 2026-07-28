@@ -1,6 +1,8 @@
 #include "encode_quant_binding.h"
+#include "decode_quant_kernel.h"
 #include "encode_quant_kernel.h"
 #include "graph_quant.h" // QUANT_GRAPH, QUANT_PARAM_*
+#include "quant_spec.h"  // quant_verify
 
 #include "openzl/zl_data.h"
 #include "openzl/zl_errors.h"
@@ -11,7 +13,9 @@
 #include "common/endian.h"
 
 #include <assert.h>
+#include <math.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 ZL_Report EI_geozl_quant(ZL_Encoder *eictx, const ZL_Input *in) {
@@ -22,18 +26,21 @@ ZL_Report EI_geozl_quant(ZL_Encoder *eictx, const ZL_Input *in) {
   const size_t eltWidth = ZL_Input_eltWidth(in);
   const size_t nbElts = ZL_Input_numElts(in);
 
-  // Both are required and the graph builder sets them. The curve parameters
-  // arrive already resolved against the tile, since the log curve anchors on
-  // the smallest magnitude in the raster and this node only ever sees one
-  // stream.
+  // All three are required. The curve parameters arrive already resolved
+  // against the tile, since the log curve anchors on the smallest magnitude in
+  // the raster and this node only ever sees one stream.
   ZL_IntParam dp = ZL_Encoder_getLocalIntParam(eictx, QUANT_PARAM_DTYPE);
   ZL_CopyParam pp = ZL_Encoder_getLocalCopyParam(eictx, QUANT_PARAM_PARAMS);
+  ZL_CopyParam sp2 = ZL_Encoder_getLocalCopyParam(eictx, QUANT_PARAM_SPEC);
   if (dp.paramId != QUANT_PARAM_DTYPE || pp.paramId != QUANT_PARAM_PARAMS ||
-      pp.paramSize != sizeof(quant_params))
+      pp.paramSize != sizeof(quant_params) || sp2.paramId != QUANT_PARAM_SPEC ||
+      sp2.paramSize != sizeof(quant_spec))
     return ZL_returnError(ZL_ErrorCode_node_invalid_input);
   const int dtype = dp.paramValue;
   quant_params p;
+  quant_spec sp;
   memcpy(&p, pp.paramPtr, sizeof(p));
+  memcpy(&sp, sp2.paramPtr, sizeof(sp));
 
   // the index keeps the original element width, so the dtype must name a type
   // of that width
@@ -44,8 +51,32 @@ ZL_Report EI_geozl_quant(ZL_Encoder *eictx, const ZL_Input *in) {
   ZL_Output *out = ZL_Encoder_createTypedStream(eictx, 0, nbElts, eltWidth);
   ZL_ERR_IF_NULL(out, allocation);
 
-  if (quant_encode(ZL_Output_ptr(out), ZL_Input_ptr(in), &p, dtype, nbElts))
-    return ZL_returnError(ZL_ErrorCode_node_invalid_input);
+  // Measure the round trip against the bound the recipe declared and tighten
+  // until it holds, rather than trusting that the parameters were derived
+  // right. The error scales with the step on every curve, so dividing by the
+  // miss converges in a step or two, and where the floor is the representation
+  // rather than the grid it does not converge at all, which is the answer.
+  void *chk = malloc(nbElts * eltWidth);
+  ZL_ERR_IF_NULL(chk, allocation);
+  int held = 0;
+  double worst = 0.0;
+  for (int attempt = 0; attempt < 3; ++attempt) {
+    if (quant_encode(ZL_Output_ptr(out), ZL_Input_ptr(in), &p, dtype, nbElts) ||
+        quant_decode(chk, ZL_Output_ptr(out), &p, dtype, nbElts))
+      break;
+    if (!quant_verify(ZL_Input_ptr(in), chk, &sp, dtype, nbElts, &worst)) {
+      held = 1;
+      break;
+    }
+    if (!isfinite(worst) || !(worst > 1.0))
+      break;
+    p.step /= worst * 1.02;
+    if (!(p.step > 0.0))
+      break;
+  }
+  free(chk);
+  if (!held)
+    ZL_ERR(GENERIC, "quant cannot hold its declared error on this tile");
 
   uint8_t header[QUANT_HEADER_SIZE];
   header[0] = (uint8_t)dtype;
