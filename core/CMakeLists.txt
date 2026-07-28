@@ -149,7 +149,11 @@ endif()
 if(GEOZL_BUILD_KERNELS_SHARED)
     add_library(geozl_kernels SHARED ${GEOZL_KERNELS})
     set_target_properties(geozl_kernels PROPERTIES C_VISIBILITY_PRESET default)
-    target_include_directories(geozl_kernels PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    # include/ too: the quant kernels take their parameter block from
+    # geozl/quant_params.h, which is public because geozl_node_quant is.
+    target_include_directories(geozl_kernels PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/src)
     target_compile_options(geozl_kernels PRIVATE ${GEOZL_WARN})
     if(GEOZL_LIBM)
         target_link_libraries(geozl_kernels PRIVATE ${GEOZL_LIBM})

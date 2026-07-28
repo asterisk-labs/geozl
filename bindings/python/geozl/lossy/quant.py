@@ -117,7 +117,7 @@ class Quant:
             raise ValueError(f"error must be a recipe string, got {error!r}")
 
         err = ffi.new("char[]", 256)
-        sp = ffi.new("char[]", 64)  # opaque quant_spec, C owns the layout
+        sp = ffi.new("quant_spec*")
         if lib.quant_spec_parse(error.encode("utf-8"), sp, err, len(err)) != 0:
             raise ValueError(ffi.string(err).decode("utf-8", "replace"))
         lo, hi = ffi.new("double*"), ffi.new("double*")
