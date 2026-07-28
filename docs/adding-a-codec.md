@@ -26,7 +26,7 @@ sees a local param. Whatever the decode needs per tile is written on encode with
 `ZL_Encoder_sendCodecHeader` and read on decode with `ZL_Decoder_getCodecHeader`,
 inline in the two bindings. Keep it minimal! For instace, most predictors carry
 a four byte width, wp_static that width plus a shift and four coefficients,
-quant_linear its dtype and scale, deinterleave nothing.
+quant its dtype and scale, deinterleave nothing.
 
 ## The folder
 
@@ -45,7 +45,7 @@ quant_linear its dtype and scale, deinterleave nothing.
 
 A one numeric in, one numeric out codec reuses `GEOZL_NUM1TO1_GRAPH` from
 `common/`, a one in two out reuses `GEOZL_NUM1TO2_GRAPH` from the same place.
-Any other shape carries its own `graph_foo.h`, like `quant_linear/`.
+Any other shape carries its own `graph_foo.h`, like `quant/`.
 
 ## Wiring
 

@@ -56,7 +56,7 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 include(GNUInstallDirs)
-find_library(GEOZL_LIBM m)   # the wp_static trainer uses log2 and lround
+find_library(GEOZL_LIBM m)   # the wp_static trainer and the quant curves use libm
 
 # Discover codecs by convention: any src/<name>/ that has an
 # encode_<name>_binding.c is a codec. CONFIGURE_DEPENDS re-globs on build, so a
@@ -82,6 +82,9 @@ foreach(name IN LISTS GEOZL_CODECS)
         src/${name}/decode_${name}_kernel.c)
 endforeach()
 list(APPEND GEOZL_KERNELS src/wp_static/train_wp_static.c)
+# The error recipe parser is not a codec, but the kernels library carries it
+# so a Python caller can resolve a bound without OpenZL.
+list(APPEND GEOZL_KERNELS src/quant/quant_spec.c)
 # Python asks the kernels library which vector paths this build carries,
 # so the answer has to live where it can be read without OpenZL.
 list(APPEND GEOZL_KERNELS src/common/simd.c)

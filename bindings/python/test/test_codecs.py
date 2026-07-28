@@ -98,38 +98,38 @@ _LOSSY_DTYPES = [np.uint8, np.uint16, np.int16, np.float32, np.float64]
 
 
 @pytest.mark.parametrize("dtype", _LOSSY_DTYPES, ids=lambda d: np.dtype(d).name)
-@pytest.mark.parametrize("max_error", [0.25, 1, 5, 50])
+@pytest.mark.parametrize("error", [0.25, 1, 5, 50])
 @pytest.mark.parametrize("shape", _SHAPES, ids=lambda s: f"{s[0]}x{s[1]}")
 @pytest.mark.parametrize("pattern", ["random", "gradient"])
-def test_quant_linear_bound(dtype, max_error, shape, pattern):
+def test_quant_bound(dtype, error, shape, pattern):
     arr = make_tile(shape, dtype, pattern)
-    node = geozl.lossy.QuantLinear(max_error, dtype)
+    node = geozl.lossy.Quant(error, dtype)
     out = roundtrip(node, arr, disable_checksum=True)
     err = np.abs(out.astype(np.float64) - arr.reshape(-1).astype(np.float64))
-    assert err.max() <= max_error
+    assert err.max() <= error
 
 
 @pytest.mark.parametrize("dtype", [np.uint8, np.uint16, np.int8, np.int16],
                          ids=lambda d: np.dtype(d).name)
-@pytest.mark.parametrize("max_error", [0.25, 1, 5, 50])
-def test_quant_linear_bound_at_type_extremes(dtype, max_error):
+@pytest.mark.parametrize("error", [0.25, 1, 5, 50])
+def test_quant_bound_at_type_extremes(dtype, error):
     # the min and max of the type, where reconstruction clamps rather than wraps.
     # the bound must still hold, a clamp that overshoots is a real bug
     info = np.iinfo(dtype)
     arr = np.array([[info.min, info.max, info.min, info.max]], dtype=dtype)
-    node = geozl.lossy.QuantLinear(max_error, dtype)
+    node = geozl.lossy.Quant(error, dtype)
     out = roundtrip(node, arr, disable_checksum=True)
     err = np.abs(out.astype(np.float64) - arr.reshape(-1).astype(np.float64))
-    assert err.max() <= max_error
+    assert err.max() <= error
 
 
-def test_quant_linear_rejects_content_checksum():
+def test_quant_rejects_content_checksum():
     arr = make_tile((16, 16), np.uint16, "random")
-    node = geozl.lossy.QuantLinear(5, np.uint16)
+    node = geozl.lossy.Quant(5, np.uint16)
     with pytest.raises(Exception):
         roundtrip(node, arr, disable_checksum=False)
 
 
-def test_quant_linear_rejects_bad_max_error():
+def test_quant_rejects_bad_error():
     with pytest.raises(ValueError):
-        geozl.lossy.QuantLinear(0, np.uint16)
+        geozl.lossy.Quant(0, np.uint16)

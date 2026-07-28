@@ -11,12 +11,12 @@
 #include "med/encode_med_binding.h"
 #include "nodata/encode_nodata_binding.h"
 #include "planar/encode_planar_binding.h"
-#include "quant_linear/encode_quant_linear_binding.h"
+#include "quant/encode_quant_binding.h"
 #include "wp_static/encode_wp_static_binding.h"
 
 #include "common/endian.h"                   // geozl_st_le64
 #include "common/graph_num1to1.h"            // GEOZL_PARAM_WIDTH
-#include "quant_linear/graph_quant_linear.h" // QUANT_LINEAR_PARAM_*
+#include "quant/graph_quant.h" // QUANT_PARAM_*
 
 #include "openzl/zl_compressor.h"
 #include "openzl/zl_ctransform.h"
@@ -136,22 +136,16 @@ ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width, int mode,
   return ZL_RES_isError(r) ? ZL_NODE_ILLEGAL : ZL_RES_value(r);
 }
 
-ZL_NodeID geozl_node_quant_linear(ZL_Compressor *c, double max_error,
-                                  int dtype) {
-  // Integers store the reconstruction, signalled by a negative scale, so the
-  // decoder only copies. Floats keep the index stream, their reconstruction is
-  // a float and would not compress like the integer indices do.
-  const double step = 2.0 * max_error;
-  const double scale = dtype <= QL_I64 ? -step : step;
-  const ZL_TypedEncoderDesc desc = EI_QUANT_LINEAR(GEOZL_CTID_QUANT_LINEAR);
+ZL_NodeID geozl_node_quant(ZL_Compressor *c, const quant_params *params,
+                           int dtype) {
+  const ZL_TypedEncoderDesc desc = EI_QUANT(GEOZL_CTID_QUANT);
   ZL_NodeID base = ZL_Compressor_registerTypedEncoder(c, &desc);
   if (!ZL_NodeID_isValid(base))
     return base;
-  const ZL_IntParam ip = {.paramId = QUANT_LINEAR_PARAM_DTYPE,
-                          .paramValue = dtype};
-  const ZL_CopyParam cp = {.paramId = QUANT_LINEAR_PARAM_SCALE,
-                           .paramPtr = &scale,
-                           .paramSize = sizeof(scale)};
+  const ZL_IntParam ip = {.paramId = QUANT_PARAM_DTYPE, .paramValue = dtype};
+  const ZL_CopyParam cp = {.paramId = QUANT_PARAM_PARAMS,
+                           .paramPtr = params,
+                           .paramSize = sizeof(*params)};
   ZL_LocalParams lp = {
       .intParams = {.intParams = &ip, .nbIntParams = 1},
       .copyParams = {.copyParams = &cp, .nbCopyParams = 1},

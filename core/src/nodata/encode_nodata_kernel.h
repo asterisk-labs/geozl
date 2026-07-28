@@ -18,7 +18,7 @@ int nodata_find_nan(uint64_t *pattern, const void *src, size_t nb_elts,
 
 // Marks every NaN, whatever its payload, and returns how many. A tile can carry
 // more than one payload, and matching bits instead would leave all but the
-// first kind for whatever runs next, which for quant_linear means a NaN the
+// first kind for whatever runs next, which for quant means a NaN the
 // SPEC says it never has to handle. Widths other than 2, 4 and 8 hold no IEEE
 // value, so the mask comes out all valid.
 size_t nodata_mark_nan(uint8_t *mask, const void *src, size_t nb_elts,

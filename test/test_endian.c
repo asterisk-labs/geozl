@@ -65,7 +65,7 @@ static void test_variable_width(void) {
   }
 }
 
-// floatmult and quant_linear put an IEEE-754 double in the header. Compared
+// floatmult and quant put an IEEE-754 double in the header. Compared
 // bitwise so a signed zero or a subnormal is not waved through by ==.
 static void test_double_bits(void) {
   static const double values[] = { 0.0, -0.0, 1.0, -0.75, 0.1,

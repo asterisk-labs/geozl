@@ -11,11 +11,11 @@ geozl = pytest.importorskip("geozl")
 
 _DISABLE = 2  # ZL_TernaryParam_disable
 
-# quant_linear writes -step on integers, where the reconstruction travels in
+# quant writes -step on integers, where the reconstruction travels in
 # place of the index. Derived, not written out, so a change to that rule breaks
 # the anchor loudly instead of quietly stopping these cases from running.
 _QL_MAX_ERROR = 50
-_QL_SCALE = geozl.lossy.QuantLinear(_QL_MAX_ERROR, np.uint16)._scale
+_QL_SCALE = geozl.lossy.Quant(_QL_MAX_ERROR, np.uint16)._scale
 
 
 def _compress(node, arr):
@@ -76,7 +76,7 @@ def _case_width_decode():
 
 def _ql_build(i):
     arr = np.arange(256, dtype=np.uint16).reshape(16, 16) + i
-    return _compress(geozl.lossy.QuantLinear(_QL_MAX_ERROR, np.uint16), arr)
+    return _compress(geozl.lossy.Quant(_QL_MAX_ERROR, np.uint16), arr)
 
 
 # dtype byte outside the type enum. The header is <Bd, so it sits right before

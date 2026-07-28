@@ -1,9 +1,8 @@
 import numpy as np
 
 from ._ffi import _load_lib_full, _ptr, ffi
-from .lossy.quant_linear import dtype_code
+from .lossy.quant import dtype_code
 
-LOSSLESS = -1.0
 
 # Predictor priors. A name expands to {that predictor, id}; None is unbiased
 # over all; "none" is the no-predictor branch alone.
@@ -49,12 +48,18 @@ def _prepare(tile, width):
     return arr, int(width), elt
 
 
-def compress(tile, *, method, width=None, max_error=None, nodata=None):
+def compress(tile, *, method, width=None, error=None, nodata=None):
     """Compress a 2d tile into one OpenZL frame through the graph method names.
 
     method is a recipe, the same string profile puts in its "graph" column, and
     it has to apply to the element width: the transpose and store_lo terminals
-    want 2 to 8 bytes. max_error <= 0 is lossless. Returns the frame as bytes.
+    want 2 to 8 bytes. Returns the frame as bytes.
+
+    error is a recipe too. None is lossless. "abs:V" bounds the absolute error,
+    "rel:P%" the relative one, and "shot:a=A,b=B,k=K" holds K times the noise of
+    a sensor whose variance is A + B*x. Which one fits follows from how the
+    measurement error of the data grows with the value, so elevation takes abs,
+    optical radiance takes shot, and SAR backscatter takes rel.
 
     nodata declares the value that marks a sample as never measured, following
     GDAL, where nodata is a property of the band rather than a switch. Left
@@ -71,12 +76,13 @@ def compress(tile, *, method, width=None, max_error=None, nodata=None):
     # The dtype code goes through even when lossless, the nodata codec needs it
     # to read a sentinel at the right width and signedness.
     code = dtype_code(arr.dtype)
-    if max_error is None or max_error <= 0:
-        err, code = LOSSLESS, 0 if code is None else code
-    else:
-        if code is None:
-            raise ValueError(f"quant_linear does not support dtype {arr.dtype}")
-        err = float(max_error)
+    if error is None:
+        code = 0 if code is None else code
+    elif code is None:
+        raise ValueError(f"quant does not support dtype {arr.dtype}")
+    if error is not None and not isinstance(error, str):
+        raise ValueError(f"error must be a recipe string such as \"abs:0.5\" "
+                         f"or \"rel:1%\", got {error!r}")
 
     nd_mode, nd_value = _nodata_args(arr, nodata)
     if nd_mode == _NODATA_VALUE and dtype_code(arr.dtype) is None:
@@ -88,7 +94,9 @@ def compress(tile, *, method, width=None, max_error=None, nodata=None):
     out_size = ffi.new("size_t*")
     err_ctx = ffi.new("char[]", 256)
     rc = lib.geozl_2d_compress_c(
-        method.encode("utf-8"), width, err, int(code), nd_mode, nd_value,
+        method.encode("utf-8"), width,
+        ffi.NULL if error is None else error.encode("utf-8"),
+        int(code), nd_mode, nd_value,
         _ptr(arr), n, elt, _ptr(dst), cap, out_size, err_ctx, len(err_ctx))
     if rc != 0:
         reason = ffi.string(err_ctx).decode("utf-8", "replace")
@@ -149,7 +157,7 @@ def _order0_bits(arr):
     return float(-(p * np.log2(p)).sum())
 
 
-def profile(tile, *, method="planar", width=None, max_error=None, reps=5,
+def profile(tile, *, method="planar", width=None, error=None, reps=5,
             nodata=None):
     """Benchmark every candidate graph on one tile, one row each.
 
@@ -158,8 +166,8 @@ def profile(tile, *, method="planar", width=None, max_error=None, reps=5,
     order-0 entropy (over 100 means structure was exploited). Every "graph" it
     returns is a method compress takes.
 
-    nodata means the same as it does in compress, and is passed through so the
-    graph timed here is the one compress would build. Without it a tile holding
+    error and nodata mean the same as they do in compress, and are passed
+    through so the graph timed here is the one compress would build. Without it a tile holding
     NaN would be profiled through a different graph than the one it ends up
     compressed with, and the sizes would not line up.
     """
@@ -168,12 +176,11 @@ def profile(tile, *, method="planar", width=None, max_error=None, reps=5,
     raw = arr.nbytes
     ideal = raw * _order0_bits(arr) / 8.0
     code = dtype_code(arr.dtype)
-    if max_error is None or max_error <= 0:
-        err, code = LOSSLESS, 0 if code is None else code
-    else:
-        if code is None:
-            raise ValueError(f"quant_linear does not support dtype {arr.dtype}")
-        err = float(max_error)
+    if error is None:
+        code = 0 if code is None else code
+    elif code is None:
+        raise ValueError(f"quant does not support dtype {arr.dtype}")
+    err = ffi.NULL if error is None else error.encode("utf-8")
 
     nd_mode, nd_value = _nodata_args(arr, nodata)
     if nd_mode == _NODATA_VALUE and dtype_code(arr.dtype) is None:

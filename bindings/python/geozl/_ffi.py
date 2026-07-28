@@ -32,13 +32,17 @@ size_t nodata_mark_value(uint8_t* mask, const void* src, size_t nb_elts, size_t 
 void nodata_fill(void* dst, const void* src, const uint8_t* mask, size_t width, size_t nb_elts, size_t elt_width);
 void nodata_restore(void* dst, const void* values, const uint8_t* mask, size_t nb_elts, size_t elt_width, uint64_t pattern);
 
-int quant_linear_encode(void* dst, const void* src, double scale, int dtype, size_t nb_elts);
-int quant_linear_decode(void* dst, const void* src, double scale, int dtype, size_t nb_elts);
+typedef struct { uint8_t curve; uint8_t flags; double step; double offset; uint64_t nsub; } quant_params;
+int quant_encode(void* dst, const void* src, const quant_params* p, int dtype, size_t nb_elts);
+int quant_decode(void* dst, const void* src, const quant_params* p, int dtype, size_t nb_elts);
+int quant_scan(const void* src, int dtype, size_t nb_elts, double* min_abs, double* max_abs, int* any_negative);
+int quant_spec_parse(const char* s, void* out, char* err, size_t err_size);
+int quant_spec_resolve(const void* sp, int dtype, double min_abs, double max_abs, int any_negative, quant_params* out, char* err, size_t err_size);
 
-int geozl_2d_compress_c(const char* method, uint32_t width, double max_error, int dtype, int nodata_mode, double nodata_value, const void* src, size_t num_elts, size_t elt_width, void* dst, size_t dst_capacity, size_t* out_size, char* err_ctx, size_t err_ctx_size);
+int geozl_2d_compress_c(const char* method, uint32_t width, const char* error, int dtype, int nodata_mode, double nodata_value, const void* src, size_t num_elts, size_t elt_width, void* dst, size_t dst_capacity, size_t* out_size, char* err_ctx, size_t err_ctx_size);
 size_t geozl_2d_frame_dsize_c(const void* frame, size_t frame_size);
 int geozl_2d_decompress_c(const void* frame, size_t frame_size, void* dst, size_t dst_capacity, size_t* out_size, char* err_ctx, size_t err_ctx_size);
-int geozl_2d_bench_c(const char* method, uint32_t width, double max_error, int dtype, int nodata_mode, double nodata_value, const void* src, size_t num_elts, size_t elt_width, size_t reps, size_t* comp_size, double* enc_sec, double* dec_sec, char* err_ctx, size_t err_ctx_size);
+int geozl_2d_bench_c(const char* method, uint32_t width, const char* error, int dtype, int nodata_mode, double nodata_value, const void* src, size_t num_elts, size_t elt_width, size_t reps, size_t* comp_size, double* enc_sec, double* dec_sec, char* err_ctx, size_t err_ctx_size);
 int geozl_2d_grid_c(const char* method, size_t elt_width, char* names, size_t stride, size_t max_names, size_t* out_count);
 
 unsigned geozl_simd_built(void);

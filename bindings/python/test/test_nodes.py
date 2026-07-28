@@ -12,7 +12,7 @@ _NODES = [
     ("med", lambda: geozl.lossless.Med(8)),
     ("wp_static", lambda: geozl.lossless.WpStatic(8)),
     ("deinterleave", lambda: geozl.lossless.Deinterleave()),
-    ("quant_linear", lambda: geozl.lossy.QuantLinear(4, np.uint16)),
+    ("quant", lambda: geozl.lossy.Quant(4, np.uint16)),
 ]
 _MAKERS = [m for _, m in _NODES]
 _IDS = [n for n, _ in _NODES]

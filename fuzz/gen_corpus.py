@@ -41,8 +41,8 @@ def main(outdir):
         "wp_static": _compress(geozl.lossless.WpStatic(w), tile16),
         "deinterleave": _compress(geozl.lossless.Deinterleave(), tile16),
         "delta_w_u8": _compress(geozl.lossless.DeltaW(w), tile8),
-        "quant_linear": _compress(
-            geozl.lossy.QuantLinear(5, np.uint16), tile16, drop_checksum=True),
+        "quant": _compress(
+            geozl.lossy.Quant(5, np.uint16), tile16, drop_checksum=True),
     }
 
     for name, data in seeds.items():

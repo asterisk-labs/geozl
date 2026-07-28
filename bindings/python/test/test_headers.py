@@ -8,7 +8,7 @@ geozl = pytest.importorskip("geozl")
 
 _DISABLE = 2  # ZL_TernaryParam_disable
 
-# quant_linear wire codes, uint8..uint64 then int8..int64, floats after
+# quant wire codes, uint8..uint64 then int8..int64, floats after
 _FLOAT32_CODE = 9
 
 
@@ -97,59 +97,59 @@ def test_wp_static_decoder_rejects_a_shift_past_the_accumulator():
         _decode(frame)
 
 
-def test_quant_linear_rejects_a_dtype_that_is_not_the_sample_width():
+def test_quant_rejects_a_dtype_that_is_not_the_sample_width():
     # uint16 says two bytes per sample, the tile gives one
     with pytest.raises(Exception, match="does not match"):
-        _frame(geozl.lossy.QuantLinear(4, np.uint16),
+        _frame(geozl.lossy.Quant(4, np.uint16),
                np.arange(64, dtype=np.uint8))
 
 
 def _ql_build(i):
     arr = np.arange(256, dtype=np.uint16).reshape(16, 16) + i
-    return _frame(geozl.lossy.QuantLinear(50, np.uint16), arr)
+    return _frame(geozl.lossy.Quant(50, np.uint16), arr)
 
 
-# the header is <Bd: dtype code, then scale. max_error 50 makes the step 100,
+# the header is <Bd: dtype code, then scale. error 50 makes the step 100,
 # and on integers the encoder stores the reconstruction, which is -step.
 _QL_SCALE = struct.pack("<d", -100.0)
 
 
-def test_quant_linear_decoder_rejects_a_dtype_outside_the_enum():
+def test_quant_decoder_rejects_a_dtype_outside_the_enum():
     frame = _forge(_ql_build, _QL_SCALE, -1, bytes([200]))
     with pytest.raises(Exception, match="bad dtype"):
         _decode(frame)
 
 
-def test_quant_linear_decoder_rejects_a_non_finite_scale():
+def test_quant_decoder_rejects_a_non_finite_scale():
     frame = _forge(_ql_build, _QL_SCALE, 0, struct.pack("<d", float("inf")))
     with pytest.raises(Exception, match="bad scale"):
         _decode(frame)
 
 
-def test_quant_linear_decoder_rejects_a_stored_reconstruction_on_a_float():
+def test_quant_decoder_rejects_a_stored_reconstruction_on_a_float():
     # a negative scale means the stream already holds the reconstruction, which
     # only an integer stream can carry. float32 is four bytes like uint32, so
     # the width check passes and this guard is the one that has to fire
     def build(i):
         arr = np.arange(256, dtype=np.uint32).reshape(16, 16) + i
-        return _frame(geozl.lossy.QuantLinear(50, np.uint32), arr)
+        return _frame(geozl.lossy.Quant(50, np.uint32), arr)
 
     frame = _forge(build, _QL_SCALE, -1, bytes([_FLOAT32_CODE]))
     with pytest.raises(Exception, match="integer type"):
         _decode(frame)
 
 
-def test_quant_linear_rejects_a_dtype_it_has_no_kernel_for():
+def test_quant_rejects_a_dtype_it_has_no_kernel_for():
     with pytest.raises(ValueError, match="does not support dtype"):
-        geozl.lossy.QuantLinear(4, np.bool_)
+        geozl.lossy.Quant(4, np.bool_)
 
 
-def test_quant_linear_rejects_a_non_positive_max_error():
-    with pytest.raises(ValueError, match="max_error must be positive"):
-        geozl.lossy.QuantLinear(0, np.uint16)
+def test_quant_rejects_a_non_positive_error():
+    with pytest.raises(ValueError, match="error must be positive"):
+        geozl.lossy.Quant(0, np.uint16)
 
 
-def test_quant_linear_refuses_to_store_a_reconstruction_on_floats():
+def test_quant_refuses_to_store_a_reconstruction_on_floats():
     # there is no integer stream to put it in
     with pytest.raises(ValueError, match="stores the index on floats"):
-        geozl.lossy.QuantLinear(4, np.float32, store_indices=False)
+        geozl.lossy.Quant(4, np.float32, store_indices=False)

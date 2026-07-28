@@ -82,12 +82,12 @@
 </div>
 <div class="fnbody">
 <div aria-labelledby="tab-profile" class="fnpanel" id="pan-profile" role="tabpanel">
-<p class="sig">signature <b>profile(tile, *, method="planar", width=None, max_error=None, reps=5, nodata=None) → list[dict]</b></p>
-<div class="spec2"><div class="row"><span class="nm">method</span><span class="ty">str · None</span><span class="ds">Selects the predictor family to benchmark. Use None to sweep every predictor.</span></div><div class="row"><span class="nm">reps</span><span class="ty">int</span><span class="ds">Times each recipe repeatedly and keeps the fastest run.</span></div><div class="row"><span class="nm">max_error</span><span class="ty">float · None</span><span class="ds">Adds the same bounded-error quantisation step to every candidate. <code>None</code> or anything ≤ 0 stays lossless.</span></div><div class="row"><span class="nm">nodata</span><span class="ty">float · None</span><span class="ds">Profiles through the same graph <code>compress</code> would build for a tile that carries missing samples.</span></div><div class="row"><span class="nm">→ row</span><span class="ty">dict</span><span class="ds">Returns graph, ratio, encode_mbps, decode_mbps and shannon_pct, sorted by ratio.</span></div></div>
+<p class="sig">signature <b>profile(tile, *, method="planar", width=None, error=None, reps=5, nodata=None) → list[dict]</b></p>
+<div class="spec2"><div class="row"><span class="nm">method</span><span class="ty">str · None</span><span class="ds">Selects the predictor family to benchmark. Use None to sweep every predictor.</span></div><div class="row"><span class="nm">reps</span><span class="ty">int</span><span class="ds">Times each recipe repeatedly and keeps the fastest run.</span></div><div class="row"><span class="nm">error</span><span class="ty">float · None</span><span class="ds">Adds the same bounded-error quantisation step to every candidate. <code>None</code> or anything ≤ 0 stays lossless.</span></div><div class="row"><span class="nm">nodata</span><span class="ty">float · None</span><span class="ds">Profiles through the same graph <code>compress</code> would build for a tile that carries missing samples.</span></div><div class="row"><span class="nm">→ row</span><span class="ty">dict</span><span class="ds">Returns graph, ratio, encode_mbps, decode_mbps and shannon_pct, sorted by ratio.</span></div></div>
 </div>
 <div aria-labelledby="tab-compress" class="fnpanel" hidden="" id="pan-compress" role="tabpanel">
-<p class="sig">signature <b>compress(tile, *, method, width=None, max_error=None, nodata=None) → bytes</b></p>
-<div class="spec2"><div class="row"><span class="nm">tile</span><span class="ty">ndarray</span><span class="ds">A 2‑D array, or 1‑D with <code>width</code> given. Native byte order, 1, 2, 4 or 8 bytes per element.</span></div><div class="row"><span class="nm">method</span><span class="ty">str</span><span class="ds">The graph to run, a full recipe string taken straight from the <code>profile</code> table. The transpose and <code>store_lo</code> terminals split each sample into byte lanes, so they need 2 to 8 bytes per element.</span></div><div class="row"><span class="nm">width</span><span class="ty">int · None</span><span class="ds">Row width for a 1‑D input. Read from <code>tile.shape[-1]</code> for a 2‑D array.</span></div><div class="row"><span class="nm">max_error</span><span class="ty">float · None</span><span class="ds"><code>None</code> or anything ≤ 0 is lossless. A positive bound prepends the quant step that keeps every value within that error.</span></div><div class="row"><span class="nm">nodata</span><span class="ty">float · None</span><span class="ds">The value that marks a sample as never measured, as GDAL means it. A float tile holding NaN is handled without declaring anything.</span></div></div>
+<p class="sig">signature <b>compress(tile, *, method, width=None, error=None, nodata=None) → bytes</b></p>
+<div class="spec2"><div class="row"><span class="nm">tile</span><span class="ty">ndarray</span><span class="ds">A 2‑D array, or 1‑D with <code>width</code> given. Native byte order, 1, 2, 4 or 8 bytes per element.</span></div><div class="row"><span class="nm">method</span><span class="ty">str</span><span class="ds">The graph to run, a full recipe string taken straight from the <code>profile</code> table. The transpose and <code>store_lo</code> terminals split each sample into byte lanes, so they need 2 to 8 bytes per element.</span></div><div class="row"><span class="nm">width</span><span class="ty">int · None</span><span class="ds">Row width for a 1‑D input. Read from <code>tile.shape[-1]</code> for a 2‑D array.</span></div><div class="row"><span class="nm">error</span><span class="ty">float · None</span><span class="ds"><code>None</code> or anything ≤ 0 is lossless. A positive bound prepends the quant step that keeps every value within that error.</span></div><div class="row"><span class="nm">nodata</span><span class="ty">float · None</span><span class="ds">The value that marks a sample as never measured, as GDAL means it. A float tile holding NaN is handled without declaring anything.</span></div></div>
 </div>
 <div aria-labelledby="tab-decompress" class="fnpanel" hidden="" id="pan-decompress" role="tabpanel">
 <p class="sig">signature <b>decompress(frame, *, dtype=None, width=None) → ndarray</b></p>
@@ -145,7 +145,7 @@ raw = tile.nbytes</pre></div>
 <div><span class="ix">04</span><b>backend</b><span class="d">Entropy coder or LZ stage that writes the bytes.</span></div>
 <div class="on"><span class="ix">out</span><b>frame</b><span class="d">One self-describing OpenZL frame.</span></div>
 </div>
-<p class="note">Every recipe here is lossless. Setting <code>max_error</code> prepends a quantisation step ahead of the predictor, which is the only stage that discards anything.</p>
+<p class="note">Every recipe here is lossless. Setting <code>error</code> prepends a quantisation step ahead of the predictor, which is the only stage that discards anything.</p>
 </section>
 <section class="profile-slide" data-slide="profile" id="profile">
 <p class="sec-h"><span class="sq"></span> profile <span class="sig">the selection step</span></p>
@@ -267,9 +267,9 @@ best = rows[0]["graph"]</pre></div>
 frame = geozl.<span class="fn">compress</span>(tile, method=best)</pre></div>
 <div class="out">524.3 kB → 116.5 kB   <b>4.50×</b></div>
 </section>
-<section class="lossy-slide" data-slide="max_error" id="maxerror">
-<p class="sec-h"><span class="sq"></span> max_error <span class="sig">bounded-error compression</span></p>
-<div class="band"><div class="prose"><p>Set <code>max_error</code> to trade exact reconstruction for a smaller frame while keeping a hard per-value error bound. Values at or below zero stay lossless.</p><p>The step is <code>Δ = 2 · max_error</code> and each sample comes back as <code>x̂ = round(x / Δ) · Δ</code>, so <code>|x − x̂| ≤ max_error</code> always holds. For integer rasters that step is discrete, which is why the size curve falls in visible steps rather than a smooth line.</p></div><aside class="side"><span class="st">practical reading</span>Choose the knee of the curve: the point where more error stops buying much more compression.</aside></div>
+<section class="lossy-slide" data-slide="error" id="maxerror">
+<p class="sec-h"><span class="sq"></span> error <span class="sig">bounded-error compression</span></p>
+<div class="band"><div class="prose"><p>Set <code>error</code> to trade exact reconstruction for a smaller frame while keeping a hard per-value error bound. Values at or below zero stay lossless.</p><p>The step is <code>Δ = 2 · error</code> and each sample comes back as <code>x̂ = round(x / Δ) · Δ</code>, so <code>|x − x̂| ≤ error</code> always holds. For integer rasters that step is discrete, which is why the size curve falls in visible steps rather than a smooth line.</p></div><aside class="side"><span class="st">practical reading</span>Choose the knee of the curve: the point where more error stops buying much more compression.</aside></div>
 <div class="chart">
 <div class="lbl">frame size vs. allowed error</div>
 <div class="cbody"><svg aria-label="Frame size falling as the error budget grows, against the lossless reference line, with the knee of the curve marked" class="plot" role="img" viewbox="0 0 1100 340">
@@ -296,7 +296,7 @@ frame = geozl.<span class="fn">compress</span>(tile, method=best)</pre></div>
 <line class="axis" x1="76" x2="76" y1="30" y2="290.0"></line>
 <line class="axis" x1="76" x2="1066" y1="290.0" y2="290.0"></line>
 <text class="axl" x="76" y="20">↑ frame kB</text>
-<text class="axl" text-anchor="end" x="1066" y="328">max_error, metres →</text>
+<text class="axl" text-anchor="end" x="1066" y="328">error, metres →</text>
 <line class="lossless" x1="76" x2="1066" y1="60.5" y2="60.5"></line>
 <text class="ll" x="86" y="51.5">lossless · 116.5 kB</text>
 <polyline class="curve" points="76.0,60.5 118.9,60.5 162.0,60.5 205.2,60.5 248.2,116.3 291.3,116.3 334.3,145.8 377.3,163.0 420.3,172.8 463.4,178.9 506.4,186.0 549.5,189.9 592.5,192.7 635.6,194.3 678.6,199.8 721.7,204.1 764.7,210.8 807.7,216.3 850.8,225.0 893.8,234.5 936.9,241.5 979.9,255.9 1023.0,260.3 1066.0,262.4"></polyline>
@@ -338,7 +338,7 @@ frame = geozl.<span class="fn">compress</span>(tile, method=best)</pre></div>
 <p>The frame stores the compressed bytes, not the NumPy sign and not the 2-D shape. Those two facts live in the call, not in the file.</p>
 <p>Pass <code>dtype</code> to reinterpret each element and <code>width</code> to restore the raster shape. Leave either one out when you want the raw unsigned or the flat view.</p>
 </div>
-<aside class="side"><span class="st">round trip</span>With a lossless recipe the array that comes back is bit for bit the array that went in. With <code>max_error</code> set it comes back inside the bound you asked for.</aside>
+<aside class="side"><span class="st">round trip</span>With a lossless recipe the array that comes back is bit for bit the array that went in. With <code>error</code> set it comes back inside the bound you asked for.</aside>
 </div>
 <p class="flow-h">what the call rebuilds <em>frame in, raster out</em></p>
 <div class="flow">
@@ -359,7 +359,7 @@ frame = geozl.<span class="fn">compress</span>(tile, method=best)</pre></div>
 <div class="code"><pre>rows = geozl.<span class="fn">profile</span>(tile, method=None)
 best = rows[0]["graph"]
 
-frame = geozl.<span class="fn">compress</span>(tile, method=best, max_error=4)
+frame = geozl.<span class="fn">compress</span>(tile, method=best, error=4)
 back = geozl.<span class="fn">decompress</span>(frame, dtype="int16", width=512)</pre></div>
 <div class="out">9.93×   0.05 MB   max error 4 m</div>
 <div class="trip">

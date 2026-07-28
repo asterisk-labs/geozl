@@ -1,6 +1,6 @@
-from .quant_linear import QuantLinear, QuantLinearDecoder
+from .quant import Quant, QuantDecoder
 
-_DECODERS = (QuantLinearDecoder,)
+_DECODERS = (QuantDecoder,)
 
 
 def register_decoders(dctx):
@@ -10,4 +10,4 @@ def register_decoders(dctx):
         dctx.register_custom_decoder(decoder())
 
 
-__all__ = ["QuantLinear", "QuantLinearDecoder", "register_decoders"]
+__all__ = ["Quant", "QuantDecoder", "register_decoders"]
