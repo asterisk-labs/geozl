@@ -4,10 +4,9 @@
 #include <stdint.h>
 #include <string.h>
 
-// The linear curve keeps exact integer arithmetic, so a 64 bit sample does not
-// lose precision through a double, and its paths are unchanged from what the
-// codec did before the curves were added. The warped curves go through double,
-// which costs nothing on the float types they are meant for.
+// The linear curve stays on exact integer arithmetic so a 64 bit sample does
+// not lose precision through a double. The warped curves go through double,
+// which costs nothing on the float types they are for.
 
 #define Q_ENC_U(T)                                                             \
   do {                                                                         \
@@ -81,25 +80,19 @@
     }                                                                          \
   } while (0)
 
-// The warped curves pick the index whose reconstruction, taken back at the
-// output width, is nearest the sample. quant_fwd already lands on it or one
-// short, and the curves are monotone, so only the neighbour on the side of the
-// residual can be closer. Testing it is what keeps the declared bound from
-// depending on how accurate log and exp happen to be.
-#define Q_RT_INT(v) nearbyint(v)
-#define Q_RT_F16(v) ((double)quant_half_to_float(quant_float_to_half((float)(v))))
-#define Q_RT_F32(v) ((double)(float)(v))
-#define Q_RT_F64(v) (v)
-
+// Pick the index whose reconstruction, taken back at the output width, is
+// nearest the sample. quant_fwd lands on it or one short, and the curves are
+// monotone, so only the neighbour on the side of the residual can be closer.
+// Checking it keeps the bound off the accuracy of log and exp.
 #define Q_ENC_WARP(RD, RT, IT, MINV, MAXV)                                     \
   do {                                                                         \
     IT *d = (IT *)dst;                                                         \
     for (size_t i = 0; i < nbElts; ++i) {                                      \
       const double x = (double)(RD);                                           \
       double q = quant_fwd(x, p);                                              \
-      const double r0 = RT(quant_inv(q, p));                                   \
+      const double r0 = RT(quant_inv(q, p), vlo, vhi);                         \
       const double alt = q + (x > r0 ? 1.0 : -1.0);                            \
-      if (fabs(x - RT(quant_inv(alt, p))) < fabs(x - r0))                      \
+      if (fabs(x - RT(quant_inv(alt, p), vlo, vhi)) < fabs(x - r0))            \
         q = alt;                                                               \
       if (q < (double)(MINV))                                                  \
         q = (double)(MINV);                                                    \
@@ -127,43 +120,50 @@ int quant_encode(void *dst, const void *src, const quant_params *p, int dtype,
   }
 
   if (p->curve != QUANT_CURVE_LINEAR) {
+    const double vlo = quant_value_lo(dtype), vhi = quant_value_hi(dtype);
     switch ((quant_dtype)dtype) {
     case Q_U8:
-      Q_ENC_WARP(((const uint8_t *)src)[i], Q_RT_INT, uint8_t, 0, UINT8_MAX);
+      Q_ENC_WARP(((const uint8_t *)src)[i], QUANT_RT_INT, uint8_t, 0,
+                 UINT8_MAX);
       break;
     case Q_U16:
-      Q_ENC_WARP(((const uint16_t *)src)[i], Q_RT_INT, uint16_t, 0, UINT16_MAX);
+      Q_ENC_WARP(((const uint16_t *)src)[i], QUANT_RT_INT, uint16_t, 0,
+                 UINT16_MAX);
       break;
     case Q_U32:
-      Q_ENC_WARP(((const uint32_t *)src)[i], Q_RT_INT, uint32_t, 0, UINT32_MAX);
+      Q_ENC_WARP(((const uint32_t *)src)[i], QUANT_RT_INT, uint32_t, 0,
+                 UINT32_MAX);
       break;
     case Q_U64:
-      Q_ENC_WARP(((const uint64_t *)src)[i], Q_RT_INT, uint64_t, 0,
+      Q_ENC_WARP(((const uint64_t *)src)[i], QUANT_RT_INT, uint64_t, 0,
                  18446744073709549568.0);
       break;
     case Q_I8:
-      Q_ENC_WARP(((const int8_t *)src)[i], Q_RT_INT, int8_t, INT8_MIN, INT8_MAX);
+      Q_ENC_WARP(((const int8_t *)src)[i], QUANT_RT_INT, int8_t, INT8_MIN,
+                 INT8_MAX);
       break;
     case Q_I16:
-      Q_ENC_WARP(((const int16_t *)src)[i], Q_RT_INT, int16_t, INT16_MIN, INT16_MAX);
+      Q_ENC_WARP(((const int16_t *)src)[i], QUANT_RT_INT, int16_t, INT16_MIN,
+                 INT16_MAX);
       break;
     case Q_I32:
-      Q_ENC_WARP(((const int32_t *)src)[i], Q_RT_INT, int32_t, INT32_MIN, INT32_MAX);
+      Q_ENC_WARP(((const int32_t *)src)[i], QUANT_RT_INT, int32_t, INT32_MIN,
+                 INT32_MAX);
       break;
     case Q_I64:
-      Q_ENC_WARP(((const int64_t *)src)[i], Q_RT_INT, int64_t, INT64_MIN,
+      Q_ENC_WARP(((const int64_t *)src)[i], QUANT_RT_INT, int64_t, INT64_MIN,
                  9223372036854774784.0);
       break;
     case Q_F16:
-      Q_ENC_WARP(quant_half_to_float(((const uint16_t *)src)[i]), Q_RT_F16,
+      Q_ENC_WARP(quant_half_to_float(((const uint16_t *)src)[i]), QUANT_RT_F16,
                  int16_t, INT16_MIN, INT16_MAX);
       break;
     case Q_F32:
-      Q_ENC_WARP(((const float *)src)[i], Q_RT_F32, int32_t, INT32_MIN,
+      Q_ENC_WARP(((const float *)src)[i], QUANT_RT_F32, int32_t, INT32_MIN,
                  INT32_MAX);
       break;
     case Q_F64:
-      Q_ENC_WARP(((const double *)src)[i], Q_RT_F64, int64_t, INT64_MIN,
+      Q_ENC_WARP(((const double *)src)[i], QUANT_RT_F64, int64_t, INT64_MIN,
                  9223372036854774784.0);
       break;
     }

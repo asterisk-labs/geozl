@@ -22,10 +22,10 @@ ZL_Report EI_geozl_quant(ZL_Encoder *eictx, const ZL_Input *in) {
   const size_t eltWidth = ZL_Input_eltWidth(in);
   const size_t nbElts = ZL_Input_numElts(in);
 
-  // dtype and the curve parameters are required, the graph builder sets them.
-  // The parameters are already resolved against the tile there, because the log
-  // curve anchors its grid on the smallest magnitude present and the node has
-  // no way to look at the whole raster before the stream reaches it.
+  // Both are required and the graph builder sets them. The curve parameters
+  // arrive already resolved against the tile, since the log curve anchors on
+  // the smallest magnitude in the raster and this node only ever sees one
+  // stream.
   ZL_IntParam dp = ZL_Encoder_getLocalIntParam(eictx, QUANT_PARAM_DTYPE);
   ZL_CopyParam pp = ZL_Encoder_getLocalCopyParam(eictx, QUANT_PARAM_PARAMS);
   if (dp.paramId != QUANT_PARAM_DTYPE || pp.paramId != QUANT_PARAM_PARAMS ||

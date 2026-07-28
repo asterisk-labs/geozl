@@ -41,47 +41,63 @@ above 2, a flag bit that is not bit 0, a stored reconstruction outside the
 linear curve on an integer type, and a non-zero `nsub` outside the log curve.
 
 ### Decoding
-- linear, `x = q * step`, clamped to the type range so the top does not wrap.
+- linear, `x = q * step`.
 - sqrt, `x = (q * step)^2 - offset`.
 - log, zero decodes to zero. Otherwise with `m = |q|` and `sub = offset/(nsub+1)`,
   `x = sign(q) * m * sub` when `m <= nsub`, and
   `x = sign(q) * offset * exp((m - nsub - 1) * step)` above.
 
+Every reconstruction is clamped into the range of the output type and then
+rounded to that width before it is stored. It is not only the top that needs
+clamping, the sqrt curve lands below zero near the bottom of its range and would
+wrap on an unsigned type. Clamping only moves a reconstruction towards the data,
+so the bound holds. The rounding is to nearest rather than the truncation a cast
+would give, since the encoder picks its index by judging candidates through the
+same step.
+
 On integers a `step` of 1 under the linear curve is a copy, since the index and
 the value are the same number.
 
 The log curve reconstructs through a table of one value per index when the index
-range fits in 8192 entries, which on the data this curve is meant for it always
-does, so no transcendental is evaluated per sample.
+range fits in 8192 entries, so no transcendental is evaluated per sample.
 
 ### Outputs
 A single numeric stream of the original element type and width, with the same
 number of elements as the input.
 
 ### Error bound
-The bound is a property of the curve, and the encoder holds to it by picking the
+The bound is a property of the curve. The encoder holds to it by picking the
 index whose reconstruction, taken back at the output width, is nearest the
-sample, rather than by trusting the algebra. That is what keeps a declared bound
-from depending on how accurate `log` and `exp` happen to be.
+sample, rather than by trusting the algebra, which keeps the bound off the
+accuracy of `log` and `exp`.
 
 - linear, `|x - x^| <= step/2`.
 - sqrt, `|x - x^| <= step * sqrt(x + offset)`.
 - log, `|x - x^| <= (exp(step/2) - 1) * |x|`.
 
 Two cases sit outside the grid and are carried exactly instead, which a relative
-bound allows because it is also satisfied when the two values are identical.
-Zero is one, and it decodes to zero for any parameters. The other is the range
-where the representable values sit too far apart for any grid to meet the bound,
-which is below the smallest normal on a float type and below roughly `8/b` on an
-integer one. That range is the leading `nsub` indices, spaced by `offset/(nsub+1)`,
-and it is the case that defeats rounding the mantissa to a fixed number of bits.
+bound allows since it is also satisfied when the two values are identical. Zero
+is one, and it decodes to zero for any parameters. The other is the range where
+the representable values sit too far apart for any grid to meet the bound, below
+the smallest normal on a float type and below roughly `8/b` on an integer one.
+That range is the leading `nsub` indices, spaced by `offset/(nsub+1)`.
 
 The reconstruction is rounded once more when it is stored at the output width,
-so the grid is cut by that much when the parameters are resolved and the bound
-above still holds after the cast.
+half a unit on an integer and a relative eps on a float, so the grid is cut by
+that much when the parameters are resolved and the bound above still holds after
+the cast. Where the cut is taken depends on the curve. The log curve takes it at
+the smallest magnitude, since the tolerance shrinks with the value. The sqrt
+curve takes whichever end needs more, since an integer rounding bites hardest at
+the bottom and a float rounding at the top.
 
 ### Parameters
 The parameters are resolved before the graph is built, from the error recipe and
 a scan of the tile, because the log curve anchors its grid on the smallest
-magnitude present. A tile whose bound needs more levels than the index width
-holds is refused rather than saturated.
+magnitude present.
+
+Three things are refused rather than encoded into a frame that misses its own
+bound. A bound needing more levels than the index width holds, which would
+otherwise saturate. A bound smaller than the rounding of a float output type at
+the top of the tile, which f16 reaches at ordinary tolerances. And a shot bound
+that is under half a unit at the noise floor of an integer type, where no grid
+exists and the request is really for lossless.

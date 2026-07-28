@@ -1,7 +1,4 @@
-// IEEE half conversions, for platforms without _Float16. Shared so the encoder
-// can round a candidate reconstruction exactly the way the decoder will store
-// it, which is what makes the nearest-index search on the warped curves honest
-// at this width.
+// IEEE half conversions, for platforms without _Float16.
 
 #ifndef GEOZL_CODECS_QUANT_HALF_H
 #define GEOZL_CODECS_QUANT_HALF_H
@@ -36,8 +33,8 @@ static inline float quant_half_to_float(uint16_t h) {
   return f;
 }
 
-// Round half up on the magnitude. Ties go away from zero, not to even; this is
-// an output path and does not affect the wire format.
+// Ties round away from zero rather than to even. Output path only, the wire
+// format never sees it.
 static inline uint16_t quant_float_to_half(float f) {
   uint32_t x;
   memcpy(&x, &f, sizeof(x));

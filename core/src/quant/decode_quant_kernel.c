@@ -5,10 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-// The linear curve keeps the exact integer arithmetic it always had. The warped
-// curves rebuild through quant_inv, which costs an exp per element on the log
-// curve; the table below removes it whenever the index range is small enough,
-// which on the data these curves are meant for it always is.
+// The linear curve stays on exact integer arithmetic. The warped curves rebuild
+// through quant_inv, which is an exp per element on the log curve, and the
+// table below takes that out whenever the index range is small enough.
 
 #define Q_DEC_U(T)                                                             \
   do {                                                                         \
@@ -45,12 +44,12 @@
       d[i] = (WT)((double)s[i] * step);                                        \
   } while (0)
 
-// Reconstruct through a table of one entry per index when the range allows it,
-// so the log curve does not pay a transcendental per sample. Above the cap the
-// table would leave L1 and stop being worth the pass that builds it.
+// One entry per index, so the log curve does not pay a transcendental per
+// sample. Above the cap the table leaves L1 and stops being worth the pass that
+// builds it.
 #define Q_LUT_MAX 8192
 
-#define Q_DEC_WARP(WT, IT, ST)                                                 \
+#define Q_DEC_WARP(WT, IT, RT)                                                 \
   do {                                                                         \
     const IT *s = (const IT *)src;                                             \
     WT *d = (WT *)dst;                                                         \
@@ -71,13 +70,13 @@
       lut = (WT *)malloc((size_t)span * sizeof(WT));                           \
     if (lut != NULL) {                                                         \
       for (int64_t k = 0; k < span; ++k)                                       \
-        lut[k] = (WT)(ST)quant_inv((double)(lo + k), p);                       \
+        lut[k] = (WT)RT(quant_inv((double)(lo + k), p), vlo, vhi);             \
       for (size_t i = 0; i < nbElts; ++i)                                      \
         d[i] = lut[(int64_t)s[i] - lo];                                        \
       free(lut);                                                               \
     } else {                                                                   \
       for (size_t i = 0; i < nbElts; ++i)                                      \
-        d[i] = (WT)(ST)quant_inv((double)s[i], p);                             \
+        d[i] = (WT)RT(quant_inv((double)s[i], p), vlo, vhi);                   \
     }                                                                          \
   } while (0)
 
@@ -101,43 +100,45 @@ int quant_decode(void *dst, const void *src, const quant_params *p, int dtype,
   }
 
   if (p->curve != QUANT_CURVE_LINEAR) {
+    const double vlo = quant_value_lo(dtype), vhi = quant_value_hi(dtype);
     switch ((quant_dtype)dtype) {
     case Q_U8:
-      Q_DEC_WARP(uint8_t, uint8_t, uint64_t);
+      Q_DEC_WARP(uint8_t, uint8_t, QUANT_RT_INT);
       break;
     case Q_U16:
-      Q_DEC_WARP(uint16_t, uint16_t, uint64_t);
+      Q_DEC_WARP(uint16_t, uint16_t, QUANT_RT_INT);
       break;
     case Q_U32:
-      Q_DEC_WARP(uint32_t, uint32_t, uint64_t);
+      Q_DEC_WARP(uint32_t, uint32_t, QUANT_RT_INT);
       break;
     case Q_U64:
-      Q_DEC_WARP(uint64_t, uint64_t, uint64_t);
+      Q_DEC_WARP(uint64_t, uint64_t, QUANT_RT_INT);
       break;
     case Q_I8:
-      Q_DEC_WARP(int8_t, int8_t, int64_t);
+      Q_DEC_WARP(int8_t, int8_t, QUANT_RT_INT);
       break;
     case Q_I16:
-      Q_DEC_WARP(int16_t, int16_t, int64_t);
+      Q_DEC_WARP(int16_t, int16_t, QUANT_RT_INT);
       break;
     case Q_I32:
-      Q_DEC_WARP(int32_t, int32_t, int64_t);
+      Q_DEC_WARP(int32_t, int32_t, QUANT_RT_INT);
       break;
     case Q_I64:
-      Q_DEC_WARP(int64_t, int64_t, int64_t);
+      Q_DEC_WARP(int64_t, int64_t, QUANT_RT_INT);
       break;
     case Q_F16: {
       const int16_t *s = (const int16_t *)src;
       uint16_t *d = (uint16_t *)dst;
       for (size_t i = 0; i < nbElts; ++i)
-        d[i] = quant_float_to_half((float)quant_inv((double)s[i], p));
+        d[i] = quant_float_to_half(
+            (float)QUANT_RT_F16(quant_inv((double)s[i], p), vlo, vhi));
       break;
     }
     case Q_F32:
-      Q_DEC_WARP(float, int32_t, float);
+      Q_DEC_WARP(float, int32_t, QUANT_RT_F32);
       break;
     case Q_F64:
-      Q_DEC_WARP(double, int64_t, double);
+      Q_DEC_WARP(double, int64_t, QUANT_RT_F64);
       break;
     }
     return 0;

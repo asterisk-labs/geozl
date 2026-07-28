@@ -5,18 +5,18 @@
 
 #include <stddef.h>
 
-// The error argument of the 2d API, parsed. A string rather than a struct for
-// the same reason method is one: it crosses every entry point unchanged, so
-// compress, bench and profile cannot end up describing different errors.
+// The error argument of the 2d API, parsed. A string like method is, so that it
+// crosses compress, bench and profile unchanged and the three cannot end up
+// describing different errors.
 //
 //   NULL or ""            lossless
 //   "abs:V"               |x - x^| <= V
 //   "rel:P%"              |x - x^| <= (P/100) * |x|
 //   "shot:a=A,b=B,k=K"    |x - x^| <= K * sqrt(A + B*x)
 //
-// The percent sign in rel is required. Without it "rel:1" reads as a bound of
-// one, a hundred percent, which is a plausible typo for one percent and would
-// quantize a hundred times coarser than intended without failing.
+// The percent sign in rel is required. "rel:1" would otherwise read as a bound
+// of one, a hundred percent, a likely typo for one percent that would not
+// fail.
 typedef enum {
   QUANT_SPEC_LOSSLESS = 0,
   QUANT_SPEC_EXPLICIT = 1
@@ -34,8 +34,8 @@ typedef struct {
 int quant_spec_parse(const char *s, quant_spec *out, char *err, size_t errSize);
 
 // Finish the parameters against the tile. The log curve anchors its grid on the
-// smallest magnitude present, so the numbers are only complete once the data
-// has been scanned. Returns 0, or nonzero with the reason in err.
+// smallest magnitude present, so they are only complete once the data has been
+// scanned. Returns 0, or nonzero with the reason in err.
 int quant_spec_resolve(const quant_spec *sp, int dtype, double minAbs,
                        double maxAbs, int anyNegative, quant_params *out,
                        char *err, size_t errSize);

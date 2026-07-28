@@ -1,8 +1,8 @@
 #include "quant_spec.h"
 
 #include <errno.h>
-#include <stdarg.h>
 #include <math.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,7 +54,8 @@ static int keyed(const char **cur, const char *name, double *out) {
   return 0;
 }
 
-int quant_spec_parse(const char *s, quant_spec *out, char *err, size_t errSize) {
+int quant_spec_parse(const char *s, quant_spec *out, char *err,
+                     size_t errSize) {
   memset(out, 0, sizeof(*out));
   if (s == NULL || s[0] == '\0') {
     out->mode = QUANT_SPEC_LOSSLESS;
@@ -104,9 +105,9 @@ int quant_spec_parse(const char *s, quant_spec *out, char *err, size_t errSize) 
     return 0;
   }
 
-  return fail(err, errSize,
-              "unknown error \"%s\"; expected abs:V, rel:P%% or shot:a=A,b=B,k=K",
-              s);
+  return fail(
+      err, errSize,
+      "unknown error \"%s\"; expected abs:V, rel:P%% or shot:a=A,b=B,k=K", s);
 }
 
 double quant_index_max(int dtype) {
@@ -143,22 +144,48 @@ int quant_spec_resolve(const quant_spec *sp, int dtype, double minAbs,
   switch (sp->curve) {
   case QUANT_CURVE_LINEAR:
     out->step = 2.0 * sp->abs_err;
-    // Integers carry the reconstruction, so the decoder only copies. A float
+    // Integers carry the reconstruction so the decoder only copies, and the
+    // index cannot overflow because the kernel floors the step at one. A float
     // reconstruction is not the integer stream the codec emits, so floats keep
-    // the index.
-    if (dtype <= Q_LAST_INT)
+    // the index and go on to the checks below.
+    if (dtype <= Q_LAST_INT) {
       out->flags |= QUANT_FLAG_STORE_VALUES;
-    return 0;
+      return 0;
+    }
+    break;
 
-  case QUANT_CURVE_SQRT:
+  case QUANT_CURVE_SQRT: {
     if (anyNegative)
       return fail(err, errSize,
                   "shot noise is defined on non-negative data, this tile has "
                   "negative samples");
     out->curve = QUANT_CURVE_SQRT;
-    out->step = sp->shot_k * sqrt(sp->shot_b);
     out->offset = sp->shot_a / sp->shot_b;
+    out->step = sp->shot_k * sqrt(sp->shot_b);
+    if (!isfinite(maxAbs) || maxAbs <= 0.0)
+      return 0; // nothing but zeros and NaN, and zero is a grid level
+
+    // Storing the reconstruction rounds it once more, half a unit on an integer
+    // and a relative eps on a float, and the bound has to absorb that. The
+    // tolerance grows with sqrt(x), so an integer rounding bites hardest at the
+    // bottom of the range and a float one at the top. Take the worse.
+    const double zero_is_exact = out->offset > 0.0 ? 0.0 : minAbs;
+    const double xlo = isfinite(zero_is_exact) ? zero_is_exact : 0.0;
+    const double eps = quant_eps(dtype);
+    const double rlo = dtype <= Q_LAST_INT ? 0.5 : eps * xlo;
+    const double rhi = dtype <= Q_LAST_INT ? 0.5 : eps * maxAbs;
+    double shrink = rlo / sqrt(xlo + out->offset);
+    const double top = rhi / sqrt(maxAbs + out->offset);
+    if (top > shrink)
+      shrink = top;
+    out->step -= shrink;
+    if (!(out->step > 0.0))
+      return fail(err, errSize,
+                  "a shot bound of %g at the noise floor is at or below the "
+                  "rounding of the output type",
+                  sp->shot_k);
     break;
+  }
 
   case QUANT_CURVE_LOG: {
     out->curve = QUANT_CURVE_LOG;
@@ -169,10 +196,9 @@ int quant_spec_resolve(const quant_spec *sp, int dtype, double minAbs,
     }
 
     // Below the smallest normal the representable values sit a fixed distance
-    // apart rather than a fixed fraction, so a geometric grid stops being able
-    // to hit them and that whole range is carried exactly instead. On integers
-    // the same thing happens below roughly 8/b, where a spacing of one is no
-    // longer small against the bound.
+    // apart rather than a fixed fraction, so a geometric grid can no longer hit
+    // them and that range is carried exactly. Integers hit the same wall below
+    // roughly 8/b, where a spacing of one stops being small against the bound.
     const double sub = quant_sub(dtype);
     double geo_start, rel_round;
     if (dtype > Q_LAST_INT) {
@@ -209,6 +235,24 @@ int quant_spec_resolve(const quant_spec *sp, int dtype, double minAbs,
     return fail(err, errSize, "unknown curve %u", (unsigned)sp->curve);
   }
 
+  // Near the top of its range f16 steps further between representable values
+  // than most bounds allow, so the rounding alone can break a bound the grid
+  // would have held. Refuse rather than declare an error the frame misses.
+  if (dtype > Q_LAST_INT && isfinite(maxAbs) && maxAbs > 0.0) {
+    double declared;
+    if (sp->curve == QUANT_CURVE_SQRT)
+      declared = sp->shot_k * sqrt(sp->shot_a + sp->shot_b * maxAbs);
+    else if (sp->curve == QUANT_CURVE_LOG)
+      declared = sp->rel_err * maxAbs;
+    else
+      declared = sp->abs_err;
+    if (quant_eps(dtype) * maxAbs > declared)
+      return fail(err, errSize,
+                  "rounding a reconstruction to this output type costs more "
+                  "than the bound allows at %g",
+                  maxAbs);
+  }
+
   // The index keeps the sample width, so a grid finer than that width can
   // address has to be refused rather than saturated into a wrong value.
   if (isfinite(maxAbs) && maxAbs > 0.0) {
@@ -217,10 +261,11 @@ int quant_spec_resolve(const quant_spec *sp, int dtype, double minAbs,
       return fail(err, errSize,
                   "this bound needs %.0f levels, more than a %d-byte index "
                   "holds; loosen it or widen the samples",
-                  top, (dtype == Q_F64 || dtype == Q_U64 || dtype == Q_I64) ? 8
-                       : (dtype == Q_F16 || dtype == Q_U16 || dtype == Q_I16)
-                           ? 2
-                           : (dtype == Q_U8 || dtype == Q_I8) ? 1 : 4);
+                  top,
+                  (dtype == Q_F64 || dtype == Q_U64 || dtype == Q_I64)   ? 8
+                  : (dtype == Q_F16 || dtype == Q_U16 || dtype == Q_I16) ? 2
+                  : (dtype == Q_U8 || dtype == Q_I8)                     ? 1
+                                                                         : 4);
   }
   return 0;
 }

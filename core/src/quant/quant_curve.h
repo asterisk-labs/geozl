@@ -1,23 +1,19 @@
-// Arithmetic of the three curves declared in geozl/quant_params.h, shared by
-// encode, decode and the spec resolver so one definition serves all three and
-// they cannot drift.
+// Curve arithmetic, shared by encode, decode and the spec resolver.
 
 #ifndef GEOZL_CODECS_QUANT_CURVE_H
 #define GEOZL_CODECS_QUANT_CURVE_H
 
 #include "geozl/quant_params.h" // quant_params, quant_curve
-#include "quant_dtype.h"          // quant_dtype
+#include "quant_dtype.h"        // quant_dtype
+#include "quant_half.h"         // quant_float_to_half
 
 #include <math.h>
 #include <stdint.h>
 
-// Spacing of the representable values of dtype near zero: one for integers,
-// the smallest positive subnormal for floats. Where that spacing is coarse
-// against the bound, no representable value other than x itself lies within
-// b*|x| of x, so no grid can serve that range and the log curve stores it
-// exactly instead, as nsub leading index values. That is what the second
-// clause of a relative bound ("or the two are identical") is for, and it is
-// the case that defeats rounding the mantissa to a fixed number of bits.
+// Spacing of the representable values near zero, one for integers and the
+// smallest subnormal for floats. Where b*|x| drops below that spacing, nothing
+// but x itself is inside the bound, so the log curve carries that range as its
+// leading nsub indices rather than quantizing it.
 static inline double quant_sub(int dtype) {
   switch (dtype) {
   case Q_F16:
@@ -31,9 +27,8 @@ static inline double quant_sub(int dtype) {
   }
 }
 
-// Smallest value of dtype whose neighbours are a fixed fraction away rather
-// than a fixed distance: the smallest normal for floats, and one for integers,
-// below which nothing is representable at all.
+// Where the neighbours stop being a fixed distance apart and start being a
+// fixed fraction. The smallest normal for floats, one for integers.
 static inline double quant_normal_min(int dtype) {
   switch (dtype) {
   case Q_F16:
@@ -62,14 +57,12 @@ static inline double quant_eps(int dtype) {
   }
 }
 
-// Grid ratio of the log curve is exp(step), and rounding to the nearest level
-// lands within a factor exp(step/2), so the relative bound it holds is
-// exp(step/2) - 1. Inverted, a bound of b needs step = 2*log1p(b).
+// The log grid has ratio exp(step) and rounding to the nearest level lands
+// within a factor exp(step/2), so the bound it holds is exp(step/2) - 1. The
+// other way round, a bound of b needs step = 2*log1p(b).
 static inline double quant_log_step(double b_rel) { return 2.0 * log1p(b_rel); }
 
-static inline double quant_log_brel(double step) {
-  return expm1(0.5 * step);
-}
+static inline double quant_log_brel(double step) { return expm1(0.5 * step); }
 
 // x -> index. Returns a double, the kernels clamp and store at the index width.
 static inline double quant_fwd(double x, const quant_params *p) {
@@ -85,9 +78,8 @@ static inline double quant_fwd(double x, const quant_params *p) {
     if (a == 0.0)
       return 0.0;
     double m;
-    // offset is (nsub+1)*sub by construction, so the exact grid spacing comes
-    // back out of the header rather than from the dtype, and the two directions
-    // divide by the same double.
+    // offset is (nsub+1)*sub, so sub comes back out of the header instead of
+    // the dtype and both directions divide by the same double.
     if (p->nsub != 0 && a < p->offset) {
       m = nearbyint(a / (p->offset / ((double)p->nsub + 1.0)));
       if (m < 1.0)
@@ -129,23 +121,71 @@ static inline double quant_inv(double q, const quant_params *p) {
   }
 }
 
-// Pointwise bound the parameters hold at x, before the reconstruction is
-// rounded back to the output width. The encoder verifies against it rather
-// than trusting the algebra, so libm accuracy cannot turn into a frame that
-// exceeds its declared error.
-static inline double quant_bound(double x, const quant_params *p) {
-  if (p->step == 0.0)
-    return 0.0;
-  switch (p->curve) {
-  case QUANT_CURVE_SQRT: {
-    const double t = x + p->offset;
-    return p->step * sqrt(t < 0.0 ? 0.0 : t);
-  }
-  case QUANT_CURVE_LOG:
-    return quant_log_brel(p->step) * fabs(x);
+// A warped reconstruction can land outside the output type, the sqrt curve
+// below zero in particular, which would wrap on an unsigned width. Clamping
+// only moves it towards the data, so the bound holds.
+//
+// The limits sit here so encode and decode read the same ones. The integer
+// limits are the largest of each width that survive a round trip through a
+// double.
+static inline double quant_clamp(double v, double lo, double hi) {
+  return v < lo ? lo : (v > hi ? hi : v);
+}
+
+static inline double quant_value_lo(int dtype) {
+  switch (dtype) {
+  case Q_I8:
+    return -128.0;
+  case Q_I16:
+    return -32768.0;
+  case Q_I32:
+    return -2147483648.0;
+  case Q_I64:
+    return -9223372036854775808.0;
+  case Q_F16:
+    return -65504.0;
+  case Q_F32:
+  case Q_F64:
+    return -INFINITY;
   default:
-    return 0.5 * p->step;
+    return 0.0; // the unsigned widths
   }
 }
+
+static inline double quant_value_hi(int dtype) {
+  switch (dtype) {
+  case Q_U8:
+    return 255.0;
+  case Q_U16:
+    return 65535.0;
+  case Q_U32:
+    return 4294967295.0;
+  case Q_U64:
+    return 18446744073709549568.0;
+  case Q_I8:
+    return 127.0;
+  case Q_I16:
+    return 32767.0;
+  case Q_I32:
+    return 2147483647.0;
+  case Q_I64:
+    return 9223372036854774784.0;
+  case Q_F16:
+    return 65504.0;
+  default:
+    return INFINITY;
+  }
+}
+
+// How a reconstruction reaches the output width. Encode and decode both go
+// through these, so the index encode picks as nearest is the one that comes
+// back. The rounding is spelled out because a cast to an integer truncates,
+// which would leave every warped reconstruction up to a unit off.
+#define QUANT_RT_INT(v, lo, hi) nearbyint(quant_clamp((v), (lo), (hi)))
+#define QUANT_RT_F16(v, lo, hi)                                                \
+  ((double)quant_half_to_float(                                                \
+      quant_float_to_half((float)quant_clamp((v), (lo), (hi)))))
+#define QUANT_RT_F32(v, lo, hi) ((double)(float)quant_clamp((v), (lo), (hi)))
+#define QUANT_RT_F64(v, lo, hi) quant_clamp((v), (lo), (hi))
 
 #endif // GEOZL_CODECS_QUANT_CURVE_H

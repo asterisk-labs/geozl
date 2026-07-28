@@ -26,6 +26,15 @@ def _tile(shape=(32, 32), dtype=np.int16):
     return ((x * 3 + y * 5) % 400 + rng.integers(0, 4, shape)).astype(dtype)
 
 
+def _ftile(shape=(32, 32), lo=1e-6, hi=1e6, dtype=np.float32):
+    """Log spaced and positive, the shape the warped curves are for. A narrow
+    tile would not tell a fixed tolerance from one that follows the value."""
+    rng = np.random.default_rng(1)
+    n = shape[0] * shape[1]
+    v = 10.0 ** np.linspace(np.log10(lo), np.log10(hi), n)
+    return (v * rng.uniform(0.9, 1.1, n)).reshape(shape).astype(dtype)
+
+
 def _roundtrip(arr, **kw):
     frame = geozl.compress(arr, **kw)
     return geozl.decompress(frame, dtype=arr.dtype.name, width=arr.shape[1])
@@ -292,3 +301,122 @@ def test_profile_takes_a_sentinel_too():
 def test_profile_rejects_a_sentinel_on_a_dtype_geozl_cannot_read():
     with pytest.raises(ValueError, match="nodata needs a dtype"):
         geozl.profile(np.zeros((4, 4), np.bool_), nodata=1)
+
+# The warped curves resolve their parameters inside compress, from a scan of the
+# tile, because the log curve anchors its grid on the smallest magnitude
+# present. Building the node by hand skips that, so these go through the high
+# level entry rather than through geozl.lossy.
+
+
+@pytest.mark.parametrize("pct", [0.5, 1.0, 10.71])
+@pytest.mark.parametrize("dtype", [np.float32, np.float64],
+                         ids=lambda d: np.dtype(d).name)
+def test_relative_bound_holds_through_compress(pct, dtype):
+    arr = _ftile(dtype=dtype)
+    out = _roundtrip(arr, method=GRAPH, error=f"rel:{pct}%")
+    x = arr.astype(np.float64)
+    assert (np.abs(out.astype(np.float64) - x) <= (pct / 100.0) * x).all()
+
+
+def test_relative_bound_anchors_on_the_smallest_magnitude():
+    # the anchor is a grid level by construction, so the smallest value in the
+    # tile has to come back untouched. If it drifts, the scan and the resolver
+    # disagree about what the tile holds.
+    arr = _ftile()
+    out = _roundtrip(arr, method=GRAPH, error="rel:1%")
+    i = int(np.argmin(np.abs(arr)))
+    assert out.reshape(-1)[i] == arr.reshape(-1)[i]
+
+
+def test_relative_bound_gives_zero_back_exactly():
+    arr = _ftile()
+    arr[0] = 0.0
+    out = _roundtrip(arr, method=GRAPH, error="rel:1%")
+    assert (out.reshape(arr.shape)[0] == 0.0).all()
+
+
+def test_relative_bound_on_an_all_zero_tile():
+    arr = np.zeros((32, 32), dtype=np.float32)
+    assert np.array_equal(_roundtrip(arr, method=GRAPH, error="rel:1%"), arr)
+
+
+def test_shot_bound_holds_through_compress():
+    arr = np.linspace(0.0, 10000.0, 1024, dtype=np.float32).reshape(32, 32)
+    out = _roundtrip(arr, method=GRAPH, error="shot:a=4,b=1,k=0.5")
+    x = arr.astype(np.float64)
+    assert (np.abs(out.astype(np.float64) - x) <= 0.5 * np.sqrt(4.0 + x)).all()
+
+
+# Optical reflectance arrives as unsigned integers, and near the bottom of the
+# range the sqrt curve reconstructs below zero, which is where a missing clamp
+# would wrap instead of saturating.
+def test_shot_bound_holds_on_an_unsigned_raster():
+    arr = (np.arange(1024, dtype=np.uint16) * 5).reshape(32, 32)
+    out = _roundtrip(arr, method=GRAPH, error="shot:a=100,b=1,k=0.5")
+    x = arr.astype(np.float64)
+    assert (np.abs(out.astype(np.float64) - x) <= 0.5 * np.sqrt(100.0 + x)).all()
+
+
+# A relative bound is symmetric, so the sign has to survive the trip.
+def test_relative_bound_keeps_the_sign():
+    arr = _ftile()
+    arr[::3] *= -1.0
+    out = _roundtrip(arr, method=GRAPH, error="rel:1%").reshape(arr.shape)
+    assert (np.sign(out) == np.sign(arr)).all()
+    x = arr.astype(np.float64)
+    assert (np.abs(out.astype(np.float64) - x) <= 0.01 * np.abs(x)).all()
+
+
+# Wide enough that the index range leaves the reconstruction table and the
+# decoder falls back to evaluating the curve per sample.
+def test_relative_bound_beyond_the_reconstruction_table():
+    arr = _ftile()
+    out = _roundtrip(arr, method=GRAPH, error="rel:0.01%")
+    x = arr.astype(np.float64)
+    assert (np.abs(out.astype(np.float64) - x) <= 0.0001 * x).all()
+
+
+def test_shot_refuses_negative_samples():
+    arr = _ftile()
+    arr[0] = -1.0
+    with pytest.raises(RuntimeError, match="non-negative"):
+        geozl.compress(arr, method=GRAPH, error="shot:a=4,b=1,k=0.5")
+
+
+def test_a_bound_finer_than_the_output_type_is_refused():
+    with pytest.raises(RuntimeError, match="rounding of the output type"):
+        geozl.compress(_ftile(), method=GRAPH, error="rel:1e-7%")
+
+
+def test_a_relative_bound_no_grid_can_serve_is_lossless_not_wrong():
+    # On integers the representable values sit one apart, so below roughly 8/b
+    # nothing but the sample itself is inside the bound and the codec carries
+    # that range exactly. A tight bound on uint16 puts the whole type in there,
+    # which costs ratio but never the bound.
+    arr = _tile(dtype=np.uint16)
+    assert np.array_equal(_roundtrip(arr, method=GRAPH, error="rel:0.01%"), arr)
+
+
+# nodata runs in front of quant, but the scan that anchors the log curve reads
+# the tile before it, so what nodata substitutes has to already be inside the
+# grid. It fills a hole with the last valid sample of the row, or the one above,
+# and only falls back to zero when the hole leads the first row. Both are inside
+# the grid, zero through the index reserved for it, so these two cases together
+# cover what the codec can be handed.
+@pytest.mark.parametrize("row", [0, 3], ids=["leading_row", "inner_row"])
+def test_relative_bound_keeps_nodata_exact(row):
+    arr = _ftile()
+    arr[row, :] = -9999.0
+    out = _roundtrip(arr, method=GRAPH, error="rel:1%", nodata=-9999.0)
+    out = out.reshape(arr.shape)
+    assert (out[row] == -9999.0).all()
+    keep = np.ones(arr.shape, bool)
+    keep[row] = False
+    x = arr[keep].astype(np.float64)
+    assert (np.abs(out[keep].astype(np.float64) - x) <= 0.01 * np.abs(x)).all()
+
+
+@pytest.mark.parametrize("recipe", ["rel:1%", "shot:a=4,b=1,k=0.5"])
+def test_profile_accepts_the_warped_recipes(recipe):
+    rows = geozl.profile(_ftile(), reps=1, error=recipe)
+    assert rows and all(r["ratio"] > 0 for r in rows)

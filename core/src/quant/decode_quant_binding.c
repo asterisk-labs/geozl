@@ -44,9 +44,7 @@ ZL_Report DI_geozl_quant(ZL_Decoder *dictx, const ZL_Input *ins[]) {
   if (dtype < Q_U8 || dtype > Q_F64 || qw[dtype] != eltWidth)
     return ZL_returnError(ZL_ErrorCode_corruption);
 
-  // The encoder never writes these, so they can only come from a damaged frame.
-  // A stored reconstruction is the linear curve on an integer type alone, the
-  // warped reconstructions are not the integer stream the codec emits.
+  // None of these come out of the encoder, only out of a damaged frame.
   if (p.curve > QUANT_CURVE_LOG)
     return ZL_returnError(ZL_ErrorCode_corruption);
   if (!isfinite(p.step) || !isfinite(p.offset) || p.step < 0.0)

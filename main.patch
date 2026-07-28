@@ -1,392 +1,206 @@
-diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
-index 1dda06d..a1ef473 100644
---- a/.github/workflows/ci.yml
-+++ b/.github/workflows/ci.yml
-@@ -121,7 +121,55 @@ jobs:
-       # CFLAGS reaches CMAKE_C_FLAGS on the first configure, so each vectorized
-       # kernel is built and tested, not just the host default. NEON runs on the
-       # macOS arm64 runner, which has an openzl wheel unlike the linux arm one.
-+      # This matrix is kernel correctness, not what ships. -mavx2 applies to the
-+      # whole library, fine on a runner that has AVX2 and wrong for a wheel.
-       - name: Build and test with the ${{ matrix.name }} kernels
-         env:
-           CFLAGS: ${{ matrix.cflags }}
--        run: make test FULL=OFF
+diff --git a/README.md b/README.md
+index 6b5a806..8fab1b9 100644
+--- a/README.md
++++ b/README.md
+@@ -55,7 +55,8 @@ rows = geozl.profile(tile)                        # the slow call, run once
+ best = rows[0]["graph"]                           # e.g. "planar>zigzag>transpose>entropy"
+ 
+ frame = geozl.compress(tile, method=best)         # the fast call, run always
+-frame = geozl.compress(tile, method=best, error=2)  # near-lossless, absolute bound
++frame = geozl.compress(tile, method=best, error="abs:2")   # near-lossless
++frame = geozl.compress(tile, method=best, error="rel:1%")  # bound follows the value
+ 
+ back = geozl.decompress(frame, dtype="uint16", width=1024)
+ ```
+@@ -109,7 +110,20 @@ A frame carries at most one near-lossless codec, as the head transform, so the l
+ 
+ | codec | call | CTid | error |
+ |---|---|---:|---|
+-| `quant` | `geozl.lossy.Quant(error, dtype)` | `0x72D780` | every value reconstructs within `error`, an absolute tolerance |
++| `quant` | `geozl.lossy.Quant(error, tile)` | `0x72D780` | every value reconstructs within the bound the recipe declares |
++
++`error` is a recipe string, like `method`, so it crosses `compress`, `profile` and `bench` unchanged and the three cannot end up describing different errors.
++
++| recipe | bound | fits |
++|---|---|---|
++| `None` | lossless | |
++| `"abs:V"` | `\|x - x̂\| <= V` | a fixed instrument error, elevation, temperature |
++| `"shot:a=A,b=B,k=K"` | `\|x - x̂\| <= K * sqrt(A + B*x)` | photon counting, optical radiance |
++| `"rel:P%"` | `\|x - x̂\| <= (P/100) * \|x\|` | a multiplicative error, SAR backscatter, concentrations |
++
++Which one fits is not a matter of taste, it follows from how the measurement error of the data grows with the value. A quantizer that holds a pointwise bound `b(x)` is a uniform quantizer in a domain where `w' = 1/b`, so the bound picks the curve and the curve is what the codec stores.
++
++The percent sign in `rel` is required. Without it `"rel:1"` reads as a bound of one, a hundred percent, which is a plausible typo for one percent and would quantize a hundred times coarser than intended without failing.
+ 
+ ### Lossless codecs
+ 
+diff --git a/bindings/python/geozl/_2d.py b/bindings/python/geozl/_2d.py
+index 10c0627..0002b0b 100644
+--- a/bindings/python/geozl/_2d.py
++++ b/bindings/python/geozl/_2d.py
+@@ -28,6 +28,19 @@ def _nodata_args(arr, nodata):
+     return _NODATA_NONE, 0.0
+ 
+ 
++def _error_arg(error):
++    """The error recipe as C wants it. A recipe rather than a number so it
++    crosses compress, profile and bench unchanged, which is also why a bare
++    float is refused instead of being read as an absolute bound: "abs:0.5" and
++    0.5 would drift apart the moment a second curve existed."""
++    if error is None:
++        return ffi.NULL
++    if not isinstance(error, str):
++        raise ValueError(f"error must be a recipe string, one of \"abs:V\", "
++                         f"\"rel:P%\" or \"shot:a=A,b=B,k=K\", got {error!r}")
++    return error.encode("utf-8")
++
++
+ def _is_native(dt):
+     return dt.byteorder in ("=", "|") or dt.newbyteorder("=") == dt
+ 
+@@ -68,6 +81,7 @@ def compress(tile, *, method, width=None, error=None, nodata=None):
+     """
+     if not isinstance(method, str) or not method:
+         raise ValueError(f"method must be a recipe name, got {method!r}")
++    err = _error_arg(error)
+ 
+     lib = _load_lib_full()
+     arr, width, elt = _prepare(tile, width)
+@@ -80,9 +94,6 @@ def compress(tile, *, method, width=None, error=None, nodata=None):
+         code = 0 if code is None else code
+     elif code is None:
+         raise ValueError(f"quant does not support dtype {arr.dtype}")
+-    if error is not None and not isinstance(error, str):
+-        raise ValueError(f"error must be a recipe string such as \"abs:0.5\" "
+-                         f"or \"rel:1%\", got {error!r}")
+ 
+     nd_mode, nd_value = _nodata_args(arr, nodata)
+     if nd_mode == _NODATA_VALUE and dtype_code(arr.dtype) is None:
+@@ -95,8 +106,7 @@ def compress(tile, *, method, width=None, error=None, nodata=None):
+     err_ctx = ffi.new("char[]", 256)
+     rc = lib.geozl_2d_compress_c(
+         method.encode("utf-8"), width,
+-        ffi.NULL if error is None else error.encode("utf-8"),
+-        int(code), nd_mode, nd_value,
++        err, int(code), nd_mode, nd_value,
+         _ptr(arr), n, elt, _ptr(dst), cap, out_size, err_ctx, len(err_ctx))
+     if rc != 0:
+         reason = ffi.string(err_ctx).decode("utf-8", "replace")
+@@ -171,6 +181,7 @@ def profile(tile, *, method="planar", width=None, error=None, reps=5,
+     NaN would be profiled through a different graph than the one it ends up
+     compressed with, and the sizes would not line up.
+     """
++    err = _error_arg(error)
+     lib = _load_lib_full()
+     arr, width, elt = _prepare(tile, width)
+     raw = arr.nbytes
+@@ -180,9 +191,6 @@ def profile(tile, *, method="planar", width=None, error=None, reps=5,
+         code = 0 if code is None else code
+     elif code is None:
+         raise ValueError(f"quant does not support dtype {arr.dtype}")
+-    if error is not None and not isinstance(error, str):
+-        raise ValueError(f"error must be a recipe string such as \"abs:0.5\" "
+-                         f"or \"rel:1%\", got {error!r}")
+ 
+     nd_mode, nd_value = _nodata_args(arr, nodata)
+     if nd_mode == _NODATA_VALUE and dtype_code(arr.dtype) is None:
+diff --git a/bindings/python/test/test_2d.py b/bindings/python/test/test_2d.py
+index 7a640e5..316b0c8 100644
+--- a/bindings/python/test/test_2d.py
++++ b/bindings/python/test/test_2d.py
+@@ -93,7 +93,7 @@ def test_non_positive_error_is_lossless(error):
+ 
+ def test_compress_rejects_a_dtype_quant_has_no_kernel_for():
+     with pytest.raises(ValueError, match="quant does not support"):
+-        geozl.compress(np.zeros((4, 4), np.bool_), method=GRAPH_1B, error=2)
++        geozl.compress(np.zeros((4, 4), np.bool_), method=GRAPH_1B, error="abs:2")
+ 
+ 
+ @pytest.mark.parametrize("dtype", [np.uint8, np.int16, np.uint32, np.float64])
+@@ -140,7 +140,7 @@ def test_error_bound_holds(error):
+ 
+ def test_lossy_beats_lossless_on_size():
+     arr = _tile()
+-    assert len(geozl.compress(arr, method=GRAPH, error=8)) < \
++    assert len(geozl.compress(arr, method=GRAPH, error="abs:8")) < \
+            len(geozl.compress(arr, method=GRAPH))
+ 
+ 
+@@ -191,13 +191,13 @@ def test_profile_rejects_an_unknown_prior():
+ 
+ def test_profile_lossy_beats_profile_lossless():
+     arr = _tile()
+-    assert geozl.profile(arr, reps=1, error=8)[0]["ratio"] > \
++    assert geozl.profile(arr, reps=1, error="abs:8")[0]["ratio"] > \
+            geozl.profile(arr, reps=1)[0]["ratio"]
+ 
+ 
+ def test_profile_rejects_a_dtype_quant_has_no_kernel_for():
+     with pytest.raises(ValueError, match="quant does not support"):
+-        geozl.profile(np.zeros((4, 4), np.bool_), error=2)
++        geozl.profile(np.zeros((4, 4), np.bool_), error="abs:2")
+ 
+ 
+ def test_profile_skips_a_graph_that_fails_on_this_tile(monkeypatch):
+diff --git a/bindings/python/test/test_headers.py b/bindings/python/test/test_headers.py
+index 377cdb9..360093d 100644
+--- a/bindings/python/test/test_headers.py
++++ b/bindings/python/test/test_headers.py
+@@ -141,15 +141,21 @@ def test_quant_decoder_rejects_a_stored_reconstruction_on_a_float():
+ 
+ def test_quant_rejects_a_dtype_it_has_no_kernel_for():
+     with pytest.raises(ValueError, match="does not support dtype"):
+-        geozl.lossy.Quant(4, np.bool_)
++        geozl.lossy.Quant("abs:4", np.zeros((8, 8), np.bool_))
+ 
+ 
+ def test_quant_rejects_a_non_positive_error():
+-    with pytest.raises(ValueError, match="error must be positive"):
+-        geozl.lossy.Quant(0, np.uint16)
++    with pytest.raises(ValueError, match="must be positive"):
++        geozl.lossy.Quant("abs:0", np.arange(64, dtype=np.uint16))
+ 
+ 
+-def test_quant_refuses_to_store_a_reconstruction_on_floats():
+-    # there is no integer stream to put it in
+-    with pytest.raises(ValueError, match="stores the index on floats"):
+-        geozl.lossy.Quant(4, np.float32, store_indices=False)
 \ No newline at end of file
-+        run: make test FULL=OFF
++def test_quant_rejects_a_bare_number():
++    with pytest.raises(ValueError, match="recipe string"):
++        geozl.lossy.Quant(4, np.arange(64, dtype=np.uint16))
 +
-+      - name: Report the paths this build carries
-+        run: |
-+          python - <<'EOF'
-+          import json, sys
-+          sys.path.insert(0, "bindings/python")
-+          import geozl
-+          print(json.dumps(geozl.simd_info()))
-+          EOF
 +
-+  # Built the way release.yml builds it, so the gap between what the runner can
-+  # run and what the binary carries shows on every pull request.
-+  wheel-shape:
-+    name: Wheel-shaped build
-+    runs-on: ubuntu-24.04
-+    steps:
-+      - uses: actions/checkout@v4
-+        with:
-+          submodules: true
-+
-+      - uses: actions/setup-python@v5
-+        with:
-+          python-version: '3.12'
-+
-+      - name: Install deps
-+        run: |
-+          python -m pip install --upgrade pip
-+          python -m pip install cmake ninja numpy cffi openzl pytest
-+
-+      - name: Build and test with no architecture flags
-+        run: make test FULL=OFF
-+
-+      - name: Report the paths this build carries
-+        run: |
-+          python - <<'EOF'
-+          import json, sys
-+          sys.path.insert(0, "bindings/python")
-+          import geozl
-+          info = geozl.simd_info()
-+          print(json.dumps(info))
-+          gap = [p for p in info["cpu"] if p not in info["built"]]
-+          if gap:
-+              print(f"::warning::this runner can run {gap} and the build does "
-+                    f"not carry it, which is what the published wheel looks like")
-+          assert info["active"] != "scalar", "no vector path at all"
-+          EOF
++def test_quant_rejects_a_relative_bound_without_the_percent_sign():
++    # "rel:1" reads as a bound of one, a hundred percent, which is a plausible
++    # typo for one percent and would quantize far coarser than intended
++    with pytest.raises(ValueError, match="percentage"):
++        geozl.lossy.Quant("rel:1", np.arange(64, dtype=np.uint16))
 \ No newline at end of file
-diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
-index eed091b..7d92ee0 100644
---- a/.github/workflows/release.yml
-+++ b/.github/workflows/release.yml
-@@ -49,6 +49,11 @@ jobs:
-           python -m venv /tmp/v && . /tmp/v/bin/activate
-           pip install dist/*.whl
-           LD_LIBRARY_PATH="" python -c "import geozl; print(geozl.__version__)"
-+          LD_LIBRARY_PATH="" python -c "import geozl, json, sys; \
-+            i=geozl.simd_info(); print('simd', json.dumps(i)); \
-+            assert i['active'] != 'scalar', 'the wheel shipped without a vector path'; \
-+            gap=[p for p in i['cpu'] if p not in i['built']]; \
-+            print('::warning::wheel is missing', gap) if gap else None"
-           LD_LIBRARY_PATH="" python -c "import numpy as np, geozl; \
-             t=(np.arange(256*256,dtype=np.uint16)%97).reshape(256,256); \
-             best=geozl.profile(t, reps=1)[0]['graph']; \
-@@ -91,6 +96,9 @@ jobs:
-           python -m venv /tmp/v && . /tmp/v/bin/activate
-           pip install dist/*.whl
-           python -c "import geozl; print(geozl.__version__)"
-+          python -c "import geozl, json; \
-+            i=geozl.simd_info(); print('simd', json.dumps(i)); \
-+            assert i['active'] != 'scalar', 'the wheel shipped without a vector path'"
-           python -c "import numpy as np, geozl; \
-             t=(np.arange(256*256,dtype=np.uint16)%97).reshape(256,256); \
-             best=geozl.profile(t, reps=1)[0]['graph']; \
-diff --git a/bindings/python/geozl/__init__.py b/bindings/python/geozl/__init__.py
-index 2939229..9720000 100644
---- a/bindings/python/geozl/__init__.py
-+++ b/bindings/python/geozl/__init__.py
-@@ -2,6 +2,7 @@ from importlib.metadata import PackageNotFoundError, version
+diff --git a/bindings/python/test/test_nodata.py b/bindings/python/test/test_nodata.py
+index 33299b0..a0c57fe 100644
+--- a/bindings/python/test/test_nodata.py
++++ b/bindings/python/test/test_nodata.py
+@@ -59,7 +59,7 @@ def test_a_second_nan_payload_is_a_hole_too():
+     tile[holes] = ODD_NAN
+     other = np.array(0x7FA00042, dtype=np.uint32).view(np.float32)
+     tile[3, 3] = other
+-    _, out = _roundtrip(tile, method=GRAPH_WIDE, error=2)
++    _, out = _roundtrip(tile, method=GRAPH_WIDE, error="abs:2")
+     assert np.isnan(out[3, 3])
+     assert np.isnan(out[holes]).all()
+     assert not np.isnan(out[0, 0])
+diff --git a/docs/api-high.html b/docs/api-high.html
+index 422a46f..2409320 100644
+--- a/docs/api-high.html
++++ b/docs/api-high.html
+@@ -359,7 +359,7 @@ frame = geozl.<span class="fn">compress</span>(tile, method=best)</pre></div>
+ <div class="code"><pre>rows = geozl.<span class="fn">profile</span>(tile, method=None)
+ best = rows[0]["graph"]
  
- from . import lossless, lossy
- from ._2d import compress, decompress, profile
-+from ._simd import simd_info
+-frame = geozl.<span class="fn">compress</span>(tile, method=best, error=4)
++frame = geozl.<span class="fn">compress</span>(tile, method=best, error=<span class="s">"abs:4"</span>)
+ back = geozl.<span class="fn">decompress</span>(frame, dtype="int16", width=512)</pre></div>
+ <div class="out">9.93×   0.05 MB   max error 4 m</div>
+ <div class="trip">
  
- try:
-     __version__ = version("geozl")
-@@ -17,4 +18,4 @@ def register_decoders(dctx):
- 
- 
- __all__ = ["lossless", "lossy", "compress", "decompress", "profile",
--           "register_decoders", "__version__"]
-\ No newline at end of file
-+           "register_decoders", "simd_info", "__version__"]
-\ No newline at end of file
-diff --git a/bindings/python/geozl/_ffi.py b/bindings/python/geozl/_ffi.py
-index 6ba0606..d2d018b 100644
---- a/bindings/python/geozl/_ffi.py
-+++ b/bindings/python/geozl/_ffi.py
-@@ -39,6 +39,11 @@ size_t geozl_2d_frame_dsize_c(const void* frame, size_t frame_size);
- int geozl_2d_decompress_c(const void* frame, size_t frame_size, void* dst, size_t dst_capacity, size_t* out_size, char* err_ctx, size_t err_ctx_size);
- int geozl_2d_bench_c(const char* method, uint32_t width, double max_error, int dtype, int nodata_mode, double nodata_value, const void* src, size_t num_elts, size_t elt_width, size_t reps, size_t* comp_size, double* enc_sec, double* dec_sec, char* err_ctx, size_t err_ctx_size);
- int geozl_2d_grid_c(const char* method, size_t elt_width, char* names, size_t stride, size_t max_names, size_t* out_count);
-+
-+unsigned geozl_simd_built(void);
-+unsigned geozl_simd_cpu(void);
-+int geozl_simd_active(void);
-+const char* geozl_simd_name(int path);
- """
- 
- ffi = FFI()
-diff --git a/bindings/python/geozl/_simd.py b/bindings/python/geozl/_simd.py
-new file mode 100644
-index 0000000..4b39169
---- /dev/null
-+++ b/bindings/python/geozl/_simd.py
-@@ -0,0 +1,25 @@
-+from ._ffi import ffi, lib
-+
-+_PATHS = (0, 1, 2, 3)  # GEOZL_SIMD_ in core/src/common/simd.h
-+
-+
-+def _name(path):
-+    return ffi.string(lib.geozl_simd_name(path)).decode("ascii")
-+
-+
-+def _names(mask):
-+    return [_name(p) for p in _PATHS if mask & (1 << p)]
-+
-+
-+def simd_info():
-+    """Vector paths this build carries, this machine can run, and is running.
-+
-+    A path present in cpu and missing from built is a build that lost its fast
-+    path, which nothing else reveals since the frames are identical either way.
-+    Set GEOZL_SIMD before importing to cap active at scalar, sse2, avx2 or neon.
-+    """
-+    return {
-+        "built": _names(lib.geozl_simd_built()),
-+        "cpu": _names(lib.geozl_simd_cpu()),
-+        "active": _name(lib.geozl_simd_active()),
-+    }
-diff --git a/bindings/python/test/test_simd.py b/bindings/python/test/test_simd.py
-new file mode 100644
-index 0000000..e6c7db1
---- /dev/null
-+++ b/bindings/python/test/test_simd.py
-@@ -0,0 +1,82 @@
-+import os
-+import platform
-+import subprocess
-+import sys
-+
-+import pytest
-+
-+import geozl
-+
-+ORDER = ("scalar", "sse2", "avx2", "neon")
-+
-+
-+def run_with(cap, snippet):
-+    """The cap is read when the library loads, so it takes a fresh process."""
-+    env = dict(os.environ)
-+    env.pop("GEOZL_SIMD", None) if cap is None else env.update(GEOZL_SIMD=cap)
-+    out = subprocess.run([sys.executable, "-c", snippet], env=env,
-+                         capture_output=True, text=True, check=True)
-+    return out.stdout.strip()
-+
-+
-+def usable():
-+    info = geozl.simd_info()
-+    return [p for p in ORDER if p in info["built"] and p in info["cpu"]]
-+
-+
-+def test_shape():
-+    info = geozl.simd_info()
-+    assert set(info) == {"built", "cpu", "active"}
-+    assert set(info["built"]) <= set(ORDER)
-+    assert set(info["cpu"]) <= set(ORDER)
-+    assert info["active"] in ORDER
-+
-+
-+def test_scalar_is_always_there():
-+    info = geozl.simd_info()
-+    assert "scalar" in info["built"] and "scalar" in info["cpu"]
-+
-+
-+def test_active_is_the_best_of_both():
-+    assert usable()
-+    assert geozl.simd_info()["active"] == usable()[-1]
-+
-+
-+@pytest.mark.parametrize("cap", ORDER)
-+def test_env_caps_but_never_raises(cap):
-+    got = run_with(cap, "import geozl; print(geozl.simd_info()['active'])")
-+    under = [p for p in usable() if ORDER.index(p) <= ORDER.index(cap)]
-+    assert got == (under[-1] if under else "scalar")
-+
-+
-+def test_unknown_env_value_is_ignored():
-+    got = run_with("turbo", "import geozl; print(geozl.simd_info()['active'])")
-+    assert got == geozl.simd_info()["active"]
-+
-+
-+@pytest.mark.skipif(geozl.simd_info()["active"] == "scalar",
-+                    reason="no vector path to compare against")
-+def test_vector_and_scalar_agree_byte_for_byte():
-+    """Compares the frame and not the array. The array survives a bad fill
-+    because decode overwrites everything under the mask, the frame does not."""
-+    snippet = (
-+        "import numpy as np, geozl, hashlib\n"
-+        "rng = np.random.default_rng(11)\n"
-+        "t = (1200 + rng.normal(0, 40, (256, 256))).round().astype(np.int16)\n"
-+        "t[40:90, 10:200] = -9999\n"
-+        "t[::7, ::11] = -9999\n"
-+        "f = geozl.compress(t, method='planar>zigzag>entropy', nodata=-9999)\n"
-+        "print(hashlib.sha256(f).hexdigest())\n"
-+    )
-+    assert run_with("scalar", snippet) == run_with(None, snippet)
-+
-+
-+@pytest.mark.skipif(platform.machine() not in ("x86_64", "AMD64"),
-+                    reason="AVX2 is an x86 question")
-+@pytest.mark.xfail(reason="no AVX2 path in the x86 build yet, it needs runtime "
-+                          "dispatch because a wheel compiled with -mavx2 stops "
-+                          "loading on machines without it")
-+def test_build_keeps_the_paths_the_cpu_offers():
-+    info = geozl.simd_info()
-+    missing = [p for p in info["cpu"] if p not in info["built"]]
-+    assert not missing, f"cpu runs {missing}, build does not carry it"
-diff --git a/core/CMakeLists.txt b/core/CMakeLists.txt
-index 3475e15..3825d3b 100644
---- a/core/CMakeLists.txt
-+++ b/core/CMakeLists.txt
-@@ -82,6 +82,9 @@ foreach(name IN LISTS GEOZL_CODECS)
-         src/${name}/decode_${name}_kernel.c)
- endforeach()
- list(APPEND GEOZL_KERNELS src/wp_static/train_wp_static.c)
-+# Python asks the kernels library which vector paths this build carries,
-+# so the answer has to live where it can be read without OpenZL.
-+list(APPEND GEOZL_KERNELS src/common/simd.c)
- 
- if(GEOZL_BUILD_FULL)
-     if(GEOZL_USE_SYSTEM_OPENZL)
-diff --git a/core/src/common/simd.c b/core/src/common/simd.c
-new file mode 100644
-index 0000000..a406eaa
---- /dev/null
-+++ b/core/src/common/simd.c
-@@ -0,0 +1,96 @@
-+#include "common/simd.h"
-+
-+#include <stdlib.h>
-+#include <string.h>
-+
-+/* Kept in step with scan.h by hand. scan.h is included inline everywhere and
-+   cannot pull this in without dragging it into every translation unit. */
-+#ifndef GEOZL_NO_SIMD
-+#if defined(__AVX2__)
-+#define GEOZL_BUILT_AVX2 1
-+#define GEOZL_BUILT_SSE2 1
-+#elif defined(__SSE2__) || defined(_M_X64) ||                                  \
-+    (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
-+#define GEOZL_BUILT_SSE2 1
-+#elif defined(__aarch64__) || defined(_M_ARM64) || defined(__ARM_NEON)
-+#define GEOZL_BUILT_NEON 1
-+#endif
-+#endif
-+
-+#ifndef GEOZL_BUILT_SSE2
-+#define GEOZL_BUILT_SSE2 0
-+#endif
-+#ifndef GEOZL_BUILT_AVX2
-+#define GEOZL_BUILT_AVX2 0
-+#endif
-+#ifndef GEOZL_BUILT_NEON
-+#define GEOZL_BUILT_NEON 0
-+#endif
-+
-+unsigned geozl_simd_built(void) {
-+  unsigned m = GEOZL_SIMD_BIT(GEOZL_SIMD_SCALAR);
-+  if (GEOZL_BUILT_SSE2)
-+    m |= GEOZL_SIMD_BIT(GEOZL_SIMD_SSE2);
-+  if (GEOZL_BUILT_AVX2)
-+    m |= GEOZL_SIMD_BIT(GEOZL_SIMD_AVX2);
-+  if (GEOZL_BUILT_NEON)
-+    m |= GEOZL_SIMD_BIT(GEOZL_SIMD_NEON);
-+  return m;
-+}
-+
-+static unsigned probe_cpu(void) {
-+  unsigned m = GEOZL_SIMD_BIT(GEOZL_SIMD_SCALAR);
-+#if defined(__aarch64__) || defined(_M_ARM64)
-+  m |= GEOZL_SIMD_BIT(GEOZL_SIMD_NEON); /* part of ARMv8 */
-+#elif defined(__x86_64__) || defined(_M_X64)
-+  m |= GEOZL_SIMD_BIT(GEOZL_SIMD_SSE2); /* part of the x86-64 baseline */
-+#if defined(__GNUC__) || defined(__clang__)
-+  if (__builtin_cpu_supports("avx2"))
-+    m |= GEOZL_SIMD_BIT(GEOZL_SIMD_AVX2);
-+#endif
-+#endif
-+  return m;
-+}
-+
-+unsigned geozl_simd_cpu(void) {
-+  static unsigned cached; /* benign race, every writer computes the same */
-+  if (cached == 0)
-+    cached = probe_cpu();
-+  return cached;
-+}
-+
-+static int top_of(unsigned mask) {
-+  int best = GEOZL_SIMD_SCALAR;
-+  for (int p = GEOZL_SIMD_SCALAR; p <= GEOZL_SIMD_NEON; ++p)
-+    if (mask & GEOZL_SIMD_BIT(p))
-+      best = p;
-+  return best;
-+}
-+
-+static int ceiling_from_env(void) {
-+  const char *v = getenv("GEOZL_SIMD");
-+  if (v == NULL || v[0] == '\0')
-+    return GEOZL_SIMD_NEON;
-+  for (int p = GEOZL_SIMD_SCALAR; p <= GEOZL_SIMD_NEON; ++p)
-+    if (strcmp(v, geozl_simd_name(p)) == 0)
-+      return p;
-+  return GEOZL_SIMD_NEON;
-+}
-+
-+int geozl_simd_active(void) {
-+  const int ceiling = ceiling_from_env();
-+  unsigned allowed = 0;
-+  for (int p = GEOZL_SIMD_SCALAR; p <= ceiling; ++p)
-+    allowed |= GEOZL_SIMD_BIT(p);
-+  return top_of(geozl_simd_built() & geozl_simd_cpu() & allowed);
-+}
-+
-+const char *geozl_simd_name(int path) {
-+  switch (path) {
-+  case GEOZL_SIMD_SCALAR: return "scalar";
-+  case GEOZL_SIMD_SSE2:   return "sse2";
-+  case GEOZL_SIMD_AVX2:   return "avx2";
-+  case GEOZL_SIMD_NEON:   return "neon";
-+  default:                return "unknown";
-+  }
-+}
-diff --git a/core/src/common/simd.h b/core/src/common/simd.h
-new file mode 100644
-index 0000000..449b0ae
---- /dev/null
-+++ b/core/src/common/simd.h
-@@ -0,0 +1,26 @@
-+/* Which vector paths a build carries, which the machine can run, and which one
-+   actually runs. The three differ, and only the gap between them shows that a
-+   build lost a fast path, since the frames come out the same either way.
-+
-+   The values cross into Python, so a published number keeps its meaning. */
-+
-+#ifndef GEOZL_COMMON_SIMD_H
-+#define GEOZL_COMMON_SIMD_H
-+
-+#define GEOZL_SIMD_SCALAR 0
-+#define GEOZL_SIMD_SSE2 1
-+#define GEOZL_SIMD_AVX2 2
-+#define GEOZL_SIMD_NEON 3
-+
-+#define GEOZL_SIMD_BIT(p) (1u << (p))
-+
-+unsigned geozl_simd_built(void);
-+unsigned geozl_simd_cpu(void);
-+
-+/* Best path that is both built and available, lowered by GEOZL_SIMD when that
-+   names a narrower one. A value it does not recognise is ignored. */
-+int geozl_simd_active(void);
-+
-+const char *geozl_simd_name(int path);
-+
-+#endif /* GEOZL_COMMON_SIMD_H */

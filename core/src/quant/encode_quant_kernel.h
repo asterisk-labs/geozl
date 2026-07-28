@@ -14,10 +14,10 @@ int quant_encode(void *dst, const void *src, const quant_params *p, int dtype,
                  size_t nbElts);
 
 // Smallest and largest non-zero magnitude, and whether any sample is negative.
-// The log curve anchors its grid on the smallest magnitude in the tile, so both
-// the explicit and the trained paths need this before they can finish the
-// parameters. NaN and infinity are skipped, the nodata codec handles those.
-// Returns 0 when the tile holds at least one finite non-zero sample.
+// The log curve anchors its grid on the smallest magnitude, so the parameters
+// cannot be finished without this. NaN and infinity are skipped, the nodata
+// codec deals with those. Returns 0 when the tile holds a finite non-zero
+// sample.
 int quant_scan(const void *src, int dtype, size_t nbElts, double *minAbs,
                double *maxAbs, int *anyNegative);
 

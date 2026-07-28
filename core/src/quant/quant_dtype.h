@@ -1,10 +1,8 @@
 #ifndef GEOZL_CODECS_QUANT_DTYPE_H
 #define GEOZL_CODECS_QUANT_DTYPE_H
 
-// Element type of the original stream, carried in the codec header so the
-// decoder rebuilds it. The index stream between encode and decode is always an
-// integer, the original type only matters at the two ends. The value is the
-// wire code, frozen.
+// Original element type, carried in the codec header. The stream between the
+// two ends is always integer, so this only matters there. Wire codes, frozen.
 typedef enum {
   Q_U8 = 0,
   Q_U16 = 1,

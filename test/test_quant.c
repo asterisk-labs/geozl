@@ -199,6 +199,126 @@ int main(void) {
                              sizeof(err)) != 0);
   }
 
+  // A relative bound is symmetric, so the sign has to survive the trip and the
+  // magnitude has to hold on both sides of zero.
+  {
+    char err[256];
+    quant_spec sp;
+    quant_params p;
+    double lo, hi;
+    int neg;
+    for (size_t i = 0; i < N; ++i) {
+      const double m = pow(10.0, -6.0 + 12.0 * (double)i / (double)N);
+      f32src[i] = (float)((i % 3 == 0) ? -m : m);
+    }
+    CHECK(quant_spec_parse("rel:1%", &sp, err, sizeof(err)) == 0);
+    CHECK(quant_scan(f32src, Q_F32, N, &lo, &hi, &neg) == 0);
+    CHECK(neg == 1);
+    CHECK(quant_spec_resolve(&sp, Q_F32, lo, hi, neg, &p, err, sizeof(err)) ==
+          0);
+    CHECK(quant_encode(idx32, f32src, &p, Q_F32, N) == 0);
+    CHECK(quant_decode(f32back, idx32, &p, Q_F32, N) == 0);
+    for (size_t i = 0; i < N; ++i) {
+      CHECK((f32src[i] < 0.0f) == (f32back[i] < 0.0f));
+      CHECK(fabs((double)f32src[i] - (double)f32back[i]) <=
+            0.01 * fabs((double)f32src[i]));
+    }
+  }
+
+  // Wide enough that the index range leaves the reconstruction table and the
+  // decoder falls back to evaluating the curve per sample. Both paths have to
+  // agree, so this is the same check as above with a tighter bound.
+  {
+    char err[256];
+    quant_spec sp;
+    quant_params p;
+    double lo, hi;
+    int neg;
+    for (size_t i = 0; i < N; ++i)
+      f32src[i] = (float)pow(10.0, -6.0 + 12.0 * (double)i / (double)N);
+    CHECK(quant_spec_parse("rel:0.01%", &sp, err, sizeof(err)) == 0);
+    CHECK(quant_scan(f32src, Q_F32, N, &lo, &hi, &neg) == 0);
+    CHECK(quant_spec_resolve(&sp, Q_F32, lo, hi, neg, &p, err, sizeof(err)) ==
+          0);
+    CHECK(fabs(quant_fwd((double)f32src[N - 1], &p)) > 8192.0);
+    CHECK(quant_encode(idx32, f32src, &p, Q_F32, N) == 0);
+    CHECK(quant_decode(f32back, idx32, &p, Q_F32, N) == 0);
+    for (size_t i = 0; i < N; ++i)
+      CHECK(fabs((double)f32src[i] - (double)f32back[i]) <=
+            0.0001 * fabs((double)f32src[i]));
+  }
+
+  // Shot noise on an unsigned integer raster, which is how optical reflectance
+  // actually arrives. The curve reconstructs below zero near the bottom of the
+  // range, so this is also the case that pins down the clamp: without it the
+  // negative reconstruction wraps and the sample comes back as garbage.
+  {
+    char err[256];
+    quant_spec sp;
+    quant_params p;
+    double lo, hi;
+    int neg;
+    uint16_t out[N];
+    for (size_t i = 0; i < N; ++i)
+      u16src[i] = (uint16_t)(i * 5);
+    CHECK(quant_spec_parse("shot:a=100,b=1,k=0.5", &sp, err, sizeof(err)) == 0);
+    CHECK(quant_scan(u16src, Q_U16, N, &lo, &hi, &neg) == 0);
+    CHECK(quant_spec_resolve(&sp, Q_U16, lo, hi, neg, &p, err, sizeof(err)) ==
+          0);
+    CHECK(quant_inv(quant_fwd(0.0, &p), &p) < 0.0);
+    CHECK(quant_encode(u16back, u16src, &p, Q_U16, N) == 0);
+    CHECK(quant_decode(out, u16back, &p, Q_U16, N) == 0);
+    for (size_t i = 0; i < N; ++i) {
+      const double x = (double)u16src[i];
+      CHECK(fabs(x - (double)out[i]) <= 0.5 * sqrt(100.0 + x));
+    }
+  }
+
+  // The decoder writes a warped reconstruction through the same rounding the
+  // encoder judged the candidate with. Truncating on one side and rounding to
+  // nearest on the other puts every integer reconstruction up to a whole unit
+  // away from where the encoder thought it was, which no bound survives, so
+  // this walks the grid and checks the two agree everywhere.
+  {
+    char err[256];
+    quant_spec sp;
+    quant_params p;
+    uint16_t out[N];
+    for (size_t i = 0; i < N; ++i)
+      u16src[i] = (uint16_t)(i * 13);
+    CHECK(quant_spec_parse("shot:a=100,b=1,k=0.5", &sp, err, sizeof(err)) == 0);
+    CHECK(quant_spec_resolve(&sp, Q_U16, 13.0, 13.0 * (N - 1), 0, &p, err,
+                             sizeof(err)) == 0);
+    CHECK(quant_encode(u16back, u16src, &p, Q_U16, N) == 0);
+    CHECK(quant_decode(out, u16back, &p, Q_U16, N) == 0);
+    for (size_t i = 0; i < N; ++i) {
+      const double lo = quant_value_lo(Q_U16), hi = quant_value_hi(Q_U16);
+      const double want =
+          QUANT_RT_INT(quant_inv((double)u16back[i], &p), lo, hi);
+      CHECK((double)out[i] == want);
+    }
+  }
+
+  // A bound the output type cannot keep once the reconstruction is rounded to
+  // its own width is refused rather than declared and then missed. f16 is the
+  // width where this bites, its steps near the top of the range are wider than
+  // most bounds anyone would ask for.
+  {
+    char err[256];
+    quant_spec sp;
+    quant_params p;
+    CHECK(quant_spec_parse("abs:5", &sp, err, sizeof(err)) == 0);
+    CHECK(quant_spec_resolve(&sp, Q_F16, 1.0, 60000.0, 0, &p, err,
+                             sizeof(err)) != 0);
+    CHECK(quant_spec_resolve(&sp, Q_F32, 1.0, 60000.0, 0, &p, err,
+                             sizeof(err)) == 0);
+    // and a linear grid finer than the index can address is refused too, which
+    // the curve used to skip on its way out
+    CHECK(quant_spec_parse("abs:0.05", &sp, err, sizeof(err)) == 0);
+    CHECK(quant_spec_resolve(&sp, Q_F16, 1.0, 60000.0, 0, &p, err,
+                             sizeof(err)) != 0);
+  }
+
   if (failures == 0)
     printf("  ok\n");
   return failures != 0;
