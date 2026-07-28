@@ -55,7 +55,8 @@ rows = geozl.profile(tile)                        # the slow call, run once
 best = rows[0]["graph"]                           # e.g. "planar>zigzag>transpose>entropy"
 
 frame = geozl.compress(tile, method=best)         # the fast call, run always
-frame = geozl.compress(tile, method=best, max_error=2)  # near-lossless, absolute bound
+frame = geozl.compress(tile, method=best, error="abs:2")   # near-lossless
+frame = geozl.compress(tile, method=best, error="rel:1%")  # bound follows the value
 
 back = geozl.decompress(frame, dtype="uint16", width=1024)
 ```
@@ -109,7 +110,20 @@ A frame carries at most one near-lossless codec, as the head transform, so the l
 
 | codec | call | CTid | error |
 |---|---|---:|---|
-| `quant_linear` | `geozl.lossy.QuantLinear(max_error, dtype)` | `0x72D780` | every value reconstructs within `max_error`, an absolute tolerance |
+| `quant` | `geozl.lossy.Quant(error, tile)` | `0x72D780` | every value reconstructs within the bound the recipe declares |
+
+`error` is a recipe string, like `method`, so it crosses `compress`, `profile` and `bench` unchanged and the three cannot end up describing different errors.
+
+| recipe | bound | fits |
+|---|---|---|
+| `None` | lossless | |
+| `"abs:V"` | `\|x - x̂\| <= V` | a fixed instrument error, elevation, temperature |
+| `"shot:a=A,b=B,k=K"` | `\|x - x̂\| <= K * sqrt(A + B*x)` | photon counting, optical radiance |
+| `"rel:P%"` | `\|x - x̂\| <= (P/100) * \|x\|` | a multiplicative error, SAR backscatter, concentrations |
+
+Which one fits is not a matter of taste, it follows from how the measurement error of the data grows with the value. A quantizer that holds a pointwise bound `b(x)` is a uniform quantizer in a domain where `w' = 1/b`, so the bound picks the curve and the curve is what the codec stores.
+
+The percent sign in `rel` is required. Without it `"rel:1"` reads as a bound of one, a hundred percent, which is a plausible typo for one percent and would quantize a hundred times coarser than intended without failing.
 
 ### Lossless codecs
 

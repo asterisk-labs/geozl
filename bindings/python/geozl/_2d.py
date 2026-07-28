@@ -28,6 +28,19 @@ def _nodata_args(arr, nodata):
     return _NODATA_NONE, 0.0
 
 
+def _error_arg(error):
+    """The error recipe as C wants it. A recipe rather than a number so it
+    crosses compress, profile and bench unchanged, which is also why a bare
+    float is refused instead of being read as an absolute bound: "abs:0.5" and
+    0.5 would drift apart the moment a second curve existed."""
+    if error is None:
+        return ffi.NULL
+    if not isinstance(error, str):
+        raise ValueError(f"error must be a recipe string, one of \"abs:V\", "
+                         f"\"rel:P%\" or \"shot:a=A,b=B,k=K\", got {error!r}")
+    return error.encode("utf-8")
+
+
 def _is_native(dt):
     return dt.byteorder in ("=", "|") or dt.newbyteorder("=") == dt
 
@@ -68,6 +81,7 @@ def compress(tile, *, method, width=None, error=None, nodata=None):
     """
     if not isinstance(method, str) or not method:
         raise ValueError(f"method must be a recipe name, got {method!r}")
+    err = _error_arg(error)
 
     lib = _load_lib_full()
     arr, width, elt = _prepare(tile, width)
@@ -80,9 +94,6 @@ def compress(tile, *, method, width=None, error=None, nodata=None):
         code = 0 if code is None else code
     elif code is None:
         raise ValueError(f"quant does not support dtype {arr.dtype}")
-    if error is not None and not isinstance(error, str):
-        raise ValueError(f"error must be a recipe string such as \"abs:0.5\" "
-                         f"or \"rel:1%\", got {error!r}")
 
     nd_mode, nd_value = _nodata_args(arr, nodata)
     if nd_mode == _NODATA_VALUE and dtype_code(arr.dtype) is None:
@@ -95,8 +106,7 @@ def compress(tile, *, method, width=None, error=None, nodata=None):
     err_ctx = ffi.new("char[]", 256)
     rc = lib.geozl_2d_compress_c(
         method.encode("utf-8"), width,
-        ffi.NULL if error is None else error.encode("utf-8"),
-        int(code), nd_mode, nd_value,
+        err, int(code), nd_mode, nd_value,
         _ptr(arr), n, elt, _ptr(dst), cap, out_size, err_ctx, len(err_ctx))
     if rc != 0:
         reason = ffi.string(err_ctx).decode("utf-8", "replace")
@@ -171,6 +181,7 @@ def profile(tile, *, method="planar", width=None, error=None, reps=5,
     NaN would be profiled through a different graph than the one it ends up
     compressed with, and the sizes would not line up.
     """
+    err = _error_arg(error)
     lib = _load_lib_full()
     arr, width, elt = _prepare(tile, width)
     raw = arr.nbytes
@@ -180,7 +191,6 @@ def profile(tile, *, method="planar", width=None, error=None, reps=5,
         code = 0 if code is None else code
     elif code is None:
         raise ValueError(f"quant does not support dtype {arr.dtype}")
-    err = ffi.NULL if error is None else error.encode("utf-8")
 
     nd_mode, nd_value = _nodata_args(arr, nodata)
     if nd_mode == _NODATA_VALUE and dtype_code(arr.dtype) is None:

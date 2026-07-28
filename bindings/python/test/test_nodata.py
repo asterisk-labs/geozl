@@ -59,7 +59,7 @@ def test_a_second_nan_payload_is_a_hole_too():
     tile[holes] = ODD_NAN
     other = np.array(0x7FA00042, dtype=np.uint32).view(np.float32)
     tile[3, 3] = other
-    _, out = _roundtrip(tile, method=GRAPH_WIDE, error=2)
+    _, out = _roundtrip(tile, method=GRAPH_WIDE, error="abs:2")
     assert np.isnan(out[3, 3])
     assert np.isnan(out[holes]).all()
     assert not np.isnan(out[0, 0])

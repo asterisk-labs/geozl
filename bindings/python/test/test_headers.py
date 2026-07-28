@@ -141,15 +141,21 @@ def test_quant_decoder_rejects_a_stored_reconstruction_on_a_float():
 
 def test_quant_rejects_a_dtype_it_has_no_kernel_for():
     with pytest.raises(ValueError, match="does not support dtype"):
-        geozl.lossy.Quant(4, np.bool_)
+        geozl.lossy.Quant("abs:4", np.zeros((8, 8), np.bool_))
 
 
 def test_quant_rejects_a_non_positive_error():
-    with pytest.raises(ValueError, match="error must be positive"):
-        geozl.lossy.Quant(0, np.uint16)
+    with pytest.raises(ValueError, match="must be positive"):
+        geozl.lossy.Quant("abs:0", np.arange(64, dtype=np.uint16))
 
 
-def test_quant_refuses_to_store_a_reconstruction_on_floats():
-    # there is no integer stream to put it in
-    with pytest.raises(ValueError, match="stores the index on floats"):
-        geozl.lossy.Quant(4, np.float32, store_indices=False)
+def test_quant_rejects_a_bare_number():
+    with pytest.raises(ValueError, match="recipe string"):
+        geozl.lossy.Quant(4, np.arange(64, dtype=np.uint16))
+
+
+def test_quant_rejects_a_relative_bound_without_the_percent_sign():
+    # "rel:1" reads as a bound of one, a hundred percent, which is a plausible
+    # typo for one percent and would quantize far coarser than intended
+    with pytest.raises(ValueError, match="percentage"):
+        geozl.lossy.Quant("rel:1", np.arange(64, dtype=np.uint16))

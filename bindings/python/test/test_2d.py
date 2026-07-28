@@ -93,7 +93,7 @@ def test_non_positive_error_is_lossless(error):
 
 def test_compress_rejects_a_dtype_quant_has_no_kernel_for():
     with pytest.raises(ValueError, match="quant does not support"):
-        geozl.compress(np.zeros((4, 4), np.bool_), method=GRAPH_1B, error=2)
+        geozl.compress(np.zeros((4, 4), np.bool_), method=GRAPH_1B, error="abs:2")
 
 
 @pytest.mark.parametrize("dtype", [np.uint8, np.int16, np.uint32, np.float64])
@@ -140,7 +140,7 @@ def test_error_bound_holds(error):
 
 def test_lossy_beats_lossless_on_size():
     arr = _tile()
-    assert len(geozl.compress(arr, method=GRAPH, error=8)) < \
+    assert len(geozl.compress(arr, method=GRAPH, error="abs:8")) < \
            len(geozl.compress(arr, method=GRAPH))
 
 
@@ -191,13 +191,13 @@ def test_profile_rejects_an_unknown_prior():
 
 def test_profile_lossy_beats_profile_lossless():
     arr = _tile()
-    assert geozl.profile(arr, reps=1, error=8)[0]["ratio"] > \
+    assert geozl.profile(arr, reps=1, error="abs:8")[0]["ratio"] > \
            geozl.profile(arr, reps=1)[0]["ratio"]
 
 
 def test_profile_rejects_a_dtype_quant_has_no_kernel_for():
     with pytest.raises(ValueError, match="quant does not support"):
-        geozl.profile(np.zeros((4, 4), np.bool_), error=2)
+        geozl.profile(np.zeros((4, 4), np.bool_), error="abs:2")
 
 
 def test_profile_skips_a_graph_that_fails_on_this_tile(monkeypatch):
