@@ -103,7 +103,7 @@ _LOSSY_DTYPES = [np.uint8, np.uint16, np.int16, np.float32, np.float64]
 @pytest.mark.parametrize("pattern", ["random", "gradient"])
 def test_quant_bound(dtype, error, shape, pattern):
     arr = make_tile(shape, dtype, pattern)
-    node = geozl.lossy.Quant(error, dtype)
+    node = geozl.lossy.Quant(f"abs:{error}", arr)
     out = roundtrip(node, arr, disable_checksum=True)
     err = np.abs(out.astype(np.float64) - arr.reshape(-1).astype(np.float64))
     assert err.max() <= error
@@ -117,7 +117,7 @@ def test_quant_bound_at_type_extremes(dtype, error):
     # the bound must still hold, a clamp that overshoots is a real bug
     info = np.iinfo(dtype)
     arr = np.array([[info.min, info.max, info.min, info.max]], dtype=dtype)
-    node = geozl.lossy.Quant(error, dtype)
+    node = geozl.lossy.Quant(f"abs:{error}", arr)
     out = roundtrip(node, arr, disable_checksum=True)
     err = np.abs(out.astype(np.float64) - arr.reshape(-1).astype(np.float64))
     assert err.max() <= error
@@ -125,11 +125,52 @@ def test_quant_bound_at_type_extremes(dtype, error):
 
 def test_quant_rejects_content_checksum():
     arr = make_tile((16, 16), np.uint16, "random")
-    node = geozl.lossy.Quant(5, np.uint16)
+    node = geozl.lossy.Quant("abs:5", arr)
     with pytest.raises(Exception):
         roundtrip(node, arr, disable_checksum=False)
 
 
 def test_quant_rejects_bad_error():
     with pytest.raises(ValueError):
-        geozl.lossy.Quant(0, np.uint16)
+        geozl.lossy.Quant("abs:0", np.arange(64, dtype=np.uint16))
+
+
+# The relative bound is the one a fixed step cannot hold, since the tolerance
+# has to follow the value across the whole range.
+@pytest.mark.parametrize("pct", [0.5, 1.0, 10.0])
+@pytest.mark.parametrize("dtype", [np.float32, np.float64],
+                         ids=lambda d: np.dtype(d).name)
+def test_quant_relative_bound(pct, dtype):
+    arr = (10.0 ** np.linspace(-9, 3, 4096)).astype(dtype).reshape(64, 64)
+    node = geozl.lossy.Quant(f"rel:{pct}%", arr)
+    out = roundtrip(node, arr, disable_checksum=True)
+    x = arr.reshape(-1).astype(np.float64)
+    err = np.abs(out.astype(np.float64) - x)
+    assert (err <= (pct / 100.0) * np.abs(x)).all()
+
+
+# Zero has no relative neighbourhood, so the bound is only satisfied by giving
+# it back exactly. Same for the subnormals no grid can address.
+@pytest.mark.parametrize("dtype", [np.float32, np.float64],
+                         ids=lambda d: np.dtype(d).name)
+def test_quant_relative_preserves_zero_exactly(dtype):
+    arr = np.zeros(4096, dtype=dtype).reshape(64, 64)
+    arr[0, 1:] = (10.0 ** np.linspace(-6, 2, 63)).astype(dtype)
+    node = geozl.lossy.Quant("rel:1%", arr)
+    out = roundtrip(node, arr, disable_checksum=True)
+    assert (out.reshape(arr.shape)[1:] == 0).all()
+
+
+# The shot curve holds k times the noise of a sensor whose variance is a + b*x,
+# so the tolerance widens with the square root of the signal. This one sits
+# within a few parts per million of its bound and holds only because the
+# encoder picks the nearest reconstruction rather than rounding in the warped
+# domain: the curve is convex, so at the midpoint of a step the level above is
+# further away than the one below, and plain rounding would overshoot.
+def test_quant_shot_bound():
+    arr = np.linspace(0.0, 10000.0, 4096, dtype=np.float32).reshape(64, 64)
+    node = geozl.lossy.Quant("shot:a=4,b=1,k=0.5", arr)
+    out = roundtrip(node, arr, disable_checksum=True)
+    x = arr.reshape(-1).astype(np.float64)
+    err = np.abs(out.astype(np.float64) - x)
+    assert (err <= 0.5 * np.sqrt(4.0 + x)).all()

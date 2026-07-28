@@ -85,10 +85,17 @@ def test_compress_actually_compresses():
     assert len(geozl.compress(arr, method=GRAPH)) < arr.nbytes
 
 
-@pytest.mark.parametrize("error", [None, 0, -1])
-def test_non_positive_error_is_lossless(error):
+def test_no_error_is_lossless():
     arr = _tile()
-    assert np.array_equal(_roundtrip(arr, method=GRAPH, error=error), arr)
+    assert np.array_equal(_roundtrip(arr, method=GRAPH, error=None), arr)
+
+
+# A number used to mean an absolute bound, and 0 or less meant lossless. Both
+# readings are gone: the bound picks the curve, so it has to say which one.
+@pytest.mark.parametrize("error", [0, -1, 1, 2.0])
+def test_a_bare_number_is_not_an_error_recipe(error):
+    with pytest.raises(ValueError, match="recipe string"):
+        geozl.compress(_tile(), method=GRAPH, error=error)
 
 
 def test_compress_rejects_a_dtype_quant_has_no_kernel_for():
@@ -131,11 +138,12 @@ def test_corrupt_payload_is_reported():
         geozl.decompress(bytes(frame), dtype="int16")
 
 
-@pytest.mark.parametrize("error", [1, 2.0, 7])
-def test_error_bound_holds(error):
+@pytest.mark.parametrize("recipe,bound", [("abs:1", 1), ("abs:2.0", 2.0),
+                                          ("abs:7", 7)])
+def test_error_bound_holds(recipe, bound):
     arr = _tile()
-    out = _roundtrip(arr, method=GRAPH, error=error)
-    assert np.abs(out.astype(np.int64) - arr.astype(np.int64)).max() <= error
+    out = _roundtrip(arr, method=GRAPH, error=recipe)
+    assert np.abs(out.astype(np.int64) - arr.astype(np.int64)).max() <= bound
 
 
 def test_lossy_beats_lossless_on_size():

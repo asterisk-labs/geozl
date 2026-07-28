@@ -78,13 +78,19 @@ class QuantDecoder(_ext.CustomDecoder):
             bytes(state.codec_header))
         if not 0 <= dtype < len(_WIDTH) or _WIDTH[dtype] != elt:
             raise ValueError(f"{_NAME}: bad dtype in codec header")
-        if curve > 2 or flags & ~1:
+        if curve > 2:
             raise ValueError(f"{_NAME}: bad curve in codec header")
+        if flags & ~1:
+            raise ValueError(f"{_NAME}: bad flags in codec header")
         if not (math.isfinite(step) and math.isfinite(offset)) or step < 0.0:
             raise ValueError(f"{_NAME}: bad step in codec header")
         if flags & 1 and (curve != 0 or dtype > _LAST_INT_CODE):
             raise ValueError(f"{_NAME}: a stored reconstruction needs the "
                              f"linear curve on an integer type")
+        if curve == 2 and not offset > 0.0:
+            raise ValueError(f"{_NAME}: the log curve needs a positive anchor")
+        if curve != 2 and nsub != 0:
+            raise ValueError(f"{_NAME}: nsub is the log curve's exact region")
         p = ffi.new("quant_params*")
         p.curve, p.flags, p.step, p.offset, p.nsub = (
             curve, flags, step, offset, nsub)

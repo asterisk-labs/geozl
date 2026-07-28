@@ -100,41 +100,49 @@ def test_wp_static_decoder_rejects_a_shift_past_the_accumulator():
 def test_quant_rejects_a_dtype_that_is_not_the_sample_width():
     # uint16 says two bytes per sample, the tile gives one
     with pytest.raises(Exception, match="does not match"):
-        _frame(geozl.lossy.Quant(4, np.uint16),
+        _frame(geozl.lossy.Quant("abs:4", np.arange(64, dtype=np.uint16)),
                np.arange(64, dtype=np.uint8))
 
 
-def _ql_build(i):
+def _q_build(i):
     arr = np.arange(256, dtype=np.uint16).reshape(16, 16) + i
-    return _frame(geozl.lossy.Quant(50, np.uint16), arr)
+    return _frame(geozl.lossy.Quant("abs:50", arr), arr)
 
 
-# the header is <Bd: dtype code, then scale. error 50 makes the step 100,
-# and on integers the encoder stores the reconstruction, which is -step.
-_QL_SCALE = struct.pack("<d", -100.0)
+# the header is <BBBddQ: dtype, curve and flags, then step and offset as
+# doubles and nsub as a uint64. An error of 50 makes the step 100, and the step
+# is the only field with a value worth anchoring on, so dtype, curve and flags
+# sit three, two and one byte before it.
+_Q_STEP = struct.pack("<d", 100.0)
 
 
 def test_quant_decoder_rejects_a_dtype_outside_the_enum():
-    frame = _forge(_ql_build, _QL_SCALE, -1, bytes([200]))
+    frame = _forge(_q_build, _Q_STEP, -3, bytes([200]))
     with pytest.raises(Exception, match="bad dtype"):
         _decode(frame)
 
 
-def test_quant_decoder_rejects_a_non_finite_scale():
-    frame = _forge(_ql_build, _QL_SCALE, 0, struct.pack("<d", float("inf")))
-    with pytest.raises(Exception, match="bad scale"):
+def test_quant_decoder_rejects_a_curve_it_does_not_know():
+    frame = _forge(_q_build, _Q_STEP, -2, bytes([200]))
+    with pytest.raises(Exception, match="bad curve"):
+        _decode(frame)
+
+
+def test_quant_decoder_rejects_a_non_finite_step():
+    frame = _forge(_q_build, _Q_STEP, 0, struct.pack("<d", float("inf")))
+    with pytest.raises(Exception, match="bad step"):
         _decode(frame)
 
 
 def test_quant_decoder_rejects_a_stored_reconstruction_on_a_float():
-    # a negative scale means the stream already holds the reconstruction, which
-    # only an integer stream can carry. float32 is four bytes like uint32, so
-    # the width check passes and this guard is the one that has to fire
+    # the flag says the stream already holds the reconstruction, which only an
+    # integer stream can carry. float32 is four bytes like uint32, so the width
+    # check passes and this guard is the one that has to fire
     def build(i):
         arr = np.arange(256, dtype=np.uint32).reshape(16, 16) + i
-        return _frame(geozl.lossy.Quant(50, np.uint32), arr)
+        return _frame(geozl.lossy.Quant("abs:50", arr), arr)
 
-    frame = _forge(build, _QL_SCALE, -1, bytes([_FLOAT32_CODE]))
+    frame = _forge(build, _Q_STEP, -3, bytes([_FLOAT32_CODE]))
     with pytest.raises(Exception, match="integer type"):
         _decode(frame)
 

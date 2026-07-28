@@ -72,8 +72,11 @@ CTEST_BINS    := $(patsubst test/%.c,$(CTEST_DIR)/%,$(CTEST_SRCS))
 CTEST_KERNELS := $(wildcard $(CORE)/src/*/encode_*_kernel.c) \
                  $(wildcard $(CORE)/src/*/decode_*_kernel.c) \
                  $(CORE)/src/wp_static/train_wp_static.c \
+                 $(CORE)/src/quant/quant_spec.c \
                  $(CORE)/src/common/simd.c
-CTEST_CFLAGS  := -std=c11 -O1 -g -Wall -Wextra -I$(CORE)/src
+# include/ too: the quant kernels take their parameter block from
+# geozl/quant_params.h, which is public because geozl_node_quant is.
+CTEST_CFLAGS  := -std=c11 -O1 -g -Wall -Wextra -I$(CORE)/include -I$(CORE)/src
 
 # No SAN_ENV here, the test binaries are instrumented themselves. Leak
 # detection is left on, that is how a missing free in a kernel shows up.

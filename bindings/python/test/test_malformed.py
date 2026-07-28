@@ -11,11 +11,15 @@ geozl = pytest.importorskip("geozl")
 
 _DISABLE = 2  # ZL_TernaryParam_disable
 
-# quant writes -step on integers, where the reconstruction travels in
-# place of the index. Derived, not written out, so a change to that rule breaks
-# the anchor loudly instead of quietly stopping these cases from running.
-_QL_MAX_ERROR = 50
-_QL_SCALE = geozl.lossy.Quant(_QL_MAX_ERROR, np.uint16)._scale
+# quant carries its parameters in the codec header, <BBBddQ: dtype, curve and
+# flags, then step and offset as doubles and nsub as a uint64. The step is the
+# anchor these cases search for, so dtype, curve and flags sit three, two and
+# one byte before it. Derived from the codec rather than written out, so a
+# change to the layout breaks the anchor loudly instead of quietly stopping
+# these cases from running.
+_Q_ERROR = "abs:50"
+_Q_TILE = np.arange(256, dtype=np.uint16).reshape(16, 16)
+_Q_STEP = geozl.lossy.Quant(_Q_ERROR, _Q_TILE)._p.step
 
 
 def _compress(node, arr):
@@ -74,23 +78,48 @@ def _case_width_decode():
     _decode(bytes(frame))
 
 
-def _ql_build(i):
-    arr = np.arange(256, dtype=np.uint16).reshape(16, 16) + i
-    return _compress(geozl.lossy.Quant(_QL_MAX_ERROR, np.uint16), arr)
+def _q_build(i):
+    arr = _Q_TILE + i
+    return _compress(geozl.lossy.Quant(_Q_ERROR, arr), arr)
 
 
-# dtype byte outside the type enum. The header is <Bd, so it sits right before
-# the scale.
+def _q_frame():
+    return _place(_q_build, struct.pack("<d", _Q_STEP))
+
+
+# dtype byte outside the type enum
 def _case_dtype():
-    frame, at = _place(_ql_build, struct.pack("<d", _QL_SCALE))
-    frame[at - 1] = 200
+    frame, at = _q_frame()
+    frame[at - 3] = 200
     _decode(bytes(frame))
 
 
-# non-finite scale the integer path cannot truncate to int64
-def _case_scale():
-    frame, at = _place(_ql_build, struct.pack("<d", _QL_SCALE))
+# curve above the last one the kernels know
+def _case_curve():
+    frame, at = _q_frame()
+    frame[at - 2] = 200
+    _decode(bytes(frame))
+
+
+# flag bits the encoder never sets
+def _case_flags():
+    frame, at = _q_frame()
+    frame[at - 1] = 0xFE
+    _decode(bytes(frame))
+
+
+# non-finite step the integer path cannot truncate to int64
+def _case_step():
+    frame, at = _q_frame()
     frame[at:at + 8] = struct.pack("<d", float("inf"))
+    _decode(bytes(frame))
+
+
+# nsub is the log curve's exact region, so a non-zero one under the linear
+# curve is a frame that was not written by this encoder
+def _case_nsub():
+    frame, at = _q_frame()
+    frame[at + 16:at + 24] = struct.pack("<Q", 12345)
     _decode(bytes(frame))
 
 
@@ -110,7 +139,10 @@ _CASES = {
     "width_encode": _case_width_encode,
     "width_decode": _case_width_decode,
     "dtype": _case_dtype,
-    "scale": _case_scale,
+    "curve": _case_curve,
+    "flags": _case_flags,
+    "step": _case_step,
+    "nsub": _case_nsub,
     "shift": _case_shift,
 }
 
