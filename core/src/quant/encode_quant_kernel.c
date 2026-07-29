@@ -2,6 +2,7 @@
 #include "quant_half.h" // quant_half_to_float
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 // The linear curve stays on exact integer arithmetic so a 64 bit sample does
@@ -77,6 +78,88 @@
 // sample. quant_fwd lands on it or one short, and the curves are monotone, so
 // only the neighbour on the side of the residual can be closer. Checking it
 // keeps the bound off the accuracy of log and exp.
+//
+// On an integer input the map from value to index is a function of a finite
+// set, so it goes in a table built once and the encode becomes a gather with no
+// transcendental in it. The span comes from the data and not from the type: a
+// uint32 raster of elevations covers a few thousand values, not four billion.
+// The table and the loop below call the same function, so they cannot disagree.
+#define Q_FWD_TABLE_MAX (1 << 18)
+#define Q_FWD_TABLE_MIN 4
+
+// Range of an integer stream. Unsigned throughout, so a span wider than a
+// signed type cannot trap, and one that wrapped to zero fails the test that
+// sizes the table rather than sizing it wrong.
+#define Q_RANGE(T)                                                             \
+  do {                                                                         \
+    const T *v = (const T *)src;                                               \
+    int64_t mn = (int64_t)v[0], mx = mn;                                       \
+    for (size_t i = 1; i < nbElts; ++i) {                                      \
+      const int64_t x = (int64_t)v[i];                                         \
+      if (x < mn)                                                              \
+        mn = x;                                                                \
+      if (x > mx)                                                              \
+        mx = x;                                                                \
+    }                                                                          \
+    *lo = mn;                                                                  \
+    *n = (uint64_t)mx - (uint64_t)mn + 1u;                                     \
+  } while (0)
+
+static void q_int_range(const void *src, int dtype, size_t nbElts, int64_t *lo,
+                        uint64_t *n) {
+  *lo = 0;
+  *n = 0;
+  if (nbElts == 0)
+    return;
+  switch (dtype) {
+  case Q_U8:
+    Q_RANGE(uint8_t);
+    break;
+  case Q_U16:
+    Q_RANGE(uint16_t);
+    break;
+  case Q_U32:
+    Q_RANGE(uint32_t);
+    break;
+  case Q_I8:
+    Q_RANGE(int8_t);
+    break;
+  case Q_I16:
+    Q_RANGE(int16_t);
+    break;
+  case Q_I32:
+    Q_RANGE(int32_t);
+    break;
+  case Q_I64:
+    Q_RANGE(int64_t);
+    break;
+  default:
+    break; // u64 does not fit an int64 offset, it keeps the direct path
+  }
+}
+
+static double q_best_int(double x, const quant_params *p, double vlo,
+                         double vhi, double ilo, double ihi) {
+  double q = quant_fwd(x, p);
+  const double r0 = QUANT_RT_INT(quant_inv(q, p), vlo, vhi);
+  const double alt = q + (x > r0 ? 1.0 : -1.0);
+  if (fabs(x - QUANT_RT_INT(quant_inv(alt, p), vlo, vhi)) < fabs(x - r0))
+    q = alt;
+  return quant_index_fit(q, ilo, ihi);
+}
+
+#define Q_ENC_WARP_INT(T)                                                      \
+  do {                                                                         \
+    const T *s = (const T *)src;                                               \
+    T *d = (T *)dst;                                                           \
+    if (tab != NULL) {                                                         \
+      for (size_t i = 0; i < nbElts; ++i)                                      \
+        d[i] = (T)tab[(size_t)((int64_t)s[i] - domLo)];                        \
+    } else {                                                                   \
+      for (size_t i = 0; i < nbElts; ++i)                                      \
+        d[i] = (T)q_best_int((double)s[i], p, vlo, vhi, ilo, ihi);             \
+    }                                                                          \
+  } while (0)
 #define Q_ENC_WARP(RD, RT, IT)                                                 \
   do {                                                                         \
     IT *d = (IT *)dst;                                                         \
@@ -111,30 +194,48 @@ int quant_encode(void *dst, const void *src, const quant_params *p, int dtype,
   if (p->curve != QUANT_CURVE_LINEAR) {
     const double vlo = quant_value_lo(dtype), vhi = quant_value_hi(dtype);
     const double ilo = quant_index_lo(dtype), ihi = quant_index_hi(dtype);
+
+    // The table is per call, not cached, so two threads encoding at once do not
+    // share it. An allocation that fails is not an error, the direct path below
+    // gives the same answer.
+    int64_t domLo = 0;
+    uint64_t domN = 0;
+    int64_t *tab = NULL;
+    if (dtype <= Q_LAST_INT) {
+      q_int_range(src, dtype, nbElts, &domLo, &domN);
+      if (domN != 0 && domN <= Q_FWD_TABLE_MAX &&
+          nbElts >= Q_FWD_TABLE_MIN * domN)
+        tab = (int64_t *)malloc((size_t)domN * sizeof(int64_t));
+      if (tab != NULL)
+        for (uint64_t v = 0; v < domN; ++v)
+          tab[v] = (int64_t)q_best_int((double)(domLo + (int64_t)v), p, vlo,
+                                       vhi, ilo, ihi);
+    }
+
     switch ((quant_dtype)dtype) {
     case Q_U8:
-      Q_ENC_WARP(((const uint8_t *)src)[i], QUANT_RT_INT, uint8_t);
+      Q_ENC_WARP_INT(uint8_t);
       break;
     case Q_U16:
-      Q_ENC_WARP(((const uint16_t *)src)[i], QUANT_RT_INT, uint16_t);
+      Q_ENC_WARP_INT(uint16_t);
       break;
     case Q_U32:
-      Q_ENC_WARP(((const uint32_t *)src)[i], QUANT_RT_INT, uint32_t);
+      Q_ENC_WARP_INT(uint32_t);
       break;
     case Q_U64:
       Q_ENC_WARP(((const uint64_t *)src)[i], QUANT_RT_INT, uint64_t);
       break;
     case Q_I8:
-      Q_ENC_WARP(((const int8_t *)src)[i], QUANT_RT_INT, int8_t);
+      Q_ENC_WARP_INT(int8_t);
       break;
     case Q_I16:
-      Q_ENC_WARP(((const int16_t *)src)[i], QUANT_RT_INT, int16_t);
+      Q_ENC_WARP_INT(int16_t);
       break;
     case Q_I32:
-      Q_ENC_WARP(((const int32_t *)src)[i], QUANT_RT_INT, int32_t);
+      Q_ENC_WARP_INT(int32_t);
       break;
     case Q_I64:
-      Q_ENC_WARP(((const int64_t *)src)[i], QUANT_RT_INT, int64_t);
+      Q_ENC_WARP_INT(int64_t);
       break;
     case Q_F16:
       Q_ENC_WARP(quant_half_to_float(((const uint16_t *)src)[i]), QUANT_RT_F16,
@@ -147,6 +248,7 @@ int quant_encode(void *dst, const void *src, const quant_params *p, int dtype,
       Q_ENC_WARP(((const double *)src)[i], QUANT_RT_F64, int64_t);
       break;
     }
+    free(tab);
     return 0;
   }
 

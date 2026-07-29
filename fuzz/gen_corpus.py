@@ -45,16 +45,13 @@ def main(outdir):
     # that follows the value and a narrow tile would not tell them apart
     tilef = (10.0 ** rng.uniform(-6, 6, size=(w, w))).astype(np.float32)
 
-    # first row down in the subnormals, where the representable values sit too
-    # far apart for any grid to meet a relative bound and the log curve has to
-    # carry them exactly instead
+    # first row subnormal, where no grid meets a relative bound and the log
+    # curve has to carry the values exactly
     tilesub = tilef.copy()
     tilesub[0] = np.arange(w, dtype=np.float64) * 1.40129846432481707e-45
 
-    # One seed per decode path the quant codec has, since the fuzzer is unlikely
-    # to invent a plausible curve, anchor and nsub out of a linear header:
-    # stored reconstruction, plain index, sqrt, and the log curve both inside
-    # and outside the reconstruction table, with and without an exact region.
+    # One seed per decode path quant has, since a mutator will not invent a
+    # coherent curve, anchor and nsub out of a linear header.
     seeds = {
         "delta_w": _compress(geozl.lossless.DeltaW(w), tile16),
         "delta_n": _compress(geozl.lossless.DeltaN(w), tile16),

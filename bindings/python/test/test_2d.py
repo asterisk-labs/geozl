@@ -397,12 +397,10 @@ def test_a_relative_bound_no_grid_can_serve_is_lossless_not_wrong():
     assert np.array_equal(_roundtrip(arr, method=GRAPH, error="rel:0.01%"), arr)
 
 
-# nodata runs in front of quant, but the scan that anchors the log curve reads
+# nodata runs in front of quant but the scan that anchors the log curve reads
 # the tile before it, so what nodata substitutes has to already be inside the
-# grid. It fills a hole with the last valid sample of the row, or the one above,
-# and only falls back to zero when the hole leads the first row. Both are inside
-# the grid, zero through the index reserved for it, so these two cases together
-# cover what the codec can be handed.
+# grid. It fills with the last valid sample of the row, or the one above, and
+# falls back to zero only when the hole leads the first row. These are those.
 @pytest.mark.parametrize("row", [0, 3], ids=["leading_row", "inner_row"])
 def test_relative_bound_keeps_nodata_exact(row):
     arr = _ftile()

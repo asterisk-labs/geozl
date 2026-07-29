@@ -59,7 +59,10 @@ On integers a `step` of 1 under the linear curve is a copy, since the index and
 the value are the same number.
 
 The log curve reconstructs through a table of one value per index when the index
-range fits in 8192 entries, so no transcendental is evaluated per sample.
+range fits in 8192 entries, so no transcendental is evaluated per sample. The
+encoder does the same in reverse for an 8 or 16 bit input, where the whole
+forward map fits in a table, and both tables give what the direct arithmetic
+would have given.
 
 ### Outputs
 A single numeric stream of the original element type and width, with the same

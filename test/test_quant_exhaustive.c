@@ -1,21 +1,13 @@
-// Walks every one of the 2^32 bit patterns a float32 can hold, for each recipe,
-// and reports how many of them the codec cannot quantize inside the bound it
-// declared. Fuzzing says nobody found a counterexample. This says there is not
-// one.
+// Walks every bit pattern a float32 can hold, for each recipe, and reports how
+// many the codec cannot quantize inside the bound it declared. Fuzzing says
+// nobody found a counterexample, this says there is not one. Methodology from
+// Fallin and Burtscher, arXiv:2407.15037, who tested LC the same way.
 //
-// The methodology is from Fallin and Burtscher, "Lessons Learned on the Path to
-// Guaranteeing the Error Bound in Lossy Quantizers", arXiv:2407.15037, who
-// tested LC the same way and found that most published lossy compressors miss
-// their bound on some values. Their Table 9 is the number this prints, the
-// share of inputs a rounding pushes outside the bound, which for them ran from
-// 0.12% to 11.16% depending on the dataset.
+// A count above zero is not a failure, it is the share of values that would
+// need a fallback. A value that comes back non-finite, or outside the range of
+// its own type, is, since no fallback repairs that.
 //
-// A count above zero is not a failure. It is the share of values the encoder
-// has to fall back on, and knowing it is the point. What would be a failure is
-// a value that comes back non-finite, or one outside the range of its own type,
-// since no fallback repairs that.
-//
-// Not part of make test-c, it takes minutes. Run it with make test-exhaustive.
+// Minutes, so not part of test-c. Run it with make test-exhaustive.
 
 #include "quant/decode_quant_kernel.h"
 #include "quant/encode_quant_kernel.h"
@@ -85,9 +77,7 @@ static void *walk(void *arg) {
     for (size_t i = 0; i < n; ++i) {
       // Every reconstruction folded into one number, order independent so the
       // thread count cannot change it. Two builds that disagree here disagree
-      // bit for bit, which is what a frame written on one machine and read on
-      // another cannot afford. Compare it across compilers, across flags and
-      // across platforms.
+      // bit for bit. Compare it across compilers, flags and platforms.
       uint32_t rb;
       memcpy(&rb, &back[i], sizeof(rb));
       j->sum += (uint64_t)rb * 1099511628211ull + (uint64_t)(base + i);
@@ -95,15 +85,13 @@ static void *walk(void *arg) {
       const double x = (double)src[i], y = (double)back[i];
       if (!isfinite(x))
         continue; // the nodata codec owns these
-      // No fallback repairs a reconstruction that is not a number of the type
-      // it is stored in, so these are failures rather than outliers.
+      // Not repairable by any fallback, so a failure rather than an outlier.
       if (!isfinite(y) || y < vlo || y > vhi) {
         j->nonfinite++;
         continue;
       }
       // Shot noise is defined on non-negative data and the resolver refuses a
-      // tile that has any, so a negative here is outside the domain rather
-      // than a failure of the curve.
+      // tile that has any, so a negative here is out of domain.
       if (c->sp.curve == QUANT_CURVE_SQRT && x < 0.0)
         continue;
       const double a = fabs(x);

@@ -1,17 +1,8 @@
-// libFuzzer harness over the quant codec on its own, with no frame around it.
-//
-// The decode fuzzer reaches this codec only when a mutated frame still parses,
-// which almost never happens, so it spends its budget in the OpenZL frame
-// reader instead. This one hands the codec its own header and its own stream
-// directly. Three things get exercised.
-//
-//   0  the recipe parser, on arbitrary bytes
-//   1  the header checks, on a forged codec header followed by a stream
-//   2  a round trip, where the bound the parameters declare is asserted
-//
-// Mode 2 is the one worth having. A failure there is a sample that came back
-// outside the error the frame promised, which no amount of reading the code
-// proves absent.
+// Feeds arbitrary bytes to the quant codec with no frame around it, since a
+// mutated frame almost never parses far enough to reach it. The first byte
+// picks between the recipe parser, a forged codec header, and a round trip that
+// asserts the declared bound. An abort in the last one is a sample that came
+// back outside the error the frame promised.
 
 #include "quant/decode_quant_kernel.h"
 #include "quant/encode_quant_kernel.h"
@@ -58,9 +49,7 @@ static double get(const void *b, int dt, size_t i) {
   }
 }
 
-// The bound the recipe promised, which is what the round trip has to keep. Read
-// from the spec rather than from the resolved parameters, since the parameters
-// are the thing under test.
+// Read from the spec, not the resolved parameters, which are under test.
 static double declared(const quant_spec *sp, double x) {
   switch (sp->curve) {
   case QUANT_CURVE_LOG:
@@ -109,9 +98,8 @@ static void mode_header(const uint8_t *d, size_t n) {
   memcpy(&p.offset, d + 11, 8);
   memcpy(&p.nsub, d + 19, 8);
 
-  // The same checks the decode binding runs before it hands anything to the
-  // kernel. A forged header that gets past them must not then be able to make
-  // the kernel read or write out of bounds.
+  // The same checks the decode binding runs. A header that gets past them must
+  // not then make the kernel read or write out of bounds.
   if (p.curve > QUANT_CURVE_LOG)
     return;
   if (!isfinite(p.step) || !isfinite(p.offset) || p.step < 0.0)
@@ -171,11 +159,9 @@ static void mode_roundtrip(const uint8_t *d, size_t n) {
   if (quant_spec_resolve(&sp, dtype, lo, hi, neg, &p, err, sizeof(err)) != 0)
     return; // refused, which is a valid answer
 
-  // The same loop the encode binding runs: measure against the bound the recipe
-  // declared, tighten by the miss, go again. Checking without it would be
-  // testing a contract the codec no longer claims. What is left to check is
-  // whether quant_verify was right to say the frame holds, which the loop below
-  // does independently of it.
+  // The same loop the encode binding runs, or this would test a contract the
+  // codec no longer claims. What is left to check is whether quant_verify was
+  // right, which the loop below does without it.
   int held = 0;
   double worst = 0.0;
   for (int attempt = 0; attempt < 3; ++attempt) {

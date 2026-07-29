@@ -274,11 +274,9 @@ int main(void) {
     }
   }
 
-  // The decoder writes a warped reconstruction through the same rounding the
-  // encoder judged the candidate with. Truncating on one side and rounding to
-  // nearest on the other puts every integer reconstruction up to a whole unit
-  // away from where the encoder thought it was, which no bound survives, so
-  // this walks the grid and checks the two agree everywhere.
+  // Encode and decode have to round a reconstruction the same way. Truncating
+  // on one side and rounding on the other puts every integer reconstruction up
+  // to a unit off, which no bound survives.
   {
     char err[256];
     quant_spec sp;
@@ -299,10 +297,8 @@ int main(void) {
     }
   }
 
-  // A bound the output type cannot keep once the reconstruction is rounded to
-  // its own width is refused rather than declared and then missed. f16 is the
-  // width where this bites, its steps near the top of the range are wider than
-  // most bounds anyone would ask for.
+  // f16 steps further near the top of its range than most bounds allow, so the
+  // rounding alone breaks the bound. Refused rather than declared and missed.
   {
     char err[256];
     quant_spec sp;
@@ -393,10 +389,9 @@ int main(void) {
     }
   }
 
-  // The decoder is fed by a frame, so the two numbers it takes on trust have to
-  // survive anything that got past the header checks. A step wide enough to
-  // leave the range of the integer it multiplies, and an index stream whose
-  // extremes are further apart than a signed subtraction can express.
+  // A step wide enough to leave the range of the integer it multiplies, and an
+  // index stream whose extremes are further apart than a signed subtraction can
+  // express. Both got past the header checks.
   {
     quant_params p;
     uint8_t u8out[N];
@@ -419,9 +414,8 @@ int main(void) {
       CHECK(isfinite(f64back[i]));
   }
 
-  // A tile spanning enough decades pushes exp past its own range while the
-  // product with the anchor is still representable, and the index past the
-  // range a double holds exactly, where adding one to it stops doing anything.
+  // Enough decades to push exp past its range while the product with the anchor
+  // is still representable, and the index past what a double counts exactly.
   {
     char err[256];
     quant_spec sp;
@@ -491,6 +485,34 @@ int main(void) {
     CHECK(quant_verify(f32src, f32back, &sp, Q_F32, N, &worst) == 0);
     f32back[7] += 1.0f;
     CHECK(quant_verify(f32src, f32back, &sp, Q_F32, N, &worst) != 0);
+  }
+
+  // An integer input whose values do not span much carries its whole forward
+  // map in a table, which the encoder builds once above a size threshold.
+  // Either side of that threshold the output has to be the same byte for byte,
+  // or the threshold would quietly change what a frame holds. The span comes
+  // from the data, so a 32 bit type over a narrow range gets the table too.
+  {
+    char err[256];
+    quant_spec sp;
+    quant_params p;
+    static uint32_t big[1 << 20];
+    static uint32_t viaTable[1 << 20];
+    uint32_t direct[N];
+    const char *recipes[] = {"shot:a=100,b=1,k=0.5", "rel:1%"};
+    for (size_t r = 0; r < 2; ++r) {
+      double lo, hi;
+      int neg;
+      for (size_t i = 0; i < (1u << 20); ++i)
+        big[i] = (uint32_t)((i * 7919u) % 60000u + 1u);
+      CHECK(quant_spec_parse(recipes[r], &sp, err, sizeof(err)) == 0);
+      CHECK(quant_scan(big, Q_U32, 1u << 20, &lo, &hi, &neg) == 0);
+      CHECK(quant_spec_resolve(&sp, Q_U32, lo, hi, neg, &p, err, sizeof(err)) ==
+            0);
+      CHECK(quant_encode(direct, big, &p, Q_U32, N) == 0);
+      CHECK(quant_encode(viaTable, big, &p, Q_U32, 1u << 20) == 0);
+      CHECK(memcmp(direct, viaTable, N * sizeof(uint32_t)) == 0);
+    }
   }
 
   if (failures == 0)

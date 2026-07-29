@@ -161,12 +161,10 @@ def test_quant_relative_preserves_zero_exactly(dtype):
     assert (out.reshape(arr.shape)[1:] == 0).all()
 
 
-# The shot curve holds k times the noise of a sensor whose variance is a + b*x,
-# so the tolerance widens with the square root of the signal. This one sits
-# within a few parts per million of its bound and holds only because the
+# Sits within a few parts per million of its bound, and holds only because the
 # encoder picks the nearest reconstruction rather than rounding in the warped
-# domain: the curve is convex, so at the midpoint of a step the level above is
-# further away than the one below, and plain rounding would overshoot.
+# domain. The curve is convex, so at the midpoint of a step the level above is
+# further than the one below and plain rounding overshoots.
 def test_quant_shot_bound():
     arr = np.linspace(0.0, 10000.0, 4096, dtype=np.float32).reshape(64, 64)
     node = geozl.lossy.Quant("shot:a=4,b=1,k=0.5", arr)
