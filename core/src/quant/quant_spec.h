@@ -38,4 +38,17 @@ double quant_index_max(int dtype);
 int quant_verify(const void *src, const void *dec, const quant_spec *sp,
                  int dtype, size_t nbElts, double *worst);
 
+// Encode, decode what was just written and measure it, tightening the step
+// until the round trip holds the bound the recipe declared. That measurement
+// is what an encoder writes a frame on, so every encoder comes through here
+// instead of carrying its own copy. @idx and @chk are caller-owned scratch of
+// nbElts
+// elements, and @idx holds the index stream when this returns 0. @p is the
+// resolved parameters going in and the ones the frame was written with coming
+// out, so the header takes its step from here and not from before the call.
+// Returns 0 when the frame holds, 1 when no step this side of zero makes it,
+// and -1 when the kernels refused parameters the resolver produced.
+int quant_fit(void *idx, void *chk, const void *src, const quant_spec *sp,
+              quant_params *p, int dtype, size_t nbElts);
+
 #endif // GEOZL_CODECS_QUANT_SPEC_H

@@ -469,12 +469,11 @@ int main(void) {
     CHECK(quant_verify(f32src, f32back, &sp, Q_F32, N, &worst) != 0);
     CHECK(worst > 2.5);
 
-    // and the correction the encoder applies brings it back under
-    p.step /= worst * 1.02;
-    CHECK(quant_encode(idx32, f32src, &p, Q_F32, N) == 0);
-    CHECK(quant_decode(f32back, idx32, &p, Q_F32, N) == 0);
+    // and the correction the encoder applies brings it back under, from the
+    // same call the encoder makes, so this covers the loop and not a copy of it
+    CHECK(quant_fit(idx32, f32back, f32src, &sp, &p, Q_F32, N) == 0);
     CHECK(quant_verify(f32src, f32back, &sp, Q_F32, N, &worst) == 0);
-    (void)tight;
+    CHECK(p.step <= tight.step);
 
     // lossless is a byte comparison, since no bound is declared to scale by
     CHECK(quant_spec_parse(NULL, &sp, err, sizeof(err)) == 0);
@@ -513,6 +512,40 @@ int main(void) {
       CHECK(quant_encode(viaTable, big, &p, Q_U32, 1u << 20) == 0);
       CHECK(memcmp(direct, viaTable, N * sizeof(uint32_t)) == 0);
     }
+  }
+
+  // The decoder has the mirror of that table, keyed on the index range in the
+  // stream, and the same rule applies to it: either side of the size at which
+  // it stops building one, the frame has to decode to the same bytes. The
+  // stream comes off a frame that may be damaged, so the range it declares is
+  // not bounded by anything the encoder would have written.
+  {
+    quant_params p;
+    memset(&p, 0, sizeof(p));
+    p.curve = QUANT_CURVE_LOG;
+    p.step = 0.01;
+    p.offset = 1.0;
+
+    // A u64 index above INT64_MAX, where reading the range back as a signed
+    // integer keys the table on a different number than the direct path uses.
+    static uint64_t u64idx[N + 1], u64lut[N + 1], u64dir[N + 1];
+    for (size_t i = 0; i < N; ++i)
+      u64idx[i] = (uint64_t)INT64_MAX + 1u + i % 64u;
+    CHECK(quant_decode(u64lut, u64idx, &p, Q_U64, N) == 0);
+    u64idx[N] = (uint64_t)INT64_MAX + 1u + 20000u; // span past the table
+    CHECK(quant_decode(u64dir, u64idx, &p, Q_U64, N + 1) == 0);
+    CHECK(memcmp(u64lut, u64dir, N * sizeof(uint64_t)) == 0);
+
+    p.curve = QUANT_CURVE_SQRT;
+    p.step = 0.3;
+    p.offset = 12.0;
+    static int32_t i32idx[N + 1], i32lut[N + 1], i32dir[N + 1];
+    for (size_t i = 0; i < N; ++i)
+      i32idx[i] = (int32_t)(i % 64u) - 32;
+    CHECK(quant_decode(i32lut, i32idx, &p, Q_I32, N) == 0);
+    i32idx[N] = 20000;
+    CHECK(quant_decode(i32dir, i32idx, &p, Q_I32, N + 1) == 0);
+    CHECK(memcmp(i32lut, i32dir, N * sizeof(int32_t)) == 0);
   }
 
   if (failures == 0)

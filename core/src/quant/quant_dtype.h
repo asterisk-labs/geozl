@@ -1,6 +1,8 @@
 #ifndef GEOZL_CODECS_QUANT_DTYPE_H
 #define GEOZL_CODECS_QUANT_DTYPE_H
 
+#include <stddef.h>
+
 // Original element type, carried in the codec header. The stream between the
 // two ends is always integer, so this only matters there. Wire codes, frozen.
 typedef enum {
@@ -18,5 +20,12 @@ typedef enum {
 } quant_dtype;
 
 #define Q_LAST_INT Q_I64
+
+// Width of the type a code names. The codes run 0 to Q_F64 with no gaps, so a
+// code indexes this directly, and every caller checks that range first.
+static inline size_t quant_width(int dtype) {
+  static const size_t w[] = {1, 2, 4, 8, 1, 2, 4, 8, 2, 4, 8};
+  return w[dtype];
+}
 
 #endif // GEOZL_CODECS_QUANT_DTYPE_H

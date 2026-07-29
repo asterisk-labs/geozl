@@ -20,8 +20,6 @@ static unsigned char src[MAX_ELTS * 8];
 static unsigned char idx[MAX_ELTS * 8];
 static unsigned char back[MAX_ELTS * 8];
 
-static const size_t kWidth[] = {1, 2, 4, 8, 1, 2, 4, 8, 2, 4, 8};
-
 static double get(const void *b, int dt, size_t i) {
   switch (dt) {
   case Q_U8:
@@ -49,13 +47,15 @@ static double get(const void *b, int dt, size_t i) {
   }
 }
 
-// Read from the spec, not the resolved parameters, which are under test.
+// Read from the spec, not the resolved parameters, which are under test. A
+// second copy of declared_at on purpose, since checking quant_verify against
+// its own idea of the bound would agree with it however wrong it is.
 static double declared(const quant_spec *sp, double x) {
   switch (sp->curve) {
   case QUANT_CURVE_LOG:
     return sp->rel_err * fabs(x);
   case QUANT_CURVE_SQRT:
-    return sp->shot_k * sqrt(sp->shot_a + sp->shot_b * x);
+    return sp->shot_k * sqrt(sp->shot_a + sp->shot_b * fabs(x));
   default:
     return sp->abs_err;
   }
@@ -114,7 +114,7 @@ static void mode_header(const uint8_t *d, size_t n) {
   if (p.curve != QUANT_CURVE_LOG && p.nsub != 0)
     return;
 
-  const size_t w = kWidth[dtype];
+  const size_t w = quant_width(dtype);
   size_t elts = (n - 27) / w;
   if (elts == 0)
     return;
@@ -135,11 +135,11 @@ static void mode_roundtrip(const uint8_t *d, size_t n) {
   const char *rec = kRecipes[d[0] % (sizeof(kRecipes) / sizeof(*kRecipes))];
   const int dtype = d[1] % (Q_F64 + 1);
   if (dtype == Q_F16)
-    return; // no half type here, the kernel reads it as a bit pattern
+    return; // get() below has no half case to read the round trip back with
   d += 2;
   n -= 2;
 
-  const size_t w = kWidth[dtype];
+  const size_t w = quant_width(dtype);
   size_t elts = n / w;
   if (elts == 0)
     return;
@@ -159,26 +159,13 @@ static void mode_roundtrip(const uint8_t *d, size_t n) {
   if (quant_spec_resolve(&sp, dtype, lo, hi, neg, &p, err, sizeof(err)) != 0)
     return; // refused, which is a valid answer
 
-  // The same loop the encode binding runs, or this would test a contract the
+  // The same call the encode binding makes, or this would test a contract the
   // codec no longer claims. What is left to check is whether quant_verify was
   // right, which the loop below does without it.
-  int held = 0;
-  double worst = 0.0;
-  for (int attempt = 0; attempt < 3; ++attempt) {
-    if (quant_encode(idx, src, &p, dtype, elts) ||
-        quant_decode(back, idx, &p, dtype, elts))
-      abort(); // resolved parameters the kernels then reject
-    if (!quant_verify(src, back, &sp, dtype, elts, &worst)) {
-      held = 1;
-      break;
-    }
-    if (!isfinite(worst) || !(worst > 1.0))
-      break;
-    p.step /= worst * 1.02;
-    if (!(p.step > 0.0))
-      break;
-  }
-  if (!held)
+  const int fit = quant_fit(idx, back, src, &sp, &p, dtype, elts);
+  if (fit < 0)
+    abort(); // resolved parameters the kernels then reject
+  if (fit != 0)
     return; // refused rather than written, which is a valid answer
 
   const double vlo = quant_value_lo(dtype), vhi = quant_value_hi(dtype);

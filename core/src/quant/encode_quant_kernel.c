@@ -186,8 +186,7 @@ int quant_encode(void *dst, const void *src, const quant_params *p, int dtype,
   // linear curve, where the index and the value are the same number.
   if (step == 0.0 ||
       (p->curve == QUANT_CURVE_LINEAR && step == 1.0 && dtype <= Q_LAST_INT)) {
-    static const size_t w[] = {1, 2, 4, 8, 1, 2, 4, 8, 2, 4, 8};
-    memcpy(dst, src, nbElts * w[dtype]);
+    memcpy(dst, src, nbElts * quant_width(dtype));
     return 0;
   }
 
@@ -318,8 +317,7 @@ int quant_encode(void *dst, const void *src, const quant_params *p, int dtype,
     int16_t *d = (int16_t *)dst;
     for (size_t i = 0; i < nbElts; ++i)
       d[i] = (int16_t)quant_index_fit(
-          nearbyint((double)quant_half_to_float(s[i]) / step),
-          quant_index_lo(Q_F16), quant_index_hi(Q_F16));
+          nearbyint((double)quant_half_to_float(s[i]) / step), ilo, ihi);
     break;
   }
   case Q_F32:

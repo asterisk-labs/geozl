@@ -1,8 +1,7 @@
 #include "encode_quant_binding.h"
-#include "decode_quant_kernel.h"
-#include "encode_quant_kernel.h"
-#include "graph_quant.h" // QUANT_GRAPH, QUANT_PARAM_*
-#include "quant_spec.h"  // quant_verify
+#include "graph_quant.h" // QUANT_PARAM_*, QUANT_HEADER_SIZE
+#include "quant_dtype.h" // Q_U8, Q_F64
+#include "quant_spec.h"  // quant_fit
 
 #include "openzl/zl_data.h"
 #include "openzl/zl_errors.h"
@@ -13,7 +12,6 @@
 #include "common/endian.h"
 
 #include <assert.h>
-#include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,8 +42,7 @@ ZL_Report EI_geozl_quant(ZL_Encoder *eictx, const ZL_Input *in) {
 
   // the index keeps the original element width, so the dtype must name a type
   // of that width
-  static const size_t qw[] = {1, 2, 4, 8, 1, 2, 4, 8, 2, 4, 8};
-  if (dtype < Q_U8 || dtype > Q_F64 || qw[dtype] != eltWidth)
+  if (dtype < Q_U8 || dtype > Q_F64 || quant_width(dtype) != eltWidth)
     return ZL_returnError(ZL_ErrorCode_node_invalid_input);
 
   ZL_Output *out = ZL_Encoder_createTypedStream(eictx, 0, nbElts, eltWidth);
@@ -53,29 +50,19 @@ ZL_Report EI_geozl_quant(ZL_Encoder *eictx, const ZL_Input *in) {
 
   // Measure the round trip against the bound the recipe declared and tighten
   // until it holds, rather than trusting that the parameters were derived
-  // right. The error scales with the step on every curve, so dividing by the
-  // miss converges in a step or two, and where the floor is the representation
-  // rather than the grid it does not converge at all, which is the answer.
+  // right. p comes back carrying the step the frame was actually written with.
   void *chk = malloc(nbElts * eltWidth);
   ZL_ERR_IF_NULL(chk, allocation);
-  int held = 0;
-  double worst = 0.0;
-  for (int attempt = 0; attempt < 3; ++attempt) {
-    if (quant_encode(ZL_Output_ptr(out), ZL_Input_ptr(in), &p, dtype, nbElts) ||
-        quant_decode(chk, ZL_Output_ptr(out), &p, dtype, nbElts))
-      break;
-    if (!quant_verify(ZL_Input_ptr(in), chk, &sp, dtype, nbElts, &worst)) {
-      held = 1;
-      break;
-    }
-    if (!isfinite(worst) || !(worst > 1.0))
-      break;
-    p.step /= worst * 1.02;
-    if (!(p.step > 0.0))
-      break;
-  }
+  const int fit =
+      quant_fit(ZL_Output_ptr(out), chk, ZL_Input_ptr(in), &sp, &p, dtype,
+                nbElts);
   free(chk);
-  if (!held)
+  // A tile no grid can serve is a recipe the caller has to loosen. Kernels that
+  // reject parameters the resolver just produced is neither, and reporting the
+  // two the same way sends that one to the wrong person.
+  if (fit < 0)
+    ZL_ERR(GENERIC, "quant resolved parameters its own kernels reject");
+  if (fit != 0)
     ZL_ERR(GENERIC, "quant cannot hold its declared error on this tile");
 
   uint8_t header[QUANT_HEADER_SIZE];

@@ -7,10 +7,6 @@
 #include "geozl/ctids.h"    // GEOZL_CTID_QUANT
 #include "openzl/zl_data.h" // ZL_Type_*, ZL_STREAMTYPELIST
 
-#include "quant_curve.h" // quant_fwd, quant_inv
-#include "quant_dtype.h" // quant_dtype
-#include "quant_spec.h"  // quant_spec
-
 #define QUANT_CTID GEOZL_CTID_QUANT
 
 // Local params the graph builder sets on the encode node. Doubles cannot ride

@@ -283,9 +283,8 @@ static int resolve_prior(const char *method, geozl_predictor *out,
   return -1;
 }
 
-// One candidate, built alone, so nothing else is registered in the compressor.
-// quant is prepended for lossy. ILLEGAL here means the pair does not
-// apply at this element width, not that the name was wrong.
+// The sentinel a caller declared, as the bit pattern the mask codec compares
+// against, which is the element itself and not a value to convert at each use.
 static int nodata_bits(double v, int dtype, size_t eltWidth, uint64_t *out) {
   if (dtype == Q_F32 && eltWidth == 4) {
     const float f = (float)v;

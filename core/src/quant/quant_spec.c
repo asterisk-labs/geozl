@@ -1,5 +1,7 @@
 #include "quant_spec.h"
-#include "quant_half.h" // quant_half_to_float
+#include "decode_quant_kernel.h" // quant_decode
+#include "encode_quant_kernel.h" // quant_encode
+#include "quant_half.h"          // quant_half_to_float
 
 #include <errno.h>
 #include <math.h>
@@ -183,8 +185,12 @@ int quant_spec_resolve(const quant_spec *sp, int dtype, double minAbs,
 
     // Same rounding to absorb, but the tolerance grows with sqrt(x), so an
     // integer rounding bites hardest at the bottom and a float one at the top.
-    const double zero_is_exact = out->offset > 0.0 ? 0.0 : minAbs;
-    const double xlo = isfinite(zero_is_exact) ? zero_is_exact : 0.0;
+    // Bottom of the range the rounding has to come out of. A positive offset
+    // leaves the bound positive at zero, so zero is it. Without one the bound
+    // vanishes there and only an exact carry works, so it is the smallest
+    // magnitude the tile holds, which quant_scan reports finite whenever
+    // maxAbs is above zero.
+    const double xlo = out->offset > 0.0 ? 0.0 : minAbs;
     const double eps = quant_eps(dtype);
     const double rlo = dtype <= Q_LAST_INT ? 0.5 : eps * xlo;
     const double rhi = dtype <= Q_LAST_INT ? 0.5 : eps * maxAbs;
@@ -272,11 +278,7 @@ int quant_spec_resolve(const quant_spec *sp, int dtype, double minAbs,
       return fail(err, errSize,
                   "this bound needs %.0f levels, more than a %d-byte index "
                   "holds; loosen it or widen the samples",
-                  top,
-                  (dtype == Q_F64 || dtype == Q_U64 || dtype == Q_I64)   ? 8
-                  : (dtype == Q_F16 || dtype == Q_U16 || dtype == Q_I16) ? 2
-                  : (dtype == Q_U8 || dtype == Q_I8)                     ? 1
-                                                                         : 4);
+                  top, (int)quant_width(dtype));
   }
   return 0;
 }
@@ -332,8 +334,7 @@ int quant_verify(const void *src, const void *dec, const quant_spec *sp,
   if (dtype < Q_U8 || dtype > Q_F64)
     return 1;
   if (sp->mode == QUANT_SPEC_LOSSLESS) {
-    static const size_t bw[] = {1, 2, 4, 8, 1, 2, 4, 8, 2, 4, 8};
-    w = memcmp(src, dec, nbElts * bw[dtype]) == 0 ? 0.0 : INFINITY;
+    w = memcmp(src, dec, nbElts * quant_width(dtype)) == 0 ? 0.0 : INFINITY;
   } else {
     switch ((quant_dtype)dtype) {
     case Q_U8:
@@ -375,4 +376,27 @@ int quant_verify(const void *src, const void *dec, const quant_spec *sp,
   if (worst)
     *worst = w;
   return w > 1.0 ? 1 : 0;
+}
+
+int quant_fit(void *idx, void *chk, const void *src, const quant_spec *sp,
+              quant_params *p, int dtype, size_t nbElts) {
+  double worst = 0.0;
+  // The error scales with the step on every curve, so dividing by the miss
+  // converges in a step or two. It converges onto the bound and not under it,
+  // and a frame landing exactly there has nothing left for the rounding that
+  // follows, hence the extra 2%. Where the floor is the representation and not
+  // the grid it does not converge at all, and the frame is refused.
+  for (int attempt = 0; attempt < 3; ++attempt) {
+    if (quant_encode(idx, src, p, dtype, nbElts) ||
+        quant_decode(chk, idx, p, dtype, nbElts))
+      return -1;
+    if (!quant_verify(src, chk, sp, dtype, nbElts, &worst))
+      return 0;
+    if (!isfinite(worst) || !(worst > 1.0))
+      return 1;
+    p->step /= worst * 1.02;
+    if (!(p->step > 0.0))
+      return 1;
+  }
+  return 1;
 }

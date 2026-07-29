@@ -43,8 +43,9 @@ _desc = _ext.MultiInputCodecDescription(
 
 
 class _Encoder(_ext.CustomEncoder):
-    def __init__(self, params, dtype):
+    def __init__(self, spec, params, dtype):
         super().__init__()
+        self._sp = spec
         self._p = params
         self._dtype = dtype
 
@@ -59,11 +60,25 @@ class _Encoder(_ext.CustomEncoder):
             raise ValueError(
                 f"{_NAME}: dtype {self._dtype} does not match {elt}-byte samples")
         out = state.create_output(0, n, elt)
-        lib.quant_encode(_ptr(out.mut_content.as_nparray()),
-                         _ptr(inp.content.as_nparray()), self._p, self._dtype, n)
+        # quant_fit tightens the step until the round trip holds the declared
+        # bound, so the header takes its parameters from the copy it worked on
+        # and not from the resolved ones, which are reused for the next tile.
+        p = ffi.new("quant_params*")
+        p.curve, p.flags, p.step, p.offset, p.nsub = (
+            self._p.curve, self._p.flags, self._p.step, self._p.offset,
+            self._p.nsub)
+        chk = np.empty(n * elt, dtype=np.uint8)
+        fit = lib.quant_fit(_ptr(out.mut_content.as_nparray()), _ptr(chk),
+                            _ptr(inp.content.as_nparray()), self._sp, p,
+                            self._dtype, n)
+        if fit < 0:
+            raise ValueError(
+                f"{_NAME}: resolved parameters its own kernels reject")
+        if fit != 0:
+            raise ValueError(
+                f"{_NAME}: cannot hold its declared error on this tile")
         state.send_codec_header(_HEADER.pack(
-            self._dtype, self._p.curve, self._p.flags, self._p.step,
-            self._p.offset, self._p.nsub))
+            self._dtype, p.curve, p.flags, p.step, p.offset, p.nsub))
         out.commit(n)
 
 
@@ -95,8 +110,9 @@ class QuantDecoder(_ext.CustomDecoder):
         p.curve, p.flags, p.step, p.offset, p.nsub = (
             curve, flags, step, offset, nsub)
         out = state.create_output(0, n, elt)
-        lib.quant_decode(_ptr(out.mut_content.as_nparray()),
-                         _ptr(inp.content.as_nparray()), p, dtype, n)
+        if lib.quant_decode(_ptr(out.mut_content.as_nparray()),
+                            _ptr(inp.content.as_nparray()), p, dtype, n) != 0:
+            raise ValueError(f"{_NAME}: the kernel refused this codec header")
         out.commit(n)
 
 
@@ -133,11 +149,13 @@ class Quant:
         if lib.quant_spec_resolve(sp, code, lo[0], hi[0], neg[0], p, err,
                                   len(err)) != 0:
             raise ValueError(ffi.string(err).decode("utf-8", "replace"))
+        self._sp = sp
         self._p = p
         self._dtype = code
 
     def __call__(self, compressor, successor):
         if not isinstance(successor, _ext.GraphID):
             successor = successor.parameterize(compressor)
-        node = compressor.register_custom_encoder(_Encoder(self._p, self._dtype))
+        node = compressor.register_custom_encoder(
+            _Encoder(self._sp, self._p, self._dtype))
         return compressor.build_static_graph(node, [successor], name=_NAME)

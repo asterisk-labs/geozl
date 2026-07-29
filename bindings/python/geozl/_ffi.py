@@ -39,6 +39,7 @@ int quant_scan(const void* src, int dtype, size_t nb_elts, double* min_abs, doub
 typedef struct { unsigned char mode; unsigned char curve; double abs_err; double rel_err; double shot_a; double shot_b; double shot_k; } quant_spec;
 int quant_spec_parse(const char* s, quant_spec* out, char* err, size_t err_size);
 int quant_spec_resolve(const quant_spec* sp, int dtype, double min_abs, double max_abs, int any_negative, quant_params* out, char* err, size_t err_size);
+int quant_fit(void* idx, void* chk, const void* src, const quant_spec* sp, quant_params* p, int dtype, size_t nb_elts);
 
 int geozl_2d_compress_c(const char* method, uint32_t width, const char* error, int dtype, int nodata_mode, double nodata_value, const void* src, size_t num_elts, size_t elt_width, void* dst, size_t dst_capacity, size_t* out_size, char* err_ctx, size_t err_ctx_size);
 size_t geozl_2d_frame_dsize_c(const void* frame, size_t frame_size);

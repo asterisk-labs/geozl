@@ -40,8 +40,7 @@ ZL_Report DI_geozl_quant(ZL_Decoder *dictx, const ZL_Input *ins[]) {
 
   // dtype comes from the header, check it names a real type of the stream
   // width, the same check float_deconstruct makes
-  static const size_t qw[] = {1, 2, 4, 8, 1, 2, 4, 8, 2, 4, 8};
-  if (dtype < Q_U8 || dtype > Q_F64 || qw[dtype] != eltWidth)
+  if (dtype < Q_U8 || dtype > Q_F64 || quant_width(dtype) != eltWidth)
     return ZL_returnError(ZL_ErrorCode_corruption);
 
   // None of these come out of the encoder, only out of a damaged frame.

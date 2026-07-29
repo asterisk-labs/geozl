@@ -34,18 +34,20 @@
       <div class="col-text">
         <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> near-lossless <span class="sep">/</span> lossy</p>
         <h1 class="name">quant</h1>
-        <p class="subtitle">Uniform steps, <span class="u">bounded error</span>.</p>
-        <p class="desc">Near-lossless quantization on a uniform grid. It rounds every value to the nearest
-        multiple of a step, <b>q = round(x / scale)</b> with <b>scale = 2·error</b>, so each
-        reconstruction lands within <b>±error</b> of the original. What travels is the small integer
-        index q, which the stages downstream compress far better than the raw value. A near-lossless codec
-        sits <b>once at the head of the graph</b>, so the loss happens a single time and every stage after
-        it stays exact.</p>
+        <p class="subtitle">Uniform steps in a <span class="u">warped domain</span>.</p>
+        <p class="desc">A quantizer that respects a pointwise bound <b>b(x)</b> is a uniform quantizer in a
+        domain <b>w</b> with <b>w′ = 1/b</b>, so the curve is not a free choice, it follows from the way
+        the measurement error of the sensor grows with the value. <b>linear</b> holds a flat bound and fits
+        elevation or temperature, <b>sqrt</b> one that grows as √x and fits photon counting, <b>log</b> a
+        relative one and fits SAR backscatter or concentrations. The encoder does not argue the bound. It
+        decodes what it just wrote, measures every sample against what the recipe declared, and refuses the
+        frame instead of writing one that misses. A near-lossless codec sits <b>once at the head of the
+        graph</b>, so the loss happens a single time and every stage after it stays exact.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D780</dd>
-          <dt>header</dt><dd>dtype + scale &middot; 9 bytes</dd>
-          <dt>types</dt><dd>unsigned &middot; signed &middot; float &middot; 16/32/64-bit</dd>
-          <dt>error</dt><dd>|x &minus; x&#770;| &#8804; error</dd>
+          <dt>header</dt><dd>dtype + curve + flags + step + offset + nsub &middot; 27 bytes</dd>
+          <dt>types</dt><dd>integers 8 to 64-bit &middot; floats 16 to 64-bit</dd>
+          <dt>error</dt><dd>abs:V &middot; rel:P% &middot; shot:a=A,b=B,k=K</dd>
         </dl>
 
         <div class="actions">
@@ -54,13 +56,13 @@
             <span>Code</span>
             <svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
           </a>
-          <span class="usage mono">geozl.lossy.Quant(error, dtype)</span>
+          <span class="usage mono">geozl.lossy.Quant(error, tile)</span>
         </div>
       </div>
 
       <div class="panel">
         <object class="diagram" type="image/svg+xml" data="../assets/svg/codecs/quant.svg"
-                aria-label="quant snaps a continuous value to the nearest quantization step, staying within plus or minus error, and stores the small integer index"></object>
+                aria-label="quant snaps a value to the nearest level of a grid that is uniform in a warped domain, so the error it holds follows the curve of the sensor instead of staying flat"></object>
       </div>
     </main>
 

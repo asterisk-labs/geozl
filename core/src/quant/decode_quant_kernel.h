@@ -1,7 +1,7 @@
 #ifndef GEOZL_CODECS_DECODE_QUANT_KERNEL_H
 #define GEOZL_CODECS_DECODE_QUANT_KERNEL_H
 
-#include "quant_curve.h" // quant_fwd, quant_inv
+#include "quant_curve.h" // quant_inv, quant_params
 #include "quant_dtype.h" // quant_dtype
 
 #include <stddef.h>

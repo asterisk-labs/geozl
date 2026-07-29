@@ -58,8 +58,6 @@ static inline double quant_eps(int dtype) {
 // bound held is exp(step/2) - 1 and a bound of b needs step = 2*log1p(b).
 static inline double quant_log_step(double b_rel) { return 2.0 * log1p(b_rel); }
 
-static inline double quant_log_brel(double step) { return expm1(0.5 * step); }
-
 // x -> index. Returns a double, the kernels clamp and store at the index width.
 static inline double quant_fwd(double x, const quant_params *p) {
   if (p->step == 0.0)

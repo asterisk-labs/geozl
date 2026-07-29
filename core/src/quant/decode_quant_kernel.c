@@ -47,12 +47,17 @@
 // Above this the table leaves L1 and stops being worth the pass that builds it.
 #define Q_LUT_MAX 8192
 
-#define Q_DEC_WARP(WT, IT, RT)                                                 \
+// The table is keyed on the index read back as an int64, so a u64 index past
+// INT64_MAX would key on a different number than the direct path feeds
+// quant_inv, and the two would disagree on a forged stream. That width keeps
+// the direct path, the same call q_int_range makes on the encode side.
+
+#define Q_DEC_WARP(WT, IT, RT, LUT_OK)                                         \
   do {                                                                         \
     const IT *s = (const IT *)src;                                             \
     WT *d = (WT *)dst;                                                         \
     int64_t lo = 0, hi = 0;                                                    \
-    if (nbElts != 0) {                                                         \
+    if ((LUT_OK) && nbElts != 0) {                                             \
       lo = hi = (int64_t)s[0];                                                 \
       for (size_t i = 1; i < nbElts; ++i) {                                    \
         const int64_t v = (int64_t)s[i];                                       \
@@ -67,7 +72,7 @@
        instead, and a span that wrapped to zero fails the test below rather    \
        than sizing a table the loop then reads past. */                        \
     const uint64_t span = (uint64_t)hi - (uint64_t)lo + 1u;                    \
-    if (nbElts != 0 && span != 0 && span <= Q_LUT_MAX)                         \
+    if ((LUT_OK) && nbElts != 0 && span != 0 && span <= Q_LUT_MAX)             \
       lut = (WT *)malloc((size_t)span * sizeof(WT));                           \
     if (lut != NULL) {                                                         \
       for (uint64_t k = 0; k < span; ++k)                                      \
@@ -95,8 +100,7 @@ int quant_decode(void *dst, const void *src, const quant_params *p, int dtype,
                    (p->curve == QUANT_CURVE_LINEAR && step == 1.0 &&
                     dtype <= Q_LAST_INT);
   if (copy) {
-    static const size_t w[] = {1, 2, 4, 8, 1, 2, 4, 8, 2, 4, 8};
-    memcpy(dst, src, nbElts * w[dtype]);
+    memcpy(dst, src, nbElts * quant_width(dtype));
     return 0;
   }
 
@@ -104,28 +108,28 @@ int quant_decode(void *dst, const void *src, const quant_params *p, int dtype,
     const double vlo = quant_value_lo(dtype), vhi = quant_value_hi(dtype);
     switch ((quant_dtype)dtype) {
     case Q_U8:
-      Q_DEC_WARP(uint8_t, uint8_t, QUANT_RT_INT);
+      Q_DEC_WARP(uint8_t, uint8_t, QUANT_RT_INT, 1);
       break;
     case Q_U16:
-      Q_DEC_WARP(uint16_t, uint16_t, QUANT_RT_INT);
+      Q_DEC_WARP(uint16_t, uint16_t, QUANT_RT_INT, 1);
       break;
     case Q_U32:
-      Q_DEC_WARP(uint32_t, uint32_t, QUANT_RT_INT);
+      Q_DEC_WARP(uint32_t, uint32_t, QUANT_RT_INT, 1);
       break;
     case Q_U64:
-      Q_DEC_WARP(uint64_t, uint64_t, QUANT_RT_INT);
+      Q_DEC_WARP(uint64_t, uint64_t, QUANT_RT_INT, 0);
       break;
     case Q_I8:
-      Q_DEC_WARP(int8_t, int8_t, QUANT_RT_INT);
+      Q_DEC_WARP(int8_t, int8_t, QUANT_RT_INT, 1);
       break;
     case Q_I16:
-      Q_DEC_WARP(int16_t, int16_t, QUANT_RT_INT);
+      Q_DEC_WARP(int16_t, int16_t, QUANT_RT_INT, 1);
       break;
     case Q_I32:
-      Q_DEC_WARP(int32_t, int32_t, QUANT_RT_INT);
+      Q_DEC_WARP(int32_t, int32_t, QUANT_RT_INT, 1);
       break;
     case Q_I64:
-      Q_DEC_WARP(int64_t, int64_t, QUANT_RT_INT);
+      Q_DEC_WARP(int64_t, int64_t, QUANT_RT_INT, 1);
       break;
     case Q_F16: {
       const int16_t *s = (const int16_t *)src;
@@ -136,10 +140,10 @@ int quant_decode(void *dst, const void *src, const quant_params *p, int dtype,
       break;
     }
     case Q_F32:
-      Q_DEC_WARP(float, int32_t, QUANT_RT_F32);
+      Q_DEC_WARP(float, int32_t, QUANT_RT_F32, 1);
       break;
     case Q_F64:
-      Q_DEC_WARP(double, int64_t, QUANT_RT_F64);
+      Q_DEC_WARP(double, int64_t, QUANT_RT_F64, 1);
       break;
     }
     return 0;
