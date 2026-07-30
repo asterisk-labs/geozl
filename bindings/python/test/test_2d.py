@@ -318,14 +318,46 @@ def test_relative_bound_holds_through_compress(pct, dtype):
     assert (np.abs(out.astype(np.float64) - x) <= (pct / 100.0) * x).all()
 
 
-def test_relative_bound_anchors_on_the_smallest_magnitude():
-    # the anchor is a grid level by construction, so the smallest value in the
-    # tile has to come back untouched. If it drifts, the scan and the resolver
-    # disagree about what the tile holds.
+def test_relative_bound_does_not_anchor_on_the_tile():
+    # The anchor comes from the type and the bound that was asked for, so adding
+    # one sample below everything else must not move it. Anchoring on the
+    # smallest magnitude present buys a shorter index, but every level of the log
+    # grid is a multiple of the anchor, so one outlying sample would then change
+    # the reconstruction of every other sample in the tile, and the same value
+    # would stop reconstructing the same way once the raster is cut differently.
     arr = _ftile()
-    out = _roundtrip(arr, method=GRAPH, error="rel:1%")
-    i = int(np.argmin(np.abs(arr)))
-    assert out.reshape(-1)[i] == arr.reshape(-1)[i]
+    low = arr.copy()
+    low.reshape(-1)[0] = np.float32(1e-20)  # far under the rest of the tile
+    a = _roundtrip(arr, method=GRAPH, error="rel:1%").reshape(-1)
+    b = _roundtrip(low, method=GRAPH, error="rel:1%").reshape(-1)
+    assert np.array_equal(a[1:], b[1:])
+
+
+def test_declared_range_pins_the_grid_and_rejects_a_tile_it_does_not_hold():
+    # A declared range describes the product, so it is what the grid is cut
+    # against, and a tile it does not contain was cut for the wrong bound.
+    arr = _ftile(lo=1.0, hi=1e3)
+    x = arr.reshape(-1).astype(np.float64)
+    y = _roundtrip(arr, method=GRAPH, error="rel:1%,min=0.5").reshape(-1)
+    assert np.all(np.abs(y.astype(np.float64) - x) <= 0.01 * np.abs(x))
+    with pytest.raises(Exception, match="declared min"):
+        geozl.compress(arr, method=GRAPH, error="rel:1%,min=100")
+    with pytest.raises(Exception, match="declared max"):
+        geozl.compress(arr, method=GRAPH, error="rel:1%,max=10")
+
+
+def test_a_non_negative_tile_decodes_to_nothing_negative():
+    # The sqrt grid is anchored at -offset rather than at zero, so without the
+    # floor a tile of non-negative data comes back holding small negatives, well
+    # inside the bound and still wrong for a reflectance or a backscatter. The
+    # bound alone does not catch it, since the bound at zero is wide enough to
+    # cover the crossing.
+    arr = _ftile(lo=1e-6, hi=1.0)
+    arr.reshape(-1)[:16] = 0.0
+    out = _roundtrip(arr, method=GRAPH,
+                     error="shot:a=1e-12,b=1e-6,k=0.5").reshape(-1)
+    assert out.min() >= 0.0
+    assert np.all(out[:16] == 0.0)  # and an exact zero comes back exact
 
 
 def test_relative_bound_gives_zero_back_exactly():

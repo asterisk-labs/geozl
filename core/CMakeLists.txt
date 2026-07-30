@@ -105,6 +105,7 @@ list(APPEND GEOZL_KERNELS src/wp_static/train_wp_static.c)
 # The error recipe parser is not a codec, but the kernels library carries it
 # so a Python caller can resolve a bound without OpenZL.
 list(APPEND GEOZL_KERNELS src/quant/quant_spec.c)
+list(APPEND GEOZL_KERNELS src/quant_linear/quant_linear_spec.c)
 # Python asks the kernels library which vector paths this build carries,
 # so the answer has to live where it can be read without OpenZL.
 list(APPEND GEOZL_KERNELS src/common/simd.c)

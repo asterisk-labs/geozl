@@ -48,7 +48,8 @@ ZL_Report DI_geozl_quant(ZL_Decoder *dictx, const ZL_Input *ins[]) {
     return ZL_returnError(ZL_ErrorCode_corruption);
   if (!isfinite(p.step) || !isfinite(p.offset) || p.step < 0.0)
     return ZL_returnError(ZL_ErrorCode_corruption);
-  if ((p.flags & ~(unsigned)QUANT_FLAG_STORE_VALUES) != 0)
+  if ((p.flags & ~(unsigned)(QUANT_FLAG_STORE_VALUES | QUANT_FLAG_NONNEGATIVE)) !=
+      0)
     return ZL_returnError(ZL_ErrorCode_corruption);
   if ((p.flags & QUANT_FLAG_STORE_VALUES) != 0 &&
       (p.curve != QUANT_CURVE_LINEAR || dtype > Q_LAST_INT))

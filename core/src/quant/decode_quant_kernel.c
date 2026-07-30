@@ -105,7 +105,7 @@ int quant_decode(void *dst, const void *src, const quant_params *p, int dtype,
   }
 
   if (p->curve != QUANT_CURVE_LINEAR) {
-    const double vlo = quant_value_lo(dtype), vhi = quant_value_hi(dtype);
+    const double vlo = quant_floor(p, dtype), vhi = quant_value_hi(dtype);
     switch ((quant_dtype)dtype) {
     case Q_U8:
       Q_DEC_WARP(uint8_t, uint8_t, QUANT_RT_INT, 1);
@@ -149,6 +149,10 @@ int quant_decode(void *dst, const void *src, const quant_params *p, int dtype,
     return 0;
   }
 
+  // The linear grid is anchored at zero and the float paths carry the index, so
+  // the only bound the reconstruction needs is the floor.
+  const double lo = quant_floor(p, dtype);
+
   switch ((quant_dtype)dtype) {
   case Q_U8:
     Q_DEC_U(uint8_t);
@@ -179,14 +183,14 @@ int quant_decode(void *dst, const void *src, const quant_params *p, int dtype,
     uint16_t *d = (uint16_t *)dst;
     for (size_t i = 0; i < nbElts; ++i)
       d[i] = quant_float_to_half((float)quant_clamp(
-          (double)s[i] * step, quant_value_lo(Q_F16), quant_value_hi(Q_F16)));
+          (double)s[i] * step, lo, quant_value_hi(Q_F16)));
     break;
   }
   case Q_F32:
-    Q_DEC_LIN_F(float, int32_t, quant_value_lo(Q_F32), quant_value_hi(Q_F32));
+    Q_DEC_LIN_F(float, int32_t, lo, quant_value_hi(Q_F32));
     break;
   case Q_F64:
-    Q_DEC_LIN_F(double, int64_t, quant_value_lo(Q_F64), quant_value_hi(Q_F64));
+    Q_DEC_LIN_F(double, int64_t, lo, quant_value_hi(Q_F64));
     break;
   }
   return 0;

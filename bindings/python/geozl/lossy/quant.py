@@ -95,11 +95,11 @@ class QuantDecoder(_ext.CustomDecoder):
             raise ValueError(f"{_NAME}: bad dtype in codec header")
         if curve > 2:
             raise ValueError(f"{_NAME}: bad curve in codec header")
-        if flags & ~1:
+        if flags & ~(_STORE_VALUES | _NONNEGATIVE):
             raise ValueError(f"{_NAME}: bad flags in codec header")
         if not (math.isfinite(step) and math.isfinite(offset)) or step < 0.0:
             raise ValueError(f"{_NAME}: bad step in codec header")
-        if flags & 1 and (curve != 0 or dtype > _LAST_INT_CODE):
+        if flags & _STORE_VALUES and (curve != 0 or dtype > _LAST_INT_CODE):
             raise ValueError(f"{_NAME}: a stored reconstruction needs the "
                              f"linear curve on an integer type")
         if curve == 2 and not offset > 0.0:
@@ -118,6 +118,13 @@ class QuantDecoder(_ext.CustomDecoder):
 
 # Codes 0..7 are the integer types, 8..10 the floats.
 _LAST_INT_CODE = 7
+
+# Bit 0, the stream already holds the reconstruction. Bit 1, the encoder scanned
+# the tile and found nothing negative, so the decoder floors at zero. These
+# mirror QUANT_FLAG_* in quant_params.h and the guards below mirror the ones in
+# decode_quant_binding.c, so a bit added on one side has to be added on both.
+_STORE_VALUES = 1
+_NONNEGATIVE = 2
 
 
 class Quant:

@@ -168,7 +168,14 @@ static void mode_roundtrip(const uint8_t *d, size_t n) {
   if (fit != 0)
     return; // refused rather than written, which is a valid answer
 
-  const double vlo = quant_value_lo(dtype), vhi = quant_value_hi(dtype);
+  // A tile with nothing negative in it has to come back with nothing negative,
+  // and the flag that says so has to match what the scan actually found. The
+  // bound alone does not catch a crossing of zero, since the bound at zero is
+  // wide enough to cover it.
+  if ((neg == 0) != ((p.flags & QUANT_FLAG_NONNEGATIVE) != 0))
+    abort();
+
+  const double vlo = quant_floor(&p, dtype), vhi = quant_value_hi(dtype);
   for (size_t i = 0; i < elts; ++i) {
     const double x = get(src, dtype, i), y = get(back, dtype, i);
     if (!isfinite(x))
@@ -184,6 +191,32 @@ static void mode_roundtrip(const uint8_t *d, size_t n) {
       continue; // exact is always inside any bound
     if (fabs(x - y) > declared(&sp, x))
       abort(); // quant_verify said this frame holds and it does not
+  }
+
+  // And the grid itself must not depend on which part of the raster this call
+  // happened to get. Comparing the resolved parameters says it directly, and it
+  // is the thing no per-sample check can see, since two frames that each hold
+  // the bound can still disagree with each other by twice it. The float paths of
+  // linear and sqrt are excluded on purpose: their step comes out of the largest
+  // magnitude present, because storing a float reconstruction rounds it by a
+  // relative eps and the worst case of that is at the top. A caller who needs
+  // them pinned declares the range, which the parse mode covers.
+  if (elts < 4)
+    return;
+  const int pinned = dtype <= Q_LAST_INT || sp.curve == QUANT_CURVE_LOG;
+  if (!pinned)
+    return;
+  const size_t half = elts / 2;
+  for (size_t off = 0; off + half <= elts; off += half) {
+    double l2, h2;
+    int n2;
+    quant_params ph;
+    quant_scan((const char *)src + off * w, dtype, half, &l2, &h2, &n2);
+    if (quant_spec_resolve(&sp, dtype, l2, h2, n2, &ph, err, sizeof(err)) != 0)
+      continue; // a half the recipe cannot serve says nothing about the grid
+    if (ph.step != p.step || ph.offset != p.offset || ph.nsub != p.nsub ||
+        ph.curve != p.curve)
+      abort(); // the grid moved because the tile did
   }
 }
 

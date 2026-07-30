@@ -12,6 +12,13 @@
 //   "rel:P%"              |x - x^| <= (P/100) * |x|
 //   "shot:a=A,b=B,k=K"    |x - x^| <= K * sqrt(A + B*x)
 //
+// Any of the three takes an optional ",min=V" or ",max=V", in either order, and
+// they describe the range of the whole product rather than of one tile. Without
+// them the grid is cut against the tile, which is shorter but means two tiles of
+// the same field do not share a grid. With them every tile resolves to the same
+// one. A declared range that does not contain the tile is an error, since the
+// grid was then cut for a bound the data does not meet.
+//
 // The percent sign in rel is required. "rel:1" would otherwise read as a bound
 // of one, a hundred percent, a likely typo for one percent that would not
 // fail.
@@ -19,9 +26,11 @@
 // Parse. Returns 0, or nonzero with the reason in err.
 int quant_spec_parse(const char *s, quant_spec *out, char *err, size_t errSize);
 
-// Finish the parameters against the tile. The log curve anchors its grid on the
-// smallest magnitude present, so they are only complete once the data has been
-// scanned. Returns 0, or nonzero with the reason in err.
+// Finish the parameters against the tile. The grid is cut against the largest
+// magnitude present unless the recipe declared a range, and @anyNegative decides
+// whether the reconstruction is floored at the type minimum or at zero, so the
+// parameters are only complete once the data has been scanned. Returns 0, or
+// nonzero with the reason in err.
 int quant_spec_resolve(const quant_spec *sp, int dtype, double minAbs,
                        double maxAbs, int anyNegative, quant_params *out,
                        char *err, size_t errSize);

@@ -83,6 +83,7 @@ CTEST_KERNELS := $(wildcard $(CORE)/src/*/encode_*_kernel.c) \
                  $(wildcard $(CORE)/src/*/decode_*_kernel.c) \
                  $(CORE)/src/wp_static/train_wp_static.c \
                  $(CORE)/src/quant/quant_spec.c \
+                 $(CORE)/src/quant_linear/quant_linear_spec.c \
                  $(CORE)/src/common/simd.c
 # include/ too: the quant kernels take their parameter block from
 # geozl/quant_params.h, which is public because geozl_node_quant is.

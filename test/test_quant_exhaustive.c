@@ -117,7 +117,14 @@ static int run(config *c, int threads, uint64_t total, uint64_t stride) {
     printf("  %-22s parse: %s\n", c->recipe, err);
     return 1;
   }
-  if (quant_spec_resolve(&c->sp, Q_F32, c->lo, c->hi, 0, &c->p, err,
+  // The walk covers every float32 bit pattern, negatives among them, so the
+  // scan result this passes has to say so or the resolver would floor the
+  // reconstruction at zero and every negative sample would read as a break of
+  // the bound. The sqrt curve is the exception: it is only defined on
+  // non-negative data, the resolver refuses a tile that holds any, and the loop
+  // below skips negatives for it, so it gets the honest zero.
+  const int anyNegative = c->sp.curve == QUANT_CURVE_SQRT ? 0 : 1;
+  if (quant_spec_resolve(&c->sp, Q_F32, c->lo, c->hi, anyNegative, &c->p, err,
                          sizeof(err)) != 0) {
     printf("  %-22s refused, %s\n", c->recipe, err);
     return 0; // a refusal is an answer, not a failure

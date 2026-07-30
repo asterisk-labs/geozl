@@ -23,6 +23,12 @@ typedef enum {
 // reconstruction is not the integer stream the codec emits.
 #define QUANT_FLAG_STORE_VALUES 1u
 
+// The encoder scanned the tile and found no negative sample, so no
+// reconstruction belongs below zero either. The decoder floors at zero instead
+// of at the type minimum. Measured, not assumed: a tile that does hold negative
+// samples never carries this and its negatives come back untouched.
+#define QUANT_FLAG_NONNEGATIVE 2u
+
 // step is the quantization step in the warped domain, and zero is an exact
 // passthrough. offset anchors the curve: the noise floor over the gain for
 // sqrt, the smallest magnitude the geometric grid serves for log. nsub is the
@@ -50,6 +56,10 @@ typedef struct {
   double abs_err;
   double rel_err;
   double shot_a, shot_b, shot_k;
+  // Range the caller declared for the whole product rather than the one this
+  // tile happens to hold, so every tile resolves to the same grid. NaN means
+  // undeclared and the tile's own range is used, which is the default.
+  double decl_min, decl_max;
 } quant_spec;
 
 #endif // GEOZL_QUANT_PARAMS_H

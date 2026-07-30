@@ -256,6 +256,17 @@ static inline double quant_value_hi(int dtype) {
   }
 }
 
+// Floor of the reconstruction. The type minimum, unless the encoder measured
+// that the tile held nothing negative, in which case zero. Clamping toward an
+// interval that contains x can only shorten |x - x^|, so the bound survives
+// either way and this only ever moves a reconstruction closer to its sample.
+static inline double quant_floor(const quant_params *p, int dtype) {
+  if ((p->flags & QUANT_FLAG_NONNEGATIVE) != 0)
+    return 0.0;
+  return quant_value_lo(dtype);
+}
+
+
 // How a reconstruction reaches the output width, on both sides, so the index
 // encode picks as nearest is the one that comes back. The rounding is spelled
 // out because a cast to an integer truncates.

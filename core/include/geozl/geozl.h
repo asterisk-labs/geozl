@@ -3,6 +3,7 @@
 
 #include "geozl/ctids.h"
 #include "geozl/export.h"
+#include "geozl/quant_linear_params.h"
 #include "geozl/quant_params.h"
 
 #include "openzl/zl_compressor.h"
@@ -39,6 +40,10 @@ GEOZL_API ZL_NodeID geozl_node_floatmult(ZL_Compressor *c, double base);
 // The curve parameters are already resolved against the tile, because the log
 // curve anchors its grid on the smallest magnitude present. Callers building a
 // graph by hand get them from quant_spec_parse and quant_spec_resolve.
+GEOZL_API ZL_NodeID geozl_node_quant_linear(ZL_Compressor *c,
+                                            const quant_linear_params *params,
+                                            int dtype);
+
 GEOZL_API ZL_NodeID geozl_node_quant(ZL_Compressor *c,
                                      const quant_params *params,
                                      const quant_spec *spec, int dtype);

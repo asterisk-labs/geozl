@@ -191,7 +191,7 @@ int quant_encode(void *dst, const void *src, const quant_params *p, int dtype,
   }
 
   if (p->curve != QUANT_CURVE_LINEAR) {
-    const double vlo = quant_value_lo(dtype), vhi = quant_value_hi(dtype);
+    const double vlo = quant_floor(p, dtype), vhi = quant_value_hi(dtype);
     const double ilo = quant_index_lo(dtype), ihi = quant_index_hi(dtype);
 
     // The table is per call, not cached, so two threads encoding at once do not

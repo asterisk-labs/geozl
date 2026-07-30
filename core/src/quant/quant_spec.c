@@ -57,9 +57,41 @@ static int keyed(const char **cur, const char *name, double *out) {
   return 0;
 }
 
+// The optional range suffix, in any order and both parts optional. Consumes
+// what it recognises and leaves cur on whatever follows.
+static int declared_range(const char **cur, quant_spec *out) {
+  while (**cur == ',') {
+    const char *s = *cur + 1;
+    double v;
+    if (strncmp(s, "min=", 4) == 0) {
+      const char *end = field_end(s + 4);
+      if (number(s + 4, end, &v) || v <= 0.0 || isfinite(out->decl_min))
+        return 1;
+      out->decl_min = v;
+      *cur = end;
+    } else if (strncmp(s, "max=", 4) == 0) {
+      const char *end = field_end(s + 4);
+      if (number(s + 4, end, &v) || v <= 0.0 || isfinite(out->decl_max))
+        return 1;
+      out->decl_max = v;
+      *cur = end;
+    } else {
+      return 1;
+    }
+  }
+  if (isfinite(out->decl_min) && isfinite(out->decl_max) &&
+      out->decl_min > out->decl_max)
+    return 1;
+  return **cur != '\0';
+}
+
 int quant_spec_parse(const char *s, quant_spec *out, char *err,
                      size_t errSize) {
   memset(out, 0, sizeof(*out));
+  // Zero is a range a caller could mean, so undeclared has to be something
+  // else. memset leaves these finite, which would read as declared.
+  out->decl_min = NAN;
+  out->decl_max = NAN;
   if (s == NULL || s[0] == '\0') {
     out->mode = QUANT_SPEC_LOSSLESS;
     return 0;
@@ -67,8 +99,11 @@ int quant_spec_parse(const char *s, quant_spec *out, char *err,
 
   if (strncmp(s, "abs:", 4) == 0) {
     const char *end = field_end(s + 4);
-    if (number(s + 4, end, &out->abs_err) || *end != '\0')
-      return fail(err, errSize, "error \"%s\": abs takes one number", s);
+    if (number(s + 4, end, &out->abs_err) || declared_range(&end, out))
+      return fail(err, errSize,
+                  "error \"%s\": abs takes one number and an optional "
+                  "min= or max=",
+                  s);
     if (out->abs_err <= 0.0)
       return fail(err, errSize, "error \"%s\": the bound must be positive", s);
     out->mode = QUANT_SPEC_EXPLICIT;
@@ -82,8 +117,11 @@ int quant_spec_parse(const char *s, quant_spec *out, char *err,
       return fail(err, errSize,
                   "error \"%s\": rel takes a percentage, e.g. \"rel:1%%\"", s);
     double pct;
-    if (number(s + 4, end - 1, &pct) || *end != '\0')
-      return fail(err, errSize, "error \"%s\": rel takes one number", s);
+    if (number(s + 4, end - 1, &pct) || declared_range(&end, out))
+      return fail(err, errSize,
+                  "error \"%s\": rel takes one number and an optional "
+                  "min= or max=",
+                  s);
     if (pct <= 0.0 || pct >= 100.0)
       return fail(err, errSize,
                   "error \"%s\": a relative bound is above 0%% and below 100%%",
@@ -97,9 +135,18 @@ int quant_spec_parse(const char *s, quant_spec *out, char *err,
   if (strncmp(s, "shot:", 5) == 0) {
     const char *cur = s + 5;
     if (keyed(&cur, "a", &out->shot_a) || keyed(&cur, "b", &out->shot_b) ||
-        keyed(&cur, "k", &out->shot_k) || *cur != '\0')
+        keyed(&cur, "k", &out->shot_k))
       return fail(err, errSize,
                   "error \"%s\": shot takes a=A,b=B,k=K in that order", s);
+    // keyed already stepped past the comma that followed k, so back up onto it
+    // for the suffix, which expects to find its own separator.
+    if (*cur != '\0')
+      --cur;
+    if (declared_range(&cur, out))
+      return fail(err, errSize,
+                  "error \"%s\": shot takes a=A,b=B,k=K and an optional "
+                  "min= or max=",
+                  s);
     if (out->shot_a < 0.0 || out->shot_b <= 0.0 || out->shot_k <= 0.0)
       return fail(err, errSize,
                   "error \"%s\": shot needs a >= 0, b > 0 and k > 0", s);
@@ -148,6 +195,33 @@ int quant_spec_resolve(const quant_spec *sp, int dtype, double minAbs,
   out->curve = QUANT_CURVE_LINEAR;
   if (sp->mode == QUANT_SPEC_LOSSLESS)
     return 0;
+
+  // A declared range describes the product, not this tile, so it is what the
+  // grid is cut against. It has to contain the tile or the bound it was cut for
+  // is not the bound the data needs.
+  double decl_min = 0.0;
+  if (isfinite(sp->decl_max)) {
+    if (isfinite(maxAbs) && maxAbs > sp->decl_max)
+      return fail(err, errSize,
+                  "the declared max of %g is below the largest magnitude in "
+                  "this tile, %g",
+                  sp->decl_max, maxAbs);
+    maxAbs = sp->decl_max;
+  }
+  if (isfinite(sp->decl_min) && sp->decl_min > 0.0) {
+    if (isfinite(minAbs) && minAbs < sp->decl_min)
+      return fail(err, errSize,
+                  "the declared min of %g is above the smallest magnitude in "
+                  "this tile, %g",
+                  sp->decl_min, minAbs);
+    decl_min = sp->decl_min;
+  }
+
+  // Nothing negative in the tile means nothing negative in the reconstruction.
+  // quant_scan measured it, so this is not an assumption about what the data
+  // means, and a tile that does hold negatives never gets the flag.
+  if (!anyNegative)
+    out->flags |= QUANT_FLAG_NONNEGATIVE;
 
   switch (sp->curve) {
   case QUANT_CURVE_LINEAR:
@@ -227,11 +301,17 @@ int quant_spec_resolve(const quant_spec *sp, int dtype, double minAbs,
       geo_start = ceil(8.0 / sp->rel_err);
       rel_round = 0.5 / geo_start;
     }
-    if (minAbs >= geo_start) {
+    // The anchor comes from the type and the bound that was asked for, never
+    // from the tile. Anchoring on the smallest magnitude present buys a shorter
+    // index, but every level is a multiple of the anchor, so one outlying
+    // sample moves the whole grid and the same value stops reconstructing the
+    // same way once the raster is cut differently. A caller who wants the
+    // shorter index declares the range and gets it without the drift.
+    if (decl_min > 0.0) {
       out->nsub = 0;
-      out->offset = minAbs;
+      out->offset = decl_min;
       if (dtype <= Q_LAST_INT)
-        rel_round = 0.5 / minAbs;
+        rel_round = 0.5 / decl_min;
     } else {
       out->nsub = (uint64_t)(geo_start / sub) - 1u;
       out->offset = geo_start;
