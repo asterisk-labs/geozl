@@ -95,8 +95,42 @@ Both are refusals, never a quiet fallback to the other path. Whether
 `STORE=VALUES` fits depends on the range, so falling back would put the grid's
 dependence on the tile straight back in.
 
-### Resolving
-The step is truncated, never rounded, wherever it is a whole unit. Rounding `2V` up
-would widen the grid past what was declared, since `0.94` asks for `1.88` and a step
-of 2 misses by 1. A step of one is lossless, which is the floor on an integer type
-and a refusal on a float one.
+### Picking a whole step
+
+With a step `s` the error is at most `s/2`, so the step a bound of `V` wants is
+`2V`. A grid of whole units rarely gets it and has to take the neighbour, and it
+has to take the one below.
+
+`MAX_ERROR=0.94` wants `1.88`, so the choice is 1 or 2:
+
+    step 2      in    0  1  2  3  4  5  6
+                out   0  2  2  4  4  6  6      worst 1.0, over the 0.94 declared
+
+    step 1      in    0  1  2  3  4  5  6
+                out   0  1  2  3  4  5  6      worst 0, under it
+
+Rounding up breaks the bound. Truncating only gives up ratio, so the step is
+`floor(2V)`, never `nearbyint(2V)`.
+
+| `MAX_ERROR` | `2V` | integer | float, `STORE=VALUES` |
+| --- | --- | --- | --- |
+| 0.4 | 0.8 | step 1, error 0 | refused |
+| 0.5 | 1 | step 1, error 0 | step 1, error <= 0.5 |
+| 0.94 | 1.88 | step 1, error 0 | step 1, error <= 0.5 |
+| 1 | 2 | step 2, error <= 1 | step 2, error <= 1 |
+| 12.75 | 25.5 | step 25, error <= 12.5 | step 25, error <= 12.5 |
+
+The two columns part at the bottom because a step of one means different things.
+On an integer the data is already on the grid, `q = round(x/1) = x`, so nothing is
+lost and any bound holds:
+
+    in    0  1  2  3  4  5  6
+    out   0  1  2  3  4  5  6
+
+On a float it is not, and a step of one costs up to 0.5:
+
+    in    0.0  0.3  0.7  1.2  1.5  2.4  2.9
+    out   0.0  0.0  1.0  1.0  2.0  2.0  3.0
+
+So one is a safe floor on an integer and a refusal on a float, where a
+`MAX_ERROR` under 0.5 has no whole step that holds it.

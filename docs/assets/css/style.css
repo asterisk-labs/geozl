@@ -585,7 +585,7 @@ body:not(.landing) .sheet{ min-height:min(820px,calc(100svh - clamp(32px,5.2vw,6
   display:flex; flex-direction:column;
   padding:clamp(30px,3.8vw,54px) clamp(28px,5vw,70px) clamp(22px,3vw,38px);
 }
-.cat-head{ flex:0 0 auto; margin-bottom:clamp(52px,6vw,84px); }
+.cat-head{ flex:0 0 auto; margin-bottom:clamp(30px,3.6vw,52px); }
 .cat h1{
   margin:0 0 13px; max-width:18ch;
   font-size:clamp(34px,4.6vw,60px); font-weight:600;
@@ -609,8 +609,22 @@ body:not(.landing) .sheet{ min-height:min(820px,calc(100svh - clamp(32px,5.2vw,6
   overflow-y:auto; scrollbar-width:thin; align-content:start;
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
-  grid-auto-rows:clamp(148px,20vh,180px);
+  grid-auto-rows:clamp(126px,15.5vh,152px);
   gap:clamp(14px,1.6vw,20px);
+}
+/* If a future codec pushes past the last row, fade the cut edge so it reads as
+   more below rather than a clipped layout. Purely additive, the grid is sized
+   to fit twelve without ever reaching this. */
+@supports (animation-timeline:scroll()){
+  .cards{
+    animation:cards-fade linear both;
+    animation-timeline:scroll(self block);
+    animation-range:contain;
+  }
+  @keyframes cards-fade{
+    from{ mask-image:linear-gradient(to bottom,#000 calc(100% - 26px),transparent); }
+    to{ mask-image:linear-gradient(to bottom,#000 100%,#000); }
+  }
 }
 .card{
   --fam:var(--purple); position:relative; display:flex; flex-direction:column; gap:8px;
@@ -821,22 +835,28 @@ h1.name{ margin:0 0 8px; font-size:clamp(38px,5.2vw,70px); font-weight:600; line
   .pg-n{ font-size:12px; }
 }
 
-/* Catalog: short desktop shrinks the hero so 8 cards keep their height */
+/* Catalog: short desktop shrinks the hero so three rows of cards keep their height */
 @media (min-width:901px) and (max-height:880px){
   .cat{ padding-top:clamp(22px,3vw,40px); padding-bottom:20px; }
-  .cat-head{ margin-bottom:36px; }
+  .cat-head{ margin-bottom:30px; }
   .cat h1{ font-size:clamp(30px,3.4vw,46px); line-height:.96; margin-bottom:9px; }
   .cat-lead{ font-size:15px; line-height:1.44; max-width:66ch; }
   .catalog{ gap:18px; }
+  .cards{ grid-auto-rows:clamp(120px,14vh,140px); }
   .card{ padding:13px 16px; }
   .card-name{ font-size:clamp(19px,2vw,24px); }
 }
 @media (min-width:901px) and (max-height:760px){
   .cat{ padding-top:26px; padding-bottom:18px; }
-  .cat-head{ margin-bottom:26px; }
+  .cat-head{ margin-bottom:22px; }
   .cat h1{ font-size:clamp(28px,3vw,40px); margin-bottom:7px; }
   .cat-lead{ line-height:1.4; }
-  .card{ padding:12px 15px; }
+  .catalog{ gap:14px; }
+  /* 112px is the content floor, card-top + name + a two-line description */
+  .cards{ grid-auto-rows:112px; gap:12px; }
+  .card{ padding:11px 14px; gap:6px; }
+  .card-name{ font-size:20px; }
+  .card-what{ font-size:11.5px; line-height:1.38; }
 }
 
 /* Catalog: tablet + phone */

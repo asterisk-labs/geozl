@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220" width="360" height="220" role="img" aria-label="nodata pulls the samples that were never measured out of the raster. The holes leave as a validity mask, the values that stay are filled from the west neighbour, and on decode the stored pattern is written back wherever the mask is zero">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+    svg{
+      --paper:#F1EDE4; --ink:#17161C; --ink-2:#625D53; --purple:#4A2BE8; --green:#A9FFA6; --orange:#FE6B37;
+      --tint-add:color-mix(in srgb,var(--purple) 15%,var(--paper));
+      --tint-sub:color-mix(in srgb,var(--orange) 18%,var(--paper));
+      --tint-keep:color-mix(in srgb,var(--green) 48%,var(--paper));
+      --ease:cubic-bezier(.22,.7,.2,1);
+      font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+
+    .lab{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; letter-spacing:.05em; }
+    .gut{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; }
+    .tile{ fill:var(--paper); stroke:var(--ink); stroke-width:1.4; }
+    /* after .tile so it wins, a presentation attribute would not */
+    .keep{ fill:var(--tint-keep); }
+    .tv{ fill:var(--ink); font:600 16px/1 "IBM Plex Mono",monospace; text-anchor:middle; }
+    .th{ fill:var(--orange); font:600 15px/1 "IBM Plex Mono",monospace; text-anchor:middle; }
+    .mv{ fill:var(--ink); font:600 12px/1 "IBM Plex Mono",monospace; text-anchor:middle; }
+    .dot{ fill:var(--paper); stroke:var(--ink); stroke-width:1.3; }
+    .cap{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; opacity:0; }
+
+    #nd-h1,#nd-h3,#nd-h4{ animation:s1subFill 10s var(--ease) infinite; }
+    #nd-holes{ animation:s1op 10s var(--ease) infinite; }
+    #nd-vals{ animation:s2op 10s var(--ease) infinite; }
+    #nd-f1,#nd-f3,#nd-f4{ animation:s2addFill 10s var(--ease) infinite; }
+    #nd-mask{ animation:s3op 10s var(--ease) infinite; }
+    #nd-band{ animation:s4op 10s var(--ease) infinite; }
+    #dot1{ animation:dot1 10s var(--ease) infinite; }
+    #dot2{ animation:dot2 10s var(--ease) infinite; }
+    #dot3{ animation:dot3 10s var(--ease) infinite; }
+    #dot4{ animation:dot4 10s var(--ease) infinite; }
+    #cap1{ animation:cap1 10s var(--ease) infinite; }
+    #cap2{ animation:cap2 10s var(--ease) infinite; }
+    #cap3{ animation:cap3 10s var(--ease) infinite; }
+    #cap4{ animation:cap4 10s var(--ease) infinite; }
+
+    /* reveal windows, enter at the beat start, hold to 92%, fade only at the very end */
+    @keyframes s1op{ 0%,2%{opacity:0} 7%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes s2op{ 0%,25%{opacity:0} 30%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes s3op{ 0%,48%{opacity:0} 53%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes s4op{ 0%,71%{opacity:0} 76%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes s1subFill{ 0%,2%{fill:var(--paper)} 7%,92%{fill:var(--tint-sub)} 97%,100%{fill:var(--paper)} }
+    @keyframes s2addFill{ 0%,25%{fill:var(--paper)} 30%,92%{fill:var(--tint-add)} 97%,100%{fill:var(--paper)} }
+
+    /* progress dots fill at each beat start, stay lit */
+    @keyframes dot1{ 0%,3%{fill:var(--paper)} 7%,92%{fill:var(--purple)} 97%,100%{fill:var(--paper)} }
+    @keyframes dot2{ 0%,26%{fill:var(--paper)} 30%,92%{fill:var(--purple)} 97%,100%{fill:var(--paper)} }
+    @keyframes dot3{ 0%,49%{fill:var(--paper)} 53%,92%{fill:var(--purple)} 97%,100%{fill:var(--paper)} }
+    @keyframes dot4{ 0%,72%{fill:var(--paper)} 76%,92%{fill:var(--purple)} 97%,100%{fill:var(--paper)} }
+
+    /* captions, one per beat, held for the whole beat, crisp change between beats */
+    @keyframes cap1{ 0%,3%{opacity:0} 7%,22%{opacity:1} 25%,100%{opacity:0} }
+    @keyframes cap2{ 0%,26%{opacity:0} 30%,45%{opacity:1} 48%,100%{opacity:0} }
+    @keyframes cap3{ 0%,49%{opacity:0} 53%,68%{opacity:1} 71%,100%{opacity:0} }
+    @keyframes cap4{ 0%,72%{opacity:0} 76%,92%{opacity:1} 97%,100%{opacity:0} }
+
+    @media (prefers-reduced-motion:reduce){
+      *{ animation:none !important; }
+      #nd-h1,#nd-h3,#nd-h4{ fill:var(--tint-sub); }
+      #nd-f1,#nd-f3,#nd-f4{ fill:var(--tint-add); }
+      #nd-holes,#nd-vals,#nd-mask,#nd-band{ opacity:1; }
+      #dot1,#dot2,#dot3,#dot4{ fill:var(--purple); }
+      #cap1,#cap2,#cap3{ opacity:0; } #cap4{ opacity:1; }
+    }
+  ]]></style>
+
+          <text x="20" y="18" class="lab">a hole is not a value, it leaves as a mask</text>
+
+          <!-- input row, three samples were never measured -->
+          <g id="nd-in">
+            <text class="gut" x="20" y="59">input</text>
+            <rect class="tile" x="88"  y="34" width="42" height="40"/>
+            <rect id="nd-h1" class="tile" x="130" y="34" width="42" height="40"/>
+            <rect class="tile" x="172" y="34" width="42" height="40"/>
+            <rect id="nd-h3" class="tile" x="214" y="34" width="42" height="40"/>
+            <rect id="nd-h4" class="tile" x="256" y="34" width="42" height="40"/>
+            <rect class="tile" x="298" y="34" width="42" height="40"/>
+            <text class="tv" x="109" y="60">20</text>
+            <text class="tv" x="193" y="60">22</text>
+            <text class="tv" x="319" y="60">25</text>
+            <g id="nd-holes">
+              <text class="th" x="151" y="60">NaN</text>
+              <text class="th" x="235" y="60">NaN</text>
+              <text class="th" x="277" y="60">NaN</text>
+            </g>
+          </g>
+
+          <!-- outcome 0, the raster the next codec sees -->
+          <g id="nd-vals">
+            <text class="gut" x="20" y="112">out 0</text>
+            <text class="gut" x="20" y="126">values</text>
+            <rect class="tile" x="88"  y="94" width="42" height="40"/>
+            <rect id="nd-f1" class="tile" x="130" y="94" width="42" height="40"/>
+            <rect class="tile" x="172" y="94" width="42" height="40"/>
+            <rect id="nd-f3" class="tile" x="214" y="94" width="42" height="40"/>
+            <rect id="nd-f4" class="tile" x="256" y="94" width="42" height="40"/>
+            <rect class="tile" x="298" y="94" width="42" height="40"/>
+            <text class="tv" x="109" y="120">20</text>
+            <text class="tv" x="151" y="120">20</text>
+            <text class="tv" x="193" y="120">22</text>
+            <text class="tv" x="235" y="120">22</text>
+            <text class="tv" x="277" y="120">22</text>
+            <text class="tv" x="319" y="120">25</text>
+          </g>
+
+          <!-- outcome 1, GDAL's convention, 0 discards and 255 keeps -->
+          <g id="nd-mask">
+            <text class="gut" x="20" y="163">out 1</text>
+            <text class="gut" x="20" y="177">mask</text>
+            <rect class="tile keep" x="88"  y="150" width="42" height="28"/>
+            <rect class="tile" x="130" y="150" width="42" height="28"/>
+            <rect class="tile keep" x="172" y="150" width="42" height="28"/>
+            <rect class="tile" x="214" y="150" width="42" height="28"/>
+            <rect class="tile" x="256" y="150" width="42" height="28"/>
+            <rect class="tile keep" x="298" y="150" width="42" height="28"/>
+            <text class="mv" x="109" y="169">255</text>
+            <text class="mv" x="151" y="169">0</text>
+            <text class="mv" x="193" y="169">255</text>
+            <text class="mv" x="235" y="169">0</text>
+            <text class="mv" x="277" y="169">0</text>
+            <text class="mv" x="319" y="169">255</text>
+          </g>
+
+          <!-- the columns the decoder rewrites, drawn over the cells so the tint reads through -->
+          <g id="nd-band" fill="var(--orange)" fill-opacity="0.16">
+            <rect x="130" y="34" width="42" height="144"/>
+            <rect x="214" y="34" width="84" height="144"/>
+          </g>
+
+          <!-- step indicator + per-step caption -->
+          <g id="nd-steps">
+            <rect id="dot1" class="dot" x="20" y="199" width="9" height="9"/>
+            <rect id="dot2" class="dot" x="33" y="199" width="9" height="9"/>
+            <rect id="dot3" class="dot" x="46" y="199" width="9" height="9"/>
+            <rect id="dot4" class="dot" x="59" y="199" width="9" height="9"/>
+            <text id="cap1" class="cap" x="80" y="207">samples that were never measured</text>
+            <text id="cap2" class="cap" x="80" y="207">each hole takes the last valid sample</text>
+            <text id="cap3" class="cap" x="80" y="207">0 discards, 255 keeps</text>
+            <text id="cap4" class="cap" x="80" y="207">decode writes the pattern back</text>
+          </g>
+        </svg>
