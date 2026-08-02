@@ -1,3 +1,5 @@
+import struct
+
 import numpy as np
 import pytest
 
@@ -216,3 +218,37 @@ def test_python_and_c_pack_the_same_header():
     assert _nd.nodata_bits(np.float32(-9999.0), np.float32) == 0xC61C3C00
     assert _nd._pattern_bytes(0xFFFFD8F1, 4) == b"\xf1\xd8\xff\xff"
     assert _nd._pattern_bytes(0x7FC0BEEF, 4) == b"\xef\xbe\xc0\x7f"
+
+
+def test_python_decoder_rejects_an_unknown_code():
+    """The wire code is the first thing the decoder trusts, so a frame carrying
+    one it does not know has to be refused rather than read behind."""
+    zl = pytest.importorskip("openzl.ext")
+    tile = _smooth(np.uint32)
+    tile[_holes()] = 0xDEADBEEF
+    node = geozl.lossless.Nodata(COLS, value=0xDEADBEEF, dtype=np.uint32)
+    c = zl.Compressor()
+    backend = zl.graphs.Compress()(c)
+    c.select_starting_graph(node(c, backend, backend))
+    cc = zl.CCtx()
+    cc.ref_compressor(c)
+    cc.set_parameter(zl.CParam.FormatVersion, zl.MAX_FORMAT_VERSION)
+    cc.set_parameter(zl.CParam.ContentChecksum, 2)   # ZL_TernaryParam_disable
+    cc.set_parameter(zl.CParam.CompressedChecksum, 2)
+    frame = bytearray(cc.compress([zl.Input(zl.Type.Numeric,
+                                            tile.reshape(-1))]))
+
+    # restore writes the code then the sentinel at the sample width, and that
+    # pattern is distinctive enough to find the header without guessing.
+    needle = bytes([1]) + struct.pack("<I", 0xDEADBEEF)
+    at = frame.find(needle)
+    assert at >= 0 and frame.find(needle, at + 1) < 0, \
+        "the codec header is no longer shaped the way this test looks for it"
+    frame[at] = 9
+
+    d = zl.DCtx()
+    d.set_parameter(zl.DParam.CheckCompressedChecksum, 2)
+    d.set_parameter(zl.DParam.CheckContentChecksum, 2)
+    geozl.register_decoders(d)
+    with pytest.raises(Exception, match="bad codec header"):
+        d.decompress(bytes(frame))

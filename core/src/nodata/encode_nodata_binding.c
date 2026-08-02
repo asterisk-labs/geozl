@@ -35,8 +35,7 @@ ZL_Report EI_geozl_nodata(ZL_Encoder *eictx, const ZL_Input *in) {
                              : (uint32_t)nbElts;
 
   // Output 0 keeps the sample width, output 1 is one byte of mask per sample.
-  // Both are sized for the whole tile and committed short when the code below
-  // drops one of them.
+  // How many elements each one commits is not known until the tile is marked.
   ZL_Output *vals = ZL_Encoder_createTypedStream(eictx, 0, nbElts, eltWidth);
   ZL_Output *mask = ZL_Encoder_createTypedStream(eictx, 1, nbElts, 1);
   ZL_ERR_IF_NULL(vals, allocation);
@@ -47,9 +46,8 @@ ZL_Report EI_geozl_nodata(ZL_Encoder *eictx, const ZL_Input *in) {
   if (nbElts != 0) {
     uint8_t *mp8 = (uint8_t *)ZL_Output_ptr(mask);
     if (mode == GEOZL_NODATA_MODE_NAN) {
-      // The pattern is what gets restored, the marking is the NaN test itself,
-      // so a second payload is a hole too. A tile with no NaN leaves the
-      // pattern at 0, the mask all valid, and the codec a pass through.
+      // The marking is the NaN test itself, so a second payload is a hole
+      // too, and the pattern is the first one found.
       nodata_find_nan(&pattern, ZL_Input_ptr(in), nbElts, eltWidth);
       holes = nodata_mark_nan(mp8, ZL_Input_ptr(in), nbElts, eltWidth);
     } else if (mode == GEOZL_NODATA_MODE_VALUE) {
@@ -65,7 +63,7 @@ ZL_Report EI_geozl_nodata(ZL_Encoder *eictx, const ZL_Input *in) {
     }
   }
 
-  // header, little endian: uint8 code, then whatever that code needs
+  // header, little endian, uint8 code then whatever that code needs
   uint8_t header[1 + 8 + 8];
   size_t headerSize;
   size_t nbVals = nbElts, nbMask = nbElts;

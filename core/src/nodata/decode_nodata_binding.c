@@ -28,7 +28,7 @@ ZL_Report DI_geozl_nodata(ZL_Decoder *dictx, const ZL_Input *ins[]) {
   if (ZL_Input_eltWidth(mask) != 1)
     return ZL_returnError(ZL_ErrorCode_corruption);
 
-  // header, little endian: uint8 code, then whatever that code needs. The
+  // header, little endian, uint8 code then whatever that code needs. The
   // stream sizes are what checks the code is telling the truth.
   ZL_RBuffer header = ZL_Decoder_getCodecHeader(dictx);
   if (header.size == 0)

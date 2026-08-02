@@ -21,7 +21,13 @@ _desc = _ext.MultiInputCodecDescription(
     singleton_output_types=[_ext.Type.Numeric, _ext.Type.Numeric],
 )
 
-INVALID, VALID = 0, 255
+
+def _bad_header(header, vals, mask):
+    """Every check in the decoder means the same thing, that the code and the
+    two stream sizes do not agree, so the values are the message."""
+    return ValueError(
+        f"{_NAME}: bad codec header, code {header[0] if header else None}, "
+        f"{len(header)} bytes, {vals.num_elts} values, {mask.num_elts} mask")
 
 
 def _pattern_bytes(pattern, elt):
@@ -97,12 +103,12 @@ class NodataDecoder(_ext.CustomDecoder):
         elt = vals.elt_width
         header = state.codec_header
         if not header:
-            raise ValueError(f"{_NAME}: bad codec header")
+            raise _bad_header(header, vals, mask)
         code = header[0]
 
         if code == _ALL_VALID:
             if len(header) != 1 or mask.num_elts != 0:
-                raise ValueError(f"{_NAME}: bad codec header")
+                raise _bad_header(header, vals, mask)
             n = vals.num_elts
             out = state.create_output(0, n, elt)
             if n:
@@ -110,7 +116,7 @@ class NodataDecoder(_ext.CustomDecoder):
         elif code == _RESTORE:
             n = vals.num_elts
             if len(header) != 1 + elt or mask.num_elts != n or n == 0:
-                raise ValueError(f"{_NAME}: bad codec header")
+                raise _bad_header(header, vals, mask)
             pattern = int.from_bytes(header[1:], "little")
             out = state.create_output(0, n, elt)
             lib.nodata_restore(_ptr(out.mut_content.as_nparray()),
@@ -119,16 +125,16 @@ class NodataDecoder(_ext.CustomDecoder):
         elif code == _ALL_HOLE:
             if (len(header) != 1 + elt + 8 or vals.num_elts != 0
                     or mask.num_elts != 0):
-                raise ValueError(f"{_NAME}: bad codec header")
+                raise _bad_header(header, vals, mask)
             pattern = int.from_bytes(header[1:1 + elt], "little")
             n = struct.unpack("<Q", header[1 + elt:])[0]
             if n == 0:
-                raise ValueError(f"{_NAME}: bad codec header")
+                raise _bad_header(header, vals, mask)
             out = state.create_output(0, n, elt)
             lib.nodata_broadcast(_ptr(out.mut_content.as_nparray()), n, elt,
                                  pattern)
         else:
-            raise ValueError(f"{_NAME}: bad codec header")
+            raise _bad_header(header, vals, mask)
         out.commit(n)
 
 

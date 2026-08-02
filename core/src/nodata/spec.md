@@ -38,14 +38,16 @@ Code 2, nothing was missing, so the output is `values` unchanged. Code 3,
 nothing was measured, so the output is the stored pattern repeated `nbElts`
 times.
 
-The transform is bit exact. The pattern is stored as bits rather than as a
-number, so a NaN comes back with the payload it went in with, and a sentinel
-such as -9999 comes back unchanged. The fill under the mask is discarded, so
-what the encoder chose to write there never reaches a reader.
+The pattern is stored as bits rather than as a number, so a NaN comes back with
+the payload it went in with, and a sentinel such as -9999 comes back unchanged.
+The fill under the mask is discarded, so what the encoder chose to write there
+never reaches a reader.
 
-One pattern is stored, so a tile carrying more than one NaN payload comes back
-with the first of them throughout. Every NaN is a hole either way, which is what
-lets a near lossless codec downstream assume it never sees one.
+The transform is bit exact on every tile that carries at most one NaN payload,
+which is the only case the encoder can restore. Only one pattern is stored, so a
+tile carrying a second payload comes back with the first one in its place. Every
+NaN is marked either way, which is what lets a near lossless codec downstream
+assume it never sees one.
 
 The encoder marks a sentinel by comparing bit patterns, while GDAL compares
 numerically. The two agree everywhere except on `-0.0`, which GDAL counts as

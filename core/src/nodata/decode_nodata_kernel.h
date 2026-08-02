@@ -1,8 +1,5 @@
-// Puts the missing samples back.
-//
-// The encoder replaced them with a fill, so the values stream carries a plain
-// raster and the mask says which samples were never measured. Restoring is a
-// straight write of the stored bit pattern wherever the mask says invalid.
+// Puts the missing samples back, by writing the stored bit pattern wherever the
+// mask says the sample was never measured.
 
 #ifndef GEOZL_CODECS_NODATA_DECODE_KERNEL_H
 #define GEOZL_CODECS_NODATA_DECODE_KERNEL_H

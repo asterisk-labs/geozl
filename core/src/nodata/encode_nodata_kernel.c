@@ -94,9 +94,8 @@ size_t nodata_mark_value(uint8_t *mask, const void *src, size_t nb_elts,
   }
 }
 
-// A hole takes the last valid sample of its row. A hole that opens a row takes
-// the sample above, already filled because rows run top to bottom, so a whole
-// leading row of holes still comes out flat rather than stepping off zero.
+// A hole takes the last valid sample of its row, or the sample above when it
+// opens the row, which is already filled because rows run top to bottom.
 #define NODATA_FILL(T)                                                         \
   do {                                                                         \
     T *d = (T *)dst;                                                           \
