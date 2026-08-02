@@ -31,6 +31,7 @@ size_t nodata_mark_nan(uint8_t* mask, const void* src, size_t nb_elts, size_t el
 size_t nodata_mark_value(uint8_t* mask, const void* src, size_t nb_elts, size_t elt_width, uint64_t pattern);
 void nodata_fill(void* dst, const void* src, const uint8_t* mask, size_t width, size_t nb_elts, size_t elt_width);
 void nodata_restore(void* dst, const void* values, const uint8_t* mask, size_t nb_elts, size_t elt_width, uint64_t pattern);
+void nodata_broadcast(void* dst, size_t nb_elts, size_t elt_width, uint64_t pattern);
 
 typedef struct { uint8_t curve; uint8_t flags; double step; double offset; uint64_t nsub; } quant_params;
 int quant_encode(void* dst, const void* src, const quant_params* p, int dtype, size_t nb_elts);

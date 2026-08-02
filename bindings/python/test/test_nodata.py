@@ -65,6 +65,29 @@ def test_a_second_nan_payload_is_a_hole_too():
     assert not np.isnan(out[0, 0])
 
 
+def test_tile_with_no_holes_sends_no_mask():
+    """The all valid code drops the mask stream, so declaring a sentinel that
+    the tile does not contain has to cost about nothing."""
+    tile = _smooth(np.uint16)
+    absent = len(geozl.compress(tile, method=GRAPH, nodata=40000))
+    plain = len(geozl.compress(tile, method=GRAPH))
+    assert absent <= plain + 16
+
+
+def test_tile_that_is_all_holes_sends_neither_stream():
+    tile = np.full((ROWS, COLS), -9999, dtype=np.int32)
+    frame, out = _roundtrip(tile, method=GRAPH_WIDE, nodata=-9999)
+    assert np.array_equal(out, tile)
+    # Both streams gone, so what is left is frame scaffolding and a header.
+    assert len(frame) < 200
+
+
+def test_all_nan_tile_round_trips():
+    tile = np.full((ROWS, COLS), ODD_NAN, dtype=np.float32)
+    _, out = _roundtrip(tile, method=GRAPH_WIDE)
+    assert np.array_equal(out.view(np.uint32), tile.view(np.uint32))
+
+
 def test_sentinel_round_trips():
     tile = _smooth(np.int32)
     tile[_holes()] = -9999
@@ -170,6 +193,19 @@ def test_low_level_sentinel_round_trips():
 def test_low_level_sentinel_needs_a_dtype():
     with pytest.raises(ValueError, match="dtype"):
         geozl.lossless.Nodata(COLS, value=-9999)
+
+
+def test_low_level_all_valid_and_all_hole():
+    """Both no mask shapes through the node placed by hand, since the high
+    level path never builds the graph when there is nothing to mask."""
+    node = geozl.lossless.Nodata(COLS, value=-9999, dtype=np.int32)
+    clean = _smooth(np.int32)
+    out = _low_level_roundtrip(node, clean)
+    assert np.array_equal(out, clean.reshape(-1))
+
+    empty = np.full((ROWS, COLS), -9999, dtype=np.int32)
+    out = _low_level_roundtrip(node, empty)
+    assert np.array_equal(out, empty.reshape(-1))
 
 
 def test_python_and_c_pack_the_same_header():

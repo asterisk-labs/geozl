@@ -8,9 +8,11 @@ from .._ffi import _ptr, ffi, lib
 _CTID = 0x72D70C
 _NAME = "geozl.lossless.nodata"
 
-# uint8 code, then the bit pattern at the sample width. The C binding writes the
-# same bytes, see the codec spec.
+# uint8 code, then whatever that code needs. The C binding writes the same
+# bytes, see the codec spec.
 _RESTORE = 1
+_ALL_VALID = 2
+_ALL_HOLE = 3
 
 _desc = _ext.MultiInputCodecDescription(
     id=_CTID,
@@ -47,7 +49,7 @@ class _Encoder(_ext.CustomEncoder):
         n, elt = inp.num_elts, inp.elt_width
         vals = state.create_output(0, n, elt)
         mask = state.create_output(1, n, 1)
-        pattern = self._pattern or 0
+        pattern, holes = 0, 0
         if n:
             src = _ptr(inp.content.as_nparray())
             mp = _ptr(mask.mut_content.as_nparray())
@@ -57,14 +59,32 @@ class _Encoder(_ext.CustomEncoder):
                 found = ffi.new("uint64_t*")
                 if lib.nodata_find_nan(found, src, n, elt):
                     pattern = int(found[0])
-                lib.nodata_mark_nan(mp, src, n, elt)
+                holes = lib.nodata_mark_nan(mp, src, n, elt)
             else:
-                lib.nodata_mark_value(mp, src, n, elt, pattern)
-            lib.nodata_fill(_ptr(vals.mut_content.as_nparray()), src, mp,
+                pattern = self._pattern
+                holes = lib.nodata_mark_value(mp, src, n, elt, pattern)
+
+        if holes == 0:
+            state.send_codec_header(bytes([_ALL_VALID]))
+            if n:
+                vals.mut_content.as_nparray()[:] = inp.content.as_nparray()
+            vals.commit(n)
+            mask.commit(0)
+        elif holes == n:
+            state.send_codec_header(bytes([_ALL_HOLE])
+                                    + _pattern_bytes(pattern, elt)
+                                    + struct.pack("<Q", n))
+            vals.commit(0)
+            mask.commit(0)
+        else:
+            state.send_codec_header(bytes([_RESTORE])
+                                    + _pattern_bytes(pattern, elt))
+            lib.nodata_fill(_ptr(vals.mut_content.as_nparray()),
+                            _ptr(inp.content.as_nparray()),
+                            _ptr(mask.mut_content.as_nparray()),
                             self._width, n, elt)
-        state.send_codec_header(bytes([_RESTORE]) + _pattern_bytes(pattern, elt))
-        vals.commit(n)
-        mask.commit(n)
+            vals.commit(n)
+            mask.commit(n)
 
 
 class NodataDecoder(_ext.CustomDecoder):
@@ -74,22 +94,49 @@ class NodataDecoder(_ext.CustomDecoder):
     def decode(self, state):
         vals = state.singleton_inputs[0]
         mask = state.singleton_inputs[1]
-        n, elt = vals.num_elts, vals.elt_width
+        elt = vals.elt_width
         header = state.codec_header
-        if len(header) != 1 + elt or header[0] != _RESTORE:
+        if not header:
             raise ValueError(f"{_NAME}: bad codec header")
-        pattern = int.from_bytes(header[1:], "little")
-        out = state.create_output(0, n, elt)
-        lib.nodata_restore(_ptr(out.mut_content.as_nparray()),
-                           _ptr(vals.content.as_nparray()),
-                           _ptr(mask.content.as_nparray()), n, elt, pattern)
+        code = header[0]
+
+        if code == _ALL_VALID:
+            if len(header) != 1 or mask.num_elts != 0:
+                raise ValueError(f"{_NAME}: bad codec header")
+            n = vals.num_elts
+            out = state.create_output(0, n, elt)
+            if n:
+                out.mut_content.as_nparray()[:] = vals.content.as_nparray()
+        elif code == _RESTORE:
+            n = vals.num_elts
+            if len(header) != 1 + elt or mask.num_elts != n or n == 0:
+                raise ValueError(f"{_NAME}: bad codec header")
+            pattern = int.from_bytes(header[1:], "little")
+            out = state.create_output(0, n, elt)
+            lib.nodata_restore(_ptr(out.mut_content.as_nparray()),
+                               _ptr(vals.content.as_nparray()),
+                               _ptr(mask.content.as_nparray()), n, elt, pattern)
+        elif code == _ALL_HOLE:
+            if (len(header) != 1 + elt + 8 or vals.num_elts != 0
+                    or mask.num_elts != 0):
+                raise ValueError(f"{_NAME}: bad codec header")
+            pattern = int.from_bytes(header[1:1 + elt], "little")
+            n = struct.unpack("<Q", header[1 + elt:])[0]
+            if n == 0:
+                raise ValueError(f"{_NAME}: bad codec header")
+            out = state.create_output(0, n, elt)
+            lib.nodata_broadcast(_ptr(out.mut_content.as_nparray()), n, elt,
+                                 pattern)
+        else:
+            raise ValueError(f"{_NAME}: bad codec header")
         out.commit(n)
 
 
 class Nodata:
     """Pulls the samples that were never measured out into a validity mask and
     fills the holes, so whatever runs next sees a raster with no cliff at the
-    edge of a hole.
+    edge of a hole. A tile with nothing missing sends no mask at all, and one
+    where nothing was measured sends neither stream.
     """
 
     def __init__(self, width, value=None, dtype=None):

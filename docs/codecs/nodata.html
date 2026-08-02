@@ -40,12 +40,13 @@
         takes them out first. Outcome 0 is the raster with each hole filled by the <b>last valid sample on
         its row</b>, so what runs next sees a flat run instead of a jump. Outcome 1 is a <b>validity
         mask</b>, one byte per sample, following GDAL where 0 discards and 255 keeps. The original bit
-        pattern rides in the header and comes back on decode, exact down to the NaN payload. The node sits
-        <b>at the head of the graph</b>, quant included, because a quantizer has no sane answer for a sample
-        that was never measured.</p>
+        pattern rides in the header and comes back on decode, exact down to the NaN payload. A tile with
+        <b>nothing missing sends no mask at all</b>, and one where nothing was measured sends neither
+        stream. The node sits <b>at the head of the graph</b>, quant included, because a quantizer has no
+        sane answer for a sample that was never measured.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D70C</dd>
-          <dt>header</dt><dd>uint8 code + the pattern at the sample width</dd>
+          <dt>header</dt><dd>uint8 code + the pattern at the sample width, + the count when both streams are dropped</dd>
           <dt>modes</dt><dd>every NaN &middot; one declared sentinel</dd>
           <dt>widths</dt><dd>8 &middot; 16 &middot; 32 &middot; 64-bit samples</dd>
           <dt>decode</dt><dd>branchless select, values where the mask keeps, pattern where it discards</dd>
