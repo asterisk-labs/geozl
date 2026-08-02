@@ -13,11 +13,15 @@
 #include "planar/encode_planar_binding.h"
 #include "quant/encode_quant_binding.h"
 #include "quant_linear/encode_quant_linear_binding.h"
+#include "quant_log/encode_quant_log_binding.h"
+#include "quant_sqrt/encode_quant_sqrt_binding.h"
 #include "wp_static/encode_wp_static_binding.h"
 
 #include "common/endian.h"                   // geozl_st_le64
 #include "common/graph_num1to1.h"            // GEOZL_PARAM_WIDTH
-#include "quant/graph_quant.h" // QUANT_PARAM_*
+#include "quant/graph_quant.h"           // QUANT_PARAM_*
+#include "quant_log/graph_quant_log.h"   // QUANT_LOG_PARAM_*
+#include "quant_sqrt/graph_quant_sqrt.h" // QUANT_SQRT_PARAM_*
 
 #include "openzl/zl_compressor.h"
 #include "openzl/zl_ctransform.h"
@@ -147,6 +151,46 @@ ZL_NodeID geozl_node_quant_linear(ZL_Compressor *c,
   const ZL_IntParam ip = {.paramId = QUANT_LINEAR_PARAM_DTYPE,
                           .paramValue = dtype};
   const ZL_CopyParam cp = {.paramId = QUANT_LINEAR_PARAM_PARAMS,
+                           .paramPtr = params,
+                           .paramSize = sizeof(*params)};
+  ZL_LocalParams lp = {
+      .intParams = {.intParams = &ip, .nbIntParams = 1},
+      .copyParams = {.copyParams = &cp, .nbCopyParams = 1},
+  };
+  ZL_NodeParameters np = {.localParams = &lp};
+  ZL_RESULT_OF(ZL_NodeID) r = ZL_Compressor_parameterizeNode(c, base, &np);
+  return ZL_RES_isError(r) ? ZL_NODE_ILLEGAL : ZL_RES_value(r);
+}
+
+ZL_NodeID geozl_node_quant_log(ZL_Compressor *c, const quant_log_params *params,
+                               int dtype) {
+  const ZL_TypedEncoderDesc desc = EI_QUANT_LOG(GEOZL_CTID_QUANT_LOG);
+  ZL_NodeID base = ZL_Compressor_registerTypedEncoder(c, &desc);
+  if (!ZL_NodeID_isValid(base))
+    return base;
+  const ZL_IntParam ip = {.paramId = QUANT_LOG_PARAM_DTYPE,
+                          .paramValue = dtype};
+  const ZL_CopyParam cp = {.paramId = QUANT_LOG_PARAM_PARAMS,
+                           .paramPtr = params,
+                           .paramSize = sizeof(*params)};
+  ZL_LocalParams lp = {
+      .intParams = {.intParams = &ip, .nbIntParams = 1},
+      .copyParams = {.copyParams = &cp, .nbCopyParams = 1},
+  };
+  ZL_NodeParameters np = {.localParams = &lp};
+  ZL_RESULT_OF(ZL_NodeID) r = ZL_Compressor_parameterizeNode(c, base, &np);
+  return ZL_RES_isError(r) ? ZL_NODE_ILLEGAL : ZL_RES_value(r);
+}
+
+ZL_NodeID geozl_node_quant_sqrt(ZL_Compressor *c,
+                                const quant_sqrt_params *params, int dtype) {
+  const ZL_TypedEncoderDesc desc = EI_QUANT_SQRT(GEOZL_CTID_QUANT_SQRT);
+  ZL_NodeID base = ZL_Compressor_registerTypedEncoder(c, &desc);
+  if (!ZL_NodeID_isValid(base))
+    return base;
+  const ZL_IntParam ip = {.paramId = QUANT_SQRT_PARAM_DTYPE,
+                          .paramValue = dtype};
+  const ZL_CopyParam cp = {.paramId = QUANT_SQRT_PARAM_PARAMS,
                            .paramPtr = params,
                            .paramSize = sizeof(*params)};
   ZL_LocalParams lp = {

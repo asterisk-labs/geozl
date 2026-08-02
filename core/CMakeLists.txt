@@ -106,6 +106,11 @@ list(APPEND GEOZL_KERNELS src/wp_static/train_wp_static.c)
 # so a Python caller can resolve a bound without OpenZL.
 list(APPEND GEOZL_KERNELS src/quant/quant_spec.c)
 list(APPEND GEOZL_KERNELS src/quant_linear/quant_linear_spec.c)
+list(APPEND GEOZL_KERNELS src/quant_log/quant_log_spec.c)
+list(APPEND GEOZL_KERNELS src/quant_sqrt/quant_sqrt_spec.c)
+# The blind noise fit is not a kernel either. It works on blocks, so it needs the
+# raster shape, which the codec node never sees.
+list(APPEND GEOZL_KERNELS src/quant_sqrt/quant_sqrt_fit.c)
 # Python asks the kernels library which vector paths this build carries,
 # so the answer has to live where it can be read without OpenZL.
 list(APPEND GEOZL_KERNELS src/common/simd.c)

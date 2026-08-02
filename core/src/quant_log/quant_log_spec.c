@@ -67,7 +67,7 @@ int quant_log_parse(const char *s, quant_log_spec *out, char *err,
 
   const char *cur = s + 4;
   const char *vb, *ve;
-  int haveError = 0;
+  int haveError = 0, haveStore = 0;
 
   for (;;) {
     if (keyed(&cur, "MAX_ERROR", &vb, &ve) == 0) {
@@ -87,12 +87,15 @@ int quant_log_parse(const char *s, quant_log_spec *out, char *err,
       haveError = 1;
     } else if (keyed(&cur, "STORE", &vb, &ve) == 0) {
       const size_t n = (size_t)(ve - vb);
+      if (haveStore)
+        return fail(err, errSize, "error \"%s\": STORE is given twice", s);
       if (n == 5 && strncmp(vb, "INDEX", 5) == 0)
         out->store = QUANT_LOG_STORE_INDEX;
       else if (n == 6 && strncmp(vb, "VALUES", 6) == 0)
         out->store = QUANT_LOG_STORE_VALUES;
       else
         return fail(err, errSize, "error \"%s\": STORE takes INDEX or VALUES", s);
+      haveStore = 1;
     } else {
       return fail(err, errSize,
                   "error \"%s\": unknown key, expected MAX_ERROR or STORE", s);
@@ -142,11 +145,6 @@ int quant_log_resolve(const quant_log_spec *sp, int dtype,
                   "reconstruction",
                   b * 100.0);
     out->step = 2.0 * half;
-
-    if (quant_log_level_count(out->step, dtype) <= 0)
-      return fail(err, errSize, "a MAX_ERROR of %g%% needs more levels than this "
-                                "codec builds a table for",
-                  b * 100.0);
 
     // Below this the gap between levels is under one, so the level nearest a
     // whole number rounds back to it and the reconstruction is exact. An integer

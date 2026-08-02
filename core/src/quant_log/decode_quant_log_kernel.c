@@ -37,8 +37,8 @@ static inline double qlog_from_index(int64_t q, double step, int anchor,
 // against a forged stream.
 #define QLOG_DEC_INDEX(WT, IT, STORE)                                          \
   do {                                                                         \
-    const IT *s = (const IT *)src;                                             \
-    WT *d = (WT *)dst;                                                         \
+    const IT *restrict s = (const IT *)src;                                    \
+    WT *restrict d = (WT *)dst;                                                \
     int64_t lo = (int64_t)s[0], hi = lo;                                       \
     for (size_t i = 1; i < nbElts; ++i) {                                      \
       const int64_t v = (int64_t)s[i];                                         \
@@ -71,8 +71,8 @@ static inline double qlog_from_index(int64_t q, double step, int anchor,
 // compiler keeps vectorised.
 #define QLOG_DEC_VALUES(WT, IT, STORE)                                         \
   do {                                                                         \
-    const IT *s = (const IT *)src;                                             \
-    WT *d = (WT *)dst;                                                         \
+    const IT *restrict s = (const IT *)src;                                    \
+    WT *restrict d = (WT *)dst;                                                \
     for (size_t i = 0; i < nbElts; ++i) {                                      \
       const IT v = s[i];                                                       \
       d[i] = (WT)(STORE((double)(v < floorv ? floorv : v)));                   \
@@ -83,17 +83,15 @@ static inline double qlog_from_index(int64_t q, double step, int anchor,
 #define QLOG_F32(v) ((float)(v))
 #define QLOG_F16(v) (quant_log_float_to_half((float)(v)))
 
-int quant_log_decode(void *dst, const void *src, const quant_log_params *p,
-                     int dtype, size_t nbElts) {
-  if (!QLOG_DTYPE_OK(dtype) || !(p->step > 0.0))
+int quant_log_decode(void *restrict dst, const void *restrict src,
+                     const quant_log_params *p, int dtype, size_t nbElts) {
+  if (!quant_log_params_ok(p, dtype))
     return 1;
   const int values = (p->flags & QUANT_LOG_FLAG_STORE_VALUES) != 0;
   const int nonneg = (p->flags & QUANT_LOG_FLAG_NONNEGATIVE) != 0;
 
   // Case 1. The stream is already the output, in the output type.
   if (dtype <= QLOG_LAST_INT) {
-    if (!values)
-      return 1;
     memcpy(dst, src, nbElts * quant_log_width(dtype));
     return 0;
   }

@@ -331,6 +331,23 @@ static void the_series_stay_inside_the_slack(void) {
   const double s = quant_log_slack(QLOG_F64, 0) * QLOG_LN2;
   printf("  exp2     worst %.3e, budget %.3e, %.1fx of room\n", w, s, s / w);
   CHECK(w < s);
+
+  // The f64 index grid anchors at 2^-1074, so the bottom of it is subnormal and
+  // the slack cannot hold there: the neighbours are a flat 2^-1074 apart and no
+  // relative budget survives that. What the series still owes is a level within
+  // one step of where exp2 puts it, which is what the walk below asserts. The
+  // declared bound starts at the smallest normal, above all of this.
+  const double sub = 4.9406564584124654e-324; // 2^-1074
+  double wsub = 0.0;
+  for (int i = 0; i <= 400000; ++i) {
+    const double y = -1074.0 + 52.0 * (double)i / 400000.0;
+    const double e = fabs(qlog_exp2(y) - exp2(y));
+    if (e > wsub)
+      wsub = e;
+  }
+  printf("  exp2     below the smallest normal, worst %.0f step of 2^-1074\n",
+         wsub / sub);
+  CHECK(wsub <= sub);
 }
 
 static void the_parser_is_strict(void) {
@@ -404,20 +421,46 @@ static void the_refusals(void) {
   printf("  too large: %s\n", err);
   sc.maxAbs = 1.0e6;
   CHECK(quant_log_resolve(&sp, QLOG_F32, &sc, &p, err, sizeof err) == 0);
+}
 
-  // Parameters no encoder would write.
-  quant_log_params bad;
-  bad.flags = 0;
-  bad.step = 0.0;
-  float in = 1.0f;
-  int32_t st = 0;
-  float out = 0.0f;
-  CHECK(quant_log_encode(&st, &in, &bad, QLOG_F32, 1) != 0);
-  CHECK(quant_log_decode(&out, &st, &bad, QLOG_F32, 1) != 0);
-  bad.step = 0.02;
-  uint16_t u = 1, us = 0, uo = 0;
-  CHECK(quant_log_encode(&us, &u, &bad, QLOG_U16, 1) != 0);
-  CHECK(quant_log_decode(&uo, &us, &bad, QLOG_U16, 1) != 0);
+// There is no decode binding yet, so the kernels are the only thing between a
+// frame and the transform. Every field the header carries gets forged here.
+static void a_forged_header_is_refused(void) {
+  printf("the kernels refuse a parameter block the resolver cannot produce\n");
+  enum { N = 64 };
+  static float f[N], df[N];
+  static int32_t sf[N];
+  static uint16_t u[N], du[N];
+  quant_log_params p;
+  memset(&p, 0, sizeof p);
+
+  const double bad[] = {0.0, -1.0, -0.02, HUGE_VAL, -HUGE_VAL, NAN};
+  for (size_t i = 0; i < sizeof bad / sizeof *bad; ++i) {
+    p.flags = 0;
+    p.step = bad[i];
+    CHECK(quant_log_encode(sf, f, &p, QLOG_F32, N) != 0);
+    CHECK(quant_log_decode(df, sf, &p, QLOG_F32, N) != 0);
+    p.flags = QUANT_LOG_FLAG_STORE_VALUES;
+    CHECK(quant_log_encode(du, u, &p, QLOG_U16, N) != 0);
+    CHECK(quant_log_decode(du, u, &p, QLOG_U16, N) != 0);
+  }
+
+  // An integer frame without the flag is one this codec never writes.
+  p.step = 0.02;
+  p.flags = 0;
+  CHECK(quant_log_encode(du, u, &p, QLOG_U16, N) != 0);
+  CHECK(quant_log_decode(du, u, &p, QLOG_U16, N) != 0);
+
+  // Flag bits the format does not define.
+  for (unsigned bit = 2; bit < 8; ++bit) {
+    p.flags = (unsigned char)(QUANT_LOG_FLAG_STORE_VALUES | (1u << bit));
+    CHECK(quant_log_encode(sf, f, &p, QLOG_F32, N) != 0);
+    CHECK(quant_log_decode(df, sf, &p, QLOG_F32, N) != 0);
+  }
+
+  p.flags = QUANT_LOG_FLAG_STORE_VALUES;
+  CHECK(quant_log_encode(du, u, &p, 11, N) != 0);
+  CHECK(quant_log_decode(du, u, &p, -1, N) != 0);
 }
 
 // A forged stream cannot walk the reconstruction out of the output type, and on
@@ -485,6 +528,182 @@ static void the_encoder_checks_its_own_work(void) {
   }
 }
 
+// The encoder caches the value grid while the table is small enough and builds
+// each level on the spot when it is not. Both bounds below walk every uint16
+// against the level spec.md states, worked out here instead of read from the
+// kernel, so the two paths landing on different levels shows up as a wrong one.
+static double spec_level(double a, double step, int dtype) {
+  const double cap = quant_log_value_hi(dtype);
+  const double top = quant_log_value_top(step, dtype);
+  double j = qlog_log2_over(a, 0) / step + 0.5;
+  if (!(j > 0.0))
+    j = 0.0;
+  else if (!(j < top))
+    j = top;
+  const double v = qlog_value_level((double)(int64_t)j, step);
+  return v > cap ? cap : v;
+}
+
+static void the_value_grid_matches_the_spec(void) {
+  printf("the value grid lands where the spec says, with and without the table\n");
+  const char *rec[] = {"LOG:MAX_ERROR=1%", "LOG:MAX_ERROR=0.001%"};
+  static uint16_t in[65536], st[65536];
+  for (int i = 0; i < 65536; ++i)
+    in[i] = (uint16_t)i;
+
+  for (int r = 0; r < 2; ++r) {
+    quant_log_spec sp;
+    quant_log_stats sc;
+    quant_log_params p;
+    char err[256];
+    CHECK(quant_log_parse(rec[r], &sp, err, sizeof err) == 0);
+    CHECK(quant_log_scan(in, QLOG_U16, 65536, &sc) == 0);
+    CHECK(quant_log_resolve(&sp, QLOG_U16, &sc, &p, err, sizeof err) == 0);
+    CHECK(quant_log_encode(st, in, &p, QLOG_U16, 65536) == 0);
+    size_t wrong = 0;
+    for (int i = 1; i < 65536; ++i)
+      if ((double)st[i] != spec_level((double)in[i], p.step, QLOG_U16))
+        ++wrong;
+    if (wrong != 0)
+      printf("  %s: %zu of 65535 off the level the spec puts down\n", rec[r],
+             wrong);
+    CHECK(wrong == 0);
+    CHECK(st[0] == 0);
+  }
+}
+
+// u32, i32, u64 and i64 have no exhaustive walk. Every power of two, both sides
+// of it, the limits of the type, and a stride across the rest.
+static void wide_put(void *b, int dtype, size_t i, uint64_t v) {
+  if (quant_log_width(dtype) == 4) {
+    const uint32_t t = (uint32_t)v;
+    memcpy((char *)b + i * 4, &t, 4);
+  } else {
+    memcpy((char *)b + i * 8, &v, 8);
+  }
+}
+
+static double wide_get(const void *b, int dtype, size_t i) {
+  if (quant_log_width(dtype) == 4) {
+    uint32_t t;
+    memcpy(&t, (const char *)b + i * 4, 4);
+    return dtype == QLOG_U32 ? (double)t : (double)(int32_t)t;
+  }
+  uint64_t t;
+  memcpy(&t, (const char *)b + i * 8, 8);
+  return dtype == QLOG_U64 ? (double)t : (double)(int64_t)t;
+}
+
+static void the_wide_integers_hold(void) {
+  printf("the wide integer types hold the bound and keep the sign\n");
+  const char *rec[] = {"LOG:MAX_ERROR=5%", "LOG:MAX_ERROR=1%",
+                       "LOG:MAX_ERROR=0.01%"};
+  const double bound[] = {0.05, 0.01, 0.0001};
+  const int dt[] = {QLOG_U32, QLOG_I32, QLOG_U64, QLOG_I64};
+  enum { N = 200000 };
+  static unsigned char src[N * 8], st[N * 8], bk[N * 8];
+
+  for (int k = 0; k < 4; ++k) {
+    const int signd = dt[k] == QLOG_I32 || dt[k] == QLOG_I64;
+    const int bits = quant_log_width(dt[k]) == 4 ? 32 : 64;
+    const int span = signd ? bits - 1 : bits;
+    const uint64_t mask = span == 64 ? ~(uint64_t)0
+                                     : (((uint64_t)1 << span) - 1);
+    size_t n = 0;
+    for (int e = 0; e < span; ++e) {
+      const uint64_t v = (uint64_t)1 << e;
+      wide_put(src, dt[k], n++, v);
+      wide_put(src, dt[k], n++, v - 1);
+      wide_put(src, dt[k], n++, v + 1);
+      if (signd) {
+        wide_put(src, dt[k], n++, (uint64_t)(-(int64_t)v));
+        wide_put(src, dt[k], n++, (uint64_t)(1 - (int64_t)v));
+      }
+    }
+    wide_put(src, dt[k], n++, mask);
+    if (signd)
+      wide_put(src, dt[k], n++, (uint64_t)(-(int64_t)mask - 1));
+
+    uint64_t g = 0x9E3779B97F4A7C15ull;
+    while (n < N) {
+      g ^= g << 13;
+      g ^= g >> 7;
+      g ^= g << 17;
+      const uint64_t v = (g >> (g % (unsigned)span)) & mask;
+      wide_put(src, dt[k], n++, signd && (g & 1) ? (uint64_t)(-(int64_t)v) : v);
+    }
+
+    for (int r = 0; r < 3; ++r) {
+      quant_log_params p;
+      if (trip(rec[r], dt[k], src, st, bk, n, &p) != 0) {
+        printf("  dtype %d refused %s\n", dt[k], rec[r]);
+        ++failures;
+        continue;
+      }
+      double worst = 0.0;
+      for (size_t i = 0; i < n; ++i) {
+        const double x = wide_get(src, dt[k], i), y = wide_get(bk, dt[k], i);
+        if (x == 0.0) {
+          CHECK(y == 0.0);
+          continue;
+        }
+        CHECK((x < 0.0) == (y < 0.0));
+        const double e = fabs(y - x) / fabs(x);
+        if (e > worst)
+          worst = e;
+      }
+      if (worst > bound[r])
+        printf("  dtype %d %s: worst %.4e over %.4e\n", dt[k], rec[r], worst,
+               bound[r]);
+      CHECK(worst <= bound[r]);
+    }
+  }
+}
+
+// Case 2 is the case no exhaustive walk covers. On a half the band the resolver
+// accepts is small enough to walk whole.
+static void store_values_on_a_half_is_walked(void) {
+  printf("STORE=VALUES on a half, every value of the band it accepts\n");
+  const char *rec[] = {"LOG:MAX_ERROR=5%,STORE=VALUES",
+                       "LOG:MAX_ERROR=1%,STORE=VALUES",
+                       "LOG:MAX_ERROR=0.1%,STORE=VALUES"};
+  const double bound[] = {0.05, 0.01, 0.001};
+  static uint16_t in[65536], bk[65536];
+  static int16_t st[65536];
+
+  for (int r = 0; r < 3; ++r) {
+    const double cross = 0.5 / (sqrt(1.0 + bound[r]) - 1.0);
+    size_t n = 0;
+    for (int i = 0; i < 65536; ++i) {
+      const float v = quant_log_half_to_float((uint16_t)i);
+      const double a = fabs((double)v);
+      if (a >= cross && a <= 1024.0)
+        in[n++] = (uint16_t)i;
+    }
+    CHECK(n > 0);
+    quant_log_spec sp;
+    quant_log_stats sc;
+    quant_log_params p;
+    char err[256];
+    CHECK(quant_log_parse(rec[r], &sp, err, sizeof err) == 0);
+    CHECK(quant_log_scan(in, QLOG_F16, n, &sc) == 0);
+    CHECK(quant_log_resolve(&sp, QLOG_F16, &sc, &p, err, sizeof err) == 0);
+    CHECK(quant_log_encode(st, in, &p, QLOG_F16, n) == 0);
+    CHECK(quant_log_decode(bk, st, &p, QLOG_F16, n) == 0);
+    double worst = 0.0;
+    for (size_t i = 0; i < n; ++i) {
+      const double x = (double)quant_log_half_to_float(in[i]);
+      const double y = (double)quant_log_half_to_float(bk[i]);
+      const double e = fabs(y - x) / fabs(x);
+      if (e > worst)
+        worst = e;
+    }
+    printf("  %-32s %zu values, worst %.4e of %.4e\n", rec[r], n, worst,
+           bound[r]);
+    CHECK(worst <= bound[r]);
+  }
+}
+
 // What the tiles cost the codecs behind this one. Reported, not asserted.
 static void report_streams(void) {
   printf("\n  tile           type   case              stream range\n");
@@ -548,7 +767,11 @@ int main(void) {
   the_series_stay_inside_the_slack();
   the_parser_is_strict();
   the_refusals();
+  a_forged_header_is_refused();
   a_forged_stream_stays_in_range();
+  the_value_grid_matches_the_spec();
+  the_wide_integers_hold();
+  store_values_on_a_half_is_walked();
   the_encoder_checks_its_own_work();
   report_streams();
 

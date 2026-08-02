@@ -7,9 +7,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-// Past this is an infinity, which pins to the top level rather than running the
-// transform on an exponent field of all ones.
-#define QLOG_FINITE_TOP 1.7976931348623157e308
+// Table budget for the value grid. Above it each level is built on the spot,
+// which bounds what one call allocates without bounding what a recipe may ask
+// for. A tight bound on a wide type wants millions of levels.
+#define QLOG_LEV_BYTES (1u << 20)
 
 // Zero is the one sample no level describes, and so is a NaN, which has no
 // magnitude to place. Both go to zero and come back as zero. A tile that means
@@ -35,27 +36,42 @@ static inline int64_t qlog_fit(double v, double lo, double top) {
   return (int64_t)v;
 }
 
+// A level of the value grid, folded onto the output range.
+static inline double qlog_value_of(int64_t j, double step, double cap) {
+  const double v = qlog_value_level((double)j, step);
+  return v > cap ? cap : v;
+}
+
+// A level, read from the table when there is one and built when there is not.
+// Both are the same call, so which path a tile takes reaches no level.
+static inline double qlog_value_at(const double *lev, int64_t j, double step,
+                                   double cap) {
+  return lev != NULL ? lev[j] : qlog_value_of(j, step, cap);
+}
+
 #define QLOG_PICK(a, anchor)                                                   \
   ((a) > QLOG_FINITE_TOP                                                       \
        ? top                                                                   \
        : qlog_fit(qlog_log2_over((a), (anchor)) * inv + 0.5, 0.0, dtop))
 
+#define QLOG_LEV(a) qlog_value_at(lev, QLOG_PICK((a), 0), step, cap)
+
 // Cases 1 and 2, the value grid. The stream carries the reconstruction, so the
-// table holds whole numbers already folded onto the output range.
+// levels are whole numbers already folded onto the output range.
 #define QLOG_ENC_U(T)                                                          \
   do {                                                                         \
-    const T *s = (const T *)src;                                               \
-    T *d = (T *)dst;                                                           \
+    const T *restrict s = (const T *)src;                                      \
+    T *restrict d = (T *)dst;                                                  \
     for (size_t i = 0; i < nbElts; ++i) {                                      \
       const double a = (double)s[i];                                           \
-      d[i] = a > 0.0 ? (T)lev[QLOG_PICK(a, 0)] : (T)0;                         \
+      d[i] = a > 0.0 ? (T)QLOG_LEV(a) : (T)0;                                  \
     }                                                                          \
   } while (0)
 
 #define QLOG_ENC_I(T)                                                          \
   do {                                                                         \
-    const T *s = (const T *)src;                                               \
-    T *d = (T *)dst;                                                           \
+    const T *restrict s = (const T *)src;                                      \
+    T *restrict d = (T *)dst;                                                  \
     for (size_t i = 0; i < nbElts; ++i) {                                      \
       const int64_t v = (int64_t)s[i];                                         \
       const double a = v < 0 ? -(double)v : (double)v;                         \
@@ -63,15 +79,15 @@ static inline int64_t qlog_fit(double v, double lo, double top) {
         d[i] = 0;                                                              \
         continue;                                                              \
       }                                                                        \
-      const double r = lev[QLOG_PICK(a, 0)];                                   \
+      const double r = QLOG_LEV(a);                                            \
       d[i] = (T)(int64_t)(v < 0 ? -r : r);                                     \
     }                                                                          \
   } while (0)
 
 #define QLOG_ENC_FV(WT, IT, RD)                                                \
   do {                                                                         \
-    const WT *s = (const WT *)src;                                             \
-    IT *d = (IT *)dst;                                                         \
+    const WT *restrict s = (const WT *)src;                                    \
+    IT *restrict d = (IT *)dst;                                                \
     for (size_t i = 0; i < nbElts; ++i) {                                      \
       const double x = (double)(RD);                                           \
       const double a = x < 0.0 ? -x : x;                                       \
@@ -79,7 +95,7 @@ static inline int64_t qlog_fit(double v, double lo, double top) {
         d[i] = 0;                                                              \
         continue;                                                              \
       }                                                                        \
-      const double r = lev[QLOG_PICK(a, 0)];                                   \
+      const double r = QLOG_LEV(a);                                            \
       d[i] = (IT)(int64_t)(x < 0.0 ? -r : r);                                  \
     }                                                                          \
   } while (0)
@@ -87,8 +103,8 @@ static inline int64_t qlog_fit(double v, double lo, double top) {
 // Case 3, the index grid. Index magnitude one is the anchor, so zero is free.
 #define QLOG_ENC_FI(WT, IT, RD)                                                \
   do {                                                                         \
-    const WT *s = (const WT *)src;                                             \
-    IT *d = (IT *)dst;                                                         \
+    const WT *restrict s = (const WT *)src;                                    \
+    IT *restrict d = (IT *)dst;                                                \
     for (size_t i = 0; i < nbElts; ++i) {                                      \
       const double x = (double)(RD);                                           \
       const double a = x < 0.0 ? -x : x;                                       \
@@ -104,18 +120,17 @@ static inline int64_t qlog_fit(double v, double lo, double top) {
     }                                                                          \
   } while (0)
 
-int quant_log_encode(void *dst, const void *src, const quant_log_params *p,
-                     int dtype, size_t nbElts) {
-  if (!QLOG_DTYPE_OK(dtype) || !(p->step > 0.0))
+int quant_log_encode(void *restrict dst, const void *restrict src,
+                     const quant_log_params *p, int dtype, size_t nbElts) {
+  if (!quant_log_params_ok(p, dtype))
     return 1;
   const int values = (p->flags & QUANT_LOG_FLAG_STORE_VALUES) != 0;
-  if ((dtype <= QLOG_LAST_INT) != (values && dtype <= QLOG_LAST_INT))
-    return 1; // an integer type carries the reconstruction and nothing else
-  const double inv = 1.0 / p->step;
+  const double step = p->step;
+  const double inv = 1.0 / step;
 
   if (!values) {
     const int anchor = quant_log_anchor_exp2(dtype);
-    const double dtop = quant_log_index_top(p->step, dtype);
+    const double dtop = quant_log_index_top(step, dtype);
     const int64_t top = (int64_t)dtop;
     switch ((qlog_dtype)dtype) {
     case QLOG_F16:
@@ -124,28 +139,25 @@ int quant_log_encode(void *dst, const void *src, const quant_log_params *p,
     case QLOG_F32:
       QLOG_ENC_FI(float, int32_t, s[i]);
       break;
-    case QLOG_F64:
+    default:
       QLOG_ENC_FI(double, int64_t, s[i]);
       break;
-    default:
-      return 1;
     }
     return 0;
   }
 
-  const int n = quant_log_level_count(p->step, dtype);
-  if (n <= 0)
-    return 1;
-  double *lev = (double *)malloc((size_t)n * sizeof(double));
-  if (lev == NULL)
-    return 1;
-  const int64_t top = n - 1;
-  const double dtop = (double)top;
+  const double dtop = quant_log_value_top(step, dtype);
+  const int64_t top = (int64_t)dtop;
   const double cap = dtype <= QLOG_LAST_INT ? quant_log_value_hi(dtype)
                                             : quant_log_exact_int(dtype);
-  for (int j = 0; j < n; ++j) {
-    const double v = qlog_value_level((double)j, p->step);
-    lev[j] = v > cap ? cap : v;
+  const double levels = dtop + 1.0;
+  double *lev = NULL;
+  if (levels <= (double)(QLOG_LEV_BYTES / sizeof(double))) {
+    const size_t n = (size_t)levels;
+    lev = (double *)malloc(n * sizeof(double));
+    if (lev != NULL)
+      for (size_t j = 0; j < n; ++j)
+        lev[j] = qlog_value_of((int64_t)j, step, cap);
   }
 
   switch ((qlog_dtype)dtype) {

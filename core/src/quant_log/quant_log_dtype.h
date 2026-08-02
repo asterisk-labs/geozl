@@ -1,8 +1,15 @@
 #ifndef GEOZL_CODECS_QUANT_LOG_DTYPE_H
 #define GEOZL_CODECS_QUANT_LOG_DTYPE_H
 
+#include "geozl/quant_log_params.h"
+
 #include <stddef.h>
 #include <stdint.h>
+
+// The largest finite double. Above it is an infinity, which both kernels pin to
+// the top level rather than running a transform on an exponent field of all
+// ones, and which a step may not be.
+#define QLOG_FINITE_TOP 1.7976931348623157e308
 
 // Wire codes, frozen.
 typedef enum {
@@ -121,22 +128,12 @@ static inline double quant_log_exact_int(int dtype) {
   }
 }
 
-// Largest magnitude the stream carries. It keeps the element width of the
-// original type, signed once the original was a float.
+// Largest index magnitude the stream carries. Only a float takes the index
+// path, and its stream is signed at the width of the original type.
 static inline double quant_log_stream_max(int dtype) {
   switch (dtype) {
-  case QLOG_U8:
-    return 255.0;
-  case QLOG_U16:
-    return 65535.0;
-  case QLOG_U32:
-    return 4294967295.0;
-  case QLOG_I8:
-    return 127.0;
-  case QLOG_I16:
   case QLOG_F16:
     return 32767.0;
-  case QLOG_I32:
   case QLOG_F32:
     return 2147483647.0;
   default:
@@ -171,21 +168,10 @@ static inline double quant_log_value_hi(int dtype) {
   }
 }
 
+// The floor the decoder clamps against on a tile that held a negative sample.
+// Only a float takes the index path, so no integer type asks.
 static inline double quant_log_value_lo(int dtype) {
   switch (dtype) {
-  case QLOG_U8:
-  case QLOG_U16:
-  case QLOG_U32:
-  case QLOG_U64:
-    return 0.0;
-  case QLOG_I8:
-    return -128.0;
-  case QLOG_I16:
-    return -32768.0;
-  case QLOG_I32:
-    return -2147483648.0;
-  case QLOG_I64:
-    return -9223372036854775808.0;
   case QLOG_F16:
     return -65504.0;
   case QLOG_F32:
@@ -210,8 +196,6 @@ static inline double quant_log_slack(int dtype, int storeValues) {
 // by hand and guarded above, which keeps the kernels free of libm.
 static inline double quant_log_index_top(double step, int dtype) {
   const double lim = quant_log_stream_max(dtype);
-  if (!(step > 0.0))
-    return 1.0;
   const double v = quant_log_index_span(dtype) / step;
   if (!(v < lim)) // also catches nan
     return lim;
@@ -219,15 +203,29 @@ static inline double quant_log_index_top(double step, int dtype) {
   return 1.0 + (t < v ? t + 1.0 : t);
 }
 
-// Number of levels on the value grid, so the size of the table the encoder
-// builds for it.
-static inline int quant_log_level_count(double step, int dtype) {
-  if (!(step > 0.0))
-    return 1;
+// Highest index the value grid reaches. Folded in double first, since a step
+// small enough sends the quotient past what an int64 holds.
+static inline double quant_log_value_top(double step, int dtype) {
   const double v = quant_log_value_span(dtype) / step;
-  if (!(v < 1.0e7))
-    return 0; // the caller refuses rather than allocating this
-  return (int)v + 2;
+  if (!(v < 9007199254740992.0)) // also catches nan
+    return 9007199254740992.0;
+  return (double)(int64_t)v + 1.0;
+}
+
+// What a frame carries that a kernel can check without seeing the tile. A step
+// that is merely positive is not enough: an infinite one leaves the quotient
+// inside exp2 a nan, and the conversion that follows is undefined and lands
+// somewhere different on x86 and on arm64.
+static inline int quant_log_params_ok(const quant_log_params *p, int dtype) {
+  if (!QLOG_DTYPE_OK(dtype))
+    return 0;
+  if (!(p->step > 0.0) || !(p->step <= QLOG_FINITE_TOP))
+    return 0;
+  if ((p->flags & ~(unsigned)QUANT_LOG_FLAGS_KNOWN) != 0)
+    return 0;
+  // An integer type carries the reconstruction and nothing else.
+  return dtype > QLOG_LAST_INT ||
+         (p->flags & QUANT_LOG_FLAG_STORE_VALUES) != 0;
 }
 
 #endif // GEOZL_CODECS_QUANT_LOG_DTYPE_H

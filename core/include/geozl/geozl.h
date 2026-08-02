@@ -4,7 +4,9 @@
 #include "geozl/ctids.h"
 #include "geozl/export.h"
 #include "geozl/quant_linear_params.h"
+#include "geozl/quant_log_params.h"
 #include "geozl/quant_params.h"
+#include "geozl/quant_sqrt_params.h"
 
 #include "openzl/zl_compressor.h"
 #include "openzl/zl_ctransform.h"
@@ -43,6 +45,20 @@ GEOZL_API ZL_NodeID geozl_node_floatmult(ZL_Compressor *c, double base);
 GEOZL_API ZL_NodeID geozl_node_quant_linear(ZL_Compressor *c,
                                             const quant_linear_params *params,
                                             int dtype);
+
+// Parameters come from quant_log_parse and quant_log_resolve. The resolve reads a
+// scan of the whole raster, which this node does not see, so it happens before
+// the graph is built.
+GEOZL_API ZL_NodeID geozl_node_quant_log(ZL_Compressor *c,
+                                         const quant_log_params *params,
+                                         int dtype);
+
+// Parameters come from quant_sqrt_parse and quant_sqrt_resolve, and in the auto
+// mode from quant_sqrt_fit before them. The node sees one flat stream, so none of
+// that can happen inside it.
+GEOZL_API ZL_NodeID geozl_node_quant_sqrt(ZL_Compressor *c,
+                                          const quant_sqrt_params *params,
+                                          int dtype);
 
 GEOZL_API ZL_NodeID geozl_node_quant(ZL_Compressor *c,
                                      const quant_params *params,

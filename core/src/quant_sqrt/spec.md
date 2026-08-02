@@ -1,0 +1,197 @@
+# quant_sqrt
+
+A bound that follows the noise of a photon counting sensor. The slack grows like
+the square root of the value, so a reading of 10000 gets ten times the room a
+reading of 100 does, and a hundred times what a reading of 1 does.
+
+    SQRT:MAX_ERROR=0.5N                  |x - x^| <= 0.5 * sqrt(a + b*x)
+    SQRT:MAX_ERROR=0.5N,A=100,B=1        the same, with the curve given
+    SQRT:MAX_ERROR=0.5N,STORE=VALUES     whole numbers in the stream
+
+`MAX_ERROR` counts sigmas of noise and the `N` is required. Without it `0.5`
+reads as half a count, which is a plausible typo for half a sigma and would
+quantize far finer than intended without ever failing.
+
+`A` and `B` are the noise model, `sigma^2 = a + b*x`. They travel together, and a
+recipe carrying neither asks for them to be fitted from the raster instead. One
+without the other is refused.
+
+## Why a square root grid
+
+Ask for the gap between levels to be proportional to `sqrt(x + offset)` and the
+grid is uniform once you substitute `u = sqrt(x + offset)`. So
+
+    x^ = (q * step)^2 - offset
+
+and since `k*sqrt(a + b*x)` is `k*sqrt(b) * sqrt(x + a/b)`, the whole curve is two
+numbers, `step` and `offset`, and those two are what the header carries. `a` and
+`b` are recoverable from them and are not stored again.
+
+`sqrt` is the only library call in either direction, and IEEE requires it to be
+correctly rounded, so a frame written on one machine rebuilds to the same bits on
+another. What that reproducibility does need is `-ffp-contract=off`, since
+`t*t - offset` folds into a single FMA on arm64 and would then round once instead
+of twice.
+
+## Inputs
+
+One numeric stream of `nbElts` elements, at the element width of the original
+type.
+
+## The header
+
+Eighteen bytes, little endian.
+
+    byte 0      element type. 0 to 3 are u8, u16, u32, u64, 4 to 7 the signed
+                widths in the same order, then 8 f16, 9 f32, 10 f64
+    byte 1      flags
+                  bit 0  the encoder saw no negative sample, so the decoder
+                         floors at zero
+                  bit 1  the stream holds the reconstruction
+                  bit 2  the decoder rebuilds in float rather than double
+    bytes 2-9   step, an IEEE double
+    bytes 10-17 offset, an IEEE double
+
+Corrupt is a type byte outside 0 to 10, a flag bit above bit 2, a `step` that is
+not finite or is at or below zero, an `offset` that is not finite or is negative,
+bit 1 clear on an integer type, and bit 2 set on anything but float32.
+
+Bit 0 is load bearing here in a way it is not for the other curves. Level zero
+rebuilds to `-offset`, which is below zero whenever there is a read noise floor,
+and on an unsigned type that would wrap.
+
+Bit 2 is not a hint. Both paths are plain IEEE and both are reproducible; the bit
+says which arithmetic the step was cut against, so a decoder that took the other
+one would hold a different bound than the frame declares.
+
+## The three cases
+
+| input | recipe | stream holds | decode |
+| --- | --- | --- | --- |
+| 1. integer | any | the reconstruction | copy the block |
+| 2. float | `STORE=VALUES` | the reconstruction | one conversion |
+| 3. float | default | the index | two multiplies and a subtract |
+
+Case 3, the one that does arithmetic, is nearly as fast as the plain copy. On one
+core, a tile of 1M float32 at `-O3` on the x86-64-v2 baseline:
+
+    case 1   integer, memcpy                       28476 MB/s
+    case 3   index, float arithmetic               23170 MB/s
+    case 2   STORE=VALUES, cast                    13387 MB/s
+             index, double arithmetic              10608 MB/s
+             index, through a level table           7360 MB/s
+
+The last row is the reason there is no lookup table in the decoder. Caching the
+levels and indexing them looks like it should win, and it loses by 3.1x, because
+the gather costs more than the two multiplies it replaces and it takes the loop
+out of the vector unit.
+
+## Cutting the step
+
+With a step `s` in `u`, the worst error in cell `q` is `s^2 * (q + 0.5)` and the
+bound where it happens is `c * s * sqrt(q^2 + q + 0.5)`, whose ratio is under one
+for every `q` and approaches it from below. So the grid alone admits `step = c`,
+where `c = k * sqrt(b)`, and the offset does not enter.
+
+That holds only if the encoder picks the level nearest the sample **in x**.
+Rounding in the warped domain is the obvious thing and costs a third of the step,
+because the cell boundaries there are not the midpoints between levels and the
+gap is worst at the bottom of cell one, where the ratio reaches 1.5. Taking the
+nearest level in x costs the same, one `sqrt` either way, since the midpoint
+between levels `q-1` and `q` sits at `(x + offset)/step^2 = q^2 - q + 0.5`.
+
+    q = floor(0.5 + sqrt(t - 0.25))      t = (x + offset) / step^2
+
+On top of the grid sits the rounding when the reconstruction reaches the output
+width, and which end of the raster it bites depends on the output type. The bound
+grows like `sqrt(x)` while a float rounding grows like `x`, so on a float it bites
+at the **top**. A whole number rounding is a flat half unit, so on an integer it
+bites at the **bottom**.
+
+    case 3, double arithmetic   step = c - eps * x_max / sqrt(x_max + offset)
+    case 3, float arithmetic    the same charge, eight loose terms rather than one
+    cases 1 and 2               step = c / 2
+
+The float arithmetic path is taken when its charge stays under a quarter of the
+budget. Measured, in the ordinary range of `c` between 0.01 and 1 with `x` under
+1e7, it consumes 5.7e-2 of the bound against 2.4e-2 for the double path. That is
+under 0.09 bit per sample given up for 2.2x at decode.
+
+The half in cases 1 and 2 is the even split between the grid and the rounding of
+the level to a whole number. The grid stops biting below
+`sqrt(x + offset) = 1/(2*step)`, and half a unit fits under the remaining `c -
+step` exactly there when `step` is `c/2`. It is conservative: measured worst error
+on an integer raster sits near half the declared bound, so there is a ratio left
+on the table here.
+
+Case 2 is refused rather than served when the raster reaches below
+`1/c^2 - offset`, since rounding a small float to a whole number already costs
+more than the bound, and when the reconstruction would run past the largest whole
+number the float type carries. Never a quiet fallback to case 3.
+
+## Where the bound ends
+
+Below `-a/b`. The model puts the variance at or under zero there and no bound
+exists, so a raster reaching below it is refused rather than encoded.
+
+At the top, where `eps * x` overtakes `c * sqrt(x)`, which is near `(c/eps)^2` for
+the double path and `(c/8eps)^2` for the float one. Both sit far above anything a
+real product holds; a float32 tile at `c = 0.01` would have to reach 4e8.
+
+A sample that is not finite has no place on the grid. It encodes as index zero and
+the nodata codec in front is what puts it back.
+
+## Fitting the curve
+
+A recipe with no `A` and `B` asks `quant_sqrt_fit` to measure them. The method is
+the scatterplot of local mean against local variance with a low quantile per
+intensity bin, after Abramova and others, SPIE 10004, 2016. The model itself is
+Foi, Trimeche, Katkovnik and Egiazarian, IEEE TIP 17(10) 1737-1754, 2008.
+
+Blocks are 8 by 8 and the high pass is Immerkaer's mask, whose response to any
+linear ramp is zero, which is what keeps a smooth gradient from reading as noise.
+Each intensity bin contributes its tenth percentile of local variance rather than
+its mean, because the mean is unbiased on pure noise and useless on a real scene,
+where every textured block in the bin lifts it.
+
+That quantile is biased low and the bias is a constant. The Immerkaer windows
+inside a block overlap, so an 8 by 8 block carries 19.3 effective degrees of
+freedom rather than 64, and the tenth percentile lands at 0.7904 of the true
+sigma. The correction is applied and it belongs to this block size and this mask;
+changing either without re-measuring it moves every bound this codec declares.
+
+**The fit reads the raster, so it moves the grid.** Nothing else in this codec
+does. Run once per product it is harmless, run once per tile it means the same
+value rebuilds differently in different tiles. This file does not enforce which,
+because it cannot see how the caller cuts the data. What it reports instead is
+how much the fit should be believed.
+
+    bins    intensity bins that held enough blocks
+    range   mu_max / mu_min over those bins
+    colin   mean intensity over its spread; large means a and b are collinear
+    resid   relative rms of the fit residuals
+
+Measured against synthetic rasters with the curve known, a ramp over the full
+range recovers sigma within 6% and a smooth fBm scene within 30%. `b` is the
+robust half; `a` is the intercept extrapolated past where the data reaches and
+moves several fold between seeds. A narrow band, a flat field and a hard textured
+scene all produce a plausible curve that means nothing, and only `range` and
+`colin` say so. A scene with two levels and nothing between them produces a
+negative `b` and is refused outright.
+
+Two rasters that each cover one end of the range give a usable curve together and
+neither gives one alone, which is what `quant_sqrt_accum` is for. It pools the
+block statistics before anything is fitted, which is not the same as averaging
+separate fits. Measured on two halves of one scene, alone they give +8.5% and
++104.9% and pooled they give -7.4%.
+
+Underestimating sigma is safe. It happens on resampled data, where the noise is
+correlated and the local variance reads short, and on Sentinel-2 Level-1C, whose
+processing chain already suppressed noise at low signal to noise (Uss, Vozel,
+Lukin and Chehdi, SPIE 2017, who also show the residual model there is not
+univariate). The bound comes out tight, the raster quantizes finer than needed,
+and ratio is lost rather than correctness.
+
+Overestimating is the real risk, because the encoder's own check does not catch
+it: it verifies against the bound it computed, which is already inflated. The low
+quantile and the four numbers above are the only defence.

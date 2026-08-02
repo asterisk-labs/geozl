@@ -85,6 +85,8 @@ CTEST_KERNELS := $(wildcard $(CORE)/src/*/encode_*_kernel.c) \
                  $(CORE)/src/wp_static/train_wp_static.c \
                  $(CORE)/src/quant/quant_spec.c \
                  $(CORE)/src/quant_linear/quant_linear_spec.c \
+                 $(CORE)/src/quant_sqrt/quant_sqrt_spec.c \
+                 $(CORE)/src/quant_sqrt/quant_sqrt_fit.c \
                  $(CORE)/src/quant_log/quant_log_spec.c \
                  $(CORE)/src/common/simd.c
 # include/ too: the quant kernels take their parameter block from
