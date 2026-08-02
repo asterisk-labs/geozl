@@ -58,6 +58,27 @@ int quant_linear_decode(void *dst, const void *src,
   const int floorZero = (p->flags & QUANT_LINEAR_FLAG_NONNEGATIVE) != 0;
 
   if (dtype <= QL_LAST_INT) {
+    // An unsigned type cannot hold a negative, so the floor is already true of
+    // the stream and the copy stands. A signed one has to have it applied, the
+    // same way the float STORE=VALUES paths below do. Without this the flag
+    // means the floor on a float frame and nothing at all on an integer one.
+    if (floorZero && dtype >= QL_I8) {
+      switch ((ql_dtype)dtype) {
+      case QL_I8:
+        QL_DEC_CAST(int8_t, int8_t, (int8_t));
+        break;
+      case QL_I16:
+        QL_DEC_CAST(int16_t, int16_t, (int16_t));
+        break;
+      case QL_I32:
+        QL_DEC_CAST(int32_t, int32_t, (int32_t));
+        break;
+      default:
+        QL_DEC_CAST(int64_t, int64_t, (int64_t));
+        break;
+      }
+      return 0;
+    }
     memcpy(dst, src, nbElts * quant_linear_width(dtype));
     return 0;
   }

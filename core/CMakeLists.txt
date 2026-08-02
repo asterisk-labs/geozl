@@ -174,16 +174,18 @@ if(GEOZL_BUILD_FULL)
         # still parses, which a mutator hardly ever produces, so it spends its
         # budget in the OpenZL frame reader. This one drives the codec directly
         # and asserts the bound on the way back out. Kernels only, no OpenZL.
-        add_executable(geozl_quant_fuzzer
-            ${CMAKE_CURRENT_SOURCE_DIR}/../fuzz/quant_fuzzer.c
-            ${GEOZL_KERNELS})
-        target_include_directories(geozl_quant_fuzzer PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/include
-            ${CMAKE_CURRENT_SOURCE_DIR}/src)
-        target_link_options(geozl_quant_fuzzer PRIVATE -fsanitize=fuzzer)
-        if(GEOZL_LIBM)
-            target_link_libraries(geozl_quant_fuzzer PRIVATE ${GEOZL_LIBM})
-        endif()
+        foreach(fz quant quant_linear)
+            add_executable(geozl_${fz}_fuzzer
+                ${CMAKE_CURRENT_SOURCE_DIR}/../fuzz/${fz}_fuzzer.c
+                ${GEOZL_KERNELS})
+            target_include_directories(geozl_${fz}_fuzzer PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}/include
+                ${CMAKE_CURRENT_SOURCE_DIR}/src)
+            target_link_options(geozl_${fz}_fuzzer PRIVATE -fsanitize=fuzzer)
+            if(GEOZL_LIBM)
+                target_link_libraries(geozl_${fz}_fuzzer PRIVATE ${GEOZL_LIBM})
+            endif()
+        endforeach()
     endif()
 endif()
 

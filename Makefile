@@ -184,7 +184,8 @@ fuzz-build: $(OPENZL)/CMakeLists.txt python
 	cmake -S $(CORE) -B core/build-fuzz -G $(GEN) -DCMAKE_BUILD_TYPE=$(BUILD) \
 	      -DGEOZL_BUILD_FULL=ON -DGEOZL_SANITIZE=ON -DGEOZL_BUILD_FUZZERS=ON \
 	      -DCMAKE_C_COMPILER=$(CLANG) -DCMAKE_CXX_COMPILER=$(CLANG)++
-	cmake --build core/build-fuzz --target geozl_decode_fuzzer geozl_quant_fuzzer
+	cmake --build core/build-fuzz --target geozl_decode_fuzzer geozl_quant_fuzzer \
+	      geozl_quant_linear_fuzzer
 	@$(PYTHON) fuzz/gen_corpus.py fuzz/corpus
 
 # libFuzzer writes its per job logs to the working directory and its findings to
@@ -199,6 +200,11 @@ fuzz: fuzz-build
 	  $(abspath core/build-fuzz)/geozl_quant_fuzzer \
 	  -max_total_time=$(FUZZ_TIME) -jobs=$(FUZZ_JOBS) \
 	  -artifact_prefix=$(abspath $(FUZZ_OUT))/ > quant.log 2>&1 || true
+	@echo "quant_linear fuzzer, $(FUZZ_TIME)s"
+	@cd $(FUZZ_OUT) && ASAN_OPTIONS=allocator_may_return_null=1 \
+	  $(abspath core/build-fuzz)/geozl_quant_linear_fuzzer \
+	  -max_total_time=$(FUZZ_TIME) -jobs=$(FUZZ_JOBS) \
+	  -artifact_prefix=$(abspath $(FUZZ_OUT))/ > quant_linear.log 2>&1 || true
 	@echo "decode fuzzer, $(FUZZ_TIME)s"
 	@cd $(FUZZ_OUT) && ASAN_OPTIONS=allocator_may_return_null=1 \
 	  $(abspath core/build-fuzz)/geozl_decode_fuzzer decode-work \
@@ -213,7 +219,7 @@ fuzz-report:
 	@{ \
 	  echo "geozl fuzz report"; \
 	  echo "$(FUZZ_TIME)s per target, jobs $(FUZZ_JOBS)"; \
-	  for t in quant decode; do \
+	  for t in quant quant_linear decode; do \
 	    echo; echo "== $$t =="; \
 	    grep -hE 'INITED|DONE|Loaded . modules' \
 	      $(FUZZ_OUT)/$$t.log 2>/dev/null | head -4 || true; \
@@ -272,7 +278,7 @@ help:
 	@echo "make test       run the C tests under test/ then pytest"
 	@echo "make test-c     run the C tests only, builds straight from source"
 	@echo "make test-san   run both suites against an ASan and UBSan build"
-	@echo "make fuzz       build and run both fuzzers, report in fuzz/out (needs clang)"
+	@echo "make fuzz       build and run the fuzzers, report in fuzz/out (needs clang)"
 	@echo "make fuzz-build build the fuzzers without running them"
 	@echo "make clean-fuzz remove fuzz output, corpus and build tree"
 	@echo "make test-exhaustive  walk every float32 bit pattern, minutes"
