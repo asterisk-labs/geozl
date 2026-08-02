@@ -168,6 +168,24 @@ static inline double quant_log_value_hi(int dtype) {
   }
 }
 
+// The largest magnitude a type holds, which the value grid folds onto. A signed
+// type reaches one step further below zero than above it, and folding onto the
+// maximum brings its most negative value back one short.
+static inline double quant_log_value_mag(int dtype) {
+  switch (dtype) {
+  case QLOG_I8:
+    return 128.0;
+  case QLOG_I16:
+    return 32768.0;
+  case QLOG_I32:
+    return 2147483648.0;
+  case QLOG_I64:
+    return 9223372036854775808.0;
+  default:
+    return quant_log_value_hi(dtype);
+  }
+}
+
 // The floor the decoder clamps against on a tile that held a negative sample.
 // Only a float takes the index path, so no integer type asks.
 static inline double quant_log_value_lo(int dtype) {

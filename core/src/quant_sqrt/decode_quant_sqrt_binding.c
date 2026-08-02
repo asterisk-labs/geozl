@@ -2,6 +2,7 @@
 
 #include "decode_quant_sqrt_kernel.h" // quant_sqrt_decode
 #include "graph_quant_sqrt.h"         // QUANT_SQRT_HEADER_SIZE
+#include "quant_sqrt_check.h"         // quant_sqrt_params_ok
 #include "quant_sqrt_dtype.h"         // QSQ_U8, QSQ_F64
 
 #include "openzl/zl_data.h"
@@ -13,7 +14,6 @@
 #include "common/endian.h"
 
 #include <assert.h>
-#include <math.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -42,19 +42,8 @@ ZL_Report DI_geozl_quant_sqrt(ZL_Decoder *dictx, const ZL_Input *ins[]) {
   if (dtype < QSQ_U8 || dtype > QSQ_F64 || quant_sqrt_width(dtype) != eltWidth)
     return ZL_returnError(ZL_ErrorCode_corruption);
 
-  // None of these come out of the encoder, only out of a damaged frame.
-  if (!isfinite(p.step) || !(p.step > 0.0))
-    return ZL_returnError(ZL_ErrorCode_corruption);
-  if (!isfinite(p.offset) || !(p.offset >= 0.0))
-    return ZL_returnError(ZL_ErrorCode_corruption);
-  if ((p.flags & ~(unsigned)QUANT_SQRT_FLAGS_KNOWN) != 0)
-    return ZL_returnError(ZL_ErrorCode_corruption);
-  // An integer type carries the reconstruction and nothing else, and the float
-  // arithmetic bit belongs to float32 alone.
-  if (dtype <= QSQ_LAST_INT &&
-      (p.flags & QUANT_SQRT_FLAG_STORE_VALUES) == 0)
-    return ZL_returnError(ZL_ErrorCode_corruption);
-  if ((p.flags & QUANT_SQRT_FLAG_DECODE_F32) != 0 && dtype != QSQ_F32)
+  // Only a damaged frame gets here. The encoder reads the same predicate.
+  if (!quant_sqrt_params_ok(&p, dtype))
     return ZL_returnError(ZL_ErrorCode_corruption);
 
   ZL_Output *out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);

@@ -4,7 +4,7 @@
 #   make test       run the C tests then the Python suite
 #   make test-c     run the C tests only, no cmake or OpenZL needed
 #   make test-san   run the suite under ASan and UBSan
-#   make fuzz       build and run both fuzzers, output under fuzz/out
+#   make fuzz       build and run every fuzzer, output under fuzz/out
 #   make test-exhaustive  walk every float32 through every recipe
 #   make clean      remove all build output and generated files
 #
@@ -185,8 +185,10 @@ fuzz-build: $(OPENZL)/CMakeLists.txt python
 	      -DGEOZL_BUILD_FULL=ON -DGEOZL_SANITIZE=ON -DGEOZL_BUILD_FUZZERS=ON \
 	      -DCMAKE_C_COMPILER=$(CLANG) -DCMAKE_CXX_COMPILER=$(CLANG)++
 	cmake --build core/build-fuzz --target geozl_decode_fuzzer geozl_quant_fuzzer \
-	      geozl_quant_linear_fuzzer
+	      geozl_quant_linear_fuzzer geozl_quant_log_fuzzer \
+	      geozl_quant_sqrt_fuzzer
 	@$(PYTHON) fuzz/gen_corpus.py fuzz/corpus
+	@$(PYTHON) fuzz/gen_quant_log_seeds.py fuzz/corpus-quant-log
 
 # libFuzzer writes its per job logs to the working directory and its findings to
 # artifact_prefix, so both runs happen from inside fuzz/out and nothing lands in
@@ -205,6 +207,17 @@ fuzz: fuzz-build
 	  $(abspath core/build-fuzz)/geozl_quant_linear_fuzzer \
 	  -max_total_time=$(FUZZ_TIME) -jobs=$(FUZZ_JOBS) \
 	  -artifact_prefix=$(abspath $(FUZZ_OUT))/ > quant_linear.log 2>&1 || true
+	@echo "quant_log fuzzer, $(FUZZ_TIME)s"
+	@cd $(FUZZ_OUT) && ASAN_OPTIONS=allocator_may_return_null=1 \
+	  $(abspath core/build-fuzz)/geozl_quant_log_fuzzer \
+	  $(abspath fuzz/corpus-quant-log) \
+	  -max_total_time=$(FUZZ_TIME) -jobs=$(FUZZ_JOBS) \
+	  -artifact_prefix=$(abspath $(FUZZ_OUT))/ > quant_log.log 2>&1 || true
+	@echo "quant_sqrt fuzzer, $(FUZZ_TIME)s"
+	@cd $(FUZZ_OUT) && ASAN_OPTIONS=allocator_may_return_null=1 \
+	  $(abspath core/build-fuzz)/geozl_quant_sqrt_fuzzer \
+	  -max_total_time=$(FUZZ_TIME) -jobs=$(FUZZ_JOBS) \
+	  -artifact_prefix=$(abspath $(FUZZ_OUT))/ > quant_sqrt.log 2>&1 || true
 	@echo "decode fuzzer, $(FUZZ_TIME)s"
 	@cd $(FUZZ_OUT) && ASAN_OPTIONS=allocator_may_return_null=1 \
 	  $(abspath core/build-fuzz)/geozl_decode_fuzzer decode-work \
@@ -219,7 +232,7 @@ fuzz-report:
 	@{ \
 	  echo "geozl fuzz report"; \
 	  echo "$(FUZZ_TIME)s per target, jobs $(FUZZ_JOBS)"; \
-	  for t in quant quant_linear decode; do \
+	  for t in quant quant_linear quant_log quant_sqrt decode; do \
 	    echo; echo "== $$t =="; \
 	    grep -hE 'INITED|DONE|Loaded . modules' \
 	      $(FUZZ_OUT)/$$t.log 2>/dev/null | head -4 || true; \
@@ -259,7 +272,7 @@ test-exhaustive: $(CTEST_DIR)/test_quant_exhaustive \
 	@$(CTEST_DIR)/test_quant_log_exhaustive
 
 clean-fuzz:
-	rm -rf $(FUZZ_OUT) fuzz/corpus core/build-fuzz
+	rm -rf $(FUZZ_OUT) fuzz/corpus fuzz/corpus-quant-log core/build-fuzz
 	rm -f crash-* leak-* timeout-* oom-* fuzz-*.log
 
 install: build

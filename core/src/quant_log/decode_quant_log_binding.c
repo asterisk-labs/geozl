@@ -2,7 +2,7 @@
 
 #include "decode_quant_log_kernel.h" // quant_log_decode
 #include "graph_quant_log.h"         // QUANT_LOG_HEADER_SIZE
-#include "quant_log_dtype.h"         // QLOG_U8, QLOG_F64
+#include "quant_log_dtype.h"         // quant_log_params_ok
 
 #include "openzl/zl_data.h"
 #include "openzl/zl_errors.h"
@@ -13,7 +13,6 @@
 #include "common/endian.h"
 
 #include <assert.h>
-#include <math.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -38,18 +37,12 @@ ZL_Report DI_geozl_quant_log(ZL_Decoder *dictx, const ZL_Input *ins[]) {
 
   // dtype comes from the header, so check it names a real type of the stream
   // width before anything reads at it.
-  if (dtype < QLOG_U8 || dtype > QLOG_F64 || quant_log_width(dtype) != eltWidth)
+  if (!QLOG_DTYPE_OK(dtype) || quant_log_width(dtype) != eltWidth)
     return ZL_returnError(ZL_ErrorCode_corruption);
 
-  // None of these come out of the encoder, only out of a damaged frame.
-  if (!isfinite(p.step) || !(p.step > 0.0))
-    return ZL_returnError(ZL_ErrorCode_corruption);
-  if ((p.flags & ~(unsigned)QUANT_LOG_FLAGS_KNOWN) != 0)
-    return ZL_returnError(ZL_ErrorCode_corruption);
-  // An integer type carries the reconstruction and nothing else, since the level
-  // and the value are the same number there.
-  if (dtype <= QLOG_LAST_INT &&
-      (p.flags & QUANT_LOG_FLAG_STORE_VALUES) == 0)
+  // The same predicate both kernels read. Nothing it refuses comes out of the
+  // encoder, only out of a damaged frame.
+  if (!quant_log_params_ok(&p, dtype))
     return ZL_returnError(ZL_ErrorCode_corruption);
 
   ZL_Output *out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);

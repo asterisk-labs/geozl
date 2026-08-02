@@ -1,5 +1,6 @@
 #include "decode_quant_sqrt_kernel.h"
 
+#include "quant_sqrt_check.h"
 #include "quant_sqrt_dtype.h"
 #include "quant_sqrt_half.h"
 
@@ -7,22 +8,18 @@
 #include <stdint.h>
 #include <string.h>
 
-// The rebuild is (q*step)^2 - offset, two multiplies and a subtract, so the whole
-// loop stays in registers and runs at the width of the vector unit. Two things
-// below are what keep it there, and both look like details.
+// The rebuild is (q*step)^2 - offset. Everything below exists to keep control
+// flow out of the body, since any of it and gcc refuses the loop.
 //
-// The index is folded before any arithmetic, so what comes out is finite and in
-// range by construction and the loop never has to test for a NaN. A NaN test is
-// control flow, and control flow anywhere in the body is enough for gcc to give
-// up on the loop.
+// The index is folded first, with one unsigned min rather than a pair of signed
+// compares. The encoder never emits a negative index, so one out of a damaged
+// frame is nonsense either way and reading it unsigned sends it to the top of
+// the grid. A lower bound written as a literal zero turns the expression into a
+// branch instead. Checked on gcc 13.3 with -fopt-info-vec.
 //
-// The fold is one unsigned min rather than a pair of signed compares. The encoder
-// never emits a negative index, since the grid lives over x + offset >= 0, so one
-// out of a damaged frame is nonsense either way and reading it unsigned sends it
-// to the top of the grid rather than through a second branch. It also sidesteps a
-// gcc quirk: a lower bound written as a literal zero, or as a const that folds to
-// one, turns the expression into a branch and the loop is refused. Checked on gcc
-// 13.3 with -fopt-info-vec.
+// The clamp is negated so a NaN falls to the floor. Folding the index is not
+// enough on its own: a forged step past what a float holds becomes an infinity
+// in the narrow paths, and index zero times an infinity is a NaN.
 
 #define QSQ_DEC(WT, IT, UT, ATYPE, STORE)                                      \
   do {                                                                         \
@@ -35,13 +32,12 @@
       u = u > utop ? utop : u;                                                 \
       const ATYPE t = (ATYPE)(IT)u * st;                                       \
       ATYPE v = t * t - of;                                                    \
-      v = v < lo ? lo : (v > hi ? hi : v);                                     \
+      v = !(v > lo) ? lo : (!(v < hi) ? hi : v);                               \
       d[i] = (WT)(STORE(v));                                                   \
     }                                                                          \
   } while (0)
 
-// The value path. The stream already holds the reconstruction, so this is a
-// conversion and no arithmetic.
+// The stream already holds the reconstruction, so this is a conversion.
 #define QSQ_DEC_V(WT, IT, STORE)                                               \
   do {                                                                         \
     const IT *s = (const IT *)src;                                             \
@@ -59,25 +55,18 @@
 
 int quant_sqrt_decode(void *dst, const void *src, const quant_sqrt_params *p,
                       int dtype, size_t nbElts) {
-  if (!QSQ_DTYPE_OK(dtype) || !isfinite(p->step) || !(p->step > 0.0) ||
-      !isfinite(p->offset) || !(p->offset >= 0.0))
+  // Same predicate the encoder and the binding read.
+  if (!quant_sqrt_params_ok(p, dtype))
     return 1;
   const int values = (p->flags & QUANT_SQRT_FLAG_STORE_VALUES) != 0;
   const int nonneg = (p->flags & QUANT_SQRT_FLAG_NONNEGATIVE) != 0;
   const int narrow = (p->flags & QUANT_SQRT_FLAG_DECODE_F32) != 0;
-  if (narrow && dtype != QSQ_F32)
-    return 1;
 
-  // An integer type carries the reconstruction in its own width, so the stream is
-  // already the output.
+  // An integer type carries the reconstruction in its own width.
   if (dtype <= QSQ_LAST_INT) {
-    if (!values)
-      return 1;
     memcpy(dst, src, nbElts * quant_sqrt_width(dtype));
     return 0;
   }
-  if (nbElts == 0)
-    return 0;
 
   if (values) {
     switch ((qsq_dtype)dtype) {
@@ -103,19 +92,18 @@ int quant_sqrt_decode(void *dst, const void *src, const quant_sqrt_params *p,
   const double step = p->step, offset = p->offset;
   const double vhi = quant_sqrt_value_hi(dtype);
   const double vlo = nonneg ? 0.0 : quant_sqrt_value_lo(dtype);
-  const double dtop = quant_sqrt_index_top(step, offset, dtype);
+  const double dtop = quant_sqrt_index_top(step, offset, dtype, 0);
 
+  // index_top capped dtop at what the element holds, so the cast is direct.
   switch ((qsq_dtype)dtype) {
   case QSQ_F16: {
-    const uint16_t utop = (uint16_t)(dtop > 32767.0 ? 32767.0 : dtop);
+    const uint16_t utop = (uint16_t)dtop;
     QSQ_DEC(uint16_t, int16_t, uint16_t, float, QSQ_TOF16);
     break;
   }
   case QSQ_F32: {
-    const uint32_t utop =
-        (uint32_t)(dtop > 2147483647.0 ? 2147483647.0 : dtop);
-    // The step was cut against whichever of these the resolver picked, so the bit
-    // is not a hint, it says which arithmetic the declared bound was measured on.
+    const uint32_t utop = (uint32_t)dtop;
+    // The bit says which arithmetic the declared bound was measured on.
     if (narrow)
       QSQ_DEC(float, int32_t, uint32_t, float, QSQ_ID);
     else
@@ -123,8 +111,7 @@ int quant_sqrt_decode(void *dst, const void *src, const quant_sqrt_params *p,
     break;
   }
   default: {
-    const uint64_t utop =
-        (uint64_t)(dtop > 9007199254740992.0 ? 9007199254740992.0 : dtop);
+    const uint64_t utop = (uint64_t)dtop;
     QSQ_DEC(double, int64_t, uint64_t, double, QSQ_ID);
     break;
   }

@@ -4,6 +4,8 @@
 #include "quant_sqrt_half.h"
 
 #include <errno.h>
+#include <float.h>
+#include <locale.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -11,16 +13,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Terms a float reconstruction picks up when the decoder rebuilds in float
-// rather than double. The step rounds, the index converts, the product rounds,
-// the square doubles what came before, and the subtraction rounds again. Eight
-// is the loose count of those, and measurement puts the real worst near a third
-// of it, which is the direction to be wrong in.
+// Terms a reconstruction picks up when the decoder rebuilds in float rather than
+// double. The step rounds, the index converts, the product rounds, the square
+// doubles that, the subtraction rounds again. Eight is a loose count, measured
+// worst is near a third of it.
 #define QSQ_F32_TERMS 8.0
 
-// Share of the budget the float path may give up. Past it the step it costs is no
-// longer worth the speed it buys, and the double path is taken.
+// Share of the budget the float path may give up before the double path wins.
 #define QSQ_F32_SHARE 0.25
+
+// Half ulps the quotient that finds the level picks up, which moves the boundary
+// between two levels and costs the step eta*u. Six covers the add, the square,
+// the reciprocal, the product and the two the root sits between; measured worst
+// is near a third of that. Derived in spec.md under Cutting the step. Leaving it
+// out let an f64 grid run 1.40x over its declared bound.
+#define QSQ_INDEX_TERMS 3.0
 
 static int fail(char *err, size_t errSize, const char *fmt, ...) {
   if (err != NULL && errSize != 0) {
@@ -32,18 +39,38 @@ static int fail(char *err, size_t errSize, const char *fmt, ...) {
   return 1;
 }
 
-// Has to be consumed whole, so "1.0.0" fails instead of reading as 1.0.
+// Has to be consumed whole, so "1.0.0" fails instead of reading as 1.0. strtod
+// reads the separator LC_NUMERIC declares and a recipe always writes a dot, so
+// the dot is translated rather than the conversion replaced, which keeps it
+// correctly rounded.
 static int number(const char *s, const char *end, double *out) {
-  char buf[64];
+  char buf[80];
   const size_t n = (size_t)(end - s);
-  if (n == 0 || n >= sizeof(buf))
+  if (n == 0)
     return 1;
-  memcpy(buf, s, n);
-  buf[n] = '\0';
+
+  const char *point = localeconv()->decimal_point;
+  if (point == NULL || point[0] == '\0')
+    point = ".";
+  const size_t plen = strlen(point);
+  if (n + plen >= sizeof(buf))
+    return 1;
+
+  size_t w = 0;
+  for (size_t i = 0; i < n; ++i) {
+    if (s[i] == '.') {
+      memcpy(buf + w, point, plen);
+      w += plen;
+    } else {
+      buf[w++] = s[i];
+    }
+  }
+  buf[w] = '\0';
+
   char *tail = NULL;
   errno = 0;
   const double v = strtod(buf, &tail);
-  if (tail != buf + n || errno == ERANGE || !isfinite(v))
+  if (tail != buf + w || errno == ERANGE || !isfinite(v))
     return 1;
   *out = v;
   return 0;
@@ -83,9 +110,8 @@ int quant_sqrt_parse(const char *s, quant_sqrt_spec *out, char *err,
 
   for (;;) {
     if (keyed(&cur, "MAX_ERROR", &vb, &ve) == 0) {
-      // The N is required. Without it a MAX_ERROR of 0.5 reads as half a count,
-      // which is a plausible thing to mean, and the frame would come back holding
-      // a bound a hundred times tighter than the caller asked for.
+      // Without the N a MAX_ERROR of 0.5 reads as half a count, which is also a
+      // plausible thing to mean and quantizes a hundred times finer.
       double v;
       if (haveError || ve == vb || ve[-1] != 'N' || number(vb, ve - 1, &v))
         return fail(err, errSize,
@@ -146,8 +172,7 @@ int quant_sqrt_parse(const char *s, quant_sqrt_spec *out, char *err,
   return 0;
 }
 
-// The curve, wherever it came from. Both callers want the same two numbers and
-// neither should care which branch produced them.
+// The curve, wherever it came from.
 static int curve_of(const quant_sqrt_spec *sp, const quant_sqrt_noise *ft,
                     double *a, double *b) {
   if (sp->have_ab) {
@@ -162,13 +187,26 @@ static int curve_of(const quant_sqrt_spec *sp, const quant_sqrt_noise *ft,
   return 0;
 }
 
+// Signed x. The variance grows with the signal, not with its magnitude, and
+// folding the curve at zero reports a bound the grid was never cut against.
 double quant_sqrt_bound(const quant_sqrt_spec *sp, const quant_sqrt_noise *ft,
                         double x) {
   double a, b;
   if (curve_of(sp, ft, &a, &b) != 0)
     return 0.0;
-  const double v = a + b * fabs(x);
+  const double v = a + b * x;
   return v > 0.0 ? sp->k * sqrt(v) : 0.0;
+}
+
+// What rounding a stored reconstruction costs against the bound where the sample
+// sits. Grows with x above zero, and runs away as x falls toward -offset where
+// the bound goes to zero and the rounding does not, so both ends get measured.
+// Zero is exact in every type this codec writes.
+static double store_charge(double x, double offset) {
+  if (x == 0.0)
+    return 0.0;
+  const double u = sqrt(x + offset);
+  return u > 0.0 ? fabs(x) / u : INFINITY;
 }
 
 int quant_sqrt_resolve(const quant_sqrt_spec *sp, int dtype,
@@ -215,19 +253,31 @@ int quant_sqrt_resolve(const quant_sqrt_spec *sp, int dtype,
   const int isInt = dtype <= QSQ_LAST_INT;
   const int values = isInt || sp->store == QUANT_SQRT_STORE_VALUES;
   const double maxAbs = fmax(fabs(sc->lo), fabs(sc->hi));
+  const double u = sqrt(maxAbs + offset);
 
   if (values) {
-    // The reconstruction has to land on a whole number, which costs half a unit
-    // on top of the grid. Give the grid half the budget and the rounding the
-    // other half and the two meet exactly: the grid stops biting below
-    // sqrt(x+offset) = 1/(2*step), and half a unit fits under the remaining
-    // c - step there when step is c/2.
+    // Half the budget to the grid and half to rounding the level to a whole
+    // number, which meet exactly at sqrt(x+offset) = 1/(2*step).
+    //
+    // Nothing here reads the raster, on purpose. Two tiles of one product have to
+    // land on the same grid or the same value encodes differently in each.
     out->step = 0.5 * c;
     out->flags |= QUANT_SQRT_FLAG_STORE_VALUES;
 
+    // The index never leaves the encoder here, so the element width does not
+    // limit it and QSQ_INDEX_TERMS does. Taken as a ceiling rather than a charge
+    // so the step above stays pinned to the recipe. Also what catches a step
+    // small enough to square to zero.
+    const double levels = 0.5 / (QSQ_INDEX_TERMS * DBL_EPSILON);
+    if (!(u / out->step < levels))
+      return fail(err, errSize,
+                  "this bound needs %g levels over this raster, past the %g the "
+                  "arithmetic that finds one resolves",
+                  u / out->step, levels);
+
     if (!isInt) {
-      // An integer sample is already whole and rides the crossover for free. A
-      // float one is not, so the whole raster has to sit above it.
+      // An integer sample is already whole. A float one is not, so the whole
+      // raster has to sit above the crossover.
       const double need = 1.0 / c;          // sqrt(x + offset) has to reach this
       const double xmin = need * need - offset;
       if (sc->hi >= sc->lo && sc->lo < xmin)
@@ -249,12 +299,12 @@ int quant_sqrt_resolve(const quant_sqrt_spec *sp, int dtype,
     return 0;
   }
 
-  // The index path. Storing the reconstruction at the output width rounds it by a
-  // fraction of its own magnitude, and that rounding bites at the top of the
-  // raster, because it grows like x while the bound only grows like sqrt(x).
+  // The index path, where the step reads the raster anyway, so both charges land
+  // on it rather than becoming a refusal the way the value path does it.
   const double eps = quant_sqrt_eps(dtype);
-  const double u = sqrt(maxAbs + offset);
-  const double chargeWide = u > 0.0 ? eps * maxAbs / u : 0.0;
+  const double chargeWide =
+      eps * fmax(store_charge(sc->lo, offset), store_charge(sc->hi, offset));
+  const double chargeIndex = QSQ_INDEX_TERMS * DBL_EPSILON * u;
 
   double charge = chargeWide;
   if (dtype == QSQ_F32) {
@@ -265,12 +315,13 @@ int quant_sqrt_resolve(const quant_sqrt_spec *sp, int dtype,
     }
   }
 
-  out->step = c - charge;
+  out->step = c - charge - chargeIndex;
   if (!(out->step > 0.0))
     return fail(err, errSize,
-                "this bound is at or below the rounding of the output type at "
-                "%g, where the type resolves %g and the bound asks for %g",
-                maxAbs, chargeWide, c);
+                "this bound is at or below the rounding of the output type "
+                "between %g and %g, where the type resolves %g and the bound "
+                "asks for %g",
+                sc->lo, sc->hi, chargeWide, c);
 
   const double q = u / out->step;
   if (!(q < quant_sqrt_stream_max(dtype)))
@@ -280,15 +331,14 @@ int quant_sqrt_resolve(const quant_sqrt_spec *sp, int dtype,
   return 0;
 }
 
-// Identical satisfies any bound, which is what carries every sample the grid
-// rebuilds exactly.
+// An exact sample satisfies any bound and is skipped.
 #define QSQ_VER(RA, RB)                                                        \
   do {                                                                         \
     for (size_t i = 0; i < nbElts; ++i) {                                      \
       const double x = (double)(RA), y = (double)(RB);                         \
       if (!isfinite(x) || x == y)                                              \
         continue;                                                              \
-      const double v = a + b * fabs(x);                                        \
+      const double v = a + b * x;                                              \
       if (!(v > 0.0))                                                          \
         continue;                                                              \
       const double r = fabs(x - y) / (sp->k * sqrt(v));                        \

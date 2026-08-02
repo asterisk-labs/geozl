@@ -5,6 +5,7 @@
 #include "quant_log_math.h"
 
 #include <errno.h>
+#include <locale.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -21,18 +22,35 @@ static int fail(char *err, size_t errSize, const char *fmt, ...) {
   return 1;
 }
 
-// Consumed whole, so "1.0.0" fails instead of reading as 1.0.
+// Consumed whole, so "1.0.0" fails instead of reading as 1.0. A recipe writes a
+// point and strtod reads whatever LC_NUMERIC declares, so it is translated first.
 static int number(const char *s, const char *end, double *out) {
+  const char *point = localeconv()->decimal_point;
+  if (point == NULL || point[0] == '\0')
+    point = ".";
+  const size_t plen = strlen(point);
+
   char buf[64];
   const size_t n = (size_t)(end - s);
-  if (n == 0 || n >= sizeof(buf))
+  // Worst case every character is a point, each growing to plen bytes.
+  if (n == 0 || n >= sizeof(buf) / plen)
     return 1;
-  memcpy(buf, s, n);
-  buf[n] = '\0';
+
+  size_t w = 0;
+  for (size_t i = 0; i < n; ++i) {
+    if (s[i] == '.') {
+      memcpy(buf + w, point, plen);
+      w += plen;
+    } else {
+      buf[w++] = s[i];
+    }
+  }
+  buf[w] = '\0';
+
   char *tail = NULL;
   errno = 0;
   const double v = strtod(buf, &tail);
-  if (tail != buf + n || errno == ERANGE || !isfinite(v))
+  if (tail != buf + w || errno == ERANGE || !isfinite(v))
     return 1;
   *out = v;
   return 0;

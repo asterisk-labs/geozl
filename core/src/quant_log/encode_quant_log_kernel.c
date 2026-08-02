@@ -68,10 +68,14 @@ static inline double qlog_value_at(const double *lev, int64_t j, double step,
     }                                                                          \
   } while (0)
 
+// The grid is capped at the magnitude, which on a signed type is one past the
+// maximum, so the positive side is cut back on the way out. Cutting a level
+// towards the sample can only shorten the error.
 #define QLOG_ENC_I(T)                                                          \
   do {                                                                         \
     const T *restrict s = (const T *)src;                                      \
     T *restrict d = (T *)dst;                                                  \
+    const double hi = quant_log_value_hi(dtype);                               \
     for (size_t i = 0; i < nbElts; ++i) {                                      \
       const int64_t v = (int64_t)s[i];                                         \
       const double a = v < 0 ? -(double)v : (double)v;                         \
@@ -80,7 +84,7 @@ static inline double qlog_value_at(const double *lev, int64_t j, double step,
         continue;                                                              \
       }                                                                        \
       const double r = QLOG_LEV(a);                                            \
-      d[i] = (T)(int64_t)(v < 0 ? -r : r);                                     \
+      d[i] = (T)(int64_t)(v < 0 ? -r : (r > hi ? hi : r));                     \
     }                                                                          \
   } while (0)
 
@@ -148,7 +152,7 @@ int quant_log_encode(void *restrict dst, const void *restrict src,
 
   const double dtop = quant_log_value_top(step, dtype);
   const int64_t top = (int64_t)dtop;
-  const double cap = dtype <= QLOG_LAST_INT ? quant_log_value_hi(dtype)
+  const double cap = dtype <= QLOG_LAST_INT ? quant_log_value_mag(dtype)
                                             : quant_log_exact_int(dtype);
   const double levels = dtop + 1.0;
   double *lev = NULL;

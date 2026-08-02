@@ -64,8 +64,11 @@ Sentinel-2 DN, Landsat, anything that ships as uint16.
     error     0%    0%    0%    0%  0.92% 0.20% 0.20%    0%
 
 The decoder hands the block straight back, so this is the cheapest of the three.
-The top level is folded onto the type maximum, which is why 65535 survives here
-and why no reconstruction ever runs past the type.
+The top level is folded onto the largest magnitude the type holds, which is why
+65535 survives here. A signed type reaches one step further below zero than
+above it, so that magnitude is 32768 on an int16 and the store cuts the positive
+side back to 32767. Fold onto the maximum instead and the most negative value of
+the type comes back one short, which a bound tight enough is over.
 
 ### Case 2, floats holding whole numbers
 

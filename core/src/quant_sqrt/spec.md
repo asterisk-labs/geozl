@@ -52,9 +52,17 @@ Eighteen bytes, little endian.
     bytes 2-9   step, an IEEE double
     bytes 10-17 offset, an IEEE double
 
-Corrupt is a type byte outside 0 to 10, a flag bit above bit 2, a `step` that is
-not finite or is at or below zero, an `offset` that is not finite or is negative,
-bit 1 clear on an integer type, and bit 2 set on anything but float32.
+Corrupt is a type byte outside 0 to 10, a flag bit above bit 2, a `step` whose
+square is not a normal double, an `offset` that is not finite or is negative,
+bit 1 clear on an integer type, and bit 2 set on anything but float32. One
+predicate says all of this, in `quant_sqrt_check.h`, and the encoder, the decoder
+and the frame reader all read that one rather than each keeping a list.
+
+The condition on the `step` is on its square, not on the step. The encoder
+divides by `step^2`, so a step that is merely positive and finite can still
+square to zero, and then the reciprocal is an infinity and every sample folds
+onto one level in silence. A negative step squares to a normal number, so the
+sign is tested on its own.
 
 Bit 0 is load bearing here in a way it is not for the other curves. Level zero
 rebuilds to `-offset`, which is below zero whenever there is a read noise floor,
@@ -103,19 +111,37 @@ between levels `q-1` and `q` sits at `(x + offset)/step^2 = q^2 - q + 0.5`.
     q = floor(0.5 + sqrt(t - 0.25))      t = (x + offset) / step^2
 
 On top of the grid sits the rounding when the reconstruction reaches the output
-width, and which end of the raster it bites depends on the output type. The bound
-grows like `sqrt(x)` while a float rounding grows like `x`, so on a float it bites
-at the **top**. A whole number rounding is a flat half unit, so on an integer it
-bites at the **bottom**.
+width. What it costs at a sample is `eps * |x| / sqrt(x + offset)`, a fraction of
+the sample's own magnitude weighed against the bound where that sample sits. That
+grows with `x` above zero, and it also runs away as `x` falls toward `-offset`,
+where the bound goes to zero and the rounding does not. So it bites at **whichever
+end of the raster is worse** and both are measured. A whole number rounding is a
+flat half unit instead, so on an integer it bites at the bottom.
 
-    case 3, double arithmetic   step = c - eps * x_max / sqrt(x_max + offset)
-    case 3, float arithmetic    the same charge, eight loose terms rather than one
-    cases 1 and 2               step = c / 2
+Under that sits the encoder's own arithmetic. The quotient `t` rounds before the
+root is taken, which moves the boundary between two levels by a relative
+`DBL_EPSILON` or so, and a boundary that moves by a relative amount moves by
+`eta * (x + offset)` in `x`. Half the level spacing at `u` is `u * step`, so the
+two together fit under `c * u` only if the step gives up `eta * u` first.
+
+    case 3, double arithmetic   step = c - eps * max(g(lo), g(hi)) - eta * u
+                                where g(x) = |x| / sqrt(x + offset)
+    case 3, float arithmetic    the same, eight loose terms rather than one
+    cases 1 and 2               step = c / 2, and a ceiling on the level count
 
 The float arithmetic path is taken when its charge stays under a quarter of the
 budget. Measured, in the ordinary range of `c` between 0.01 and 1 with `x` under
 1e7, it consumes 5.7e-2 of the bound against 2.4e-2 for the double path. That is
 under 0.09 bit per sample given up for 2.2x at decode.
+
+Cases 1 and 2 pay the encoder's arithmetic as a refusal rather than as a charge,
+because their step has to stay where the recipe put it. Nothing in `c/2` reads the
+raster, and that is deliberate: two tiles of one product have to land on the same
+grid, or the same value encodes differently in each and the predictors downstream
+read the difference as noise. So the term comes back as a ceiling of
+`0.5 / (3 * DBL_EPSILON)` levels over the raster, which is a refusal and not a
+parameter. That ceiling is also what catches a step small enough to square to
+zero.
 
 The half in cases 1 and 2 is the even split between the grid and the rounding of
 the level to a whole number. The grid stops biting below
@@ -132,11 +158,20 @@ number the float type carries. Never a quiet fallback to case 3.
 ## Where the bound ends
 
 Below `-a/b`. The model puts the variance at or under zero there and no bound
-exists, so a raster reaching below it is refused rather than encoded.
+exists, so a raster reaching below it is refused rather than encoded. Approaching
+it from above is not free either, since the bound shrinks toward zero while the
+rounding of the reconstruction does not, and that is the `g(lo)` end of the charge
+above.
 
 At the top, where `eps * x` overtakes `c * sqrt(x)`, which is near `(c/eps)^2` for
 the double path and `(c/8eps)^2` for the float one. Both sit far above anything a
 real product holds; a float32 tile at `c = 0.01` would have to reach 4e8.
+
+The bound is read at signed `x` everywhere, including in `quant_sqrt_bound` and
+`quant_sqrt_verify`. The variance grows with the signal and not with its
+magnitude, so `a + b*x` and never `a + b*|x|`. Folding the curve at zero reports a
+bound several times the one the grid was cut against, and every test and fuzzer
+that measures a round trip reads that number.
 
 A sample that is not finite has no place on the grid. It encodes as index zero and
 the nodata codec in front is what puts it back.

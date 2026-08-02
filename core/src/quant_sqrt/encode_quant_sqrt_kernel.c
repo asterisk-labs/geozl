@@ -1,35 +1,24 @@
 #include "encode_quant_sqrt_kernel.h"
 
+#include "quant_sqrt_check.h"
 #include "quant_sqrt_dtype.h"
 #include "quant_sqrt_half.h"
 
 #include <math.h>
 #include <stdint.h>
 
-// The index of the level nearest the sample in x, not in u.
+// The level nearest the sample in x, not in u. Rounding in the warped domain
+// would cost a third of the step and this costs one sqrt either way, derived in
+// spec.md under Cutting the step.
 //
-// Write the bound as C * sqrt(x + offset). Rounding in the warped domain is the
-// obvious thing and it costs a third of the step, because the cell boundaries
-// there are not the midpoints between levels: the gap is worst at the bottom of
-// cell one, where the error reaches 1.5 times the bound and forces a step of
-// (2/3)C. Taking the nearest level in x instead admits a step of C outright, since
-// the worst ratio in cell q is (q+0.5)/sqrt(q*q+q+0.5), under one for every q and
-// approaching it from below.
-//
-// It costs the same. The midpoint between levels q-1 and q sits at
-// (x+offset)/step^2 = q*q - q + 0.5, so the largest q at or below a sample is
-// floor(0.5 + sqrt(t - 0.25)), one sqrt either way.
-//
-// The guard is written as !(t > 0.25) so a NaN takes the zero branch. Casting a
-// NaN to an integer is undefined, and a raster that means its NaNs carries the
-// nodata codec in front.
+// The guard is !(t > 0.25) so a NaN takes the zero branch, since casting one to
+// an integer is undefined. A raster that means its NaNs carries nodata in front.
 #define QSQ_INDEX(x)                                                           \
   ((t = ((double)(x) + offset) * inv), !(t > 0.25)                             \
        ? (int64_t)0                                                            \
        : ((r = 0.5 + sqrt(t - 0.25)), r >= dtop ? top : (int64_t)r))
 
-// The index path. Every index is at or above zero, since the grid lives over
-// x + offset >= 0, so there is no sign to carry and no branch for it.
+// Every index is at or above zero, the grid lives over x + offset >= 0.
 #define QSQ_ENC_I(WT, IT, RD)                                                  \
   do {                                                                         \
     const WT *s = (const WT *)src;                                             \
@@ -43,13 +32,11 @@ static inline double qsq_round(double v) {
   return v < 0.0 ? -floor(0.5 - v) : floor(v + 0.5);
 }
 
-// The fold happens in double and before the conversion, never after. A value past
-// what the integer holds converts to something undefined, and the answer differs
-// by machine, so a raster that round trips here would not round trip elsewhere.
-// The u64 output reaches past INT64_MAX and is the one that gets there on real
-// data, which is why the two signednesses take separate routes rather than both
-// going through an int64. Written as !(v > lo) so a NaN falls to the floor instead
-// of reaching the conversion.
+// The fold happens in double and before the conversion. Converting a value past
+// what the integer holds is undefined and the answer differs by machine, so a
+// frame written here would not read back elsewhere. u64 reaches past INT64_MAX on
+// real data, hence two routes rather than one through an int64. !(v > lo) so a
+// NaN falls to the floor instead of reaching the conversion.
 #define QSQ_I64_LO (-9223372036854775808.0)
 #define QSQ_I64_HI 9223372036854774784.0  // largest double under INT64_MAX
 #define QSQ_U64_HI 18446744073709549568.0 // largest double under UINT64_MAX
@@ -88,16 +75,14 @@ static inline uint64_t qsq_fit_u(double v) {
 
 int quant_sqrt_encode(void *dst, const void *src, const quant_sqrt_params *p,
                       int dtype, size_t nbElts) {
-  if (!QSQ_DTYPE_OK(dtype) || !(p->step > 0.0) || !(p->offset >= 0.0) ||
-      !isfinite(p->step) || !isfinite(p->offset))
+  // Same predicate the decoder and the binding read.
+  if (!quant_sqrt_params_ok(p, dtype))
     return 1;
   const int values = (p->flags & QUANT_SQRT_FLAG_STORE_VALUES) != 0;
-  if (dtype <= QSQ_LAST_INT && !values)
-    return 1; // an integer type carries the reconstruction and nothing else
 
   const double step = p->step, offset = p->offset;
   const double inv = 1.0 / (step * step);
-  const double dtop = quant_sqrt_index_top(step, offset, dtype);
+  const double dtop = quant_sqrt_index_top(step, offset, dtype, values);
   const int64_t top = (int64_t)dtop;
   const double vhi = quant_sqrt_value_hi(dtype);
   const double vlo = (p->flags & QUANT_SQRT_FLAG_NONNEGATIVE) != 0

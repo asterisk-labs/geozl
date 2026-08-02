@@ -79,6 +79,14 @@ static inline double qlog_from_index(int64_t q, double step, int anchor,
     }                                                                          \
   } while (0)
 
+#define QLOG_DEC_FLOOR(T)                                                      \
+  do {                                                                         \
+    const T *restrict s = (const T *)src;                                      \
+    T *restrict d = (T *)dst;                                                  \
+    for (size_t i = 0; i < nbElts; ++i)                                        \
+      d[i] = s[i] < 0 ? (T)0 : s[i];                                           \
+  } while (0)
+
 #define QLOG_ID(v) (v)
 #define QLOG_F32(v) ((float)(v))
 #define QLOG_F16(v) (quant_log_float_to_half((float)(v)))
@@ -90,8 +98,27 @@ int quant_log_decode(void *restrict dst, const void *restrict src,
   const int values = (p->flags & QUANT_LOG_FLAG_STORE_VALUES) != 0;
   const int nonneg = (p->flags & QUANT_LOG_FLAG_NONNEGATIVE) != 0;
 
-  // Case 1. The stream is already the output, in the output type.
+  // Case 1. The stream is already the output, in the output type. An unsigned
+  // one carries the floor already; without applying it to a signed one the flag
+  // would mean the floor on a float frame and nothing on an integer one.
   if (dtype <= QLOG_LAST_INT) {
+    if (nonneg && dtype >= QLOG_I8) {
+      switch ((qlog_dtype)dtype) {
+      case QLOG_I8:
+        QLOG_DEC_FLOOR(int8_t);
+        break;
+      case QLOG_I16:
+        QLOG_DEC_FLOOR(int16_t);
+        break;
+      case QLOG_I32:
+        QLOG_DEC_FLOOR(int32_t);
+        break;
+      default:
+        QLOG_DEC_FLOOR(int64_t);
+        break;
+      }
+      return 0;
+    }
     memcpy(dst, src, nbElts * quant_log_width(dtype));
     return 0;
   }

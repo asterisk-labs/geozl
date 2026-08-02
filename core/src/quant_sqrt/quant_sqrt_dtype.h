@@ -128,16 +128,20 @@ static inline double quant_sqrt_value_lo(int dtype) {
   }
 }
 
-// Largest index the grid produces for this type. Both kernels fold onto it once
-// per call, so a forged step cannot walk a reconstruction past the type and the
-// bottom clamp is the only other guard the loop needs.
+// Largest index the grid produces. Both kernels fold onto it once per call, so a
+// forged step cannot walk a reconstruction past the type.
 //
-// The sqrt runs once per stream, not once per sample. IEEE requires it to be
-// correctly rounded, so the ceiling it produces is the same number on every
-// machine that reads the frame.
-static inline double quant_sqrt_index_top(double step, double offset,
-                                          int dtype) {
-  const double lim = quant_sqrt_stream_max(dtype);
+// The ceiling depends on where the index goes. On the index path it is written
+// into the stream and has to fit an element. On the value path it never leaves
+// the encoder and only has to stay exact in the double that carries it. Reading
+// stream_max there capped a u8 grid at 255 levels.
+//
+// The sqrt runs once per stream. IEEE has it correctly rounded, so the ceiling is
+// the same number on every machine that reads the frame.
+static inline double quant_sqrt_index_top(double step, double offset, int dtype,
+                                          int values) {
+  const double lim = values ? 9007199254740992.0 // 2^53
+                            : quant_sqrt_stream_max(dtype);
   if (!(step > 0.0) || !(offset >= 0.0))
     return 1.0;
   const double hi = quant_sqrt_value_hi(dtype) + offset;

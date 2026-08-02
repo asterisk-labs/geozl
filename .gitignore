@@ -79,6 +79,7 @@ demo.py
 
 # Fuzzer corpus and libFuzzer artifacts, all generated
 fuzz/corpus/
+fuzz/corpus-quant-log/
 crash-*
 leak-*
 timeout-*
