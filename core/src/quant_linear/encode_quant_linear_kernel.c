@@ -1,5 +1,6 @@
 #include "encode_quant_linear_kernel.h"
 
+#include "quant_linear_check.h"
 #include "quant_linear_dtype.h"
 #include "quant_linear_half.h"
 
@@ -67,13 +68,13 @@ static double ql_fit(double q, double lo, double hi) {
 int quant_linear_encode(void *dst, const void *src,
                         const quant_linear_params *p, int dtype,
                         size_t nbElts) {
-  if (!QL_DTYPE_OK(dtype) || !(p->step > 0.0))
+  // Same predicate the decoder reads. This list used to be shorter, so an
+  // infinite step wrote a frame the decoder then called corrupt.
+  if (!quant_linear_params_ok(p, dtype))
     return 1;
   const double step = p->step;
   const double smax = quant_linear_stream_max(dtype);
   const int values = (p->flags & QUANT_LINEAR_FLAG_STORE_VALUES) != 0;
-  if (dtype > QL_LAST_INT && values && floor(step) != step)
-    return 1;
 
   switch ((ql_dtype)dtype) {
   case QL_U8:

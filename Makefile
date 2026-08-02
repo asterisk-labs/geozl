@@ -74,6 +74,7 @@ CTEST_DIR     := $(BUILD_DIR)/ctest
 # The exhaustive walk takes minutes, so it is not part of test-c. See
 # test-exhaustive below.
 CTEST_SRCS    := $(filter-out test/test_quant_exhaustive.c \
+                              test/test_quant_linear_exhaustive.c \
                               test/test_quant_log_exhaustive.c,\
                    $(wildcard test/test_*.c))
 CTEST_BINS    := $(patsubst test/%.c,$(CTEST_DIR)/%,$(CTEST_SRCS))
@@ -239,13 +240,16 @@ EXH_JOBS ?= 8
 EXH_N    ?= 4294967296
 
 $(CTEST_DIR)/test_quant_exhaustive: CTEST_CFLAGS += -O2
+$(CTEST_DIR)/test_quant_linear_exhaustive: CTEST_CFLAGS += -O2
 $(CTEST_DIR)/test_quant_log_exhaustive: CTEST_CFLAGS += -O2
 
 # quant_log walks u8, u16, i16 and f16 whole as well as every normal float32, and
 # takes no arguments because none of those spaces is worth striding across.
 test-exhaustive: $(CTEST_DIR)/test_quant_exhaustive \
+                 $(CTEST_DIR)/test_quant_linear_exhaustive \
                  $(CTEST_DIR)/test_quant_log_exhaustive
 	@$(CTEST_DIR)/test_quant_exhaustive $(EXH_JOBS) $(EXH_N)
+	@$(CTEST_DIR)/test_quant_linear_exhaustive
 	@$(CTEST_DIR)/test_quant_log_exhaustive
 
 clean-fuzz:

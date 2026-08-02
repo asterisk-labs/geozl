@@ -1,10 +1,13 @@
 #include "quant_linear_spec.h"
 
 #include "quant_linear_dtype.h"
+#include "quant_linear_half.h"
 
 #include <errno.h>
+#include <locale.h>
 #include <math.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,18 +22,39 @@ static int fail(char *err, size_t errSize, const char *fmt, ...) {
   return 1;
 }
 
-// Has to be consumed whole, so "1.0.0" fails instead of reading as 1.0.
+// Consumed whole, so "1.0.0" fails instead of reading as 1.0. strtod reads the
+// separator LC_NUMERIC declares and a recipe always writes a dot, so the dot is
+// translated rather than the conversion replaced, keeping it correctly rounded.
 static int number(const char *s, const char *end, double *out) {
-  char buf[64];
+  char buf[80];
   const size_t n = (size_t)(end - s);
-  if (n == 0 || n >= sizeof(buf))
+  if (n == 0)
     return 1;
-  memcpy(buf, s, n);
-  buf[n] = '\0';
+
+  const char *point = localeconv()->decimal_point;
+  if (point == NULL || point[0] == '\0')
+    point = ".";
+  const size_t plen = strlen(point);
+  if (n + plen >= sizeof(buf))
+    return 1;
+
+  size_t w = 0;
+  for (size_t i = 0; i < n; ++i) {
+    if (s[i] == '.') {
+      memcpy(buf + w, point, plen);
+      w += plen;
+    } else {
+      buf[w++] = s[i];
+    }
+  }
+  buf[w] = '\0';
+
   char *tail = NULL;
   errno = 0;
   const double v = strtod(buf, &tail);
-  if (tail != buf + n || errno == ERANGE || !isfinite(v))
+  // ERANGE also refuses an underflow to subnormal, which is what keeps resolve
+  // from cutting a grid the kernels cannot invert.
+  if (tail != buf + w || errno == ERANGE || !isfinite(v))
     return 1;
   *out = v;
   return 0;
@@ -162,5 +186,69 @@ int quant_linear_resolve(const quant_linear_spec *sp, int dtype, double maxAbs,
                 "a MAX_ERROR of %g needs more levels than a %zu-byte stream "
                 "carries",
                 sp->max_error, quant_linear_width(dtype));
+  return 0;
+}
+
+// Worst error as a fraction of the declared bound, so at or under one holds. A
+// non-finite source sample has no index and belongs to nodata.
+#define QL_VER(RA, RB)                                                         \
+  do {                                                                         \
+    for (size_t i = 0; i < nbElts; ++i) {                                      \
+      const double x = (double)(RA), y = (double)(RB);                         \
+      if (!isfinite(x) || x == y)                                              \
+        continue;                                                              \
+      const double r = fabs(x - y) / sp->max_error;                            \
+      if (r > w)                                                               \
+        w = r;                                                                 \
+    }                                                                          \
+  } while (0)
+
+int quant_linear_verify(const void *src, const void *dec,
+                        const quant_linear_spec *sp, int dtype, size_t nbElts,
+                        double *worst) {
+  double w = 0.0;
+  if (src == NULL || dec == NULL || sp == NULL || !QL_DTYPE_OK(dtype) ||
+      !(sp->max_error > 0.0))
+    return 1;
+
+  switch ((ql_dtype)dtype) {
+  case QL_U8:
+    QL_VER(((const uint8_t *)src)[i], ((const uint8_t *)dec)[i]);
+    break;
+  case QL_U16:
+    QL_VER(((const uint16_t *)src)[i], ((const uint16_t *)dec)[i]);
+    break;
+  case QL_U32:
+    QL_VER(((const uint32_t *)src)[i], ((const uint32_t *)dec)[i]);
+    break;
+  case QL_U64:
+    QL_VER(((const uint64_t *)src)[i], ((const uint64_t *)dec)[i]);
+    break;
+  case QL_I8:
+    QL_VER(((const int8_t *)src)[i], ((const int8_t *)dec)[i]);
+    break;
+  case QL_I16:
+    QL_VER(((const int16_t *)src)[i], ((const int16_t *)dec)[i]);
+    break;
+  case QL_I32:
+    QL_VER(((const int32_t *)src)[i], ((const int32_t *)dec)[i]);
+    break;
+  case QL_I64:
+    QL_VER(((const int64_t *)src)[i], ((const int64_t *)dec)[i]);
+    break;
+  case QL_F16:
+    QL_VER(quant_linear_half_to_float(((const uint16_t *)src)[i]),
+           quant_linear_half_to_float(((const uint16_t *)dec)[i]));
+    break;
+  case QL_F32:
+    QL_VER(((const float *)src)[i], ((const float *)dec)[i]);
+    break;
+  default:
+    QL_VER(((const double *)src)[i], ((const double *)dec)[i]);
+    break;
+  }
+
+  if (worst != NULL)
+    *worst = w;
   return 0;
 }

@@ -18,4 +18,10 @@ int quant_linear_resolve(const quant_linear_spec *sp, int dtype, double maxAbs,
                          int anyNegative, quant_linear_params *out, char *err,
                          size_t errSize);
 
+// The encoder's check on the frame it is about to write. worst comes back over
+// the declared bound, so at or under one is the bound holding.
+int quant_linear_verify(const void *src, const void *dec,
+                        const quant_linear_spec *sp, int dtype, size_t nbElts,
+                        double *worst);
+
 #endif // GEOZL_CODECS_QUANT_LINEAR_SPEC_H

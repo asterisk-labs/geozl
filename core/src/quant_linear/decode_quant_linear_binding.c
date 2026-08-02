@@ -2,6 +2,7 @@
 
 #include "decode_quant_linear_kernel.h" // quant_linear_decode
 #include "graph_quant_linear.h"         // QUANT_LINEAR_HEADER_SIZE
+#include "quant_linear_check.h"         // quant_linear_params_ok
 #include "quant_linear_dtype.h"         // QL_U8, QL_F64
 
 #include "openzl/zl_data.h"
@@ -13,7 +14,6 @@
 #include "common/endian.h"
 
 #include <assert.h>
-#include <math.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -41,20 +41,9 @@ ZL_Report DI_geozl_quant_linear(ZL_Decoder *dictx, const ZL_Input *ins[]) {
   if (dtype < QL_U8 || dtype > QL_F64 || quant_linear_width(dtype) != eltWidth)
     return ZL_returnError(ZL_ErrorCode_corruption);
 
-  // None of these come out of the encoder, only out of a damaged frame.
-  if (!isfinite(p.step) || !(p.step > 0.0))
+  // Only a damaged frame gets here, and the encoder reads the same predicate.
+  if (!quant_linear_params_ok(&p, dtype))
     return ZL_returnError(ZL_ErrorCode_corruption);
-  if ((p.flags & ~(unsigned)QUANT_LINEAR_FLAGS_KNOWN) != 0)
-    return ZL_returnError(ZL_ErrorCode_corruption);
-  // A float frame carries its reconstruction only with a whole step, since that is
-  // the only case an integer stream holds one.
-  const int values = (p.flags & QUANT_LINEAR_FLAG_STORE_VALUES) != 0;
-  if (dtype <= QL_LAST_INT) {
-    if (!values)
-      return ZL_returnError(ZL_ErrorCode_corruption);
-  } else if (values && floor(p.step) != p.step) {
-    return ZL_returnError(ZL_ErrorCode_corruption);
-  }
 
   ZL_Output *out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);
   ZL_ERR_IF_NULL(out, allocation);
