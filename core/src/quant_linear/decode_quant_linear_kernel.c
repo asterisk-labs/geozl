@@ -7,9 +7,9 @@
 #include <stdint.h>
 #include <string.h>
 
+// Two selects and no branch, which is what lets gcc vectorise the loops below.
+// An infinity lands on the end it belongs at.
 static double ql_clamp(double v, double lo, double hi) {
-  if (v != v)
-    return 0.0;
   return v < lo ? lo : (v > hi ? hi : v);
 }
 
@@ -40,7 +40,9 @@ static double ql_floor(const quant_linear_params *p, int dtype) {
 int quant_linear_decode(void *dst, const void *src,
                         const quant_linear_params *p, int dtype,
                         size_t nbElts) {
-  if (!QL_DTYPE_OK(dtype) || !(p->step > 0.0))
+  // isfinite is what the clamp above leans on, since an infinite step turns a
+  // zero sample into a NaN. Checked once here rather than once per sample.
+  if (!QL_DTYPE_OK(dtype) || !isfinite(p->step) || !(p->step > 0.0))
     return 1;
   const double step = p->step;
   const double vlo = ql_floor(p, dtype), vhi = quant_linear_value_hi(dtype);
