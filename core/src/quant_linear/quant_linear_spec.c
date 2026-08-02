@@ -169,14 +169,11 @@ int quant_linear_resolve(const quant_linear_spec *sp, int dtype, double maxAbs,
     return 0;
   }
 
-  // Two roundings, not one. The encoder takes q = nearbyint(x/step), and the
-  // division itself rounds, so |q - x/step| runs to 1/2 + eps*|x/step| and the
-  // grid error to step/2 + eps*|x|. Storing the reconstruction at the output
-  // width then rounds again by eps*|x^|. Both terms grow with the value, so the
-  // step gives up the worst of both. Budgeting only the second one broke the
-  // declared bound by 1.22x on a float64 near 3e11 under a MAX_ERROR of 1e-4,
-  // where the step had fallen under two ulps of the data. STORE=VALUES is the
-  // way out, and it is the only thing on this path that reads the tile.
+  // Two roundings, not one. The division inside nearbyint(x/step) can send q to
+  // the neighbour the exact quotient would not have picked, which costs eps*|x|,
+  // and storing q*step at the output width rounds again by eps*|x^|. See
+  // spec.md. This is also the only thing on this path that reads the tile, and
+  // STORE=VALUES is the way out.
   out->step = 2.0 * (sp->max_error - 2.0 * quant_linear_eps(dtype) * maxAbs);
   if (!(out->step > 0.0))
     return fail(err, errSize,

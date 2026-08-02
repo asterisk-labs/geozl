@@ -2,11 +2,6 @@
 // frame almost never parses far enough to reach the codec. The first byte picks
 // between the recipe parser, a forged parameter block, and a round trip that
 // asserts the declared bound.
-//
-// The one this codec most needs is the forged block. The two ends used to carry
-// separate ideas of what a block had to satisfy, so the encoder would accept an
-// infinite step and write a frame the decoder then called corrupt. That is
-// exactly the shape a fuzzer finds and a hand written test does not.
 
 #include "quant_linear/decode_quant_linear_kernel.h"
 #include "quant_linear/encode_quant_linear_kernel.h"
@@ -216,12 +211,10 @@ static void mode_roundtrip(const uint8_t *d, size_t n) {
   if (!(worst <= 1.0) && !(dtype == QL_U64 || dtype == QL_I64))
     abort();
 
-  // The grid must not depend on which part of the raster this call happened to
-  // get. Two frames that each hold the bound can still disagree with each other
-  // by twice it, and no per-sample check sees that. The float index path is
-  // excluded on purpose: its step comes out of the largest magnitude present,
-  // because storing a float reconstruction rounds it by a relative eps and the
-  // worst case of that is at the top.
+  // The grid must not depend on which part of the raster this call got. Two
+  // frames that each hold the bound can still disagree by twice it, and no
+  // per-sample check sees that. The float index path is excluded, its step reads
+  // maxAbs on purpose.
   const int pinned =
       dtype <= QL_LAST_INT || sp.store == QUANT_LINEAR_STORE_VALUES;
   if (!pinned || elts < 4)

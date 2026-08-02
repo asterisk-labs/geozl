@@ -27,10 +27,9 @@ static double ql_lo(const quant_linear_params *p, int dtype) {
       d[i] = (WT)CAST(ql_clamp((double)s[i] * step, vlo, vhi));                \
   } while (0)
 
-// The output range is wider than the whole stream range at every type, 32767
-// against 65504 for a half and further apart above, so the only end of ql_clamp
-// a stored reconstruction reaches is the floor at zero. The test is hoisted, a
-// select the loop carries stops the vectoriser.
+// A stored reconstruction is already inside its output type, so the floor at zero
+// is the only part of ql_clamp it can reach. The test is hoisted, a select the
+// loop carries stops the vectoriser.
 #define QL_DEC_CAST(WT, IT, CONV)                                              \
   do {                                                                         \
     const IT *s = (const IT *)src;                                             \
