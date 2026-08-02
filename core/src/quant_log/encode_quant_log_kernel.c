@@ -20,15 +20,25 @@
 // and converted after. Neither transform is ever negative, so truncating the sum
 // lands on the same level rounding would and costs one conversion instead of
 // three.
+//
+// The range is folded in double before the conversion, never after. A step small
+// enough drives the quotient past what an int64 holds, and the conversion is then
+// undefined and does different things on different machines: x86 hands back the
+// most negative value and arm64 saturates at the most positive one. The tests are
+// written so a NaN, which a zero step and an infinite quotient can produce, falls
+// to the floor rather than reaching the conversion.
+static inline int64_t qlog_fit(double v, double lo, double top) {
+  if (!(v > lo))
+    return (int64_t)lo;
+  if (!(v < top))
+    return (int64_t)top;
+  return (int64_t)v;
+}
+
 #define QLOG_PICK(a, anchor)                                                   \
   ((a) > QLOG_FINITE_TOP                                                       \
        ? top                                                                   \
-       : qlog_clampj(                                                          \
-             (int64_t)(qlog_log2_over((a), (anchor)) * inv + 0.5), top))
-
-static inline int64_t qlog_clampj(int64_t j, int64_t top) {
-  return j < 0 ? 0 : (j > top ? top : j);
-}
+       : qlog_fit(qlog_log2_over((a), (anchor)) * inv + 0.5, 0.0, dtop))
 
 // Cases 1 and 2, the value grid. The stream carries the reconstruction, so the
 // table holds whole numbers already folded onto the output range.
@@ -86,13 +96,10 @@ static inline int64_t qlog_clampj(int64_t j, int64_t top) {
         d[i] = 0;                                                              \
         continue;                                                              \
       }                                                                        \
-      int64_t m = a > QLOG_FINITE_TOP                                          \
-                      ? top                                                    \
-                      : (int64_t)(qlog_log2_over(a, anchor) * inv + 1.5);      \
-      if (m < 1)                                                               \
-        m = 1;                                                                 \
-      else if (m > top)                                                        \
-        m = top;                                                               \
+      const int64_t m =                                                        \
+          a > QLOG_FINITE_TOP                                                  \
+              ? top                                                            \
+              : qlog_fit(qlog_log2_over(a, anchor) * inv + 1.5, 1.0, dtop);    \
       d[i] = (IT)(x < 0.0 ? -m : m);                                           \
     }                                                                          \
   } while (0)
@@ -108,7 +115,8 @@ int quant_log_encode(void *dst, const void *src, const quant_log_params *p,
 
   if (!values) {
     const int anchor = quant_log_anchor_exp2(dtype);
-    const int64_t top = (int64_t)quant_log_index_top(p->step, dtype);
+    const double dtop = quant_log_index_top(p->step, dtype);
+    const int64_t top = (int64_t)dtop;
     switch ((qlog_dtype)dtype) {
     case QLOG_F16:
       QLOG_ENC_FI(uint16_t, int16_t, quant_log_half_to_float(s[i]));
@@ -132,6 +140,7 @@ int quant_log_encode(void *dst, const void *src, const quant_log_params *p,
   if (lev == NULL)
     return 1;
   const int64_t top = n - 1;
+  const double dtop = (double)top;
   const double cap = dtype <= QLOG_LAST_INT ? quant_log_value_hi(dtype)
                                             : quant_log_exact_int(dtype);
   for (int j = 0; j < n; ++j) {

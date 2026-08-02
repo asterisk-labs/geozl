@@ -5,6 +5,11 @@
 // inside the bound. That every normal f32 does. And that the subnormals do not,
 // which is the limit the spec states, so a change that quietly widened the grid
 // to cover them would fail here rather than pass unnoticed.
+//
+// Each line also carries a checksum of every reconstruction it made. Matching
+// worst cases across two builds says the statistics agree; matching checksums
+// says all four billion values came back with the same bits. Compare them across
+// compilers, flags and platforms.
 
 #include "quant_log/decode_quant_log_kernel.h"
 #include "quant_log/encode_quant_log_kernel.h"
@@ -12,6 +17,7 @@
 #include "quant_log/quant_log_half.h"
 #include "quant_log/quant_log_spec.h"
 
+#include <inttypes.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -26,6 +32,12 @@ static int failures = 0;
       ++failures;                                                              \
     }                                                                          \
   } while (0)
+
+// Every reconstruction folded into one number, the same way
+// test_quant_exhaustive.c does it. Addition, so the order it is fed in cannot
+// change the result.
+#define FOLD(sum, bits, pos)                                                   \
+  ((sum) += (uint64_t)(bits) * 1099511628211ull + (uint64_t)(pos))
 
 static const char *const recipes[] = {"LOG:MAX_ERROR=5%", "LOG:MAX_ERROR=1%",
                                       "LOG:MAX_ERROR=0.1%"};
@@ -52,7 +64,7 @@ static int setup(const char *recipe, int dtype, quant_log_params *p) {
   return 0;
 }
 
-#define EXHAUSTIVE_INT(NAME, T, DT, LO, N)                                     \
+#define EXHAUSTIVE_INT(NAME, T, UT, DT, LO, N)                                 \
   static void NAME(void) {                                                     \
     static T in[N], st[N], out[N];                                             \
     for (long i = 0; i < (N); ++i)                                             \
@@ -66,7 +78,9 @@ static int setup(const char *recipe, int dtype, quant_log_params *p) {
       double worst = 0.0;                                                      \
       long over = 0, exact = 0;                                                \
       double firstMoved = 0.0;                                                 \
+      uint64_t sum = 0;                                                        \
       for (long i = 0; i < (N); ++i) {                                         \
+        FOLD(sum, (UT)out[i], i);                                              \
         const double x = (double)in[i], y = (double)out[i];                    \
         if (x == 0.0) {                                                        \
           CHECK(y == 0.0);                                                     \
@@ -85,15 +99,15 @@ static int setup(const char *recipe, int dtype, quant_log_params *p) {
           ++over;                                                              \
       }                                                                        \
       printf("  %-8s %-20s worst %.6f, over %ld, exact %ld, first to move "   \
-             "%.0f\n",                                                         \
-             #T, recipes[r], worst, over, exact, firstMoved);                  \
+             "%.0f, sum %016" PRIx64 "\n",                                     \
+             #T, recipes[r], worst, over, exact, firstMoved, sum);             \
       CHECK(over == 0);                                                        \
     }                                                                          \
   }
 
-EXHAUSTIVE_INT(every_u8, uint8_t, QLOG_U8, 0, 256)
-EXHAUSTIVE_INT(every_u16, uint16_t, QLOG_U16, 0, 65536)
-EXHAUSTIVE_INT(every_i16, int16_t, QLOG_I16, -32768, 65536)
+EXHAUSTIVE_INT(every_u8, uint8_t, uint8_t, QLOG_U8, 0, 256)
+EXHAUSTIVE_INT(every_u16, uint16_t, uint16_t, QLOG_U16, 0, 65536)
+EXHAUSTIVE_INT(every_i16, int16_t, uint16_t, QLOG_I16, -32768, 65536)
 
 // Half the distance to the next value the type represents, relative, read off
 // the bit pattern so it is the spacing of a half and not of the float carrying
@@ -121,7 +135,9 @@ static void every_half(void) {
     CHECK(quant_log_decode(out, st, &p, QLOG_F16, 65536) == 0);
     double wN = 0.0, wS = 0.0;
     int overN = 0, overS = 0, nsub = 0;
+    uint64_t sum = 0;
     for (int i = 0; i < 65536; ++i) {
+      FOLD(sum, out[i], i);
       const float x = quant_log_half_to_float(in[i]);
       const float y = quant_log_half_to_float(out[i]);
       if (!isfinite(x) || x == 0.0f)
@@ -145,8 +161,8 @@ static void every_half(void) {
       }
     }
     printf("  f16      %-20s normals worst %.6f over %d, subnormals(%d) worst "
-           "%.6f over %d\n",
-           recipes[r], wN, overN, nsub, wS, overS);
+           "%.6f over %d, sum %016" PRIx64 "\n",
+           recipes[r], wN, overN, nsub, wS, overS, sum);
     CHECK(overN == 0);
   }
 }
@@ -164,7 +180,7 @@ static void every_normal_float32(void) {
       continue;
     double worst = 0.0;
     uint32_t at = 0;
-    uint64_t counted = 0, over = 0;
+    uint64_t counted = 0, over = 0, sum = 0;
 
     for (uint64_t base = 0; base < 0x100000000ull; base += BLK) {
       for (int i = 0; i < BLK; ++i) {
@@ -174,6 +190,9 @@ static void every_normal_float32(void) {
       CHECK(quant_log_encode(st, in, &p, QLOG_F32, BLK) == 0);
       CHECK(quant_log_decode(out, st, &p, QLOG_F32, BLK) == 0);
       for (int i = 0; i < BLK; ++i) {
+        uint32_t rb;
+        memcpy(&rb, &out[i], sizeof(rb));
+        FOLD(sum, rb, base + (uint64_t)i);
         const float x = in[i];
         if (!isfinite(x))
           continue;
@@ -193,9 +212,10 @@ static void every_normal_float32(void) {
           ++over;
       }
     }
-    printf("  f32      %-20s %llu normals, worst %.6e of %.6e, over %llu\n",
+    printf("  f32      %-20s %llu normals, worst %.6e of %.6e, over %llu, "
+           "sum %016" PRIx64 "\n",
            recipes[r], (unsigned long long)counted, worst, bounds[r],
-           (unsigned long long)over);
+           (unsigned long long)over, sum);
     CHECK(over == 0);
     // A grid using a fraction of what it was given would pass the line above and
     // still be wrong, with levels closer than asked and an index longer than

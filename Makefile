@@ -97,7 +97,11 @@ CTEST_CFLAGS  := -std=c11 -O1 -g -ffp-contract=off -Wall -Wextra \
 # No SAN_ENV here, the test binaries are instrumented themselves. Leak
 # detection is left on, that is how a missing free in a kernel shows up.
 ifeq ($(SAN),ON)
-  CTEST_CFLAGS += -fsanitize=address,undefined -fno-omit-frame-pointer
+  # float-cast-overflow is not part of undefined in gcc, and a double that does
+  # not fit the integer it is cast to is exactly how a forged parameter block
+  # reaches undefined behaviour.
+  CTEST_CFLAGS += -fsanitize=address,undefined,float-cast-overflow \
+                  -fno-omit-frame-pointer
 endif
 ifeq ($(OS),Windows_NT)
   CTEST_LIBS := -lm
