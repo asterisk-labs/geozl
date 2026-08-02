@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="geozl quant, uniform near-lossless quantization within a bounded error.">
+<meta name="description" content="geozl quant_linear holds a flat absolute bound on a uniform grid anchored at zero.">
 <meta name="theme-color" content="#F1EDE4">
-<title>geozl · quant</title>
+<title>geozl · quant_linear</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -33,21 +33,22 @@
     <main class="codoc">
       <div class="col-text">
         <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> near-lossless <span class="sep">/</span> lossy</p>
-        <h1 class="name">quant</h1>
-        <p class="subtitle">Uniform steps in a <span class="u">warped domain</span>.</p>
-        <p class="desc">A quantizer that respects a pointwise bound <b>b(x)</b> is a uniform quantizer in a
-        domain <b>w</b> with <b>w′ = 1/b</b>, so the curve is not a free choice, it follows from the way
-        the measurement error of the sensor grows with the value. <b>linear</b> holds a flat bound and fits
-        elevation or temperature, <b>sqrt</b> one that grows as √x and fits photon counting, <b>log</b> a
-        relative one and fits SAR backscatter or concentrations. The encoder does not argue the bound. It
-        decodes what it just wrote, measures every sample against what the recipe declared, and refuses the
-        frame instead of writing one that misses. A near-lossless codec sits <b>once at the head of the
-        graph</b>, so the loss happens a single time and every stage after it stays exact.</p>
+        <h1 class="name">quant_linear</h1>
+        <p class="subtitle">A uniform grid, <span class="u">anchored at zero</span>.</p>
+        <p class="desc">A flat bound. Ask for <b>|x &minus; x&#770;| &le; V</b> and the grid follows, uniform
+        with a step of <b>2V</b>. Where a whole step exists it is <b>floor(2V)</b> and never the nearest,
+        because rounding up breaks the bound while truncating only gives up ratio. What the stream carries
+        depends on the input. An integer, or a float on a whole-number grid, sends the <b>reconstruction</b>
+        and the decoder copies or casts. Anything else sends the <b>index</b> and the decoder multiplies,
+        which is the one path where rounding bites and the only reason the tile maximum enters at all. The
+        encoder does not argue the bound. It decodes what it just wrote, measures every sample, and
+        <b>refuses the frame</b> rather than write one that misses.</p>
         <dl class="spec">
-          <dt>ctid</dt><dd>0x72D780</dd>
-          <dt>header</dt><dd>dtype + curve + flags + step + offset + nsub &middot; 27 bytes</dd>
+          <dt>ctid</dt><dd>0x72D781</dd>
+          <dt>header</dt><dd>dtype + flags + step &middot; 10 bytes</dd>
+          <dt>recipe</dt><dd>LINEAR:MAX_ERROR=V &middot; ,STORE=VALUES</dd>
           <dt>types</dt><dd>integers 8 to 64-bit &middot; floats 16 to 64-bit</dd>
-          <dt>error</dt><dd>abs:V &middot; rel:P% &middot; shot:a=A,b=B,k=K</dd>
+          <dt>decode</dt><dd>x = q &middot; step, or a copy when the stream holds the reconstruction</dd>
         </dl>
 
         <div class="actions">
@@ -56,18 +57,18 @@
             <span>Code</span>
             <svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
           </a>
-          <span class="usage mono">geozl.lossy.Quant(error, tile)</span>
+          <span class="usage mono">error="LINEAR:MAX_ERROR=5"</span>
         </div>
       </div>
 
       <div class="panel">
-        <object class="diagram" type="image/svg+xml" data="../assets/svg/codecs/quant.svg"
-                aria-label="quant snaps a value to the nearest level of a grid that is uniform in a warped domain, so the error it holds follows the curve of the sensor instead of staying flat"></object>
+        <object class="diagram" type="image/svg+xml" data="../assets/svg/codecs/quant-linear.svg"
+                aria-label="quant_linear snaps a continuous value to the nearest step of a uniform grid, staying within plus or minus MAX_ERROR, and stores the small integer index"></object>
       </div>
     </main>
 
     <footer class="footer pager">
-      <span class="pg-mid mono">0x72D780</span>
+      <span class="pg-mid mono">0x72D781</span>
     </footer>
   </div>
   <script src="../assets/js/main.js"></script>

@@ -156,11 +156,15 @@ svg,img{ display:block; max-width:100%; }
   border-color:var(--line);
   background:rgba(255,255,255,.18);
 }
+/* The masthead marks which section you are in, so it follows the section and not
+   the page tint. They match everywhere except the codec pages, which tint
+   themselves by codec family while still living under Docs. */
+body:has(main.codoc){ --nav:var(--purple); }
 .nav a.here{
   padding-left:23px;
   color:var(--ink);
   border-color:var(--line-strong);
-  background:color-mix(in srgb,var(--page) 11%,transparent);
+  background:color-mix(in srgb,var(--nav,var(--page)) 11%,transparent);
 }
 .nav a.here::before{
   content:"";
@@ -170,7 +174,7 @@ svg,img{ display:block; max-width:100%; }
   width:7px;
   height:7px;
   transform:translateY(-50%);
-  background:var(--page);
+  background:var(--nav,var(--page));
   border:1px solid var(--ink);
 }
 

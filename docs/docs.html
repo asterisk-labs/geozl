@@ -38,8 +38,8 @@
 <p class="legend">
 <span class="lg" style="--fam:var(--purple)"><span class="lg-sq"></span> predictors <b>6</b></span>
 <span class="lg" style="--fam:var(--green)"><span class="lg-sq"></span> split <b>2</b></span>
-<span class="lg" style="--fam:var(--orange)"><span class="lg-sq"></span> near-lossless <b>1</b></span>
-<span class="legend-count">9 codecs</span>
+<span class="lg" style="--fam:var(--orange)"><span class="lg-sq"></span> near-lossless <b>2</b></span>
+<span class="legend-count">10 codecs</span>
 </p>
 <div class="cards">
 <a class="card" href="codecs/delta-w.html" style="--fam:var(--purple)">
@@ -90,10 +90,16 @@
 <p class="card-what">Holes leave as a validity mask.</p>
 <span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
 </a>
-<a class="card" href="codecs/quant.html" style="--fam:var(--orange)">
-<div class="card-top"><span class="card-no">09</span><span class="card-ct">0x72D780</span></div>
-<div class="card-name">quant</div>
-<p class="card-what">Uniform quantization within ±error.</p>
+<a class="card" href="codecs/quant-linear.html" style="--fam:var(--orange)">
+<div class="card-top"><span class="card-no">09</span><span class="card-ct">0x72D781</span></div>
+<div class="card-name">quant_linear</div>
+<p class="card-what">A flat bound on a uniform grid.</p>
+<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
+</a>
+<a class="card" href="codecs/quant-log.html" style="--fam:var(--orange)">
+<div class="card-top"><span class="card-no">10</span><span class="card-ct">0x72D782</span></div>
+<div class="card-name">quant_log</div>
+<p class="card-what">A relative bound, the same per cent everywhere.</p>
 <span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
 </a>
 </div>

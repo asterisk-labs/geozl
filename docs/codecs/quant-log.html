@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="geozl quant_log holds a relative error bound on a geometric grid, uniform once you take log2.">
+<meta name="theme-color" content="#F1EDE4">
+<title>geozl · quant_log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" href="../assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body style="--page:var(--orange)">
+  <div class="sheet">
+    <span class="reg tl">+</span><span class="reg tr">+</span>
+    <span class="reg bl">+</span><span class="reg br">+</span>
+
+    <header class="masthead">
+      <a class="lockup vt-lockup" href="../index.html" aria-label="geozl home">
+        <img class="marksvg" src="../assets/svg/mark.svg" alt="">
+        <span class="wm-sm">GeoZL</span>
+      </a>
+      <nav class="nav" aria-label="Sections">
+        <a href="../docs.html" class="here">Docs</a>
+        <a href="../api-high.html">API</a>
+        <a href="../benchmark.html">Benchmark</a>
+        <a href="../links.html">Links</a>
+      </nav>
+    </header>
+
+    <main class="codoc">
+      <div class="col-text">
+        <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> near-lossless <span class="sep">/</span> lossy</p>
+        <h1 class="name">quant_log</h1>
+        <p class="subtitle">A fixed fraction, <span class="u">not a fixed amount</span>.</p>
+        <p class="desc">A relative bound. A value of 8000 gets the <b>same one per cent of slack</b> as a
+        value of 8. Ask for the gap between levels to be proportional to the value and the levels come out
+        as powers of a fixed ratio, which is a <b>uniform grid once you take the log</b>. Everything is in
+        log2 because the integer part of log2 of a float is its exponent field, exact and free. Zero has no
+        magnitude to place, so it takes index zero and comes back exact. <b>Nothing about the grid comes
+        from the tile</b>, not the anchor and not the step, so a scene cut at one chunk size and again at
+        another gives the same numbers. Both transcendentals are written out in plain IEEE arithmetic rather
+        than called from libm, which is not correctly rounded, so a frame written on one machine
+        <b>rebuilds the same index on another</b>.</p>
+        <dl class="spec">
+          <dt>ctid</dt><dd>0x72D782</dd>
+          <dt>header</dt><dd>dtype + flags + step &middot; 10 bytes</dd>
+          <dt>recipe</dt><dd>LOG:MAX_ERROR=P% &middot; ,STORE=VALUES</dd>
+          <dt>types</dt><dd>integers 8 to 64-bit &middot; floats 16 to 64-bit</dd>
+          <dt>decode</dt><dd>one table lookup, or a copy when the stream holds the reconstruction</dd>
+        </dl>
+
+        <div class="actions">
+          <!-- TODO replace href="#" with the source-code link -->
+          <a class="btn-code" href="#">
+            <span>Code</span>
+            <svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+          </a>
+          <span class="usage mono">error="LOG:MAX_ERROR=1%"</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <object class="diagram" type="image/svg+xml" data="../assets/svg/codecs/quant-log.svg"
+                aria-label="quant_log holds a relative bound. The grid of levels around 8 and the grid around 8000 have the same shape, so a sample at either end comes back within the same one per cent, and in log2 the two grids share one uniform step"></object>
+      </div>
+    </main>
+
+    <footer class="footer pager">
+      <span class="pg-mid mono">0x72D782</span>
+    </footer>
+  </div>
+  <script src="../assets/js/main.js"></script>
+</body>
+</html>
