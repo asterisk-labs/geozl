@@ -25,7 +25,8 @@
     { no: "07", name: "deinterleave", file: "deinterleave.html", fam: "green"  },
     { no: "08", name: "nodata",       file: "nodata.html",       fam: "green"  },
     { no: "09", name: "quant_linear", file: "quant-linear.html", fam: "orange" },
-    { no: "10", name: "quant_log",    file: "quant-log.html",    fam: "orange" }
+    { no: "10", name: "quant_log",    file: "quant-log.html",    fam: "orange" },
+    { no: "11", name: "quant_sqrt",   file: "quant-sqrt.html",   fam: "orange" }
   ];
 
   const pager = document.querySelector(".pager");
