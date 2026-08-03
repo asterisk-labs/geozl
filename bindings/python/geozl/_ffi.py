@@ -33,14 +33,12 @@ void nodata_fill(void* dst, const void* src, const uint8_t* mask, size_t width, 
 void nodata_restore(void* dst, const void* values, const uint8_t* mask, size_t nb_elts, size_t elt_width, uint64_t pattern);
 void nodata_broadcast(void* dst, size_t nb_elts, size_t elt_width, uint64_t pattern);
 
-typedef struct { uint8_t curve; uint8_t flags; double step; double offset; uint64_t nsub; } quant_params;
-int quant_encode(void* dst, const void* src, const quant_params* p, int dtype, size_t nb_elts);
-int quant_decode(void* dst, const void* src, const quant_params* p, int dtype, size_t nb_elts);
-int quant_scan(const void* src, int dtype, size_t nb_elts, double* min_abs, double* max_abs, int* any_negative);
-typedef struct { unsigned char mode; unsigned char curve; double abs_err; double rel_err; double shot_a; double shot_b; double shot_k; double decl_min; double decl_max; } quant_spec;
-int quant_spec_parse(const char* s, quant_spec* out, char* err, size_t err_size);
-int quant_spec_resolve(const quant_spec* sp, int dtype, double min_abs, double max_abs, int any_negative, quant_params* out, char* err, size_t err_size);
-int quant_fit(void* idx, void* chk, const void* src, const quant_spec* sp, quant_params* p, int dtype, size_t nb_elts);
+typedef struct { double a; double b; int ok; int blocks; int bins; double range; double colin; double resid; } quant_sqrt_noise;
+typedef struct { double* mu; double* s2; size_t n; size_t cap; size_t stride; size_t seen; int failed; } quant_sqrt_accum;
+void quant_sqrt_accum_init(quant_sqrt_accum* acc);
+void quant_sqrt_accum_free(quant_sqrt_accum* acc);
+int quant_sqrt_accum_push(quant_sqrt_accum* acc, const void* src, int dtype, size_t width, size_t height);
+int quant_sqrt_accum_solve(const quant_sqrt_accum* acc, quant_sqrt_noise* out, char* err, size_t err_size);
 
 int geozl_2d_compress_c(const char* method, uint32_t width, const char* error, int dtype, int nodata_mode, double nodata_value, const void* src, size_t num_elts, size_t elt_width, void* dst, size_t dst_capacity, size_t* out_size, char* err_ctx, size_t err_ctx_size);
 size_t geozl_2d_frame_dsize_c(const void* frame, size_t frame_size);

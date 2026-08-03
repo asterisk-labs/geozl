@@ -55,13 +55,13 @@ def test_nan_round_trips_with_its_payload():
 
 def test_a_second_nan_payload_is_a_hole_too():
     """Matching bits instead of testing for NaN left every payload but the
-    first for whatever ran next, and quant has no answer for one."""
+    first for whatever ran next, and a quantizer has no answer for one."""
     tile = _smooth(np.float32)
     holes = _holes()
     tile[holes] = ODD_NAN
     other = np.array(0x7FA00042, dtype=np.uint32).view(np.float32)
     tile[3, 3] = other
-    _, out = _roundtrip(tile, method=GRAPH_WIDE, error="abs:2")
+    _, out = _roundtrip(tile, method=GRAPH_WIDE, error="LINEAR:MAX_ERROR=2")
     assert np.isnan(out[3, 3])
     assert np.isnan(out[holes]).all()
     assert not np.isnan(out[0, 0])
@@ -146,7 +146,7 @@ def test_infinity_is_a_value_not_a_hole():
 
 def test_sentinel_needs_a_known_dtype():
     tile = _smooth(np.float32).astype(np.dtype("f4"))
-    # A dtype geozl has no quant code for cannot carry a sentinel.
+    # A dtype geozl has no code for cannot carry a sentinel.
     with pytest.raises(ValueError):
         geozl.compress(tile.view(np.dtype("V4")), method=GRAPH_WIDE, nodata=1)
 

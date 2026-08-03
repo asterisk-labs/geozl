@@ -1,3 +1,21 @@
+// The 2d entry points. A method name and a raster in, a geozl frame out.
+//
+// A method names a predictor and a terminal, "planar>zigzag>entropy". The graph
+// wraps outward from that terminal, so a sample runs
+//
+//   nodata -> quantizer -> predictor -> zigzag -> terminal
+//
+// nodata is outermost because a quantizer has no answer for a sample that was
+// never measured, and the quantizer sits ahead of the predictor so the residual
+// is taken over the values the frame will actually carry. Past the terminal
+// everything belongs to OpenZL.
+//
+// Decompression needs none of it, since a frame names its own codecs.
+//
+// The file runs in that order: the palette of method names, the graph built
+// from one, the error plumbing OpenZL forces, and then the five entry points,
+// compress, frame size, decompress, bench and grid.
+
 #define _POSIX_C_SOURCE 200809L // clock_gettime
 
 #include "geozl/geozl.h"
@@ -19,10 +37,9 @@
 #include "openzl/codecs/zl_zigzag.h"     // ZL_NODE_ZIGZAG
 #include "openzl/codecs/zl_zstd.h"       // ZL_GRAPH_ZSTD
 
+#include "lossy/lossy_node.h"             // geozl_node_lossy
+#include "lossy/lossy_recipe.h"           // geozl_lossy_parse and friends
 #include "nodata/encode_nodata_binding.h" // GEOZL_NODATA_MODE_*
-#include "quant/encode_quant_kernel.h" // quant_scan
-#include "quant/quant_dtype.h"         // quant_dtype
-#include "quant/quant_spec.h"          // quant_spec
 
 #include <float.h>
 #include <stdint.h>
@@ -130,8 +147,7 @@ static ZL_NodeID predictor_node(ZL_Compressor *c, geozl_predictor p,
   }
 }
 
-// Zero head nodes means the final graph runs on the input directly (the id
-// branch reaching a backend with no predictor in front).
+// n == 0 is the id branch, a backend with no predictor in front of it.
 static ZL_GraphID chain(ZL_Compressor *c, const ZL_NodeID *nodes, size_t n,
                         ZL_GraphID final) {
   if (n == 0)
@@ -166,7 +182,7 @@ static ZL_Report geozl_storelo_fg(ZL_Graph *g, ZL_Edge *inputs[],
 static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
                                   geozl_terminal t, uint32_t width,
                                   size_t eltWidth) {
-  ZL_NodeID head[4];
+  ZL_NodeID head[3];
   size_t n = 0;
   if (p == GEOZL_PRED_ID) {
     // no residual: the raw numeric stream feeds the terminal
@@ -225,81 +241,25 @@ static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
   }
 }
 
-// An OpenZL error string lives inside the object that raised it and only for
-// that object's lifetime, so it has to be copied out before the free below. It
-// is also rejected by any other object, hence err_owner.
-typedef enum { ERR_NONE, ERR_COMPRESSOR, ERR_CCTX, ERR_DCTX } err_owner;
-
-static void copy_err(char *dst, size_t cap, const char *src) {
-  if (dst == NULL || cap == 0)
-    return;
-  if (src == NULL) {
-    dst[0] = '\0';
-    return;
-  }
-  size_t n = strlen(src);
-  if (n >= cap)
-    n = cap - 1;
-  memcpy(dst, src, n);
-  dst[n] = '\0';
-}
-
-// Expands a method string into the predictor list geozl_2d_grid_c enumerates
-// for the Python profiler. A predictor name gives that predictor plus the id
-// pass; "none" or "id" gives the id pass alone; NULL or "" gives every
-// predictor. This does not drive compression, parse_candidate does.
-static int resolve_prior(const char *method, geozl_predictor *out,
-                         size_t *outN) {
-  static const struct {
-    const char *name;
-    geozl_predictor id;
-  } named[] = {
-      {"delta_w", GEOZL_PRED_DELTA_W}, {"delta_n", GEOZL_PRED_DELTA_N},
-      {"planar", GEOZL_PRED_PLANAR},   {"med", GEOZL_PRED_MED},
-      {"average", GEOZL_PRED_AVERAGE}, {"wp_static", GEOZL_PRED_WP_STATIC},
-      {"delta_1d", GEOZL_PRED_DELTA_1D},
-  };
-
-  if (method == NULL || method[0] == '\0') {
-    size_t k = 0;
-    for (int p = 0; p < GEOZL_PRED_COUNT; ++p)
-      out[k++] = (geozl_predictor)p; // includes GEOZL_PRED_ID last
-    *outN = k;
-    return 0;
-  }
-  if (strcmp(method, "none") == 0 || strcmp(method, "id") == 0) {
-    out[0] = GEOZL_PRED_ID;
-    *outN = 1;
-    return 0;
-  }
-  for (size_t i = 0; i < sizeof(named) / sizeof(named[0]); ++i) {
-    if (strcmp(method, named[i].name) == 0) {
-      out[0] = named[i].id;
-      out[1] = GEOZL_PRED_ID;
-      *outN = 2;
-      return 0;
-    }
-  }
-  return -1;
-}
-
 // The sentinel a caller declared, as the bit pattern the mask codec compares
 // against, which is the element itself and not a value to convert at each use.
+// dtype has already been checked against GEOZL_DT_OK, so the integer branch
+// below cannot be reached by a code from outside the enum.
 static int nodata_bits(double v, int dtype, size_t eltWidth, uint64_t *out) {
-  if (dtype == Q_F32 && eltWidth == 4) {
+  if (dtype == GEOZL_DT_F32 && eltWidth == 4) {
     const float f = (float)v;
     uint32_t b;
     memcpy(&b, &f, sizeof(b));
     *out = b;
     return 0;
   }
-  if (dtype == Q_F64 && eltWidth == 8) {
+  if (dtype == GEOZL_DT_F64 && eltWidth == 8) {
     uint64_t b;
     memcpy(&b, &v, sizeof(b));
     *out = b;
     return 0;
   }
-  if (dtype <= Q_LAST_INT) { // the integer codes, signed and unsigned alike
+  if (dtype <= GEOZL_DT_LAST_INT) { // the integer codes, signed and unsigned alike
     const uint64_t bits = (uint64_t)(int64_t)v;
     *out = (eltWidth == 8) ? bits : (bits & (((uint64_t)1 << (8 * eltWidth)) - 1));
     return 0;
@@ -307,19 +267,19 @@ static int nodata_bits(double v, int dtype, size_t eltWidth, uint64_t *out) {
   return 1; // half floats carry no sentinel, NaN still works on them
 }
 
-// The nodata node goes in front of everything, quant included, because a
-// quantizer has no sane answer for a sample that was never measured.
-static ZL_GraphID geozl_2d_graph(ZL_Compressor *c, geozl_predictor p,
+// build_candidate gives the predictor and terminal, this wraps the quantizer
+// and then nodata around it, outermost last.
+static ZL_GraphID build_graph(ZL_Compressor *c, geozl_predictor p,
                                  geozl_terminal t, uint32_t width,
-                                 size_t eltWidth, const quant_params *qp,
-                                 const quant_spec *qs, int dtype,
+                                 size_t eltWidth,
+                                 const geozl_lossy_plan *plan, int dtype,
                                  int nodataMode, double nodataValue) {
   ZL_GraphID sel = build_candidate(c, p, t, width, eltWidth);
   if (!ZL_GraphID_isValid(sel))
     return ZL_GRAPH_ILLEGAL;
 
-  if (qp != NULL) {
-    ZL_NodeID q = geozl_node_quant(c, qp, qs, dtype);
+  if (plan->family != GEOZL_LOSSY_NONE) {
+    ZL_NodeID q = geozl_node_lossy(c, plan, dtype);
     if (!ZL_NodeID_isValid(q))
       return ZL_GRAPH_ILLEGAL;
     sel = ZL_Compressor_registerStaticGraph_fromNode1o(c, q, sel);
@@ -347,6 +307,25 @@ static ZL_GraphID geozl_2d_graph(ZL_Compressor *c, geozl_predictor p,
       c, nd, ZL_GRAPHLIST(sel, ZL_GRAPH_COMPRESS_GENERIC));
 }
 
+// An OpenZL error string lives inside the object that raised it and only for
+// that object's lifetime, so it has to be copied out before the free below. It
+// is also rejected by any other object, hence err_owner.
+typedef enum { ERR_NONE, ERR_COMPRESSOR, ERR_CCTX, ERR_DCTX } err_owner;
+
+static void copy_err(char *dst, size_t cap, const char *src) {
+  if (dst == NULL || cap == 0)
+    return;
+  if (src == NULL) {
+    dst[0] = '\0';
+    return;
+  }
+  size_t n = strlen(src);
+  if (n >= cap)
+    n = cap - 1;
+  memcpy(dst, src, n);
+  dst[n] = '\0';
+}
+
 // errCtx receives the reason on failure and an empty string on success,
 // truncated to errCtxSize. Pass NULL to drop it.
 static ZL_Report compress_impl(const char *method, uint32_t width,
@@ -369,6 +348,17 @@ static ZL_Report compress_impl(const char *method, uint32_t width,
     return ZL_returnError(ZL_ErrorCode_parameter_invalid);
   }
 
+  // nodata_bits and every quantizer index tables by this, and the integer branch
+  // of nodata_bits accepts anything at or below GEOZL_DT_LAST_INT, negatives
+  // included, so the range is checked once here rather than in each of them.
+  if (!GEOZL_DT_OK(dtype)) {
+    if (has_err)
+      snprintf(errCtx, errCtxSize,
+               "dtype %d is outside the geozl_dtype codes, which run 0 to %d",
+               dtype, (int)GEOZL_DT_F64);
+    return ZL_returnError(ZL_ErrorCode_parameter_invalid);
+  }
+
   // A bad name is a caller mistake, a name that does not apply at this width is
   // a graph problem. Keeping them apart makes the message actionable.
   geozl_predictor pred;
@@ -380,31 +370,21 @@ static ZL_Report compress_impl(const char *method, uint32_t width,
     return ZL_returnError(ZL_ErrorCode_parameter_invalid);
   }
 
-  // The log curve anchors its grid on the smallest magnitude in the tile, so
-  // the parameters are only complete once the data has been looked at. Doing it
-  // here rather than in the node keeps compress, bench and profile on the same
-  // numbers.
-  quant_spec sp;
-  quant_params qparams;
-  const quant_params *qp = NULL;
+  // Cut here and not in the node, so compress, bench and profile all report the
+  // same numbers. A SQRT recipe with no curve gets one fitted from this tile,
+  // since nothing at this entry point carries a product.
+  geozl_lossy_recipe recipe;
+  geozl_lossy_plan plan;
   {
     char why[192] = {0};
-    if (quant_spec_parse(error, &sp, why, sizeof(why)) != 0) {
+    if (geozl_lossy_parse(error, &recipe, why, sizeof(why)) != 0 ||
+        geozl_lossy_fit(&recipe, src, dtype, width, numElts, why,
+                        sizeof(why)) != 0 ||
+        geozl_lossy_resolve(&recipe, src, dtype, numElts, &plan, why,
+                            sizeof(why)) != 0) {
       if (has_err)
         snprintf(errCtx, errCtxSize, "%s", why);
       return ZL_returnError(ZL_ErrorCode_parameter_invalid);
-    }
-    if (sp.mode != QUANT_SPEC_LOSSLESS) {
-      double lo = 0.0, hi = 0.0;
-      int neg = 0;
-      quant_scan(src, dtype, numElts, &lo, &hi, &neg);
-      if (quant_spec_resolve(&sp, dtype, lo, hi, neg, &qparams, why,
-                             sizeof(why)) != 0) {
-        if (has_err)
-          snprintf(errCtx, errCtxSize, "%s", why);
-        return ZL_returnError(ZL_ErrorCode_parameter_invalid);
-      }
-      qp = &qparams;
     }
   }
 
@@ -417,8 +397,8 @@ static ZL_Report compress_impl(const char *method, uint32_t width,
   ZL_TypedRef *in = NULL;
   ZL_CCtx *cctx = NULL;
 
-  ZL_GraphID g = geozl_2d_graph(c, pred, term, width, eltWidth, qp, &sp, dtype,
-                                nodataMode, nodataValue);
+  ZL_GraphID g = build_graph(c, pred, term, width, eltWidth, &plan, dtype,
+                             nodataMode, nodataValue);
   if (!ZL_GraphID_isValid(g)) {
     if (has_err)
       snprintf(errCtx, errCtxSize,
@@ -449,7 +429,7 @@ static ZL_Report compress_impl(const char *method, uint32_t width,
     owner = ERR_CCTX;
     goto done;
   }
-  if (noChecksum || qp != NULL) {
+  if (noChecksum || plan.family != GEOZL_LOSSY_NONE) {
     r = ZL_CCtx_setParameter(cctx, ZL_CParam_contentChecksum,
                              ZL_TernaryParam_disable);
     if (ZL_isError(r)) {
@@ -485,29 +465,17 @@ done:
   return r;
 }
 
-// errCtx receives the reason on failure and an empty string on success.
-ZL_Report geozl_2d_compress(const char *method, uint32_t width,
-                            const char *error, int dtype, int nodataMode,
-                            double nodataValue, const void *src, size_t numElts,
-                            size_t eltWidth, void *dst, size_t dstCapacity,
-                            size_t *outSize, char *errCtx, size_t errCtxSize) {
-  return compress_impl(method, width, error, dtype, nodataMode, nodataValue,
-                       src, numElts, eltWidth, dst, dstCapacity, outSize,
-                       errCtx, errCtxSize, 0);
-}
-
-// Binding entry: like geozl_2d_compress but returns 0 on success or the
-// ZL_ErrorCode on failure, keeping ZL_Report out of foreign bindings. The
-// compressed size lands in *outSize on success.
+// The one compression entry. Returns 0 or the ZL_ErrorCode, keeping ZL_Report
+// out of the bindings, with the reason in errCtx and the frame size in *outSize.
 GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
                                   const char *error, int dtype, int nodataMode,
                                   double nodataValue, const void *src,
                                   size_t numElts, size_t eltWidth, void *dst,
                                   size_t dstCapacity, size_t *outSize,
                                   char *errCtx, size_t errCtxSize) {
-  ZL_Report r = geozl_2d_compress(method, width, error, dtype, nodataMode,
-                                  nodataValue, src, numElts, eltWidth, dst,
-                                  dstCapacity, outSize, errCtx, errCtxSize);
+  ZL_Report r = compress_impl(method, width, error, dtype, nodataMode,
+                              nodataValue, src, numElts, eltWidth, dst,
+                              dstCapacity, outSize, errCtx, errCtxSize, 0);
   return ZL_isError(r) ? (int)ZL_errorCode(r) : 0;
 }
 
@@ -628,6 +596,45 @@ GEOZL_API int geozl_2d_bench_c(const char *method, uint32_t width,
   free(dbuf);
   free(cbuf);
   return 0;
+}
+
+// Expands a method string into the predictor list geozl_2d_grid_c enumerates
+// for the Python profiler. A predictor name gives that predictor plus the id
+// pass; "none" or "id" gives the id pass alone; NULL or "" gives every
+// predictor. This does not drive compression, parse_candidate does.
+static int resolve_prior(const char *method, geozl_predictor *out,
+                         size_t *outN) {
+  static const struct {
+    const char *name;
+    geozl_predictor id;
+  } named[] = {
+      {"delta_w", GEOZL_PRED_DELTA_W}, {"delta_n", GEOZL_PRED_DELTA_N},
+      {"planar", GEOZL_PRED_PLANAR},   {"med", GEOZL_PRED_MED},
+      {"average", GEOZL_PRED_AVERAGE}, {"wp_static", GEOZL_PRED_WP_STATIC},
+      {"delta_1d", GEOZL_PRED_DELTA_1D},
+  };
+
+  if (method == NULL || method[0] == '\0') {
+    size_t k = 0;
+    for (int p = 0; p < GEOZL_PRED_COUNT; ++p)
+      out[k++] = (geozl_predictor)p; // includes GEOZL_PRED_ID last
+    *outN = k;
+    return 0;
+  }
+  if (strcmp(method, "none") == 0 || strcmp(method, "id") == 0) {
+    out[0] = GEOZL_PRED_ID;
+    *outN = 1;
+    return 0;
+  }
+  for (size_t i = 0; i < sizeof(named) / sizeof(named[0]); ++i) {
+    if (strcmp(method, named[i].name) == 0) {
+      out[0] = named[i].id;
+      out[1] = GEOZL_PRED_ID;
+      *outN = 2;
+      return 0;
+    }
+  }
+  return -1;
 }
 
 // Recipe names of the grid a method expands to, one per stride-byte slot. Lets

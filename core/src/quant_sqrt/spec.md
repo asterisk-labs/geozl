@@ -230,3 +230,28 @@ and ratio is lost rather than correctness.
 Overestimating is the real risk, because the encoder's own check does not catch
 it: it verifies against the bound it computed, which is already inflated. The low
 quantile and the four numbers above are the only defence.
+
+## Who measures it
+
+`geozl_lossy_resolve` takes a curve and passes it through, and fits one from the
+raster in front of it only when the recipe carries no `A` and `B` and the caller
+handed over nothing. `geozl_2d_compress_c` hands over nothing, because it sees one
+tile and has no way to reach the rest of the product, so a bare `SQRT:MAX_ERROR=VN`
+through the 2d entry point is the per-tile case with everything above that says
+about it.
+
+The intended path measures once and puts the two numbers in the recipe, which is
+what `geozl.lossy.fit_noise` is for on the Python side. It takes an `(N, H, W)` stack or
+any sequence of rasters, pools their block statistics through `quant_sqrt_accum`,
+solves once, and `Noise.recipe(max_error)` formats the string.
+
+    noise = geozl.lossy.fit_noise(stack)
+    frame = geozl.compress(tile, method=..., error=noise.recipe(0.5))
+
+The pooling is what makes it worth doing. Over eight 256 by 256 rasters of a
+synthetic scene whose curve is `100 + 1.0*x`, the fit returns `51.4 + 1.041*x`.
+The same scene cut so one tile holds only the bright end returns `0 + 1.302*x`
+with `colin` at 12.5, and pooling that tile with the dark one returns
+`72.9 + 1.016*x` with `colin` at 1.1. The bad fit is not detected by the encoder,
+only by `colin`, which is why the four numbers come back to the caller rather than
+being checked in here.

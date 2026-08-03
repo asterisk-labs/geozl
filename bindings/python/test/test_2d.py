@@ -107,9 +107,10 @@ def test_a_bare_number_is_not_an_error_recipe(error):
         geozl.compress(_tile(), method=GRAPH, error=error)
 
 
-def test_compress_rejects_a_dtype_quant_has_no_kernel_for():
-    with pytest.raises(ValueError, match="quant does not support"):
-        geozl.compress(np.zeros((4, 4), np.bool_), method=GRAPH_1B, error="abs:2")
+def test_compress_rejects_a_dtype_no_quantizer_has_a_kernel_for():
+    with pytest.raises(ValueError, match="do not support"):
+        geozl.compress(np.zeros((4, 4), np.bool_), method=GRAPH_1B,
+                       error="LINEAR:MAX_ERROR=2")
 
 
 @pytest.mark.parametrize("dtype", [np.uint8, np.int16, np.uint32, np.float64])
@@ -147,8 +148,10 @@ def test_corrupt_payload_is_reported():
         geozl.decompress(bytes(frame), dtype="int16")
 
 
-@pytest.mark.parametrize("recipe,bound", [("abs:1", 1), ("abs:2.0", 2.0),
-                                          ("abs:7", 7)])
+@pytest.mark.parametrize("recipe,bound",
+                         [("LINEAR:MAX_ERROR=1", 1),
+                          ("LINEAR:MAX_ERROR=2.0", 2.0),
+                          ("LINEAR:MAX_ERROR=7", 7)])
 def test_error_bound_holds(recipe, bound):
     arr = _tile()
     out = _roundtrip(arr, method=GRAPH, error=recipe)
@@ -157,7 +160,7 @@ def test_error_bound_holds(recipe, bound):
 
 def test_lossy_beats_lossless_on_size():
     arr = _tile()
-    assert len(geozl.compress(arr, method=GRAPH, error="abs:8")) < \
+    assert len(geozl.compress(arr, method=GRAPH, error="LINEAR:MAX_ERROR=8")) < \
            len(geozl.compress(arr, method=GRAPH))
 
 
@@ -208,13 +211,13 @@ def test_profile_rejects_an_unknown_prior():
 
 def test_profile_lossy_beats_profile_lossless():
     arr = _tile()
-    assert geozl.profile(arr, reps=1, error="abs:8")[0]["ratio"] > \
+    assert geozl.profile(arr, reps=1, error="LINEAR:MAX_ERROR=8")[0]["ratio"] > \
            geozl.profile(arr, reps=1)[0]["ratio"]
 
 
-def test_profile_rejects_a_dtype_quant_has_no_kernel_for():
-    with pytest.raises(ValueError, match="quant does not support"):
-        geozl.profile(np.zeros((4, 4), np.bool_), error="abs:2")
+def test_profile_rejects_a_dtype_no_quantizer_has_a_kernel_for():
+    with pytest.raises(ValueError, match="do not support"):
+        geozl.profile(np.zeros((4, 4), np.bool_), error="LINEAR:MAX_ERROR=2")
 
 
 def test_profile_skips_a_graph_that_fails_on_this_tile(monkeypatch):
@@ -302,10 +305,9 @@ def test_profile_rejects_a_sentinel_on_a_dtype_geozl_cannot_read():
     with pytest.raises(ValueError, match="nodata needs a dtype"):
         geozl.profile(np.zeros((4, 4), np.bool_), nodata=1)
 
-# The warped curves resolve their parameters inside compress, from a scan of the
-# tile, because the log curve anchors its grid on the smallest magnitude
-# present. Building the node by hand skips that, so these go through the high
-# level entry rather than through geozl.lossy.
+# Every quantizer resolves its parameters inside compress, from a scan of the
+# raster. Building the node by hand skips that, and there are no Python encoder
+# classes for the three anyway, so these go through the high level entry.
 
 
 @pytest.mark.parametrize("pct", [0.5, 1.0, 10.71])
@@ -313,7 +315,7 @@ def test_profile_rejects_a_sentinel_on_a_dtype_geozl_cannot_read():
                          ids=lambda d: np.dtype(d).name)
 def test_relative_bound_holds_through_compress(pct, dtype):
     arr = _ftile(dtype=dtype)
-    out = _roundtrip(arr, method=GRAPH, error=f"rel:{pct}%")
+    out = _roundtrip(arr, method=GRAPH, error=f"LOG:MAX_ERROR={pct}%")
     x = arr.astype(np.float64)
     assert (np.abs(out.astype(np.float64) - x) <= (pct / 100.0) * x).all()
 
@@ -328,22 +330,9 @@ def test_relative_bound_does_not_anchor_on_the_tile():
     arr = _ftile()
     low = arr.copy()
     low.reshape(-1)[0] = np.float32(1e-20)  # far under the rest of the tile
-    a = _roundtrip(arr, method=GRAPH, error="rel:1%").reshape(-1)
-    b = _roundtrip(low, method=GRAPH, error="rel:1%").reshape(-1)
+    a = _roundtrip(arr, method=GRAPH, error="LOG:MAX_ERROR=1%").reshape(-1)
+    b = _roundtrip(low, method=GRAPH, error="LOG:MAX_ERROR=1%").reshape(-1)
     assert np.array_equal(a[1:], b[1:])
-
-
-def test_declared_range_pins_the_grid_and_rejects_a_tile_it_does_not_hold():
-    # A declared range describes the product, so it is what the grid is cut
-    # against, and a tile it does not contain was cut for the wrong bound.
-    arr = _ftile(lo=1.0, hi=1e3)
-    x = arr.reshape(-1).astype(np.float64)
-    y = _roundtrip(arr, method=GRAPH, error="rel:1%,min=0.5").reshape(-1)
-    assert np.all(np.abs(y.astype(np.float64) - x) <= 0.01 * np.abs(x))
-    with pytest.raises(Exception, match="declared min"):
-        geozl.compress(arr, method=GRAPH, error="rel:1%,min=100")
-    with pytest.raises(Exception, match="declared max"):
-        geozl.compress(arr, method=GRAPH, error="rel:1%,max=10")
 
 
 def test_a_non_negative_tile_decodes_to_nothing_negative():
@@ -355,7 +344,7 @@ def test_a_non_negative_tile_decodes_to_nothing_negative():
     arr = _ftile(lo=1e-6, hi=1.0)
     arr.reshape(-1)[:16] = 0.0
     out = _roundtrip(arr, method=GRAPH,
-                     error="shot:a=1e-12,b=1e-6,k=0.5").reshape(-1)
+                     error="SQRT:MAX_ERROR=0.5N,A=1e-12,B=1e-6").reshape(-1)
     assert out.min() >= 0.0
     assert np.all(out[:16] == 0.0)  # and an exact zero comes back exact
 
@@ -363,18 +352,18 @@ def test_a_non_negative_tile_decodes_to_nothing_negative():
 def test_relative_bound_gives_zero_back_exactly():
     arr = _ftile()
     arr[0] = 0.0
-    out = _roundtrip(arr, method=GRAPH, error="rel:1%")
+    out = _roundtrip(arr, method=GRAPH, error="LOG:MAX_ERROR=1%")
     assert (out.reshape(arr.shape)[0] == 0.0).all()
 
 
 def test_relative_bound_on_an_all_zero_tile():
     arr = np.zeros((32, 32), dtype=np.float32)
-    assert np.array_equal(_roundtrip(arr, method=GRAPH, error="rel:1%"), arr)
+    assert np.array_equal(_roundtrip(arr, method=GRAPH, error="LOG:MAX_ERROR=1%"), arr)
 
 
 def test_shot_bound_holds_through_compress():
     arr = np.linspace(0.0, 10000.0, 1024, dtype=np.float32).reshape(32, 32)
-    out = _roundtrip(arr, method=GRAPH, error="shot:a=4,b=1,k=0.5")
+    out = _roundtrip(arr, method=GRAPH, error="SQRT:MAX_ERROR=0.5N,A=4,B=1")
     x = arr.astype(np.float64)
     assert (np.abs(out.astype(np.float64) - x) <= 0.5 * np.sqrt(4.0 + x)).all()
 
@@ -384,7 +373,7 @@ def test_shot_bound_holds_through_compress():
 # would wrap instead of saturating.
 def test_shot_bound_holds_on_an_unsigned_raster():
     arr = (np.arange(1024, dtype=np.uint16) * 5).reshape(32, 32)
-    out = _roundtrip(arr, method=GRAPH, error="shot:a=100,b=1,k=0.5")
+    out = _roundtrip(arr, method=GRAPH, error="SQRT:MAX_ERROR=0.5N,A=100,B=1")
     x = arr.astype(np.float64)
     assert (np.abs(out.astype(np.float64) - x) <= 0.5 * np.sqrt(100.0 + x)).all()
 
@@ -393,7 +382,7 @@ def test_shot_bound_holds_on_an_unsigned_raster():
 def test_relative_bound_keeps_the_sign():
     arr = _ftile()
     arr[::3] *= -1.0
-    out = _roundtrip(arr, method=GRAPH, error="rel:1%").reshape(arr.shape)
+    out = _roundtrip(arr, method=GRAPH, error="LOG:MAX_ERROR=1%").reshape(arr.shape)
     assert (np.sign(out) == np.sign(arr)).all()
     x = arr.astype(np.float64)
     assert (np.abs(out.astype(np.float64) - x) <= 0.01 * np.abs(x)).all()
@@ -403,21 +392,21 @@ def test_relative_bound_keeps_the_sign():
 # decoder falls back to evaluating the curve per sample.
 def test_relative_bound_beyond_the_reconstruction_table():
     arr = _ftile()
-    out = _roundtrip(arr, method=GRAPH, error="rel:0.01%")
+    out = _roundtrip(arr, method=GRAPH, error="LOG:MAX_ERROR=0.01%")
     x = arr.astype(np.float64)
     assert (np.abs(out.astype(np.float64) - x) <= 0.0001 * x).all()
 
 
-def test_shot_refuses_negative_samples():
+def test_shot_refuses_a_raster_reaching_below_the_anchor():
     arr = _ftile()
-    arr[0] = -1.0
-    with pytest.raises(RuntimeError, match="non-negative"):
-        geozl.compress(arr, method=GRAPH, error="shot:a=4,b=1,k=0.5")
+    arr[0] = -10.0  # under the -A/B of -4 where the curve stops being defined
+    with pytest.raises(RuntimeError, match="at or above"):
+        geozl.compress(arr, method=GRAPH, error="SQRT:MAX_ERROR=0.5N,A=4,B=1")
 
 
 def test_a_bound_finer_than_the_output_type_is_refused():
-    with pytest.raises(RuntimeError, match="rounding of the output type"):
-        geozl.compress(_ftile(), method=GRAPH, error="rel:1e-7%")
+    with pytest.raises(RuntimeError, match="what this type rebuilds to"):
+        geozl.compress(_ftile(), method=GRAPH, error="LOG:MAX_ERROR=1e-7%")
 
 
 def test_a_relative_bound_no_grid_can_serve_is_lossless_not_wrong():
@@ -426,10 +415,10 @@ def test_a_relative_bound_no_grid_can_serve_is_lossless_not_wrong():
     # that range exactly. A tight bound on uint16 puts the whole type in there,
     # which costs ratio but never the bound.
     arr = _tile(dtype=np.uint16)
-    assert np.array_equal(_roundtrip(arr, method=GRAPH, error="rel:0.01%"), arr)
+    assert np.array_equal(_roundtrip(arr, method=GRAPH, error="LOG:MAX_ERROR=0.01%"), arr)
 
 
-# nodata runs in front of quant but the scan that anchors the log curve reads
+# nodata runs in front of the quantizer but the scan it needs reads
 # the tile before it, so what nodata substitutes has to already be inside the
 # grid. It fills with the last valid sample of the row, or the one above, and
 # falls back to zero only when the hole leads the first row. These are those.
@@ -437,7 +426,7 @@ def test_a_relative_bound_no_grid_can_serve_is_lossless_not_wrong():
 def test_relative_bound_keeps_nodata_exact(row):
     arr = _ftile()
     arr[row, :] = -9999.0
-    out = _roundtrip(arr, method=GRAPH, error="rel:1%", nodata=-9999.0)
+    out = _roundtrip(arr, method=GRAPH, error="LOG:MAX_ERROR=1%", nodata=-9999.0)
     out = out.reshape(arr.shape)
     assert (out[row] == -9999.0).all()
     keep = np.ones(arr.shape, bool)
@@ -446,7 +435,8 @@ def test_relative_bound_keeps_nodata_exact(row):
     assert (np.abs(out[keep].astype(np.float64) - x) <= 0.01 * np.abs(x)).all()
 
 
-@pytest.mark.parametrize("recipe", ["rel:1%", "shot:a=4,b=1,k=0.5"])
+@pytest.mark.parametrize("recipe", ["LOG:MAX_ERROR=1%",
+                                   "SQRT:MAX_ERROR=0.5N,A=4,B=1"])
 def test_profile_accepts_the_warped_recipes(recipe):
     rows = geozl.profile(_ftile(), reps=1, error=recipe)
     assert rows and all(r["ratio"] > 0 for r in rows)

@@ -1,6 +1,9 @@
-from .quant import Quant, QuantDecoder
+from .quant_sqrt import Noise, fit_noise
 
-_DECODERS = (QuantDecoder,)
+# The three quantizers have no Python encoder classes yet, so there is nothing
+# to register here. A frame carrying one still decodes through libgeozl, which
+# registers its decoders from C.
+_DECODERS = ()
 
 
 def register_decoders(dctx):
@@ -10,4 +13,4 @@ def register_decoders(dctx):
         dctx.register_custom_decoder(decoder())
 
 
-__all__ = ["Quant", "QuantDecoder", "register_decoders"]
+__all__ = ["Noise", "fit_noise", "register_decoders"]

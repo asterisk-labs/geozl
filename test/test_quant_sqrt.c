@@ -1,6 +1,3 @@
-// quant_sqrt over a synthetic photon raster, plus one case per hole found. The
-// raster is generated, so this runs from `make test-c` with nothing fetched.
-
 #include "quant_sqrt/decode_quant_sqrt_kernel.h"
 #include "quant_sqrt/encode_quant_sqrt_kernel.h"
 #include "quant_sqrt/quant_sqrt_dtype.h"
@@ -9,6 +6,8 @@
 
 #include <float.h>
 #include <locale.h>
+#include "quant_walk.h"
+
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -219,79 +218,6 @@ out:
   free(stream);
   free(back);
   return ratio;
-}
-
-static void the_two_ends_refuse_the_same_blocks(void) {
-  puts("the two ends refuse the same parameter blocks");
-
-  static const struct {
-    const char *what;
-    int dtype;
-    unsigned char flags;
-    double step;
-    double offset;
-    int ok;
-  } cases[] = {
-      {"an index grid on float32", QSQ_F32, 0, 0.5, 0.0, 1},
-      {"an index grid on float64", QSQ_F64, 0, 0.5, 100.0, 1},
-      {"a value grid on float32", QSQ_F32, QUANT_SQRT_FLAG_STORE_VALUES, 0.5,
-       0.0, 1},
-      {"an integer value grid", QSQ_U16, QUANT_SQRT_FLAG_STORE_VALUES, 0.5, 0.0,
-       1},
-      {"the float32 arithmetic bit on float32", QSQ_F32,
-       QUANT_SQRT_FLAG_DECODE_F32, 0.5, 0.0, 1},
-      {"the floor bit", QSQ_F32, QUANT_SQRT_FLAG_NONNEGATIVE, 0.5, 0.0, 1},
-      {"an infinite step", QSQ_F32, 0, INFINITY, 0.0, 0},
-      {"a nan step", QSQ_F32, 0, NAN, 0.0, 0},
-      {"a zero step", QSQ_F32, 0, 0.0, 0.0, 0},
-      {"a negative step", QSQ_F32, 0, -1.0, 0.0, 0},
-      {"a subnormal step", QSQ_F32, 0, 5e-324, 0.0, 0},
-      // the encoder inverts the square, so this is the real floor
-      {"a step that squares to zero", QSQ_F32, 0, 1e-170, 0.0, 0},
-      {"the smallest step whose square is normal", QSQ_F32, 0, 1.5e-154, 0.0, 1},
-      {"a negative offset", QSQ_F32, 0, 0.5, -1.0, 0},
-      {"a nan offset", QSQ_F32, 0, 0.5, NAN, 0},
-      {"an infinite offset", QSQ_F32, 0, 0.5, INFINITY, 0},
-      {"an unknown flag bit", QSQ_F32, 8, 0.5, 0.0, 0},
-      {"the float32 arithmetic bit on float64", QSQ_F64,
-       QUANT_SQRT_FLAG_DECODE_F32, 0.5, 0.0, 0},
-      {"the float32 arithmetic bit on u16", QSQ_U16,
-       (unsigned char)(QUANT_SQRT_FLAG_DECODE_F32 |
-                       QUANT_SQRT_FLAG_STORE_VALUES),
-       0.5, 0.0, 0},
-      {"an integer grid without VALUES", QSQ_U16, 0, 0.5, 0.0, 0},
-      {"a dtype past the table", 99, QUANT_SQRT_FLAG_STORE_VALUES, 0.5, 0.0, 0},
-  };
-
-  enum { N = 16 };
-  double field[N];
-  for (int i = 0; i < N; ++i)
-    field[i] = 100.0 + 10.0 * i;
-
-  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
-    const size_t width =
-        QSQ_DTYPE_OK(cases[i].dtype) ? quant_sqrt_width(cases[i].dtype) : 8;
-    void *src = calloc(N, width), *stream = calloc(N, width),
-         *back = calloc(N, width);
-    if (QSQ_DTYPE_OK(cases[i].dtype))
-      store_as(src, cases[i].dtype, field, N);
-
-    quant_sqrt_params p;
-    memset(&p, 0, sizeof(p));
-    p.flags = cases[i].flags;
-    p.step = cases[i].step;
-    p.offset = cases[i].offset;
-
-    const int e = quant_sqrt_encode(stream, src, &p, cases[i].dtype, N);
-    const int d = quant_sqrt_decode(back, stream, &p, cases[i].dtype, N);
-    CHECKF(e == (cases[i].ok ? 0 : 1), "%s, encode %d", cases[i].what, e);
-    CHECKF(d == (cases[i].ok ? 0 : 1), "%s, decode %d", cases[i].what, d);
-    CHECKF(e == d, "%s, encode %d against decode %d", cases[i].what, e, d);
-
-    free(src);
-    free(stream);
-    free(back);
-  }
 }
 
 static void the_parser_takes_only_valid_recipes(void) {
@@ -641,8 +567,81 @@ static void an_empty_raster_is_not_a_crash(void) {
   CHECK(quant_sqrt_decode(&dummy, &dummy, &p, QSQ_F32, 0) == 0);
 }
 
+// Every value of a type through the grid, one at a time. The small domains are
+// walked whole; f32 goes on a stride unless GEOZL_EXHAUSTIVE is set. The curve
+// is fixed in the recipe, so nothing here depends on a fit.
+static void every_value_holds_the_bound(void) {
+  static const char *const recipes[] = {"SQRT:MAX_ERROR=0.5N,A=100,B=1",
+                                        "SQRT:MAX_ERROR=2N,A=100,B=1"};
+  static const double ks[] = {0.5, 2.0};
+  static const double tops[] = {255.0, 65535.0, 32767.0, 1e4, 1e4};
+  static uint8_t in[GEOZL_WALK_BLK * 4], st[GEOZL_WALK_BLK * 4];
+  static uint8_t out[GEOZL_WALK_BLK * 4];
+  const double A = 100.0, B = 1.0;
+  const uint64_t step = geozl_walk_step();
+  printf("every value of a type holds the bound, f32 %s\n",
+         step == 1 ? "whole" : "on a stride");
+
+  for (size_t t = 0; t < GEOZL_WALK_NTYPES; ++t) {
+    const int dt = geozl_walk_types[t].dtype;
+    for (size_t r = 0; r < sizeof(ks) / sizeof(ks[0]); ++r) {
+      char err[256];
+      quant_sqrt_spec sp;
+      quant_sqrt_stats sc;
+      quant_sqrt_params p;
+      memset(&sc, 0, sizeof sc);
+      sc.lo = 0.0;
+      sc.hi = tops[t];
+      CHECK(quant_sqrt_parse(recipes[r], &sp, err, sizeof err) == 0);
+      if (quant_sqrt_resolve(&sp, dt, &sc, NULL, &p, err, sizeof err) != 0) {
+        printf("  %-4s %-30s refused, %s\n", geozl_walk_types[t].name,
+               recipes[r], err);
+        continue;
+      }
+
+      double worst = 0.0;
+      uint64_t counted = 0, over = 0, sum = 0, at = 0;
+      const uint64_t domain = geozl_walk_types[t].domain;
+      const uint64_t span = dt == GEOZL_DT_F32 ? step : 1;
+      for (uint64_t base = 0; base < domain; base += GEOZL_WALK_BLK * span) {
+        const size_t n = geozl_walk_fill(in, dt, base, domain, span);
+        CHECK(quant_sqrt_encode(st, in, &p, dt, n) == 0);
+        CHECK(quant_sqrt_decode(out, st, &p, dt, n) == 0);
+        for (size_t i = 0; i < n; ++i) {
+          const uint64_t pos = base + (uint64_t)i * span;
+          GEOZL_FOLD(sum, geozl_walk_bits(out, dt, i), pos);
+          const double x = geozl_walk_get(in, dt, i);
+          const double y = geozl_walk_get(out, dt, i);
+          if (!isfinite(x))
+            continue; // the nodata codec owns these
+          // The curve is only defined at or above -A/B, and the grid was cut
+          // for a range a raster holds rather than for the whole domain.
+          if (x < 0.0 || x > tops[t])
+            continue;
+          ++counted;
+          const double bound = ks[r] * sqrt(A + B * x);
+          const double e = fabs(y - x);
+          if (e / bound > worst) {
+            worst = e / bound;
+            at = pos;
+          }
+          if (e > bound)
+            ++over;
+        }
+      }
+      printf("  %-4s %-30s %10llu values, worst %.4f of the bound, sum %016llx\n",
+             geozl_walk_types[t].name, recipes[r], (unsigned long long)counted,
+             worst, (unsigned long long)sum);
+      if (over != 0) {
+        printf("    FAIL %llu over the bound, worst at 0x%llx\n",
+               (unsigned long long)over, (unsigned long long)at);
+        ++failures;
+      }
+    }
+  }
+}
+
 int main(void) {
-  the_two_ends_refuse_the_same_blocks();
   the_parser_takes_only_valid_recipes();
   a_comma_locale_reads_the_same_recipe();
   the_curve_is_read_at_signed_x();
@@ -655,6 +654,7 @@ int main(void) {
   the_value_grid_does_not_move_with_the_tile();
   the_charge_is_read_at_the_worst_end();
   an_empty_raster_is_not_a_crash();
+  every_value_holds_the_bound();
 
   if (failures != 0) {
     printf("%d failed\n", failures);

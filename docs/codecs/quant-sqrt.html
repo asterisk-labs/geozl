@@ -44,7 +44,9 @@
         because the cell boundaries are not the midpoints there, and the difference is worth a third of the
         step. <b>MAX_ERROR counts sigmas.</b> The curve behind it, <b>&#963;&#178; = a + b&middot;x</b>, is
         either handed over in the recipe or <b>measured off the raster</b>, and a measured one comes back
-        with four numbers saying how far to trust it.</p>
+        with four numbers saying how far to trust it. Measure it <b>once over the product</b> and not once
+        per tile, or neighbouring tiles land on different grids; <code>geozl.fit_noise</code> pools a stack
+        of rasters into one curve.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D783</dd>
           <dt>header</dt><dd>dtype + flags + step + offset &middot; 18 bytes</dd>

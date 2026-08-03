@@ -1,8 +1,3 @@
-// Beyond the bound holding, what this pins down is that nothing about the grid
-// is read from the tile. A grid that follows the data makes the same value
-// rebuild two ways once a raster is cut differently, and no per-sample check on
-// the error sees it.
-
 #include "quant_log/decode_quant_log_kernel.h"
 #include "quant_log/encode_quant_log_kernel.h"
 #include "quant_log/quant_log_dtype.h"
@@ -12,7 +7,12 @@
 
 #include "quant_log_tiles.h"
 
+#include "quant_walk.h"
+
+#include <inttypes.h>
+#include <locale.h>
 #include <math.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,38 +76,6 @@ static double worst_error(const qt_tile *t, const void *dec, size_t *skipped) {
   return w;
 }
 
-static void the_bound_holds(void) {
-  printf("the declared bound holds, every case and every tile\n");
-  const char *rec[] = {"LOG:MAX_ERROR=5%", "LOG:MAX_ERROR=1%",
-                       "LOG:MAX_ERROR=0.1%"};
-  const double bound[] = {0.05, 0.01, 0.001};
-  const char *all[QT_INT_N + QT_FLT_N];
-  size_t na = 0;
-  for (size_t i = 0; i < QT_INT_N; ++i)
-    all[na++] = qt_int_tiles[i];
-  for (size_t i = 0; i < QT_FLT_N; ++i)
-    all[na++] = qt_flt_tiles[i];
-
-  for (size_t d = 0; d < na; ++d) {
-    qt_tile t = qt_make(all[d]);
-    CHECK(t.data != NULL);
-    for (size_t r = 0; r < 3; ++r) {
-      void *st = alloc_for(t.dtype, t.n), *dec = alloc_for(t.dtype, t.n);
-      if (trip(rec[r], t.dtype, t.data, st, dec, t.n, NULL) == 0) {
-        const double w = worst_error(&t, dec, NULL);
-        if (w > bound[r])
-          printf("  %s %s: worst %.4e, bound %.4e\n", t.name, rec[r], w,
-                 bound[r]);
-        CHECK(w <= bound[r]);
-      }
-      free(st);
-      free(dec);
-    }
-    qt_free(&t);
-  }
-}
-
-// STORE=VALUES on a float, on the tiles that qualify for it.
 static void store_values_holds_where_it_applies(void) {
   printf("STORE=VALUES holds where it applies and is refused where it does not\n");
   const char *names[] = {"kelvin", "utm", "reflectance", "humidity"};
@@ -754,8 +722,235 @@ static void report_streams(void) {
   }
 }
 
+
+static void the_parser_takes_only_decimals(void) {
+  puts("the parser takes only decimals");
+
+  static const struct {
+    const char *recipe;
+    int ok;
+  } cases[] = {
+      {"LOG:MAX_ERROR=1%", 1},
+      {"LOG:MAX_ERROR=0.5%", 1},
+      {"LOG:MAX_ERROR=1e-3%", 1},
+      {"LOG:MAX_ERROR=1E+1%", 1},
+      {"LOG:MAX_ERROR=.5%", 1},
+      {"LOG:MAX_ERROR=1%,STORE=VALUES", 1},
+      {"LOG:MAX_ERROR=1%,STORE=INDEX", 1},
+      {"LOG:MAX_ERROR=1", 0},   // a bound of one is not what anybody means
+      {"LOG:MAX_ERROR=0%", 0},
+      {"LOG:MAX_ERROR=100%", 0},
+      {"LOG:MAX_ERROR=-1%", 0},
+      {"LOG:MAX_ERROR=inf%", 0},
+      {"LOG:MAX_ERROR=nan%", 0},
+      {"LOG:MAX_ERROR=1.0.0%", 0},
+      {"LOG:MAX_ERROR=1e%", 0},
+      {"LOG:MAX_ERROR=1_0%", 0},
+      {"LOG:MAX_ERROR=1e999%", 0},
+      {"LOG:MAX_ERROR=1% ", 0},
+      {"LOG:MAX_ERROR=1%,MAX_ERROR=2%", 0},
+      {"LOG:MAX_ERROR=1%,", 0},
+      {"LOG:STORE=VALUES", 0},
+      {"LOG:", 0},
+      {"LINEAR:MAX_ERROR=1", 0},
+  };
+
+  char err[256];
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+    quant_log_spec sp;
+    const int got = quant_log_parse(cases[i].recipe, &sp, err, sizeof(err)) == 0;
+    if (got != cases[i].ok)
+      printf("  \"%s\": got %d, expected %d\n", cases[i].recipe, got,
+             cases[i].ok);
+    CHECK(got == cases[i].ok);
+  }
+}
+
+// Skipped where no comma locale is installed, which is most containers.
+static void a_comma_locale_reads_the_same_recipe(void) {
+  puts("a comma locale reads the same recipe");
+  static const char *names[] = {"de_DE.UTF-8", "fr_FR.UTF-8", "es_PE.UTF-8",
+                                "de_DE", "fr_FR"};
+  const char *got = NULL;
+  for (size_t i = 0; i < sizeof(names) / sizeof(names[0]) && got == NULL; ++i)
+    got = setlocale(LC_NUMERIC, names[i]);
+
+  if (got == NULL) {
+    puts("  no comma locale installed, skipped");
+    return;
+  }
+  printf("  under %s\n", got);
+
+  quant_log_spec sp;
+  char err[256];
+  CHECK(quant_log_parse("LOG:MAX_ERROR=0.5%", &sp, err, sizeof(err)) == 0);
+  CHECK(sp.rel_err == 0.005);
+  // The comma separates keys, so it never reaches the number.
+  CHECK(quant_log_parse("LOG:MAX_ERROR=0,5%", &sp, err, sizeof(err)) != 0);
+
+  setlocale(LC_NUMERIC, "C");
+}
+
+// Found by the fuzzer on int16 at 0.002%. Folding the grid onto the maximum
+// rather than the magnitude brought the most negative value back one short.
+static void the_most_negative_value_survives(void) {
+  puts("the most negative value of a signed type survives");
+
+  static const struct {
+    const char *what;
+    int dtype;
+    int64_t lowest;
+  } cases[] = {
+      {"int8", QLOG_I8, INT8_MIN},
+      {"int16", QLOG_I16, INT16_MIN},
+      {"int32", QLOG_I32, INT32_MIN},
+      {"int64", QLOG_I64, INT64_MIN},
+  };
+  static const char *recipes[] = {"LOG:MAX_ERROR=0.002%", "LOG:MAX_ERROR=1%",
+                                  "LOG:MAX_ERROR=5%"};
+
+  for (size_t c = 0; c < sizeof(cases) / sizeof(cases[0]); ++c) {
+    for (size_t r = 0; r < sizeof(recipes) / sizeof(recipes[0]); ++r) {
+      int64_t in[4];
+      in[0] = cases[c].lowest;
+      in[1] = cases[c].lowest + 1;
+      in[2] = -1;
+      in[3] = 1;
+
+      unsigned char src[4 * 8], enc[4 * 8], dec[4 * 8];
+      const size_t w = quant_log_width(cases[c].dtype);
+      for (size_t i = 0; i < 4; ++i)
+        memcpy(src + i * w, &in[i], w); // little endian, which the tests assume
+
+      char err[256];
+      quant_log_spec sp;
+      quant_log_params p;
+      quant_log_stats sc;
+      CHECK(quant_log_parse(recipes[r], &sp, err, sizeof(err)) == 0);
+      CHECK(quant_log_scan(src, cases[c].dtype, 4, &sc) == 0);
+      if (quant_log_resolve(&sp, cases[c].dtype, &sc, &p, err, sizeof(err)) != 0)
+        continue;
+      CHECK(quant_log_encode(enc, src, &p, cases[c].dtype, 4) == 0);
+      CHECK(quant_log_decode(dec, enc, &p, cases[c].dtype, 4) == 0);
+
+      double worst = 0.0;
+      size_t skipped = 0;
+      CHECK(quant_log_verify(src, dec, &sp, cases[c].dtype, 4, &worst,
+                             &skipped) == 0);
+      if (worst > 1.0)
+        printf("  %s %s: worst %.6f of the bound\n", cases[c].what, recipes[r],
+               worst);
+      CHECK(worst <= 1.0);
+    }
+  }
+}
+
+// A frame that declares the floor has to get it whatever the element type is.
+// The float paths always applied it and the integer copy did not, so the flag
+// meant two things inside one codec.
+static void the_floor_reaches_an_integer_frame(void) {
+  puts("the floor reaches an integer frame");
+
+  const int16_t stream[6] = {-3000, -1, 0, 1, 500, 32767};
+  int16_t out[6];
+  quant_log_params p = {QUANT_LOG_FLAG_NONNEGATIVE | QUANT_LOG_FLAG_STORE_VALUES,
+                        0.0144};
+  CHECK(quant_log_decode(out, stream, &p, QLOG_I16, 6) == 0);
+  for (size_t i = 0; i < 6; ++i)
+    CHECK(out[i] >= 0);
+  CHECK(out[3] == 1 && out[4] == 500 && out[5] == 32767);
+
+  // Without the flag the same stream comes back untouched.
+  p.flags = QUANT_LOG_FLAG_STORE_VALUES;
+  CHECK(quant_log_decode(out, stream, &p, QLOG_I16, 6) == 0);
+  CHECK(out[0] == -3000 && out[1] == -1);
+
+  // An unsigned type cannot hold a negative, so the flag changes nothing there.
+  const uint16_t ustream[4] = {0, 1, 500, 65535};
+  uint16_t uout[4];
+  p.flags = QUANT_LOG_FLAG_NONNEGATIVE | QUANT_LOG_FLAG_STORE_VALUES;
+  CHECK(quant_log_decode(uout, ustream, &p, QLOG_U16, 4) == 0);
+  CHECK(memcmp(uout, ustream, sizeof(ustream)) == 0);
+}
+
+
+// Every value of a type through the grid, one at a time. The small domains are
+// walked whole; f32 goes on a stride unless GEOZL_EXHAUSTIVE is set.
+//
+// anyNegative is set so the decoder floors at the type minimum rather than at
+// zero, which puts the negative half of the domain through the grid instead of
+// through the clamp.
+static void every_value_holds_the_bound(void) {
+  static const char *const recipes[] = {"LOG:MAX_ERROR=5%", "LOG:MAX_ERROR=1%",
+                                        "LOG:MAX_ERROR=0.1%"};
+  static const double bounds[] = {0.05, 0.01, 0.001};
+  static uint8_t in[GEOZL_WALK_BLK * 4], st[GEOZL_WALK_BLK * 4];
+  static uint8_t out[GEOZL_WALK_BLK * 4];
+  const uint64_t step = geozl_walk_step();
+  printf("every value of a type holds the bound, f32 %s\n",
+         step == 1 ? "whole" : "on a stride");
+
+  for (size_t t = 0; t < GEOZL_WALK_NTYPES; ++t) {
+    const int dt = geozl_walk_types[t].dtype;
+    const double nmin = quant_log_normal_min(dt);
+    for (size_t r = 0; r < sizeof(bounds) / sizeof(bounds[0]); ++r) {
+      char err[256];
+      quant_log_spec sp;
+      quant_log_stats sc;
+      quant_log_params p;
+      memset(&sc, 0, sizeof sc);
+      sc.anyNegative = 1;
+      sc.minAbs = 1.0;
+      sc.maxAbs = 1.0;
+      CHECK(quant_log_parse(recipes[r], &sp, err, sizeof err) == 0);
+      if (quant_log_resolve(&sp, dt, &sc, &p, err, sizeof err) != 0)
+        continue; // a refusal is an answer, and the refusals have their own case
+
+      double worst = 0.0;
+      uint64_t counted = 0, over = 0, sum = 0, at = 0;
+      const uint64_t domain = geozl_walk_types[t].domain;
+      const uint64_t span = dt == GEOZL_DT_F32 ? step : 1;
+      for (uint64_t base = 0; base < domain; base += GEOZL_WALK_BLK * span) {
+        const size_t n = geozl_walk_fill(in, dt, base, domain, span);
+        CHECK(quant_log_encode(st, in, &p, dt, n) == 0);
+        CHECK(quant_log_decode(out, st, &p, dt, n) == 0);
+        for (size_t i = 0; i < n; ++i) {
+          const uint64_t pos = base + (uint64_t)i * span;
+          GEOZL_FOLD(sum, geozl_walk_bits(out, dt, i), pos);
+          const double x = geozl_walk_get(in, dt, i);
+          const double y = geozl_walk_get(out, dt, i);
+          if (!isfinite(x))
+            continue; // the nodata codec owns these
+          if (x == 0.0) {
+            CHECK(y == 0.0);
+            continue;
+          }
+          if (fabs(x) < nmin)
+            continue; // below the smallest normal no grid reaches
+          ++counted;
+          const double e = fabs(y - x) / fabs(x);
+          if (e > worst) {
+            worst = e;
+            at = pos;
+          }
+          if (e > bounds[r])
+            ++over;
+        }
+      }
+      printf("  %-4s %-20s %10llu values, worst %.4f of the bound, sum %016llx\n",
+             geozl_walk_types[t].name, recipes[r],
+             (unsigned long long)counted, worst / bounds[r],
+             (unsigned long long)sum);
+      if (over != 0) {
+        printf("    FAIL %llu over the bound, worst at 0x%llx\n",
+               (unsigned long long)over, (unsigned long long)at);
+        ++failures;
+      }
+    }
+  }
+}
+
 int main(void) {
-  the_bound_holds();
   store_values_holds_where_it_applies();
   small_integers_come_back_exact();
   zero_and_nan_stay_zero();
@@ -766,19 +961,23 @@ int main(void) {
   a_second_pass_moves_nothing();
   the_series_stay_inside_the_slack();
   the_parser_is_strict();
+  the_parser_takes_only_decimals();
+  a_comma_locale_reads_the_same_recipe();
   the_refusals();
   a_forged_header_is_refused();
   a_forged_stream_stays_in_range();
+  the_encoder_checks_its_own_work();
   the_value_grid_matches_the_spec();
   the_wide_integers_hold();
+  the_most_negative_value_survives();
+  the_floor_reaches_an_integer_frame();
   store_values_on_a_half_is_walked();
-  the_encoder_checks_its_own_work();
+  every_value_holds_the_bound();
   report_streams();
-
   if (failures != 0) {
-    printf("\n%d failed\n", failures);
+    printf("%d failed\n", failures);
     return 1;
   }
-  printf("\nall passed\n");
+  printf("all passed\n");
   return 0;
 }

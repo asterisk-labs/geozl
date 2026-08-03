@@ -1,13 +1,17 @@
-# geozl build. Common targets, see `make help` for the rest.
-#
-#   make            build and install the Python binding, then smoke load it
-#   make test       run the C tests then the Python suite
-#   make test-c     run the C tests only, no cmake or OpenZL needed
-#   make test-san   run the suite under ASan and UBSan
-#   make fuzz       build and run every fuzzer, output under fuzz/out
-#   make test-exhaustive  walk every float32 through every recipe
-#   make clean      remove all build output and generated files
-#
+# make            build, stage the kernels lib, editable install, smoke load
+# make build      build libgeozl.a and the kernels lib only
+# make test       run the C tests under test/ then pytest
+# make test-c     run the C tests only, builds straight from source
+# make exhaustive the C tests over every value of a type, minutes
+# make test-san   run both suites against an ASan and UBSan build
+# make fuzz       build and run the fuzzers, report in fuzz/out (needs clang)
+# make fuzz-build build the fuzzers without running them
+# make clean-fuzz remove fuzz output, every corpus and the build tree
+# make install    cmake --install into PREFIX (/usr/local)
+# make clean      remove all build output, caches and generated files
+# make submodules fetch or update OpenZL (zstd + lz4)
+
+# geozl build. `make help` lists the targets and the variables.
 # Vendors OpenZL as a submodule, fetched on first build.
 
 PYTHON ?= python
@@ -24,6 +28,8 @@ FUZZ_JOBS ?= 0
 
 CORE       := core
 FUZZ_OUT   := fuzz/out
+FUZZ_CORPUS := fuzz/corpus
+FUZZ_TARGETS := roundtrip lossy_recipe quant_linear quant_log quant_sqrt decode
 OPENZL     := extern/openzl
 PY_DIR     := bindings/python
 PY_LIB_DIR := $(PY_DIR)/geozl/_lib
@@ -71,12 +77,7 @@ CMAKE_OPTS  := -G $(GEN) -DCMAKE_BUILD_TYPE=$(BUILD) \
 # and run straight from source without configuring cmake, which keeps the first
 # half of `make test` useful on a tree whose submodule is not fetched yet.
 CTEST_DIR     := $(BUILD_DIR)/ctest
-# The exhaustive walk takes minutes, so it is not part of test-c. See
-# test-exhaustive below.
-CTEST_SRCS    := $(filter-out test/test_quant_exhaustive.c \
-                              test/test_quant_linear_exhaustive.c \
-                              test/test_quant_log_exhaustive.c,\
-                   $(wildcard test/test_*.c))
+CTEST_SRCS    := $(wildcard test/test_*.c)
 CTEST_BINS    := $(patsubst test/%.c,$(CTEST_DIR)/%,$(CTEST_SRCS))
 # scan.h dispatches through geozl_simd_now, so anything including it needs
 # simd.c at link time. Listed by hand, like train_wp_static.c, because neither
@@ -84,17 +85,18 @@ CTEST_BINS    := $(patsubst test/%.c,$(CTEST_DIR)/%,$(CTEST_SRCS))
 CTEST_KERNELS := $(wildcard $(CORE)/src/*/encode_*_kernel.c) \
                  $(wildcard $(CORE)/src/*/decode_*_kernel.c) \
                  $(CORE)/src/wp_static/train_wp_static.c \
-                 $(CORE)/src/quant/quant_spec.c \
+                 $(CORE)/src/lossy/lossy_recipe.c \
                  $(CORE)/src/quant_linear/quant_linear_spec.c \
                  $(CORE)/src/quant_sqrt/quant_sqrt_spec.c \
                  $(CORE)/src/quant_sqrt/quant_sqrt_fit.c \
                  $(CORE)/src/quant_log/quant_log_spec.c \
                  $(CORE)/src/common/simd.c
-# include/ too: the quant kernels take their parameter block from
-# geozl/quant_params.h, which is public because geozl_node_quant is.
+# include/ too: the quant kernels take their parameter blocks from
+# geozl/quant_*_params.h, public because the node builders over them are.
 # -ffp-contract=off for the same reason core/CMakeLists.txt sets it, the
 # reconstruction has to be the same bits on every machine that reads a frame.
-CTEST_CFLAGS  := -std=c11 -O1 -g -ffp-contract=off -Wall -Wextra \
+CTEST_OPT     ?= -O1
+CTEST_CFLAGS  := -std=c11 $(CTEST_OPT) -g -ffp-contract=off -Wall -Wextra \
                  -I$(CORE)/include -I$(CORE)/src
 
 # No SAN_ENV here, the test binaries are instrumented themselves. Leak
@@ -113,7 +115,7 @@ else
 endif
 
 .PHONY: all build configure lib python test test-c test-san fuzz fuzz-build \
-        fuzz-report clean-fuzz test-exhaustive install submodules clean help
+        fuzz-report clean-fuzz exhaustive install submodules clean help
 
 all: python
 
@@ -171,6 +173,18 @@ test: test-c python
 test-san:
 	$(MAKE) test SAN=ON
 
+# Every bit pattern a float32 can hold. Fuzzing says nobody found a
+# counterexample, this says there is not one. The walks sit in the same test
+# files and stride by default, GEOZL_EXHAUSTIVE opens them up. Minutes, so it is
+# not part of test-c. Methodology from Fallin and Burtscher, arXiv:2407.15037,
+# who tested LC the same way.
+#
+# -O2 because the walk is four billion iterations, and a clean ctest tree because
+# the flags changed and the binaries alone do not say so.
+exhaustive:
+	@rm -rf $(CTEST_DIR)
+	@GEOZL_EXHAUSTIVE=1 $(MAKE) test-c CTEST_OPT=-O2
+
 # Apple Command Line Tools clang has no fuzzer runtime, so on macOS default to
 # Homebrew LLVM. Override with CLANG=/path/to/clang.
 ifeq ($(UNAME),Darwin)
@@ -184,55 +198,38 @@ fuzz-build: $(OPENZL)/CMakeLists.txt python
 	cmake -S $(CORE) -B core/build-fuzz -G $(GEN) -DCMAKE_BUILD_TYPE=$(BUILD) \
 	      -DGEOZL_BUILD_FULL=ON -DGEOZL_SANITIZE=ON -DGEOZL_BUILD_FUZZERS=ON \
 	      -DCMAKE_C_COMPILER=$(CLANG) -DCMAKE_CXX_COMPILER=$(CLANG)++
-	cmake --build core/build-fuzz --target geozl_decode_fuzzer geozl_quant_fuzzer \
-	      geozl_quant_linear_fuzzer geozl_quant_log_fuzzer \
-	      geozl_quant_sqrt_fuzzer
-	@$(PYTHON) fuzz/gen_corpus.py fuzz/corpus
-	@$(PYTHON) fuzz/gen_quant_log_seeds.py fuzz/corpus-quant-log
+	cmake --build core/build-fuzz --target geozl_decode_fuzzer \
+	      geozl_roundtrip_fuzzer geozl_lossy_recipe_fuzzer \
+	      geozl_quant_linear_fuzzer \
+	      geozl_quant_log_fuzzer geozl_quant_sqrt_fuzzer
+	@$(PYTHON) fuzz/gen_corpus.py $(FUZZ_CORPUS)/decode
+	@$(PYTHON) fuzz/gen_quant_log_seeds.py $(FUZZ_CORPUS)/quant_log
 
 # libFuzzer writes its per job logs to the working directory and its findings to
-# artifact_prefix, so both runs happen from inside fuzz/out and nothing lands in
+# artifact_prefix, so the runs happen from inside fuzz/out and nothing lands in
 # the repo root. allocator_may_return_null lets an absurd allocation come back
 # as null instead of aborting, which OpenZL handles: without it the decode run
 # stops every few minutes on a forged size field rather than fuzzing.
+#
+# fuzz/corpus/<target> is where each one writes what it found, and it is not
+# transient. A long run is worth nothing if the next one starts cold, so
+# clean-fuzz is the only thing that removes it.
 fuzz: fuzz-build
-	@mkdir -p $(FUZZ_OUT)/decode-work
-	@echo "quant fuzzer, $(FUZZ_TIME)s"
-	@cd $(FUZZ_OUT) && ASAN_OPTIONS=allocator_may_return_null=1 \
-	  $(abspath core/build-fuzz)/geozl_quant_fuzzer \
-	  -max_total_time=$(FUZZ_TIME) -jobs=$(FUZZ_JOBS) \
-	  -artifact_prefix=$(abspath $(FUZZ_OUT))/ > quant.log 2>&1 || true
-	@echo "quant_linear fuzzer, $(FUZZ_TIME)s"
-	@cd $(FUZZ_OUT) && ASAN_OPTIONS=allocator_may_return_null=1 \
-	  $(abspath core/build-fuzz)/geozl_quant_linear_fuzzer \
-	  -max_total_time=$(FUZZ_TIME) -jobs=$(FUZZ_JOBS) \
-	  -artifact_prefix=$(abspath $(FUZZ_OUT))/ > quant_linear.log 2>&1 || true
-	@echo "quant_log fuzzer, $(FUZZ_TIME)s"
-	@cd $(FUZZ_OUT) && ASAN_OPTIONS=allocator_may_return_null=1 \
-	  $(abspath core/build-fuzz)/geozl_quant_log_fuzzer \
-	  $(abspath fuzz/corpus-quant-log) \
-	  -max_total_time=$(FUZZ_TIME) -jobs=$(FUZZ_JOBS) \
-	  -artifact_prefix=$(abspath $(FUZZ_OUT))/ > quant_log.log 2>&1 || true
-	@echo "quant_sqrt fuzzer, $(FUZZ_TIME)s"
-	@cd $(FUZZ_OUT) && ASAN_OPTIONS=allocator_may_return_null=1 \
-	  $(abspath core/build-fuzz)/geozl_quant_sqrt_fuzzer \
-	  -max_total_time=$(FUZZ_TIME) -jobs=$(FUZZ_JOBS) \
-	  -artifact_prefix=$(abspath $(FUZZ_OUT))/ > quant_sqrt.log 2>&1 || true
-	@echo "decode fuzzer, $(FUZZ_TIME)s"
-	@cd $(FUZZ_OUT) && ASAN_OPTIONS=allocator_may_return_null=1 \
-	  $(abspath core/build-fuzz)/geozl_decode_fuzzer decode-work \
-	  $(abspath fuzz/corpus) -max_total_time=$(FUZZ_TIME) -max_len=4096 \
-	  -rss_limit_mb=0 -jobs=$(FUZZ_JOBS) \
-	  -artifact_prefix=$(abspath $(FUZZ_OUT))/ > decode.log 2>&1 || true
-	@$(MAKE) --no-print-directory fuzz-report
+	@mkdir -p $(FUZZ_OUT)
+	@for t in $(FUZZ_TARGETS); do \
+	  d=$(abspath $(FUZZ_CORPUS))/$$t; mkdir -p $$d; \
+	  echo "$$t fuzzer, $(FUZZ_TIME)s"; \
+	  (cd $(FUZZ_OUT) && ASAN_OPTIONS=allocator_may_return_null=1 \
+	    $(abspath core/build-fuzz)/geozl_$${t}_fuzzer $$d \
+	    -max_total_time=$(FUZZ_TIME) -max_len=4096 -jobs=$(FUZZ_JOBS) \
+	    -artifact_prefix=$(abspath $(FUZZ_OUT))/ > $$t.log 2>&1) || true; \
+	done
 
-# One file worth reading or handing over. The findings are dumped as hex so a
-# report says everything without a binary attached.
 fuzz-report:
 	@{ \
 	  echo "geozl fuzz report"; \
 	  echo "$(FUZZ_TIME)s per target, jobs $(FUZZ_JOBS)"; \
-	  for t in quant quant_linear quant_log quant_sqrt decode; do \
+	  for t in $(FUZZ_TARGETS); do \
 	    echo; echo "== $$t =="; \
 	    grep -hE 'INITED|DONE|Loaded . modules' \
 	      $(FUZZ_OUT)/$$t.log 2>/dev/null | head -4 || true; \
@@ -251,28 +248,9 @@ fuzz-report:
 	@cat $(FUZZ_OUT)/report.txt
 	@echo; echo "full report in $(FUZZ_OUT)/report.txt"
 
-# Every bit pattern a float32 can hold, through every recipe. Fuzzing says
-# nobody found a counterexample, this says there is not one. The methodology is
-# from Fallin and Burtscher, arXiv:2407.15037, who tested LC the same way.
-# EXH_N below 2^32 strides across the space for a quick pass.
-EXH_JOBS ?= 8
-EXH_N    ?= 4294967296
-
-$(CTEST_DIR)/test_quant_exhaustive: CTEST_CFLAGS += -O2
-$(CTEST_DIR)/test_quant_linear_exhaustive: CTEST_CFLAGS += -O2
-$(CTEST_DIR)/test_quant_log_exhaustive: CTEST_CFLAGS += -O2
-
-# quant_log walks u8, u16, i16 and f16 whole as well as every normal float32, and
-# takes no arguments because none of those spaces is worth striding across.
-test-exhaustive: $(CTEST_DIR)/test_quant_exhaustive \
-                 $(CTEST_DIR)/test_quant_linear_exhaustive \
-                 $(CTEST_DIR)/test_quant_log_exhaustive
-	@$(CTEST_DIR)/test_quant_exhaustive $(EXH_JOBS) $(EXH_N)
-	@$(CTEST_DIR)/test_quant_linear_exhaustive
-	@$(CTEST_DIR)/test_quant_log_exhaustive
 
 clean-fuzz:
-	rm -rf $(FUZZ_OUT) fuzz/corpus fuzz/corpus-quant-log core/build-fuzz
+	rm -rf $(FUZZ_OUT) $(FUZZ_CORPUS) core/build-fuzz
 	rm -f crash-* leak-* timeout-* oom-* fuzz-*.log
 
 install: build
@@ -290,11 +268,11 @@ help:
 	@echo "make build      build libgeozl.a and the kernels lib only"
 	@echo "make test       run the C tests under test/ then pytest"
 	@echo "make test-c     run the C tests only, builds straight from source"
+	@echo "make exhaustive the C tests over every value of a type, minutes"
 	@echo "make test-san   run both suites against an ASan and UBSan build"
 	@echo "make fuzz       build and run the fuzzers, report in fuzz/out (needs clang)"
 	@echo "make fuzz-build build the fuzzers without running them"
-	@echo "make clean-fuzz remove fuzz output, corpus and build tree"
-	@echo "make test-exhaustive  walk every float32 bit pattern, minutes"
+	@echo "make clean-fuzz remove fuzz output, every corpus and the build tree"
 	@echo "make install    cmake --install into PREFIX ($(PREFIX))"
 	@echo "make clean      remove all build output, caches and generated files"
 	@echo "make submodules fetch or update OpenZL (zstd + lz4)"

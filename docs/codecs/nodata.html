@@ -42,7 +42,7 @@
         mask</b>, one byte per sample, following GDAL where 0 discards and 255 keeps. The original bit
         pattern rides in the header and comes back on decode, exact down to the NaN payload. A tile with
         <b>nothing missing sends no mask at all</b>, and one where nothing was measured sends neither
-        stream. The node sits <b>at the head of the graph</b>, quant included, because a quantizer has no
+        stream. The node sits <b>at the head of the graph</b>, ahead of any quantizer, because a quantizer has no
         sane answer for a sample that was never measured.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D70C</dd>

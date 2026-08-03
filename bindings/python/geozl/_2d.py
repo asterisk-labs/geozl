@@ -1,7 +1,7 @@
 import numpy as np
 
 from ._ffi import _load_lib_full, _ptr, ffi
-from .lossy.quant import dtype_code
+from ._dtype import dtype_code
 
 
 # Predictor priors. A name expands to {that predictor, id}; None is unbiased
@@ -30,14 +30,16 @@ def _nodata_args(arr, nodata):
 
 def _error_arg(error):
     """The error recipe as C wants it. A recipe rather than a number so it
-    crosses compress, profile and bench unchanged, which is also why a bare
-    float is refused instead of being read as an absolute bound: "abs:0.5" and
-    0.5 would drift apart the moment a second curve existed."""
+    crosses compress, profile and bench unchanged, and so the string names which
+    quantizer runs. A bare float is refused rather than read as an absolute
+    bound, since there are three curves and a number says nothing about which
+    one was meant."""
     if error is None:
         return ffi.NULL
     if not isinstance(error, str):
-        raise ValueError(f"error must be a recipe string, one of \"abs:V\", "
-                         f"\"rel:P%\" or \"shot:a=A,b=B,k=K\", got {error!r}")
+        raise ValueError(f"error must be a recipe string, one of "
+                         f"\"LINEAR:MAX_ERROR=V\", \"LOG:MAX_ERROR=P%\" or "
+                         f"\"SQRT:MAX_ERROR=VN\", got {error!r}")
     return error.encode("utf-8")
 
 
@@ -68,11 +70,16 @@ def compress(tile, *, method, width=None, error=None, nodata=None):
     it has to apply to the element width: the transpose and store_lo terminals
     want 2 to 8 bytes. Returns the frame as bytes.
 
-    error is a recipe too. None is lossless. "abs:V" bounds the absolute error,
-    "rel:P%" the relative one, and "shot:a=A,b=B,k=K" holds K times the noise of
-    a sensor whose variance is A + B*x. Which one fits follows from how the
-    measurement error of the data grows with the value, so elevation takes abs,
-    optical radiance takes shot, and SAR backscatter takes rel.
+    error is a recipe too. None is lossless. "LINEAR:MAX_ERROR=V" bounds the
+    absolute error, "LOG:MAX_ERROR=P%" the relative one, and
+    "SQRT:MAX_ERROR=VN" holds V times the noise of a sensor whose variance is
+    a + b*x. Which one fits follows from how the measurement error of the data
+    grows with the value, so elevation takes LINEAR, optical radiance takes
+    SQRT, and SAR backscatter takes LOG.
+
+    A SQRT recipe with no A and B fits the noise curve from this tile alone, so
+    neighbouring tiles land on different grids. Measure it once over the product
+    with geozl.fit_noise and pass Noise.recipe(...) instead.
 
     nodata declares the value that marks a sample as never measured, following
     GDAL, where nodata is a property of the band rather than a switch. Left
@@ -93,7 +100,7 @@ def compress(tile, *, method, width=None, error=None, nodata=None):
     if error is None:
         code = 0 if code is None else code
     elif code is None:
-        raise ValueError(f"quant does not support dtype {arr.dtype}")
+        raise ValueError(f"the quantizers do not support dtype {arr.dtype}")
 
     nd_mode, nd_value = _nodata_args(arr, nodata)
     if nd_mode == _NODATA_VALUE and dtype_code(arr.dtype) is None:
@@ -190,7 +197,7 @@ def profile(tile, *, method="planar", width=None, error=None, reps=5,
     if error is None:
         code = 0 if code is None else code
     elif code is None:
-        raise ValueError(f"quant does not support dtype {arr.dtype}")
+        raise ValueError(f"the quantizers do not support dtype {arr.dtype}")
 
     nd_mode, nd_value = _nodata_args(arr, nodata)
     if nd_mode == _NODATA_VALUE and dtype_code(arr.dtype) is None:

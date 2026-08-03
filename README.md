@@ -55,8 +55,8 @@ rows = geozl.profile(tile)                        # the slow call, run once
 best = rows[0]["graph"]                           # e.g. "planar>zigzag>transpose>entropy"
 
 frame = geozl.compress(tile, method=best)         # the fast call, run always
-frame = geozl.compress(tile, method=best, error="abs:2")   # near-lossless
-frame = geozl.compress(tile, method=best, error="rel:1%")  # bound follows the value
+frame = geozl.compress(tile, method=best, error="LINEAR:MAX_ERROR=2")  # near-lossless
+frame = geozl.compress(tile, method=best, error="LOG:MAX_ERROR=1%")   # bound follows the value
 
 back = geozl.decompress(frame, dtype="uint16", width=1024)
 ```
@@ -103,9 +103,18 @@ tile = d.decompress(frame)[0].content.as_nparray()
 | `average` | `0x72D706` | floor average of the west and north neighbours |
 | `wp_static` | `0x72D707` | fits a weighted predictor and stores the weights in the frame |
 | `nodata` | `0x72D70C` | pulls missing samples into a validity mask and fills the holes |
-| `quant_linear` | `0x72D781` | uniform grid, fixed absolute bound, `abs:V` |
-| `quant_log` | `0x72D782` | logarithmic grid, bound is a fraction of the value, `rel:P%` |
-| `quant_sqrt` | `0x72D783` | square root grid, bound grows with the square root of the value, `shot:a=A,b=B,k=K` |
+| `quant_linear` | `0x72D781` | uniform grid, fixed absolute bound, `LINEAR:MAX_ERROR=V` |
+| `quant_log` | `0x72D782` | logarithmic grid, bound is a fraction of the value, `LOG:MAX_ERROR=P%` |
+| `quant_sqrt` | `0x72D783` | square root grid, bound grows with the sensor noise, `SQRT:MAX_ERROR=VN` |
+
+`SQRT` counts sigmas of the sensor curve `a + b*x`. Left out of the recipe, that
+curve is fitted from whatever raster is being compressed, so neighbouring tiles
+land on different grids. Measure it once over the product instead.
+
+```python
+noise = geozl.lossy.fit_noise(stack)   # (N, H, W), or any sequence of rasters
+frame = geozl.compress(tile, method=best, error=noise.recipe(0.5))
+```
 
 ## License
 

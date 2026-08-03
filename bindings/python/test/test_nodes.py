@@ -4,15 +4,14 @@ import pytest
 zl = pytest.importorskip("openzl.ext")
 geozl = pytest.importorskip("geozl")
 
-# Each of these owns a copy of the successor branch: four come out of the
-# spatial_predictor factory, the other two spell it out themselves.
+# Each of these owns a copy of the successor branch. Four come out of the
+# spatial_predictor factory and deinterleave spells it out itself.
 _NODES = [
     ("planar", lambda: geozl.lossless.Planar(8)),
     ("delta_w", lambda: geozl.lossless.DeltaW(8)),
     ("med", lambda: geozl.lossless.Med(8)),
     ("wp_static", lambda: geozl.lossless.WpStatic(8)),
     ("deinterleave", lambda: geozl.lossless.Deinterleave()),
-    ("quant", lambda: geozl.lossy.Quant("abs:4", np.arange(64, dtype=np.uint16))),
 ]
 _MAKERS = [m for _, m in _NODES]
 _IDS = [n for n, _ in _NODES]

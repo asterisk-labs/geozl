@@ -10,7 +10,7 @@ option(GEOZL_BUILD_KERNELS_SHARED "Build the pure C kernels shared library for P
 option(GEOZL_USE_SYSTEM_OPENZL    "Link an installed OpenZL instead of the submodule" OFF)
 option(GEOZL_SANITIZE             "Build with ASan and UBSan, for tests and fuzzing" OFF)
 option(GEOZL_WERROR               "Turn geozl warnings into errors, for CI" OFF)
-option(GEOZL_BUILD_FUZZERS        "Build the libFuzzer decode fuzzer, needs clang and FULL" OFF)
+option(GEOZL_BUILD_FUZZERS        "Build the libFuzzer harnesses, needs clang and FULL" OFF)
 set(GEOZL_OPENZL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../extern/openzl"
     CACHE PATH "Path to the OpenZL submodule source")
 
@@ -76,7 +76,7 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 include(GNUInstallDirs)
-find_library(GEOZL_LIBM m)   # the wp_static trainer and the quant curves use libm
+find_library(GEOZL_LIBM m)   # the wp_static trainer and the quantizers use libm
 
 # Discover codecs by convention: any src/<name>/ that has an
 # encode_<name>_binding.c is a codec. CONFIGURE_DEPENDS re-globs on build, so a
@@ -101,19 +101,19 @@ foreach(name IN LISTS GEOZL_CODECS)
         src/${name}/encode_${name}_kernel.c
         src/${name}/decode_${name}_kernel.c)
 endforeach()
-list(APPEND GEOZL_KERNELS src/wp_static/train_wp_static.c)
-# The error recipe parser is not a codec, but the kernels library carries it
-# so a Python caller can resolve a bound without OpenZL.
-list(APPEND GEOZL_KERNELS src/quant/quant_spec.c)
-list(APPEND GEOZL_KERNELS src/quant_linear/quant_linear_spec.c)
-list(APPEND GEOZL_KERNELS src/quant_log/quant_log_spec.c)
-list(APPEND GEOZL_KERNELS src/quant_sqrt/quant_sqrt_spec.c)
-# The blind noise fit is not a kernel either. It works on blocks, so it needs the
-# raster shape, which the codec node never sees.
-list(APPEND GEOZL_KERNELS src/quant_sqrt/quant_sqrt_fit.c)
-# Python asks the kernels library which vector paths this build carries,
-# so the answer has to live where it can be read without OpenZL.
-list(APPEND GEOZL_KERNELS src/common/simd.c)
+# The rest of the kernels library, which the glob above cannot find because none
+# of it is a codec. It is here so a Python caller reaches it without OpenZL: the
+# wp_static trainer, the recipe parsers that turn an error string into a bound,
+# the noise fit the sqrt quantizer needs, and the report of which vector paths
+# this build carries.
+list(APPEND GEOZL_KERNELS
+    src/wp_static/train_wp_static.c
+    src/lossy/lossy_recipe.c
+    src/quant_linear/quant_linear_spec.c
+    src/quant_log/quant_log_spec.c
+    src/quant_sqrt/quant_sqrt_spec.c
+    src/quant_sqrt/quant_sqrt_fit.c
+    src/common/simd.c)
 
 if(GEOZL_BUILD_FULL)
     if(GEOZL_USE_SYSTEM_OPENZL)
@@ -170,11 +170,11 @@ if(GEOZL_BUILD_FULL)
         target_link_libraries(geozl_decode_fuzzer PRIVATE geozl)
         target_link_options(geozl_decode_fuzzer PRIVATE -fsanitize=fuzzer)
 
-        # The decode fuzzer reaches the quant codec only through a frame that
-        # still parses, which a mutator hardly ever produces, so it spends its
-        # budget in the OpenZL frame reader. This one drives the codec directly
-        # and asserts the bound on the way back out. Kernels only, no OpenZL.
-        foreach(fz quant quant_linear quant_log quant_sqrt)
+        # A mutator hardly ever produces a frame that still parses, so the
+        # decode fuzzer spends its budget in the OpenZL frame reader and rarely
+        # reaches a quantizer at all. These drive the codecs directly and assert
+        # the bound on the way back out. Kernels only, no OpenZL.
+        foreach(fz roundtrip lossy_recipe quant_linear quant_log quant_sqrt)
             add_executable(geozl_${fz}_fuzzer
                 ${CMAKE_CURRENT_SOURCE_DIR}/../fuzz/${fz}_fuzzer.c
                 ${GEOZL_KERNELS})
@@ -195,8 +195,8 @@ endif()
 if(GEOZL_BUILD_KERNELS_SHARED)
     add_library(geozl_kernels SHARED ${GEOZL_KERNELS})
     set_target_properties(geozl_kernels PROPERTIES C_VISIBILITY_PRESET default)
-    # include/ too: the quant kernels take their parameter block from
-    # geozl/quant_params.h, which is public because geozl_node_quant is.
+    # include/ too: the kernels take their parameter blocks from geozl/, which is
+    # public because the node builders over them are.
     target_include_directories(geozl_kernels PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/src)

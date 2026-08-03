@@ -1,8 +1,3 @@
-// Feeds arbitrary bytes to quant_log with no frame around it, since a mutated
-// frame almost never parses far enough to reach the codec. The first byte picks
-// between the recipe parser, a forged parameter block, and a round trip that
-// asserts the declared bound.
-
 #include "quant_log/decode_quant_log_kernel.h"
 #include "quant_log/encode_quant_log_kernel.h"
 #include "quant_log/quant_log_dtype.h"

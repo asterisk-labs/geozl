@@ -1,14 +1,15 @@
-// Beyond the bound holding, what this pins down is which paths read the tile.
-// A grid that follows the tile makes the same value reconstruct two ways once the
-// raster is cut differently, and no per-sample check on the error sees it.
-
 #include "quant_linear/decode_quant_linear_kernel.h"
 #include "quant_linear/encode_quant_linear_kernel.h"
 #include "quant_linear/quant_linear_dtype.h"
 #include "quant_linear/quant_linear_half.h"
 #include "quant_linear/quant_linear_spec.h"
 
+#include "quant_walk.h"
+
+#include <float.h>
+#include <locale.h>
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,111 +47,6 @@ static int trip(const char *recipe, int dtype, const void *src, void *dec,
   if (pOut != NULL)
     *pOut = p;
   return rc;
-}
-
-static double get(const void *p, int dtype, size_t i) {
-  switch (dtype) {
-  case QL_U8:
-    return ((const uint8_t *)p)[i];
-  case QL_U16:
-    return ((const uint16_t *)p)[i];
-  case QL_U32:
-    return ((const uint32_t *)p)[i];
-  case QL_U64:
-    return (double)((const uint64_t *)p)[i];
-  case QL_I8:
-    return ((const int8_t *)p)[i];
-  case QL_I16:
-    return ((const int16_t *)p)[i];
-  case QL_I32:
-    return ((const int32_t *)p)[i];
-  case QL_I64:
-    return (double)((const int64_t *)p)[i];
-  case QL_F16:
-    return quant_linear_half_to_float(((const uint16_t *)p)[i]);
-  case QL_F32:
-    return ((const float *)p)[i];
-  default:
-    return ((const double *)p)[i];
-  }
-}
-
-static void put(void *p, int dtype, size_t i, double v) {
-  switch (dtype) {
-  case QL_U8:
-    ((uint8_t *)p)[i] = (uint8_t)v;
-    break;
-  case QL_U16:
-    ((uint16_t *)p)[i] = (uint16_t)v;
-    break;
-  case QL_U32:
-    ((uint32_t *)p)[i] = (uint32_t)v;
-    break;
-  case QL_U64:
-    ((uint64_t *)p)[i] = (uint64_t)v;
-    break;
-  case QL_I8:
-    ((int8_t *)p)[i] = (int8_t)v;
-    break;
-  case QL_I16:
-    ((int16_t *)p)[i] = (int16_t)v;
-    break;
-  case QL_I32:
-    ((int32_t *)p)[i] = (int32_t)v;
-    break;
-  case QL_I64:
-    ((int64_t *)p)[i] = (int64_t)v;
-    break;
-  case QL_F16:
-    ((uint16_t *)p)[i] = quant_linear_float_to_half((float)v);
-    break;
-  case QL_F32:
-    ((float *)p)[i] = (float)v;
-    break;
-  default:
-    ((double *)p)[i] = v;
-    break;
-  }
-}
-
-static void the_bound_holds(void) {
-  printf("the declared bound holds, every type\n");
-  enum { N = 4096 };
-  // Bounds that are not whole numbers on purpose: 0.94 asks for a step of 1.88,
-  // and rounding that up to 2 would miss by 1.
-  static const double bounds[] = {0.25, 0.94, 1.0, 5.0, 12.75, 50.0};
-  static const int dts[] = {QL_U8,  QL_U16, QL_U32, QL_U64, QL_I8, QL_I16,
-                            QL_I32, QL_I64, QL_F16, QL_F32, QL_F64};
-
-  for (size_t d = 0; d < sizeof(dts) / sizeof(*dts); ++d) {
-    const int dt = dts[d];
-    const size_t w = quant_linear_width(dt);
-    const int signd = (dt >= QL_I8);
-    void *src = calloc(N, w);
-    void *dec = calloc(N, w);
-    CHECK(src != NULL && dec != NULL);
-    for (size_t i = 0; i < N; ++i) {
-      const double v = (double)(i % 100);
-      put(src, dt, i, signd ? v - 50.0 : v);
-    }
-    for (size_t b = 0; b < sizeof(bounds) / sizeof(*bounds); ++b) {
-      char recipe[48];
-      snprintf(recipe, sizeof(recipe), "LINEAR:MAX_ERROR=%g", bounds[b]);
-      if (trip(recipe, dt, src, dec, N, NULL) != 0)
-        continue; // a refusal is an answer
-      for (size_t i = 0; i < N; ++i) {
-        const double x = get(src, dt, i), y = get(dec, dt, i);
-        if (fabs(x - y) > bounds[b]) {
-          printf("  %s dtype %d sample %zu: |%g - %g| = %g > %g\n", recipe, dt,
-                 i, x, y, fabs(x - y), bounds[b]);
-          ++failures;
-          break;
-        }
-      }
-    }
-    free(src);
-    free(dec);
-  }
 }
 
 static void an_integer_grid_never_reads_the_tile(void) {
@@ -409,16 +305,270 @@ static void the_edges(void) {
   CHECK(trip("LINEAR:MAX_ERROR=0.5", QL_F32, f, df, N, &p) == 0);
 }
 
+static void the_parser_takes_only_decimals(void) {
+  puts("the parser takes only what the grammar writes");
+  quant_linear_spec sp;
+  char err[256];
+
+#define GOOD(s) CHECK(quant_linear_parse((s), &sp, err, sizeof(err)) == 0)
+#define BAD(s) CHECK(quant_linear_parse((s), &sp, err, sizeof(err)) != 0)
+
+  GOOD("LINEAR:MAX_ERROR=0.5");
+  GOOD("LINEAR:MAX_ERROR=5");
+  GOOD("LINEAR:MAX_ERROR=1e-3");
+  GOOD("LINEAR:MAX_ERROR=1E+3");
+  GOOD("LINEAR:MAX_ERROR=.5");
+  GOOD("LINEAR:MAX_ERROR=2,STORE=VALUES");
+
+  BAD("LINEAR:MAX_ERROR=inf");
+  BAD("LINEAR:MAX_ERROR=nan");
+  BAD("LINEAR:MAX_ERROR=0.5 ");
+  BAD("LINEAR:MAX_ERROR=1e");
+  BAD("LINEAR:MAX_ERROR=1.0.0");
+  BAD("LINEAR:MAX_ERROR=1_000");
+  BAD("LINEAR:MAX_ERROR=1e999");
+  BAD("LINEAR:MAX_ERROR=1e-320"); // underflows to subnormal
+
+#undef GOOD
+#undef BAD
+}
+
+// Skipped where no comma locale is installed, which is most containers.
+static void a_comma_locale_reads_the_same_recipe(void) {
+  puts("a comma locale reads the same recipe");
+  static const char *names[] = {"de_DE.UTF-8", "fr_FR.UTF-8", "es_PE.UTF-8",
+                                "de_DE", "fr_FR"};
+  const char *got = NULL;
+  for (size_t i = 0; i < sizeof(names) / sizeof(names[0]) && got == NULL; ++i)
+    got = setlocale(LC_NUMERIC, names[i]);
+
+  if (got == NULL) {
+    puts("  no comma locale installed, skipped");
+    return;
+  }
+  printf("  under %s\n", got);
+
+  quant_linear_spec sp;
+  char err[256];
+  CHECK(quant_linear_parse("LINEAR:MAX_ERROR=0.5", &sp, err, sizeof(err)) == 0);
+  CHECK(sp.max_error == 0.5);
+  CHECK(quant_linear_parse("LINEAR:MAX_ERROR=0,5", &sp, err, sizeof(err)) != 0);
+
+  setlocale(LC_NUMERIC, "C");
+}
+
+static void verify_sees_the_bound_hold(void) {
+  puts("verify measures the round trip against the bound");
+  enum { N = 4096 };
+  static const struct {
+    const char *name;
+    const char *recipe;
+    int dtype;
+  } cases[] = {
+      {"u16 DN", "LINEAR:MAX_ERROR=5", QL_U16},
+      {"i16 DEM", "LINEAR:MAX_ERROR=8", QL_I16},
+      {"f32 index", "LINEAR:MAX_ERROR=0.05", QL_F32},
+      {"f32 values", "LINEAR:MAX_ERROR=2,STORE=VALUES", QL_F32},
+      {"f64 index", "LINEAR:MAX_ERROR=0.001", QL_F64},
+      {"f16 index", "LINEAR:MAX_ERROR=0.05", QL_F16},
+  };
+
+  for (size_t k = 0; k < sizeof(cases) / sizeof(cases[0]); ++k) {
+    const size_t w = quant_linear_width(cases[k].dtype);
+    void *src = calloc(N, w), *mid = calloc(N, w), *dec = calloc(N, w);
+    CHECK(src != NULL && mid != NULL && dec != NULL);
+    if (src == NULL || mid == NULL || dec == NULL) {
+      free(src);
+      free(mid);
+      free(dec);
+      continue;
+    }
+
+    for (size_t i = 0; i < N; ++i) {
+      const double v = 100.0 + 300.0 * (double)(i % 211) / 211.0;
+      switch (cases[k].dtype) {
+      case QL_U16:
+        ((uint16_t *)src)[i] = (uint16_t)(v * 100.0);
+        break;
+      case QL_I16:
+        ((int16_t *)src)[i] = (int16_t)(v - 200.0);
+        break;
+      case QL_F32:
+        ((float *)src)[i] = (float)v;
+        break;
+      case QL_F64:
+        ((double *)src)[i] = v;
+        break;
+      default:
+        ((uint16_t *)src)[i] = 0x5000u + (uint16_t)(i % 64);
+        break;
+      }
+    }
+
+    char err[256];
+    quant_linear_spec sp;
+    quant_linear_params p;
+    double hi = 0.0, worst = -1.0;
+    int neg = 0;
+    CHECK(quant_linear_parse(cases[k].recipe, &sp, err, sizeof(err)) == 0);
+    quant_linear_scan(src, cases[k].dtype, N, &hi, &neg);
+    CHECK(quant_linear_resolve(&sp, cases[k].dtype, hi, neg, &p, err,
+                               sizeof(err)) == 0);
+    CHECK(quant_linear_encode(mid, src, &p, cases[k].dtype, N) == 0);
+    CHECK(quant_linear_decode(dec, mid, &p, cases[k].dtype, N) == 0);
+    CHECK(quant_linear_verify(src, dec, &sp, cases[k].dtype, N, &worst) == 0);
+    if (!(worst <= 1.0))
+      printf("  FAIL %s: worst %.6f of the budget\n", cases[k].name, worst);
+    CHECK(worst <= 1.0);
+    printf("  %-12s used %.6f of the budget\n", cases[k].name, worst);
+
+    free(src);
+    free(mid);
+    free(dec);
+  }
+}
+
+// verify has to be able to say no, or it only ever confirms itself.
+static void verify_sees_the_bound_break(void) {
+  puts("verify reports a reconstruction that is out of bounds");
+  enum { N = 4 };
+  const float src[N] = {10.0f, 20.0f, 30.0f, 40.0f};
+  const float dec[N] = {10.0f, 20.0f, 34.0f, 40.0f};
+  quant_linear_spec sp;
+  memset(&sp, 0, sizeof(sp));
+  sp.max_error = 2.0;
+  double worst = -1.0;
+  CHECK(quant_linear_verify(src, dec, &sp, QL_F32, N, &worst) == 0);
+  CHECK(worst == 2.0); // off by four against a bound of two
+
+  const float withNan[N] = {10.0f, NAN, 30.0f, 40.0f};
+  const float back[N] = {10.0f, 0.0f, 30.0f, 40.0f};
+  worst = -1.0;
+  CHECK(quant_linear_verify(withNan, back, &sp, QL_F32, N, &worst) == 0);
+  CHECK(worst == 0.0); // the non-finite sample belongs to nodata
+}
+
+// The branchless half conversions against the reference, over their whole
+// domain. The first draft of ql_f32_to_half was wrong on two of the 2^32, both
+// where the subnormal rounding carries into the smallest normal, and no sampled
+// test would have found them.
+//
+static void the_half_conversions_match_the_reference(void) {
+  const uint64_t step = geozl_walk_step();
+  printf("the half conversions match the reference, %s\n",
+         step == 1 ? "every value" : "on a stride");
+
+  uint64_t bad = 0;
+  for (int32_t v = -32768; v <= 32767; ++v)
+    if (quant_linear_float_to_half((float)v) != ql_i16_to_half(v) && bad++ < 8)
+      printf("  ql_i16_to_half at %d\n", v);
+  CHECK(bad == 0);
+
+  bad = 0;
+  uint64_t seen = 0;
+  for (uint64_t u = 0; u <= 0xFFFFFFFFull; u += step) {
+    const uint32_t bits = (uint32_t)u;
+    float f;
+    memcpy(&f, &bits, sizeof(f));
+    ++seen;
+    if (quant_linear_float_to_half(f) != ql_f32_to_half(f) && bad++ < 8)
+      printf("  ql_f32_to_half at 0x%08x\n", bits);
+  }
+  printf("  %llu float32 checked\n", (unsigned long long)seen);
+  CHECK(bad == 0);
+}
+
+// Every value of a type through the grid, one at a time. The small domains are
+// walked whole; f32 goes on a stride unless GEOZL_EXHAUSTIVE is set.
+static void every_value_holds_the_bound(void) {
+  static const char *const recipes[] = {"LINEAR:MAX_ERROR=5",
+                                        "LINEAR:MAX_ERROR=0.94",
+                                        "LINEAR:MAX_ERROR=0.25"};
+  static const double bounds[] = {5.0, 0.94, 0.25};
+  static uint8_t in[GEOZL_WALK_BLK * 4], st[GEOZL_WALK_BLK * 4];
+  static uint8_t out[GEOZL_WALK_BLK * 4];
+  const uint64_t step = geozl_walk_step();
+  printf("every value of a type holds the bound, f32 %s\n",
+         step == 1 ? "whole" : "on a stride");
+
+  for (size_t t = 0; t < GEOZL_WALK_NTYPES; ++t) {
+    const int dt = geozl_walk_types[t].dtype;
+    for (size_t r = 0; r < sizeof(bounds) / sizeof(bounds[0]); ++r) {
+      char err[256];
+      quant_linear_spec sp;
+      quant_linear_params p;
+      CHECK(quant_linear_parse(recipes[r], &sp, err, sizeof err) == 0);
+      // The grid is cut against the widest the type reaches and the sign it
+      // carries, since the walk covers the whole domain.
+      // The grid is cut against a range a raster holds, not against the whole
+      // float domain, which no uniform grid spans. Values past it are skipped
+      // and the count below says how much of the domain that left.
+      static const double tops[] = {255.0, 65535.0, 32767.0, 1e4, 1e4};
+      const int neg = dt == GEOZL_DT_I16 || dt == GEOZL_DT_F16 ||
+                      dt == GEOZL_DT_F32;
+      if (quant_linear_resolve(&sp, dt, tops[t], neg, &p, err, sizeof err) != 0) {
+        // A refusal is an answer. No uniform grid spans the whole float domain,
+        // so this is where the codec says that out loud.
+        printf("  %-4s %-22s refused, %s\n", geozl_walk_types[t].name,
+               recipes[r], err);
+        continue;
+      }
+
+      double worst = 0.0;
+      uint64_t counted = 0, over = 0, sum = 0, at = 0;
+      const uint64_t domain = geozl_walk_types[t].domain;
+      const uint64_t span = dt == GEOZL_DT_F32 ? step : 1;
+      for (uint64_t base = 0; base < domain; base += GEOZL_WALK_BLK * span) {
+        const size_t n = geozl_walk_fill(in, dt, base, domain, span);
+        CHECK(quant_linear_encode(st, in, &p, dt, n) == 0);
+        CHECK(quant_linear_decode(out, st, &p, dt, n) == 0);
+        for (size_t i = 0; i < n; ++i) {
+          const uint64_t pos = base + (uint64_t)i * span;
+          GEOZL_FOLD(sum, geozl_walk_bits(out, dt, i), pos);
+          const double x = geozl_walk_get(in, dt, i);
+          const double y = geozl_walk_get(out, dt, i);
+          if (!isfinite(x))
+            continue; // the nodata codec owns these
+          if (fabs(x) > tops[t])
+            continue; // outside the range the grid was cut for
+          ++counted;
+          const double e = fabs(y - x);
+          if (e > worst) {
+            worst = e;
+            at = pos;
+          }
+          if (e > bounds[r])
+            ++over;
+        }
+      }
+      printf("  %-4s %-22s %10llu values, worst %.4f of the bound, sum %016llx\n",
+             geozl_walk_types[t].name, recipes[r],
+             (unsigned long long)counted, worst / bounds[r],
+             (unsigned long long)sum);
+      if (over != 0) {
+        printf("    FAIL %llu over the bound, worst at 0x%llx\n",
+               (unsigned long long)over, (unsigned long long)at);
+        ++failures;
+      }
+    }
+  }
+}
+
 int main(void) {
-  the_bound_holds();
   an_integer_grid_never_reads_the_tile();
   the_float_index_path_reads_the_tile();
   the_float_value_path_does_not();
   a_float_array_of_integers_round_trips_exactly();
   non_negative_stays_non_negative();
   the_parser_is_strict();
+  the_parser_takes_only_decimals();
+  a_comma_locale_reads_the_same_recipe();
   a_forged_header_is_refused();
+  verify_sees_the_bound_hold();
+  verify_sees_the_bound_break();
   the_edges();
+  the_half_conversions_match_the_reference();
+  every_value_holds_the_bound();
   if (failures != 0) {
     printf("%d failed\n", failures);
     return 1;

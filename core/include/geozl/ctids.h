@@ -14,7 +14,8 @@ typedef enum {
   GEOZL_CTID_FLOATQUANT = 0x72D70A,
   GEOZL_CTID_FLOATMULT = 0x72D70B,
   GEOZL_CTID_NODATA = 0x72D70C,
-  GEOZL_CTID_QUANT = 0x72D780,
+  // 0x72D780 was quant, one codec carrying all three curves. Split into the
+  // three below and retired, not reused.
   GEOZL_CTID_QUANT_LINEAR = 0x72D781,
   GEOZL_CTID_QUANT_LOG = 0x72D782,
   GEOZL_CTID_QUANT_SQRT = 0x72D783,

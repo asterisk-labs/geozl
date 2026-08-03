@@ -1,8 +1,3 @@
-// Feeds arbitrary bytes to quant_linear with no frame around it, since a mutated
-// frame almost never parses far enough to reach the codec. The first byte picks
-// between the recipe parser, a forged parameter block, and a round trip that
-// asserts the declared bound.
-
 #include "quant_linear/decode_quant_linear_kernel.h"
 #include "quant_linear/encode_quant_linear_kernel.h"
 #include "quant_linear/quant_linear_dtype.h"

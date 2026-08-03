@@ -79,14 +79,14 @@ demo.py
 
 # Fuzzer corpus and libFuzzer artifacts, all generated
 fuzz/corpus/
-fuzz/corpus-quant-log/
+fuzz/out/
 crash-*
 leak-*
 timeout-*
 oom-*
 *.tif
 .vscode/settings.json
-
+*.patch
 *.jp2
 
 .coverage

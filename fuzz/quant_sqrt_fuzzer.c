@@ -1,7 +1,3 @@
-// Arbitrary bytes into quant_sqrt with no frame around it, since a mutated frame
-// almost never parses far enough to reach the codec. The first byte picks between
-// the parser, a forged parameter block, and a round trip against the bound.
-
 #include "quant_sqrt/decode_quant_sqrt_kernel.h"
 #include "quant_sqrt/encode_quant_sqrt_kernel.h"
 #include "quant_sqrt/quant_sqrt_dtype.h"

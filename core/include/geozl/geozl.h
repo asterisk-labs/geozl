@@ -2,10 +2,10 @@
 #define GEOZL_H
 
 #include "geozl/ctids.h"
+#include "geozl/dtype.h"
 #include "geozl/export.h"
 #include "geozl/quant_linear_params.h"
 #include "geozl/quant_log_params.h"
-#include "geozl/quant_params.h"
 #include "geozl/quant_sqrt_params.h"
 
 #include "openzl/zl_compressor.h"
@@ -39,9 +39,9 @@ GEOZL_API ZL_NodeID geozl_node_binoffset(ZL_Compressor *c);
 GEOZL_API ZL_NodeID geozl_node_intmult(ZL_Compressor *c, uint64_t base);
 GEOZL_API ZL_NodeID geozl_node_floatquant(ZL_Compressor *c, unsigned k);
 GEOZL_API ZL_NodeID geozl_node_floatmult(ZL_Compressor *c, double base);
-// The curve parameters are already resolved against the tile, because the log
-// curve anchors its grid on the smallest magnitude present. Callers building a
-// graph by hand get them from quant_spec_parse and quant_spec_resolve.
+// The parameters are already resolved against the raster. Callers building a
+// graph by hand get them from quant_linear_parse and quant_linear_resolve, or
+// from geozl_lossy_parse and geozl_lossy_resolve for any of the three at once.
 GEOZL_API ZL_NodeID geozl_node_quant_linear(ZL_Compressor *c,
                                             const quant_linear_params *params,
                                             int dtype);
@@ -59,10 +59,6 @@ GEOZL_API ZL_NodeID geozl_node_quant_log(ZL_Compressor *c,
 GEOZL_API ZL_NodeID geozl_node_quant_sqrt(ZL_Compressor *c,
                                           const quant_sqrt_params *params,
                                           int dtype);
-
-GEOZL_API ZL_NodeID geozl_node_quant(ZL_Compressor *c,
-                                     const quant_params *params,
-                                     const quant_spec *spec, int dtype);
 
 // Missing-data modes, in the spirit of GDAL. NONE is a tile with nothing
 // missing, NAN detects every non-finite sample itself and only applies to
@@ -86,25 +82,26 @@ GEOZL_API ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width,
 // error is a recipe too, so it crosses compress, bench and profile unchanged
 // and the three cannot end up describing different errors:
 //
-//   NULL or ""            lossless
-//   "abs:V"               |x - x^| <= V
-//   "rel:P%"              |x - x^| <= (P/100) * |x|
-//   "shot:a=A,b=B,k=K"    |x - x^| <= K * sqrt(A + B*x)
+//   NULL or ""                 lossless
+//   "LINEAR:MAX_ERROR=V"       |x - x^| <= V
+//   "LOG:MAX_ERROR=P%"         |x - x^| <= (P/100) * |x|
+//   "SQRT:MAX_ERROR=VN"        |x - x^| <= V * sqrt(a + b*x)
 //
-// Which one fits follows from how the measurement error of the data grows with
-// the value: a fixed instrument error takes abs, photon counting takes shot,
-// and a multiplicative error such as SAR speckle takes rel.
+// The recipe names the quantizer and the bound together, and geozl_lossy_parse
+// reads the family off the prefix. Which one fits follows from how the
+// measurement error of the data grows with the value, so a fixed instrument
+// error takes LINEAR, photon counting takes SQRT, and a multiplicative error
+// such as SAR speckle takes LOG. Each codec's spec.md carries the rest of its
+// grammar.
+//
+// A SQRT recipe with no A and B fits the noise curve from this raster, since
+// nothing here carries a product. Neighbouring tiles then land on different
+// grids, so a caller that cuts a raster into tiles measures the curve once with
+// quant_sqrt_accum and writes A and B into the recipe.
 
-// nodataMode is a geozl_nodata_mode. nodataValue is the sentinel, read only
-// for GEOZL_NODATA_VALUE and interpreted at dtype.
-GEOZL_API ZL_Report geozl_2d_compress(const char *method, uint32_t width,
-                                      const char *error, int dtype,
-                                      int nodataMode, double nodataValue,
-                                      const void *src, size_t numElts,
-                                      size_t eltWidth, void *dst,
-                                      size_t dstCapacity, size_t *outSize,
-                                      char *errCtx, size_t errCtxSize);
-
+// nodataMode is a geozl_nodata_mode. nodataValue is the sentinel, read only for
+// GEOZL_NODATA_VALUE and interpreted at dtype.
+//
 // Returns 0 or the ZL_ErrorCode. The reason lands in errCtx, the size in
 // *outSize.
 GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
@@ -125,7 +122,7 @@ GEOZL_API int geozl_2d_decompress_c(const void *frame, size_t frameSize,
 
 // Times one graph, reps compressions and reps decompressions, all in C so the
 // FFI is crossed once. Returns 0 or the ZL_ErrorCode of the first failing round
-// trip. The nodata pair matches geozl_2d_compress, so the graph timed here is
+// trip. The nodata pair matches geozl_2d_compress_c, so the graph timed here is
 // the one compress would build.
 GEOZL_API int geozl_2d_bench_c(const char *method, uint32_t width,
                                const char *error, int dtype, int nodataMode,
