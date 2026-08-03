@@ -81,6 +81,27 @@ reverse, since both implement the same CTid, header, and kernel.
 `make test` runs the suite, `make test-san` the same under ASan and UBSan, and
 `make fuzz` builds the decode fuzzer and its corpus.
 
+
+## Where the checking goes
+
+The decode binding reads the codec header and the decode kernel reads the
+stream, so between them they are handed everything a forged frame can carry.
+Which of the two refuses it is not free to choose.
+
+Anything the kernel would compute on has to be checked by the kernel. Every
+kernel is exported from `libgeozl_kernels`, which is what the Python bindings
+load, so a caller can reach it without ever going through a frame or a binding.
+A shift the kernel folds in 64 bits, a bin wider than its element, a dtype used
+as a table index: those belong at the top of the kernel, and the binding
+checking them as well is fine but does not count.
+
+The binding keeps what only it can see. Header length, field layout, the
+relation between the header and the stream widths OpenZL reports.
+
+The three quantizers do this with a `quant_<name>_check.h` that both ends
+include, which is worth copying when a codec has more than a couple of
+preconditions.
+
 ## Checklist
 
 - [ ] folder with the four files, plus `graph_foo.h` if the shape is not one to one

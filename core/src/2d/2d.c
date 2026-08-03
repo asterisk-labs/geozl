@@ -1,21 +1,3 @@
-// The 2d entry points. A method name and a raster in, a geozl frame out.
-//
-// A method names a predictor and a terminal, "planar>zigzag>entropy". The graph
-// wraps outward from that terminal, so a sample runs
-//
-//   nodata -> quantizer -> predictor -> zigzag -> terminal
-//
-// nodata is outermost because a quantizer has no answer for a sample that was
-// never measured, and the quantizer sits ahead of the predictor so the residual
-// is taken over the values the frame will actually carry. Past the terminal
-// everything belongs to OpenZL.
-//
-// Decompression needs none of it, since a frame names its own codecs.
-//
-// The file runs in that order: the palette of method names, the graph built
-// from one, the error plumbing OpenZL forces, and then the five entry points,
-// compress, frame size, decompress, bench and grid.
-
 #define _POSIX_C_SOURCE 200809L // clock_gettime
 
 #include "geozl/geozl.h"
@@ -48,6 +30,30 @@
 #include <string.h>
 #include <time.h>
 
+// The 2d entry points. A method name and a raster in, a geozl frame out.
+//
+// A method names a predictor and a terminal, "planar>zigzag>entropy". The graph
+// is built inward from that terminal, so a sample runs
+//
+//   [nodata] -> [quantizer] -> [predictor -> zigzag] -> terminal
+//
+// Only the terminal is always there. The predictor and its zigzag come as a
+// pair, and the id and delta_1d methods carry neither. The quantizer appears
+// when error names one. nodata appears when a mode is set, and it is the one
+// stage that does not hand a single stream on: it splits the raster from a
+// validity mask and sends the mask down a generic graph of its own.
+//
+// Two of those positions are not free. nodata is outermost because a quantizer
+// has no answer for a sample that was never measured. The quantizer sits ahead
+// of the predictor so the residual is taken over the values the frame will
+// actually carry. Past the terminal everything belongs to OpenZL.
+//
+// Decompression needs none of it, since a frame names its own codecs.
+//
+// The file runs in that order: the palette of method names, the graph built
+// from one, the error plumbing OpenZL forces, and then the five entry points,
+// compress, frame size, decompress, bench and grid.
+
 // GEOZL_PRED_ID is the no-predictor branch: raw stream straight to a backend,
 // no zigzag. delta_1d is OpenZL's ZL_NODE_DELTA_INT and carries no zigzag either.
 typedef enum {
@@ -63,14 +69,14 @@ typedef enum {
 } geozl_predictor;
 
 // A terminal fixes the layout (interleaved or transposed to byte lanes) and the
-// backend. The transposed ones send every lane to one backend, the blosc/EOPF
-// shape; store_lo transposes but routes each lane on its own.
+// backend. The transposed ones send every lane to one backend; store_lo
+// transposes but routes each lane on its own.
 typedef enum {
   GEOZL_TERM_ENTROPY = 0, // adaptive FSE/Huffman
   GEOZL_TERM_FIELD_LZ,    // field-wise LZ over the numeric residual
   GEOZL_TERM_ZSTD,        // serialize, then zstd
   GEOZL_TERM_T_ENTROPY,   // transpose to lanes, entropy (shuffle + entropy)
-  GEOZL_TERM_T_ZSTD,      // transpose to lanes, zstd (shuffle + zstd, EOPF)
+  GEOZL_TERM_T_ZSTD,      // transpose to lanes, zstd (shuffle + zstd)
   GEOZL_TERM_STORE_LO,    // transpose, low lane stored, high lanes entropy
   GEOZL_TERM_COUNT
 } geozl_terminal;
@@ -206,7 +212,7 @@ static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
     return chain(c, head, n, ZL_GRAPH_ZSTD);
   case GEOZL_TERM_T_ENTROPY:
   case GEOZL_TERM_T_ZSTD: {
-    // transpose to byte lanes, every lane to one backend (the blosc/EOPF shape)
+    // transpose to byte lanes, every lane to one backend
     if (eltWidth < 2 || eltWidth > 8)
       return ZL_GRAPH_ILLEGAL;
     ZL_GraphID back = (t == GEOZL_TERM_T_ZSTD) ? ZL_GRAPH_ZSTD : ZL_GRAPH_ENTROPY;

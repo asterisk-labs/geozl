@@ -64,10 +64,26 @@ int binoffset_join(void *dst, const uint8_t *bins, const void *offsets,
     return (int)bad;                                                           \
   } while (0)
 
+// A bin no wider than the element it rebuilds. Past that the carry in bo_read
+// shifts by 64, and a bin id past nb_bins reads a table entry nobody filled.
+// The binding checks the same thing off the header; this is for every other
+// caller, since the kernel is exported.
+static int bins_fit(const uint8_t offset_bits[256], unsigned nb_bins,
+                    size_t elt_width) {
+  if (nb_bins == 0 || nb_bins > 256)
+    return 0;
+  for (unsigned b = 0; b < nb_bins; ++b)
+    if (offset_bits[b] > 8u * elt_width)
+      return 0;
+  return 1;
+}
+
 int binoffset_join_table(void *dst, const uint8_t *bins, const void *offsets,
                          size_t nb_elts, size_t elt_width,
                          const uint64_t lowers[256],
                          const uint8_t offset_bits[256], unsigned nb_bins) {
+  if (!bins_fit(offset_bits, nb_bins, elt_width))
+    return 1;
   switch (elt_width) {
   case 1:
     BINOFFSET_JOIN_TABLE(uint8_t, 8u);
@@ -125,6 +141,8 @@ int binoffset_unpack_join(void *dst, const uint8_t *bins, const uint8_t *packed,
                           size_t packed_len, size_t nb_elts, size_t elt_width,
                           const uint64_t lowers[256],
                           const uint8_t offset_bits[256], unsigned nb_bins) {
+  if (!bins_fit(offset_bits, nb_bins, elt_width))
+    return 1;
   switch (elt_width) {
   case 1:
     BINOFFSET_UNPACK_JOIN(uint8_t);
