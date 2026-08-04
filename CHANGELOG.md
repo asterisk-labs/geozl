@@ -1,0 +1,108 @@
+# Changelog
+
+All notable changes to this project are documented here.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.8.0] - 2026-08-04
+
+### Added
+
+- `quant_log` codec, CTid `0x72D782`. Relative error bound, `LOG:MAX_ERROR=P%`.
+- `quant_sqrt` codec, CTid `0x72D783`. Bound follows sensor noise `a + b*x`,
+  `SQRT:MAX_ERROR=VN`, with `geozl.lossy.fit_noise` to measure the curve once
+  over a stack so neighbouring tiles share a grid.
+- `nodata` codec, CTid `0x72D70C`. Splits a tile into values and a validity
+  mask in the spirit of GDAL, either by detecting NaN or by a declared sentinel.
+- High-level Python API, `geozl.profile`, `geozl.compress` and
+  `geozl.decompress`. Profile ranks the candidate graphs once, compress runs the
+  one you name.
+- Error recipes, `LINEAR:MAX_ERROR=V`, `LOG:MAX_ERROR=P%` and
+  `SQRT:MAX_ERROR=VN`, shared by compress, profile and bench.
+- C entry points `geozl_2d_decompress_c`, `geozl_2d_frame_dsize_c`,
+  `geozl_2d_bench_c` and `geozl_2d_grid_c`.
+- Six graph terminals where there was one, crossed with eight predictor
+  branches. `entropy`, `field_lz`, `zstd`, `transpose>entropy`,
+  `transpose>zstd`, `store_lo`.
+- Runtime AVX2 dispatch, reported by `geozl.simd_info()`.
+- C test suite under `test/`, seven new pytest files, and five new libFuzzer
+  harnesses that drive the codecs directly and assert the bound. Coverage went
+  from 38% to 97%.
+- Documentation site under `docs/`, with a page per codec and a notebook.
+
+### Changed
+
+- The wheel ships `libgeozl` as well as the kernels, so `geozl.compress` works
+  from a plain `pip install`.
+- x86 release baseline raised to `-march=x86-64-v2`. AVX2 stays a runtime
+  choice.
+- `-ffp-contract=off` on geozl targets, so a `quant_sqrt` frame rebuilds to the
+  same bits on arm64 as on x86.
+- Quant encode precomputes the forward map for narrow integer inputs, and
+  `quant_linear` decode is vectorized.
+- CI caps the ISA by `GEOZL_SIMD` rather than compiler flags, so the sse2 and
+  avx2 jobs exercise the two paths of the same binary the wheel ships.
+
+### Removed
+
+- The `"full"` method. There is no brute force sweep on the compress path,
+  `geozl.profile` picks the graph instead.
+- Python bindings for the pcodec-derived family, `BinOffset`, `IntMult`,
+  `FloatQuant` and `FloatMult`. The C codecs stay registered so old frames still
+  decode.
+- `register_decoders` on `geozl.lossless` and `geozl.lossy`. Use
+  `geozl.register_decoders`.
+- The root `SPEC.md`. Each codec carries its own `spec.md`.
+
+### Fixed
+
+- Predictor kernels read past the end of a buffer when `width` did not divide
+  `nbElts`. The geometry is rejected up front now and the kernels return `int`.
+- The `wp_static` trainer kept its histograms in a `static` buffer, which two
+  threads compressing at once shared.
+- Codec headers were written as native integers, so a frame could not cross
+  endianness.
+- `nodata` marked only the NaN samples matching the first payload it saw, and
+  sent a full mask even when nothing or everything was missing.
+- Undefined behaviour in the quantizers found by the new fuzzers, including a
+  float to int cast in `quant_log`, the u64 decode table, unclamped warped
+  reconstructions, and a parameter set `quant_linear` accepted at one end and
+  refused at the other.
+- OpenZL errors were swallowed by the bindings instead of propagated.
+
+### Breaking
+
+- `quant_linear` moved from CTid `0x72D780` to `0x72D781`, and its header grew
+  from 9 to 10 bytes. `0x72D780` is retired rather than reused, so a 0.7.x lossy
+  frame fails to find a decoder instead of being read by the wrong one.
+- Lossless frames written on a big-endian host by 0.7.x do not read here.
+- `geozl_2d_compress` is replaced by `geozl_2d_compress_c`. It returns an error
+  code rather than a `ZL_Report`, `method` is now a full graph recipe name, and
+  `max_error` is now an error recipe string. `GEOZL_2D_LOSSLESS` is gone.
+- `geozl_node_quant_linear` takes a resolved `quant_linear_params *` instead of
+  a `double`.
+- `geozl.lossy.QuantLinear` takes a recipe string instead of a float, so
+  `QuantLinear(0.5, dtype)` becomes `QuantLinear("LINEAR:MAX_ERROR=0.5", dtype)`.
+
+## [0.7.0] - 2026-07-15
+
+First release.
+
+### Added
+
+- Six lossless spatial predictors, `delta_w` `0x72D701`, `delta_n` `0x72D702`,
+  `planar` `0x72D703`, `med` `0x72D705`, `average` `0x72D706` and `wp_static`
+  `0x72D707`, plus `deinterleave` `0x72D704` for two-lane interleaved streams.
+- Four lossless codecs ported from pcodec, `binoffset` `0x72D708`, `intmult`
+  `0x72D709`, `floatquant` `0x72D70A` and `floatmult` `0x72D70B`.
+- One near-lossless codec, `quant_linear` `0x72D780`, a uniform grid under an
+  absolute error bound.
+- `geozl_2d_compress`, which sweeps the predictors with an OpenZL brute force
+  selector and keeps the smallest frame.
+- Python bindings for every codec, placeable in an `openzl.ext` graph, plus
+  `register_decoders` for reading frames back.
+- A libFuzzer harness over the decode path.
+
+[0.8.0]: https://github.com/asterisk-labs/geozl/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/asterisk-labs/geozl/releases/tag/v0.7.0
