@@ -122,6 +122,27 @@ def test_quant_sqrt_holds_the_curve_in_its_recipe():
     assert (np.abs(out - src) / (0.5 * np.sqrt(100.0 + src))).max() <= 1.0
 
 
+def test_the_quantizers_reach_the_half_float_path():
+    """Code 8 is the one dtype whose conversion is not a cast. It goes through
+    common/half.h, shared by the three curves, so a bug in there lands on all
+    of them at once."""
+    arr = np.linspace(10.0, 400.0, 256).astype(np.float16).reshape(16, 16)
+    src = arr.reshape(-1).astype(np.float64)
+
+    out = roundtrip(geozl.lossy.QuantLinear("LINEAR:MAX_ERROR=1", np.float16),
+                    arr, disable_checksum=True).astype(np.float64)
+    assert np.abs(out - src).max() <= 1.0
+
+    out = roundtrip(geozl.lossy.QuantLog("LOG:MAX_ERROR=5%", np.float16),
+                    arr, disable_checksum=True).astype(np.float64)
+    assert (np.abs(out - src) / src).max() <= 0.05
+
+    out = roundtrip(
+        geozl.lossy.QuantSqrt("SQRT:MAX_ERROR=0.5N,A=100,B=1", np.float16),
+        arr, disable_checksum=True).astype(np.float64)
+    assert (np.abs(out - src) / (0.5 * np.sqrt(100.0 + src))).max() <= 1.0
+
+
 def test_a_quantizer_refuses_a_recipe_from_another_family():
     with pytest.raises(ValueError, match="quant_log takes"):
         geozl.lossy.QuantLog("LINEAR:MAX_ERROR=1", np.float32)

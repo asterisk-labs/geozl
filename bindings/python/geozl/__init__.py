@@ -11,10 +11,10 @@ except PackageNotFoundError:
 
 
 def register_decoders(dctx):
-    """Register every geozl decoder, lossless and lossy, into an openzl.ext DCtx.
-    The counterpart of geozl_register_decoders on the C side."""
-    lossless.register_decoders(dctx)
-    lossy.register_decoders(dctx)
+    """Register every geozl decoder, lossless and lossy, into an openzl.ext
+    DCtx. The counterpart of geozl_register_decoders on the C side."""
+    for decoder in lossless._DECODERS + lossy._DECODERS:
+        dctx.register_custom_decoder(decoder())
 
 
 __all__ = ["lossless", "lossy", "compress", "decompress", "profile",

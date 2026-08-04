@@ -77,16 +77,20 @@ def spatial_predictor(ctid, name, encode, decode):
     return Node, Decoder
 
 
-def quantizer(ctid, name, prefix, doubles, plan):
+def quantizer(ctid, name, prefix, doubles, no_grid, extra=()):
     """Node and decoder for a lossy quantizer, one numeric stream in and one
     out, parameterized by a recipe and the dtype the samples are read at.
     doubles names the params fields after flags, and the wire header is uint8
-    dtype, uint8 flags, then those as little endian doubles. plan runs the scan
-    and the resolve, and returns None or why it could not cut a grid."""
+    dtype, uint8 flags, then those as little endian doubles. no_grid is what the
+    scan means when it refuses, and extra carries the arguments resolve takes
+    between the stats and the params, which today is the sqrt curve."""
     parse = getattr(lib, f"{prefix}_parse")
+    scan = getattr(lib, f"{prefix}_scan")
+    resolve = getattr(lib, f"{prefix}_resolve")
     enc = getattr(lib, f"{prefix}_encode")
     dec = getattr(lib, f"{prefix}_decode")
     params = f"{prefix}_params*"
+    stats = f"{prefix}_stats*"
     short = name.rsplit(".", 1)[-1]
 
     header = struct.Struct("<BB" + "d" * len(doubles))
@@ -119,10 +123,15 @@ def quantizer(ctid, name, prefix, doubles, plan):
                 raise ValueError(f"{name}: dtype {self._dtype} does not match "
                                  f"{elt}-byte samples")
             src = _ptr(inp.content.as_nparray())
+            sc = ffi.new(stats)
+            if scan(src, self._dtype, n, sc):
+                raise ValueError(
+                    f"{name}: {no_grid.format(dtype=self._dtype)}")
             p = ffi.new(params)
-            why = plan(self._spec, self._dtype, src, n, p)
-            if why is not None:
-                raise ValueError(f"{name}: {why}")
+            err = ffi.new("char[]", 256)
+            if resolve(self._spec, self._dtype, sc, *extra, p, err, len(err)):
+                raise ValueError(
+                    f"{name}: {ffi.string(err).decode('utf-8', 'replace')}")
             out = state.create_output(0, n, elt)
             if enc(_ptr(out.mut_content.as_nparray()), src, p, self._dtype, n):
                 raise ValueError(

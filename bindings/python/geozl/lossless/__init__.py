@@ -12,16 +12,9 @@ _DECODERS = (DeltaWDecoder, DeltaNDecoder, PlanarDecoder, MedDecoder,
              NodataDecoder)
 
 
-def register_decoders(dctx):
-    """Register the lossless decoders into an openzl.ext DCtx, for decoding in
-    Python. A C reader registers them through libgeozl instead."""
-    for decoder in _DECODERS:
-        dctx.register_custom_decoder(decoder())
-
-
 __all__ = [
     "Average", "AverageDecoder", "DeltaN", "DeltaNDecoder", "DeltaW",
     "DeltaWDecoder", "Deinterleave", "DeinterleaveDecoder", "Med", "MedDecoder",
     "Nodata", "NodataDecoder", "Planar", "PlanarDecoder", "WpStatic",
-    "WpStaticDecoder", "component_dtype", "nodata_bits", "register_decoders",
+    "WpStaticDecoder", "component_dtype", "nodata_bits",
 ]

@@ -79,23 +79,8 @@ def test_component_dtype_refuses_anything_but_complex():
         geozl.lossless.component_dtype(np.uint16)
 
 
-def test_each_family_registers_only_its_own_decoders():
-    lossless, lossy = [], []
-
-    class Spy(zl.DCtx):
-        def __init__(self, sink):
-            super().__init__()
-            self._sink = sink
-
-        def register_custom_decoder(self, dec):
-            self._sink.append(type(dec).__name__)
-            return super().register_custom_decoder(dec)
-
-    geozl.lossless.register_decoders(Spy(lossless))
-    geozl.lossy.register_decoders(Spy(lossy))
-    assert len(lossless) == 8
-    assert len(lossy) == 3
-    assert not set(lossless) & set(lossy)
+def test_no_decoder_sits_in_both_families():
+    assert not set(geozl.lossless._DECODERS) & set(geozl.lossy._DECODERS)
 
 
 def test_register_decoders_covers_both_families():
@@ -107,4 +92,6 @@ def test_register_decoders_covers_both_families():
             return super().register_custom_decoder(dec)
 
     geozl.register_decoders(Spy())
-    assert len(seen) == 11  # eight lossless plus three lossy
+    assert seen == [d.__name__ for d in geozl.lossless._DECODERS
+                    + geozl.lossy._DECODERS]
+    assert len(set(seen)) == len(seen)

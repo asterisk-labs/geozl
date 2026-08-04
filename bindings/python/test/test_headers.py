@@ -93,6 +93,18 @@ def test_wp_static_decoder_rejects_a_shift_past_the_accumulator():
         _decode(frame)
 
 
+def test_the_dtype_width_table_matches_the_one_in_c():
+    """A quant header carries a dtype code and the decoder sizes its output
+    against this table. The same one is written out in quant_linear_dtype.h,
+    quant_log_dtype.h and quant_sqrt_dtype.h, none of them reachable from here,
+    so the literal is what anchors the four copies together."""
+    from geozl._dtype import dtype_width
+    assert [dtype_width(c) for c in range(11)] == [1, 2, 4, 8, 1, 2, 4, 8,
+                                                   2, 4, 8]
+    assert dtype_width(11) is None
+    assert dtype_width(255) is None
+
+
 def _codec_header(decoder_cls, frame):
     """The header bytes the encoder wrote, read back through its own decoder.
     A step copied from the resolver here would rot into a test that forges the

@@ -111,21 +111,10 @@ def fit_noise(data):
         lib.quant_sqrt_accum_free(acc)
 
 
-def _plan(spec, dtype, src, nb_elts, params):
-    err = ffi.new("char[]", 256)
-    stats = ffi.new("quant_sqrt_stats*")
-    if lib.quant_sqrt_scan(src, dtype, nb_elts, stats):
-        return "the stream holds no finite sample"
-    # NULL curve. resolve reads A and B off the recipe first, so one passed
-    # here alongside them would be dropped. Noise.recipe is the way in.
-    if lib.quant_sqrt_resolve(spec, dtype, stats, ffi.NULL, params, err,
-                              len(err)):
-        return ffi.string(err).decode("utf-8", "replace")
-    return None
-
-
+# NULL curve. resolve reads A and B off the recipe first, so one passed here
+# alongside them would be dropped. Noise.recipe is the way in.
 QuantSqrt, QuantSqrtDecoder = quantizer(
     0x72D783, "geozl.lossy.quant_sqrt", "quant_sqrt", ("step", "offset"),
-    _plan)
+    "the stream holds no finite sample", extra=(ffi.NULL,))
 
 __all__ = ["Noise", "QuantSqrt", "QuantSqrtDecoder", "fit_noise"]
