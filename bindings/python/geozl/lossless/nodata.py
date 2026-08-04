@@ -1,10 +1,9 @@
 import struct
 import sys
 
-import numpy as np
 from openzl import ext as _ext
 
-from .._dtype import dtype_code
+from .._dtype import nodata_bits
 from .._ffi import _ptr, ffi, lib
 
 _CTID = 0x72D70C
@@ -38,18 +37,6 @@ def _bad_header(header, vals, mask):
 
 def _pattern_bytes(pattern, elt):
     return struct.pack("<Q", pattern & 0xFFFFFFFFFFFFFFFF)[:elt]
-
-
-def nodata_bits(value, dtype):
-    """Bit pattern a nodata value has at its own dtype, which is what the codec
-    header carries. A float keeps its exact bits, so a NaN payload survives."""
-    dt = np.dtype(dtype)
-    if dtype_code(dt) is None:
-        raise ValueError(f"{_NAME}: geozl has no code for dtype {dt}")
-    if dt == np.dtype("float16"):
-        raise ValueError(f"{_NAME}: a half float carries no sentinel, NaN "
-                         f"still works on one")
-    return int(np.asarray(value, dtype=dt).view(np.dtype(f"u{dt.itemsize}")))
 
 
 class _Encoder(_ext.CustomEncoder):

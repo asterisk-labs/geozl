@@ -2,16 +2,24 @@
 #define GEOZL_COMMON_RASTER_H
 
 #include <stddef.h>
+#include <stdint.h>
 
-// Effective row width for a predictor, or 0 when it cannot tile nbElts. Also 0
-// for nbElts == 0, so a single check covers both the empty input and a width
-// that does not divide. On decode the width comes from the frame header, so it
-// is not trusted.
+// Effective row width for a predictor, or 0 when it cannot tile nbElts, empty
+// input included. Strict on both sides: on decode the width comes from the
+// frame header and is not trusted.
 static inline size_t geozl_row_width(size_t width, size_t nbElts) {
   if (nbElts == 0)
     return 0;
-  const size_t w = (width == 0 || width > nbElts) ? nbElts : width;
-  return (nbElts % w == 0) ? w : 0;
+  if (width == 0 || width > nbElts)
+    return 0;
+  return (nbElts % width == 0) ? width : 0;
+}
+
+// A declared width folded to the one the header will carry, zero and anything
+// past the tile meaning a single row. Encode side only, so decode can refuse
+// whatever an encoder would not have written.
+static inline uint32_t geozl_row_width_declared(uint32_t width, size_t nbElts) {
+  return (width == 0 || (size_t)width > nbElts) ? (uint32_t)nbElts : width;
 }
 
 // Row width plus the element width switch, written out identically by nine

@@ -65,6 +65,27 @@ def test_predictor_decoder_rejects_a_forged_row_width():
         _decode(frame)
 
 
+@pytest.mark.parametrize("forged", [0, 7, 257, 10 ** 9, 2 ** 32 - 1],
+                         ids=["zero", "does not tile", "one past", "huge",
+                              "uint32 max"])
+def test_the_row_width_guard_refuses_everything_an_encoder_would_not_write(
+        forged):
+    """At the kernel rather than through a forged frame. The anchor trick needs
+    the width to appear once in the bytes, and a partial width leaves predicted
+    residuals full of zeros, so every candidate collides."""
+    from geozl._ffi import _ptr, lib
+
+    n, width = 256, 16
+    src = np.random.default_rng(0).integers(0, 60000, n).astype(np.uint16)
+    enc = np.empty(n, np.uint16)
+    assert lib.planar_encode(_ptr(enc), _ptr(src), width, n, 2) == 0
+
+    out = np.empty(n, np.uint16)
+    assert lib.planar_decode(_ptr(out), _ptr(enc), width, n, 2) == 0
+    assert np.array_equal(out, src)
+    assert lib.planar_decode(_ptr(out), _ptr(enc), forged, n, 2) != 0
+
+
 def test_wp_static_rejects_a_width_that_does_not_tile():
     with pytest.raises(Exception, match="does not tile"):
         _frame(geozl.lossless.WpStatic(7), np.arange(200, dtype=np.uint16))

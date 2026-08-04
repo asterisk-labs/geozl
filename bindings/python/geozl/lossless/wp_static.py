@@ -2,6 +2,7 @@ import struct
 
 from openzl import ext as _ext
 
+from .._codec import row_width_declared
 from .._ffi import _ptr, ffi, lib
 
 _CTID = 0x72D707
@@ -29,6 +30,7 @@ class _WpStaticEncoder(_ext.CustomEncoder):
     def encode(self, state):
         inp = state.inputs[0]
         n, elt = inp.num_elts, inp.elt_width
+        width = row_width_declared(self._width, n)
         src = _ptr(inp.content.as_nparray())
 
         coeffs = ffi.new("int16_t[4]")
@@ -36,13 +38,13 @@ class _WpStaticEncoder(_ext.CustomEncoder):
         out = state.create_output(0, n, elt)
         # n == 0 is a valid empty stream, the kernels reject it as a geometry
         if n:
-            if lib.wp_static_train(coeffs, shift, src, self._width, n, elt):
+            if lib.wp_static_train(coeffs, shift, src, width, n, elt):
                 raise ValueError(
                     f"{_NAME}: width {self._width} does not tile {n} samples")
             lib.wp_static_encode(_ptr(out.mut_content.as_nparray()), src,
-                                 self._width, n, elt, coeffs, shift[0])
+                                 width, n, elt, coeffs, shift[0])
         state.send_codec_header(
-            _HEADER.pack(self._width, shift[0], coeffs[0], coeffs[1],
+            _HEADER.pack(width, shift[0], coeffs[0], coeffs[1],
                          coeffs[2], coeffs[3]))
         out.commit(n)
 

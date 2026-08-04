@@ -270,7 +270,44 @@ def test_nan_only_triggers_on_float():
 
 def test_a_declared_sentinel_wins_over_the_automatic_path():
     arr = _holed()
-    assert _2d._nodata_args(arr, -9999) == (_2d._NODATA_VALUE, -9999.0)
+    # the float32 bits of -9999.0, not the number
+    assert _2d._nodata_args(arr, -9999) == (_2d._NODATA_VALUE, 0xC61C3C00)
+
+
+def test_a_nan_sentinel_takes_the_automatic_path():
+    """As bits it would match one payload, not every NaN in the tile."""
+    assert _2d._nodata_args(_holed(), float("nan")) == (_2d._NODATA_NAN, 0)
+
+
+@pytest.mark.parametrize("dtype,hole", [
+    (np.int32, -9999),          # the ordinary one, and the control
+    (np.int64, 2 ** 53 - 1),    # last sentinel a double still held
+    (np.int64, 2 ** 53 + 1),    # first one it dropped, with no overflow to see
+    (np.int64, 2 ** 63 - 1),    # the signed end
+    (np.uint64, 2 ** 64 - 1),   # the unsigned end, and the cast that was UB
+])
+def test_a_wide_sentinel_reaches_the_codec(dtype, hole):
+    """An all-hole tile answers with a pattern and a count when the sentinel
+    matches, and stores the raster when it misses. The round trip is exact
+    either way, so the two sizes are the only witness."""
+    n = 128
+    arr = np.full((n, n), dtype(hole), dtype=dtype)
+    matched = geozl.compress(arr, method=GRAPH, nodata=hole)
+    missed = geozl.compress(arr, method=GRAPH, nodata=dtype(1))
+    assert len(matched) * 2 < len(missed)
+    assert np.array_equal(
+        geozl.decompress(matched, dtype=arr.dtype.name, width=n), arr)
+
+
+def test_a_sentinel_outside_the_dtype_is_refused():
+    arr = _tile(shape=(8, 8), dtype=np.int32).astype(np.uint64)
+    with pytest.raises(OverflowError):
+        geozl.compress(arr, method=GRAPH, nodata=-1)
+
+
+def test_a_fractional_sentinel_on_an_integer_tile_is_refused():
+    with pytest.raises(ValueError, match="whole number"):
+        geozl.compress(_tile(), method=GRAPH, nodata=3.5)
 
 
 def test_nodata_needs_a_dtype_geozl_knows():

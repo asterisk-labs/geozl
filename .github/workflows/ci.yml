@@ -25,11 +25,17 @@ jobs:
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          python -m pip install cmake ninja numpy cffi openzl pytest pytest-cov anybadge
+          python -m pip install cmake ninja numpy cffi openzl pytest pytest-cov anybadge ruff mypy
 
       # FULL=ON or libgeozl is missing and geozl.compress cannot run at all.
       - name: Build the library and install geozl
         run: make python FULL=ON
+
+      - name: Lint and type check
+        working-directory: bindings/python
+        run: |
+          ruff check .
+          mypy
 
       - name: Run pytest with coverage
         run: |
@@ -77,6 +83,28 @@ jobs:
       # a kernel, or a decoder that stops rejecting a forged header, fails here.
       - name: Run the suite under ASan and UBSan
         run: make test-san FULL=OFF
+
+  sanitize-full:
+    name: Sanitizers, full library
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install cmake ninja numpy cffi openzl pytest
+
+      # The job above is FULL=OFF, so 2d.c is the one file it never covers.
+      # Separate because it instruments OpenZL and zstd too.
+      - name: Run the suite under ASan and UBSan against libgeozl
+        run: make test-san
 
   build:
     name: Strict build

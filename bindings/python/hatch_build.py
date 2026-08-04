@@ -11,8 +11,8 @@ class CustomBuildHook(BuildHookInterface):
         found = [p for g in _LIB_GLOBS for p in lib_dir.glob(g)]
         if not found:
             raise RuntimeError(
-                f"no native library in {lib_dir}. Build it first: "
-                "`make lib` from the repo root."
+                f"no native library in {lib_dir}. Build it with `make lib` "
+                "from a checkout. An sdist carries no C sources."
             )
 
         # Binary inside, so tag the wheel for this platform, not py3-none-any.

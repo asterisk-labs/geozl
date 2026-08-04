@@ -8,6 +8,7 @@
 #include "openzl/zl_output.h"
 
 #include "common/endian.h"
+#include "common/raster.h"
 
 #include <assert.h>
 #include <stdint.h>
@@ -23,9 +24,10 @@ ZL_Report EI_geozl_med(ZL_Encoder *eictx, const ZL_Input *in) {
 
   // the row width comes from the graph builder, a single row if it is absent
   ZL_IntParam wp = ZL_Encoder_getLocalIntParam(eictx, GEOZL_PARAM_WIDTH);
-  const uint32_t width = (wp.paramId == GEOZL_PARAM_WIDTH)
-                             ? (uint32_t)wp.paramValue
-                             : (uint32_t)nbElts;
+  const uint32_t width = geozl_row_width_declared(
+      (wp.paramId == GEOZL_PARAM_WIDTH) ? (uint32_t)wp.paramValue
+                                        : (uint32_t)nbElts,
+      nbElts);
 
   // allocation is controlled by the engine
   ZL_Output *out = ZL_Encoder_createTypedStream(eictx, 0, nbElts, eltWidth);

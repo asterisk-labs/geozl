@@ -12,6 +12,12 @@ _HEADER = struct.Struct("<I")
 _CHECKSUM_DISABLE = 2  # ZL_TernaryParam_disable
 
 
+def row_width_declared(width, nb_elts):
+    """Width the header will carry, zero and anything past the tile meaning a
+    single row. Mirrors geozl_row_width_declared in raster.h."""
+    return nb_elts if width == 0 or width > nb_elts else width
+
+
 def spatial_predictor(ctid, name, encode, decode):
     """Node and decoder for a lossless spatial predictor, one numeric stream in
     and one out, parameterized by a row width. encode and decode are the C kernel
@@ -38,13 +44,14 @@ def spatial_predictor(ctid, name, encode, decode):
         def encode(self, state):
             inp = state.inputs[0]
             n, elt = inp.num_elts, inp.elt_width
+            width = row_width_declared(self._width, n)
             out = state.create_output(0, n, elt)
             # n == 0 is a valid empty stream, the kernel rejects it as a geometry
             if n and enc(_ptr(out.mut_content.as_nparray()),
-                         _ptr(inp.content.as_nparray()), self._width, n, elt):
+                         _ptr(inp.content.as_nparray()), width, n, elt):
                 raise ValueError(
                     f"{name}: width {self._width} does not tile {n} samples")
-            state.send_codec_header(_HEADER.pack(self._width))
+            state.send_codec_header(_HEADER.pack(width))
             out.commit(n)
 
     class Decoder(_ext.CustomDecoder):
@@ -157,7 +164,7 @@ def quantizer(ctid, name, prefix, doubles, no_grid, extra=()):
                 raise ValueError(f"{name}: bad dtype in codec header")
             p = ffi.new(params)
             p.flags = flags
-            for field, value in zip(doubles, vals):
+            for field, value in zip(doubles, vals, strict=True):
                 setattr(p, field, value)
             out = state.create_output(0, n, elt)
             # The rest is params_ok, inside the kernel, read by both ends.

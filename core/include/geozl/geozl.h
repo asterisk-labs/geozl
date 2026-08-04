@@ -99,14 +99,16 @@ GEOZL_API ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width,
 // grids, so a caller that cuts a raster into tiles measures the curve once with
 // quant_sqrt_accum and writes A and B into the recipe.
 
-// nodataMode is a geozl_nodata_mode. nodataValue is the sentinel, read only for
-// GEOZL_NODATA_VALUE and interpreted at dtype.
+// nodataMode is a geozl_nodata_mode. nodataBits is the sentinel in the
+// element's own representation, low eltWidth bytes, read only for
+// GEOZL_NODATA_VALUE. Bits and not a double, which cannot carry an int64 or
+// uint64 sentinel past 2^53.
 //
 // Returns 0 or the ZL_ErrorCode. The reason lands in errCtx, the size in
 // *outSize.
 GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
                                   const char *error, int dtype, int nodataMode,
-                                  double nodataValue, const void *src,
+                                  uint64_t nodataBits, const void *src,
                                   size_t numElts, size_t eltWidth, void *dst,
                                   size_t dstCapacity, size_t *outSize,
                                   char *errCtx, size_t errCtxSize);
@@ -126,7 +128,7 @@ GEOZL_API int geozl_2d_decompress_c(const void *frame, size_t frameSize,
 // the one compress would build.
 GEOZL_API int geozl_2d_bench_c(const char *method, uint32_t width,
                                const char *error, int dtype, int nodataMode,
-                               double nodataValue, const void *src,
+                               uint64_t nodataBits, const void *src,
                                size_t numElts, size_t eltWidth, size_t reps,
                                size_t *compSize, double *encSec, double *decSec,
                                char *errCtx, size_t errCtxSize);

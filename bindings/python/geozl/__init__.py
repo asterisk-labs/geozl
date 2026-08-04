@@ -1,4 +1,5 @@
 from importlib.metadata import PackageNotFoundError, version
+from typing import Any
 
 from . import lossless, lossy
 from ._2d import compress, decompress, profile
@@ -10,7 +11,7 @@ except PackageNotFoundError:
     __version__ = "0+unknown"
 
 
-def register_decoders(dctx):
+def register_decoders(dctx: Any) -> None:
     """Register every geozl decoder, lossless and lossy, into an openzl.ext
     DCtx. The counterpart of geozl_register_decoders on the C side."""
     for decoder in lossless._DECODERS + lossy._DECODERS:

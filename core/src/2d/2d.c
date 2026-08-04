@@ -247,39 +247,13 @@ static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
   }
 }
 
-// The sentinel a caller declared, as the bit pattern the mask codec compares
-// against, which is the element itself and not a value to convert at each use.
-// dtype has already been checked against GEOZL_DT_OK, so the integer branch
-// below cannot be reached by a code from outside the enum.
-static int nodata_bits(double v, int dtype, size_t eltWidth, uint64_t *out) {
-  if (dtype == GEOZL_DT_F32 && eltWidth == 4) {
-    const float f = (float)v;
-    uint32_t b;
-    memcpy(&b, &f, sizeof(b));
-    *out = b;
-    return 0;
-  }
-  if (dtype == GEOZL_DT_F64 && eltWidth == 8) {
-    uint64_t b;
-    memcpy(&b, &v, sizeof(b));
-    *out = b;
-    return 0;
-  }
-  if (dtype <= GEOZL_DT_LAST_INT) { // the integer codes, signed and unsigned alike
-    const uint64_t bits = (uint64_t)(int64_t)v;
-    *out = (eltWidth == 8) ? bits : (bits & (((uint64_t)1 << (8 * eltWidth)) - 1));
-    return 0;
-  }
-  return 1; // half floats carry no sentinel, NaN still works on them
-}
-
 // build_candidate gives the predictor and terminal, this wraps the quantizer
 // and then nodata around it, outermost last.
 static ZL_GraphID build_graph(ZL_Compressor *c, geozl_predictor p,
                                  geozl_terminal t, uint32_t width,
                                  size_t eltWidth,
                                  const geozl_lossy_plan *plan, int dtype,
-                                 int nodataMode, double nodataValue) {
+                                 int nodataMode, uint64_t nodataBits) {
   ZL_GraphID sel = build_candidate(c, p, t, width, eltWidth);
   if (!ZL_GraphID_isValid(sel))
     return ZL_GRAPH_ILLEGAL;
@@ -299,8 +273,9 @@ static ZL_GraphID build_graph(ZL_Compressor *c, geozl_predictor p,
   uint64_t bits = 0;
   int mode = GEOZL_NODATA_MODE_NAN;
   if (nodataMode == GEOZL_NODATA_VALUE) {
-    if (nodata_bits(nodataValue, dtype, eltWidth, &bits))
-      return ZL_GRAPH_ILLEGAL;
+    bits = (eltWidth == 8)
+               ? nodataBits
+               : (nodataBits & (((uint64_t)1 << (8 * eltWidth)) - 1));
     mode = GEOZL_NODATA_MODE_VALUE;
   }
 
@@ -336,7 +311,7 @@ static void copy_err(char *dst, size_t cap, const char *src) {
 // truncated to errCtxSize. Pass NULL to drop it.
 static ZL_Report compress_impl(const char *method, uint32_t width,
                                const char *error, int dtype, int nodataMode,
-                               double nodataValue, const void *src,
+                               uint64_t nodataBits, const void *src,
                                size_t numElts, size_t eltWidth, void *dst,
                                size_t dstCapacity, size_t *outSize,
                                char *errCtx, size_t errCtxSize, int noChecksum) {
@@ -354,9 +329,7 @@ static ZL_Report compress_impl(const char *method, uint32_t width,
     return ZL_returnError(ZL_ErrorCode_parameter_invalid);
   }
 
-  // nodata_bits and every quantizer index tables by this, and the integer branch
-  // of nodata_bits accepts anything at or below GEOZL_DT_LAST_INT, negatives
-  // included, so the range is checked once here rather than in each of them.
+  // Every quantizer indexes tables by this, checked once here.
   if (!GEOZL_DT_OK(dtype)) {
     if (has_err)
       snprintf(errCtx, errCtxSize,
@@ -404,7 +377,7 @@ static ZL_Report compress_impl(const char *method, uint32_t width,
   ZL_CCtx *cctx = NULL;
 
   ZL_GraphID g = build_graph(c, pred, term, width, eltWidth, &plan, dtype,
-                             nodataMode, nodataValue);
+                             nodataMode, nodataBits);
   if (!ZL_GraphID_isValid(g)) {
     if (has_err)
       snprintf(errCtx, errCtxSize,
@@ -475,12 +448,12 @@ done:
 // out of the bindings, with the reason in errCtx and the frame size in *outSize.
 GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
                                   const char *error, int dtype, int nodataMode,
-                                  double nodataValue, const void *src,
+                                  uint64_t nodataBits, const void *src,
                                   size_t numElts, size_t eltWidth, void *dst,
                                   size_t dstCapacity, size_t *outSize,
                                   char *errCtx, size_t errCtxSize) {
   ZL_Report r = compress_impl(method, width, error, dtype, nodataMode,
-                              nodataValue, src, numElts, eltWidth, dst,
+                              nodataBits, src, numElts, eltWidth, dst,
                               dstCapacity, outSize, errCtx, errCtxSize, 0);
   return ZL_isError(r) ? (int)ZL_errorCode(r) : 0;
 }
@@ -541,7 +514,7 @@ static double now_sec(void) {
 // best (minimum) time of the reps.
 GEOZL_API int geozl_2d_bench_c(const char *method, uint32_t width,
                                const char *error, int dtype, int nodataMode,
-                               double nodataValue, const void *src,
+                               uint64_t nodataBits, const void *src,
                                size_t numElts, size_t eltWidth, size_t reps,
                                size_t *compSize, double *encSec, double *decSec,
                                char *errCtx, size_t errCtxSize) {
@@ -559,7 +532,7 @@ GEOZL_API int geozl_2d_bench_c(const char *method, uint32_t width,
   for (size_t i = 0; i < reps; ++i) {
     double t0 = now_sec();
     ZL_Report r =
-        compress_impl(method, width, error, dtype, nodataMode, nodataValue,
+        compress_impl(method, width, error, dtype, nodataMode, nodataBits,
                       src, numElts, eltWidth, cbuf, cap, &sz, errCtx,
                       errCtxSize, 1);
     double dt = now_sec() - t0;

@@ -1,11 +1,11 @@
-from .delta_w import DeltaW, DeltaWDecoder
-from .delta_n import DeltaN, DeltaNDecoder
-from .planar import Planar, PlanarDecoder
-from .med import Med, MedDecoder
 from .average import Average, AverageDecoder
-from .wp_static import WpStatic, WpStaticDecoder
 from .deinterleave import Deinterleave, DeinterleaveDecoder, component_dtype
+from .delta_n import DeltaN, DeltaNDecoder
+from .delta_w import DeltaW, DeltaWDecoder
+from .med import Med, MedDecoder
 from .nodata import Nodata, NodataDecoder, nodata_bits
+from .planar import Planar, PlanarDecoder
+from .wp_static import WpStatic, WpStaticDecoder
 
 _DECODERS = (DeltaWDecoder, DeltaNDecoder, PlanarDecoder, MedDecoder,
              AverageDecoder, WpStaticDecoder, DeinterleaveDecoder,

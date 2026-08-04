@@ -9,6 +9,7 @@
 #include "openzl/zl_output.h"
 
 #include "common/endian.h"
+#include "common/raster.h"
 
 #include <assert.h>
 #include <stdint.h>
@@ -23,9 +24,10 @@ ZL_Report EI_geozl_wp_static(ZL_Encoder *eictx, const ZL_Input *in) {
   const size_t nbElts = ZL_Input_numElts(in);
 
   ZL_IntParam wp = ZL_Encoder_getLocalIntParam(eictx, GEOZL_PARAM_WIDTH);
-  const uint32_t width = (wp.paramId == GEOZL_PARAM_WIDTH)
-                             ? (uint32_t)wp.paramValue
-                             : (uint32_t)nbElts;
+  const uint32_t width = geozl_row_width_declared(
+      (wp.paramId == GEOZL_PARAM_WIDTH) ? (uint32_t)wp.paramValue
+                                        : (uint32_t)nbElts,
+      nbElts);
 
   // the weights are fit to this tile, then carried to the decoder in the header
   int16_t coeffs[4];

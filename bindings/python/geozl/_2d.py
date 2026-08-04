@@ -1,8 +1,12 @@
+import math
+from typing import Any
+
 import numpy as np
+from numpy.typing import ArrayLike, DTypeLike
 
-from ._ffi import _load_lib_full, _ptr, ffi
 from ._dtype import dtype_code
-
+from ._ffi import _load_lib_full, _ptr, ffi
+from .lossless.nodata import nodata_bits
 
 # Predictor priors. A name expands to {that predictor, id}; None is unbiased
 # over all; "none" is the no-predictor branch alone.
@@ -16,19 +20,23 @@ _ELT_WIDTHS = frozenset((1, 2, 4, 8))
 _NODATA_NONE, _NODATA_NAN, _NODATA_VALUE = 0, 1, 2
 
 
-def _nodata_args(arr, nodata):
-    """Pick the mode the C side gets. A declared sentinel wins. Otherwise a
-    float tile that actually holds NaN gets the automatic path, and everything
-    else gets nothing, so a tile with no missing samples never pays for the
-    mask stream."""
-    if nodata is not None:
-        return _NODATA_VALUE, float(nodata)
-    if arr.dtype.kind == "f" and np.isnan(arr).any():
-        return _NODATA_NAN, 0.0
-    return _NODATA_NONE, 0.0
+def _nodata_args(arr: np.ndarray, nodata: Any) -> tuple[int, int]:
+    """Mode and sentinel bits for the C side. A declared sentinel wins,
+    otherwise a float tile holding NaN takes the automatic path and everything
+    else gets nothing, so a tile with no missing samples pays for no mask."""
+    if nodata is None:
+        if arr.dtype.kind == "f" and np.isnan(arr).any():
+            return _NODATA_NAN, 0
+        return _NODATA_NONE, 0
+    if dtype_code(arr.dtype) is None:
+        raise ValueError(f"nodata needs a dtype geozl knows, got {arr.dtype}")
+    # as bits a NaN matches one payload, not every NaN in the tile
+    if arr.dtype.kind == "f" and isinstance(nodata, float) and math.isnan(nodata):
+        return _NODATA_NAN, 0
+    return _NODATA_VALUE, nodata_bits(nodata, arr.dtype)
 
 
-def _error_arg(error):
+def _error_arg(error: str | None) -> Any:
     """The error recipe as C wants it. A recipe rather than a number so it
     crosses compress, profile and bench unchanged, and so the string names which
     quantizer runs. A bare float is refused rather than read as an absolute
@@ -43,11 +51,12 @@ def _error_arg(error):
     return error.encode("utf-8")
 
 
-def _is_native(dt):
+def _is_native(dt: np.dtype) -> bool:
     return dt.byteorder in ("=", "|") or dt.newbyteorder("=") == dt
 
 
-def _prepare(tile, width):
+def _prepare(tile: ArrayLike,
+             width: int | None) -> tuple[np.ndarray, int, int]:
     arr = np.ascontiguousarray(tile)
     if not _is_native(arr.dtype):
         raise ValueError(f"dtype {arr.dtype} is not native byte order; the "
@@ -63,7 +72,8 @@ def _prepare(tile, width):
     return arr, int(width), elt
 
 
-def compress(tile, *, method, width=None, error=None, nodata=None):
+def compress(tile: ArrayLike, *, method: str, width: int | None = None,
+             error: str | None = None, nodata: Any = None) -> bytes:
     """Compress a 2d tile into one OpenZL frame through the graph method names.
 
     method is a recipe, the same string profile puts in its "graph" column, and
@@ -102,9 +112,7 @@ def compress(tile, *, method, width=None, error=None, nodata=None):
     elif code is None:
         raise ValueError(f"the quantizers do not support dtype {arr.dtype}")
 
-    nd_mode, nd_value = _nodata_args(arr, nodata)
-    if nd_mode == _NODATA_VALUE and dtype_code(arr.dtype) is None:
-        raise ValueError(f"nodata needs a dtype geozl knows, got {arr.dtype}")
+    nd_mode, nd_bits = _nodata_args(arr, nodata)
 
     # Sized past the worst case; an incompressible tile still fits in 1.5x.
     cap = 1024 + n * elt + n * elt // 2
@@ -113,7 +121,7 @@ def compress(tile, *, method, width=None, error=None, nodata=None):
     err_ctx = ffi.new("char[]", 256)
     rc = lib.geozl_2d_compress_c(
         method.encode("utf-8"), width,
-        err, int(code), nd_mode, nd_value,
+        err, int(code), nd_mode, nd_bits,
         _ptr(arr), n, elt, _ptr(dst), cap, out_size, err_ctx, len(err_ctx))
     if rc != 0:
         reason = ffi.string(err_ctx).decode("utf-8", "replace")
@@ -122,7 +130,8 @@ def compress(tile, *, method, width=None, error=None, nodata=None):
     return dst[:out_size[0]].tobytes()
 
 
-def decompress(frame, *, dtype=None, width=None):
+def decompress(frame: bytes, *, dtype: DTypeLike | None = None,
+               width: int | None = None) -> np.ndarray:
     """Decompress a self-describing geozl frame to a numpy array.
 
     Lossless frames keep the element width but not its sign, so pass dtype to
@@ -154,7 +163,7 @@ def decompress(frame, *, dtype=None, width=None):
     return out
 
 
-def _grid_names(method, elt):
+def _grid_names(method: str | None, elt: int) -> list[str]:
     lib = _load_lib_full()
     stride, cap = 48, 64
     names = ffi.new("char[]", stride * cap)
@@ -167,15 +176,16 @@ def _grid_names(method, elt):
     return [ffi.string(names + i * stride).decode("utf-8") for i in range(n)]
 
 
-def _order0_bits(arr):
+def _order0_bits(arr: np.ndarray) -> float:
     b = np.frombuffer(arr.tobytes(), np.uint8)
     counts = np.bincount(b, minlength=256).astype(np.float64)
     p = counts[counts > 0] / b.size
     return float(-(p * np.log2(p)).sum())
 
 
-def profile(tile, *, method="planar", width=None, error=None, reps=5,
-            nodata=None):
+def profile(tile: ArrayLike, *, method: str | None = "planar",
+            width: int | None = None, error: str | None = None,
+            reps: int = 5, nodata: Any = None) -> list[dict[str, Any]]:
     """Benchmark every candidate graph on one tile, one row each.
 
     A diagnostic, not on the compress path. Timing runs in C (checksum off) so
@@ -199,9 +209,7 @@ def profile(tile, *, method="planar", width=None, error=None, reps=5,
     elif code is None:
         raise ValueError(f"the quantizers do not support dtype {arr.dtype}")
 
-    nd_mode, nd_value = _nodata_args(arr, nodata)
-    if nd_mode == _NODATA_VALUE and dtype_code(arr.dtype) is None:
-        raise ValueError(f"nodata needs a dtype geozl knows, got {arr.dtype}")
+    nd_mode, nd_bits = _nodata_args(arr, nodata)
 
     rows = []
     for name in _grid_names(method, elt):
@@ -210,7 +218,7 @@ def profile(tile, *, method="planar", width=None, error=None, reps=5,
         dec = ffi.new("double*")
         err_ctx = ffi.new("char[]", 256)
         rc = lib.geozl_2d_bench_c(
-            name.encode("utf-8"), width, err, int(code), nd_mode, nd_value,
+            name.encode("utf-8"), width, err, int(code), nd_mode, nd_bits,
             _ptr(arr), arr.size, elt, reps, comp, enc, dec, err_ctx,
             len(err_ctx))
         if rc != 0:
