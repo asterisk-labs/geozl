@@ -6,7 +6,6 @@ import openzl.ext as zl
 
 import geozl
 
-
 _DISABLE = 2  # ZL_TernaryParam_disable
 
 

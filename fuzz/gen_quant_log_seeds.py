@@ -25,7 +25,7 @@ def s2_dn(n):
     for _ in range(n):
         v = next(r)
         out.append(0 if v < 0.08 else int(200 + 9000 * v * v))
-    return struct.pack("<%dH" % n, *out)
+    return struct.pack(f"<{n}H", *out)
 
 
 def dem(n):
@@ -35,7 +35,7 @@ def dem(n):
     for i in range(n):
         base = 2000 * math.sin(i / 37.0) + 1500 * math.sin(i / 7.3)
         out.append(max(-400, min(8848, int(base + 200 * next(r)))))
-    return struct.pack("<%dh" % n, *out)
+    return struct.pack(f"<{n}h", *out)
 
 
 def reflectance(n):
@@ -45,7 +45,7 @@ def reflectance(n):
     for _ in range(n):
         v = next(r)
         out.append(0.0 if v < 0.05 else 0.02 + 0.9 * v * v)
-    return struct.pack("<%df" % n, *out)
+    return struct.pack(f"<{n}f", *out)
 
 
 def humidity(n):
@@ -53,7 +53,7 @@ def humidity(n):
     bound is for and where a flat one wastes most of its levels."""
     r = rng(4)
     out = [10.0 ** (-6.0 + 4.5 * next(r)) for _ in range(n)]
-    return struct.pack("<%df" % n, *out)
+    return struct.pack(f"<{n}f", *out)
 
 
 def kelvin(n):
@@ -61,21 +61,21 @@ def kelvin(n):
     STORE=VALUES accepts."""
     r = rng(5)
     out = [250.0 + 80.0 * next(r) for _ in range(n)]
-    return struct.pack("<%dd" % n, *out)
+    return struct.pack(f"<{n}d", *out)
 
 
 def anomaly(n):
     """float32 straddling zero, so the sign path and the floor flag both run."""
     r = rng(6)
     out = [(next(r) - 0.5) * 2.0 * 10.0 ** (-3.0 + 4.0 * next(r)) for _ in range(n)]
-    return struct.pack("<%df" % n, *out)
+    return struct.pack(f"<{n}f", *out)
 
 
 def counts(n):
     """uint32 photon counts, a wide integer type over three decades."""
     r = rng(7)
     out = [int(1 + 10.0 ** (5.0 * next(r))) for _ in range(n)]
-    return struct.pack("<%dI" % n, *out)
+    return struct.pack(f"<{n}I", *out)
 
 
 TILES = [
@@ -114,14 +114,14 @@ def main(outdir):
 
     # mode_parse. The first byte picks the mode, the rest is the recipe.
     for i, s in enumerate(PARSE_SEEDS):
-        (out / ("parse_%02d" % i)).write_bytes(b"\x00" + s.encode())
+        (out / f"parse_{i:02d}").write_bytes(b"\x00" + s.encode())
         n += 1
 
     # mode_roundtrip. Mode, recipe index, type, then the tile.
     for name, dtype, make in TILES:
         payload = make(512)
         for r in range(RECIPES):
-            path = out / ("rt_%s_%d" % (name, r))
+            path = out / f"rt_{name}_{r}"
             path.write_bytes(bytes([2, r, dtype]) + payload)
             n += 1
 
@@ -130,13 +130,13 @@ def main(outdir):
     for name, dtype, make in TILES:
         payload = make(256)
         for flags, step in ((3, 0.0144), (2, 0.0144), (1, 0.0072), (0, 0.0072)):
-            path = out / ("blk_%s_%d" % (name, flags))
+            path = out / f"blk_{name}_{flags}"
             path.write_bytes(
                 bytes([1, dtype, flags]) + struct.pack("<d", step) + payload
             )
             n += 1
 
-    print("%d seeds in %s" % (n, out))
+    print(f"{n} seeds in {out}")
 
 
 if __name__ == "__main__":

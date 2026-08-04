@@ -31,11 +31,11 @@ jobs:
       - name: Build the library and install geozl
         run: make python FULL=ON
 
-      - name: Lint and type check
-        working-directory: bindings/python
-        run: |
-          ruff check .
-          mypy
+      - name: Lint
+        run: ruff check .
+
+      - name: Type check
+        run: mypy
 
       - name: Run pytest with coverage
         run: |

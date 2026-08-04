@@ -1,0 +1,21 @@
+# One config for the whole tree, so `ruff check .` from the root covers the
+# bindings and fuzz/ alike and stops at the submodule.
+extend-exclude = ["extern"]
+
+# Where first party lives, so isort sorts `import geozl` as ours.
+src = ["bindings/python"]
+
+line-length    = 100
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "I", "B", "UP", "NPY"]
+
+[lint.per-file-ignores]
+# One C declaration per line, so drift against the headers reads in a diff.
+"bindings/python/geozl/_ffi.py" = ["E501"]
+# Kept compact so it reads as the formula it mirrors.
+"bindings/python/test/oracle_wp_static.py" = ["E702"]
+# Import order in a demo notebook is cosmetic, and `ruff --fix` rewrites the
+# whole ipynb to fix it. Undefined names and loose zips still apply.
+"docs/notebooks/*.ipynb" = ["I001"]

@@ -84,26 +84,3 @@ exclude = [
 testpaths = ["test"]
 addopts   = "-ra --strict-markers"
 
-[tool.ruff]
-line-length    = 100
-target-version = "py311"
-
-[tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "NPY"]
-[tool.ruff.lint.per-file-ignores]
-# One C declaration per line, so drift against the headers reads in a diff.
-"geozl/_ffi.py" = ["E501"]
-# Kept compact so it reads as the formula it mirrors.
-"test/oracle_wp_static.py" = ["E702"]
-
-[tool.mypy]
-python_version         = "3.11"
-files                  = ["geozl"]
-ignore_missing_imports = true          # openzl and cffi ship no stubs
-
-# The codec modules are cffi plumbing where every buffer is Any.
-disallow_untyped_defs  = true
-[[tool.mypy.overrides]]
-module                 = ["geozl._codec", "geozl._ffi", "geozl.lossless.*",
-                          "geozl.lossy.*"]
-disallow_untyped_defs  = false
