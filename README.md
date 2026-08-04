@@ -10,6 +10,13 @@
   <a href="https://github.com/facebook/openzl">
     <img src="https://img.shields.io/badge/built%20on-OpenZL-6f42c1" alt="Built on OpenZL"/>
   </a>
+  <a href="https://github.com/astral-sh/ruff">
+    <img src="https://img.shields.io/badge/linted%20with-ruff-d7ff64" alt="Linted with Ruff"/>
+  </a>
+  <a href="https://mypy-lang.org/">
+    <img src="https://img.shields.io/badge/type%20checked-mypy-1f5082" alt="Type checked with mypy"/>
+  </a>
+  
 </p>
 
 ## What is OpenZL and GeoZL?
@@ -106,15 +113,6 @@ tile = d.decompress(frame)[0].content.as_nparray()
 | `quant_linear` | `0x72D781` | uniform grid, fixed absolute bound, `LINEAR:MAX_ERROR=V` |
 | `quant_log` | `0x72D782` | logarithmic grid, bound is a fraction of the value, `LOG:MAX_ERROR=P%` |
 | `quant_sqrt` | `0x72D783` | square root grid, bound grows with the sensor noise, `SQRT:MAX_ERROR=VN` |
-
-`SQRT` counts sigmas of the sensor curve `a + b*x`. Left out of the recipe, that
-curve is fitted from whatever raster is being compressed, so neighbouring tiles
-land on different grids. Measure it once over the product instead.
-
-```python
-noise = geozl.lossy.fit_noise(stack)   # (N, H, W), or any sequence of rasters
-frame = geozl.compress(tile, method=best, error=noise.recipe(0.5))
-```
 
 ## License
 
