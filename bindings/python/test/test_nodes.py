@@ -4,14 +4,20 @@ import pytest
 zl = pytest.importorskip("openzl.ext")
 geozl = pytest.importorskip("geozl")
 
-# Each of these owns a copy of the successor branch. Four come out of the
-# spatial_predictor factory and deinterleave spells it out itself.
+# Each of these owns a copy of the successor branch. Three from
+# spatial_predictor, three from quantizer, wp_static and deinterleave by
+# hand.
 _NODES = [
     ("planar", lambda: geozl.lossless.Planar(8)),
     ("delta_w", lambda: geozl.lossless.DeltaW(8)),
     ("med", lambda: geozl.lossless.Med(8)),
     ("wp_static", lambda: geozl.lossless.WpStatic(8)),
     ("deinterleave", lambda: geozl.lossless.Deinterleave()),
+    ("quant_linear",
+     lambda: geozl.lossy.QuantLinear("LINEAR:MAX_ERROR=0.5", np.float32)),
+    ("quant_log", lambda: geozl.lossy.QuantLog("LOG:MAX_ERROR=1%", np.float32)),
+    ("quant_sqrt",
+     lambda: geozl.lossy.QuantSqrt("SQRT:MAX_ERROR=0.5N,A=4,B=1", np.float32)),
 ]
 _MAKERS = [m for _, m in _NODES]
 _IDS = [n for n, _ in _NODES]
@@ -88,7 +94,7 @@ def test_each_family_registers_only_its_own_decoders():
     geozl.lossless.register_decoders(Spy(lossless))
     geozl.lossy.register_decoders(Spy(lossy))
     assert len(lossless) == 8
-    assert len(lossy) == 1
+    assert len(lossy) == 3
     assert not set(lossless) & set(lossy)
 
 
@@ -101,4 +107,4 @@ def test_register_decoders_covers_both_families():
             return super().register_custom_decoder(dec)
 
     geozl.register_decoders(Spy())
-    assert len(seen) == 9  # eight lossless plus one lossy
+    assert len(seen) == 11  # eight lossless plus three lossy

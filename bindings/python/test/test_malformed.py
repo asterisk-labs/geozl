@@ -11,13 +11,6 @@ geozl = pytest.importorskip("geozl")
 
 _DISABLE = 2  # ZL_TernaryParam_disable
 
-# The header cases over the quantizers went with geozl.lossy.Quant, whose wire
-# format the three codecs that replaced it no longer share. Building one of
-# their frames from here needs a Python encoder class that does not exist yet.
-# Until it does, their decoders are covered from C, where a forged header is a
-# frame the fuzzers already reach.
-
-
 def _compress(node, arr):
     c = zl.Compressor()
     g = zl.graphs.Compress()(c)
@@ -86,10 +79,65 @@ def _case_shift():
     _decode(bytes(frame))
 
 
+def _codec_header(decoder_cls, frame):
+    """The header bytes the encoder wrote, read back through its own decoder."""
+    seen = []
+
+    class Spy(decoder_cls):
+        def decode(self, state):
+            seen.append(bytes(state.codec_header))
+            super().decode(state)
+
+    d = zl.DCtx()
+    d.set_parameter(zl.DParam.CheckCompressedChecksum, _DISABLE)
+    d.set_parameter(zl.DParam.CheckContentChecksum, _DISABLE)
+    d.register_custom_decoder(Spy())
+    d.decompress(frame)
+    return seen[0]
+
+
+def _quant_case(make, decoder, offset, replace):
+    """Forge part of a quantizer header. uint16 keeps the header the same on
+    every tile _place walks."""
+    def build(i):
+        return _compress(make(), np.arange(256, dtype=np.uint16) + i)
+
+    header = _codec_header(decoder, build(0))
+    frame, at = _place(build, header)
+    payload = replace(header)
+    frame[at + offset:at + offset + len(payload)] = payload
+    _decode(bytes(frame))
+
+
+# a dtype eight bytes wide over a two byte stream, the one header fault that
+# reaches past the end of the output the decoder sized
+def _case_quant_dtype():
+    _quant_case(
+        lambda: geozl.lossy.QuantLinear("LINEAR:MAX_ERROR=0.5", np.uint16),
+        geozl.lossy.QuantLinearDecoder, 0, lambda h: bytes([10]))
+
+
+def _case_quant_flags():
+    _quant_case(lambda: geozl.lossy.QuantLog("LOG:MAX_ERROR=5%", np.uint16),
+                geozl.lossy.QuantLogDecoder, 1,
+                lambda h: bytes([h[1] | 0x80]))
+
+
+# the sqrt curve anchor, negative puts the grid below the decoder's floor
+def _case_quant_offset():
+    _quant_case(
+        lambda: geozl.lossy.QuantSqrt("SQRT:MAX_ERROR=0.5N,A=100,B=1",
+                                      np.uint16),
+        geozl.lossy.QuantSqrtDecoder, 10, lambda h: struct.pack("<d", -1.0))
+
+
 _CASES = {
     "width_encode": _case_width_encode,
     "width_decode": _case_width_decode,
     "shift": _case_shift,
+    "quant_dtype": _case_quant_dtype,
+    "quant_flags": _case_quant_flags,
+    "quant_offset": _case_quant_offset,
 }
 
 

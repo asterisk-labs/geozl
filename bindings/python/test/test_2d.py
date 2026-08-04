@@ -305,9 +305,8 @@ def test_profile_rejects_a_sentinel_on_a_dtype_geozl_cannot_read():
     with pytest.raises(ValueError, match="nodata needs a dtype"):
         geozl.profile(np.zeros((4, 4), np.bool_), nodata=1)
 
-# Every quantizer resolves its parameters inside compress, from a scan of the
-# raster. Building the node by hand skips that, and there are no Python encoder
-# classes for the three anyway, so these go through the high level entry.
+# Through the high level entry, which fits a SQRT recipe with no curve and
+# scans the whole raster. A node placed by hand is in test_codecs.py.
 
 
 @pytest.mark.parametrize("pct", [0.5, 1.0, 10.71])

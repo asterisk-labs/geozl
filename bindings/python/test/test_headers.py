@@ -93,6 +93,82 @@ def test_wp_static_decoder_rejects_a_shift_past_the_accumulator():
         _decode(frame)
 
 
-# The quant header tests went with geozl.lossy.Quant. The three codecs that
-# replaced it carry their header checks in C, over their decode bindings and in
-# their fuzzers.
+def _codec_header(decoder_cls, frame):
+    """The header bytes the encoder wrote, read back through its own decoder.
+    A step copied from the resolver here would rot into a test that forges the
+    payload instead."""
+    seen = []
+
+    class Spy(decoder_cls):
+        def decode(self, state):
+            seen.append(bytes(state.codec_header))
+            super().decode(state)
+
+    d = zl.DCtx()
+    d.set_parameter(zl.DParam.CheckCompressedChecksum, _DISABLE)
+    d.set_parameter(zl.DParam.CheckContentChecksum, _DISABLE)
+    d.register_custom_decoder(Spy())
+    d.decompress(frame)
+    return seen[0]
+
+
+# uint16 keeps every curve off the raster, so one recipe writes one header.
+_QUANTIZERS = [
+    ("quant_linear",
+     lambda: geozl.lossy.QuantLinear("LINEAR:MAX_ERROR=0.5", np.uint16),
+     geozl.lossy.QuantLinearDecoder),
+    ("quant_log",
+     lambda: geozl.lossy.QuantLog("LOG:MAX_ERROR=5%", np.uint16),
+     geozl.lossy.QuantLogDecoder),
+    ("quant_sqrt",
+     lambda: geozl.lossy.QuantSqrt("SQRT:MAX_ERROR=0.5N,A=100,B=1", np.uint16),
+     geozl.lossy.QuantSqrtDecoder),
+]
+_QUANT_ARGS = [(m, d) for _, m, d in _QUANTIZERS]
+_QUANT_IDS = [n for n, _, _ in _QUANTIZERS]
+
+
+def _quant_build(make):
+    def build(i):
+        return _frame(make(), np.arange(256, dtype=np.uint16) + i)
+
+    return build
+
+
+@pytest.mark.parametrize("make,decoder", _QUANT_ARGS, ids=_QUANT_IDS)
+def test_quantizer_decoder_rejects_a_dtype_of_another_width(make, decoder):
+    # float64 over a two byte stream, the one fault that reaches past the end
+    # of the output the decoder sized
+    build = _quant_build(make)
+    frame = _forge(build, _codec_header(decoder, build(0)), 0, bytes([10]))
+    with pytest.raises(Exception, match="bad dtype"):
+        _decode(frame)
+
+
+@pytest.mark.parametrize("make,decoder", _QUANT_ARGS, ids=_QUANT_IDS)
+def test_quantizer_decoder_rejects_an_unknown_flag(make, decoder):
+    build = _quant_build(make)
+    header = _codec_header(decoder, build(0))
+    frame = _forge(build, header, 1, bytes([header[1] | 0x80]))
+    with pytest.raises(Exception, match="refused this codec header"):
+        _decode(frame)
+
+
+@pytest.mark.parametrize("make,decoder", _QUANT_ARGS, ids=_QUANT_IDS)
+def test_quantizer_decoder_rejects_a_step_of_zero(make, decoder):
+    # every index folds onto one level unless the kernel refuses
+    build = _quant_build(make)
+    frame = _forge(build, _codec_header(decoder, build(0)), 2,
+                   struct.pack("<d", 0.0))
+    with pytest.raises(Exception, match="refused this codec header"):
+        _decode(frame)
+
+
+def test_quant_sqrt_decoder_rejects_a_negative_offset():
+    # the curve anchor, which the other two headers do not carry
+    make, decoder = _QUANT_ARGS[2]
+    build = _quant_build(make)
+    frame = _forge(build, _codec_header(decoder, build(0)), 10,
+                   struct.pack("<d", -1.0))
+    with pytest.raises(Exception, match="refused this codec header"):
+        _decode(frame)

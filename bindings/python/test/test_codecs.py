@@ -94,6 +94,55 @@ def test_predictor_decoder_actually_runs():
     assert fired
 
 
-# The lossy codecs have no Python encoder classes yet. Their bounds are covered
-# in C, in test_quant_linear.c, test_quant_log.c and test_quant_sqrt.c, and
-# through geozl.compress in test_2d.py.
+# The bounds are cut and checked in C. What is left here is that a node placed
+# by hand reaches those kernels with the parameters the recipe asked for.
+def _lossy(node, arr):
+    out = roundtrip(node, arr, disable_checksum=True)
+    return out.astype(np.float64), arr.reshape(-1).astype(np.float64)
+
+
+def test_quant_linear_holds_an_absolute_bound():
+    arr = make_tile((16, 16), np.float32, "gradient")
+    out, src = _lossy(
+        geozl.lossy.QuantLinear("LINEAR:MAX_ERROR=0.5", np.float32), arr)
+    assert np.abs(out - src).max() <= 0.5
+
+
+def test_quant_log_holds_a_relative_bound():
+    # six decades, a relative bound on a narrow tile is an absolute one
+    arr = np.logspace(-3, 3, 256).astype(np.float32).reshape(16, 16)
+    out, src = _lossy(geozl.lossy.QuantLog("LOG:MAX_ERROR=1%", np.float32), arr)
+    assert (np.abs(out - src) / np.abs(src)).max() <= 0.01
+
+
+def test_quant_sqrt_holds_the_curve_in_its_recipe():
+    arr = make_tile((16, 16), np.uint16, "gradient")
+    out, src = _lossy(
+        geozl.lossy.QuantSqrt("SQRT:MAX_ERROR=0.5N,A=100,B=1", np.uint16), arr)
+    assert (np.abs(out - src) / (0.5 * np.sqrt(100.0 + src))).max() <= 1.0
+
+
+def test_a_quantizer_refuses_a_recipe_from_another_family():
+    with pytest.raises(ValueError, match="quant_log takes"):
+        geozl.lossy.QuantLog("LINEAR:MAX_ERROR=1", np.float32)
+
+
+def test_a_quantizer_refuses_to_write_under_a_content_checksum():
+    # the round trip is not bit exact, so the hash would fail on a good frame
+    arr = make_tile((16, 16), np.float32, "gradient")
+    with pytest.raises(Exception, match="ContentChecksum"):
+        compress(geozl.lossy.QuantLinear("LINEAR:MAX_ERROR=0.5", np.float32),
+                 arr)
+
+
+def test_a_quantizer_refuses_a_dtype_it_has_no_kernel_for():
+    with pytest.raises(ValueError, match="has no kernel"):
+        geozl.lossy.QuantLinear("LINEAR:MAX_ERROR=0.5", np.complex64)
+
+
+def test_a_quantizer_refuses_a_dtype_that_is_not_the_stream_width():
+    # the dtype is given at construction, the stream carries a width
+    arr = make_tile((16, 16), np.float32, "gradient")
+    with pytest.raises(Exception, match="does not match"):
+        compress(geozl.lossy.QuantLinear("LINEAR:MAX_ERROR=0.5", np.float64),
+                 arr, disable_checksum=True)

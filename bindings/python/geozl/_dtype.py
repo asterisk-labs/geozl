@@ -1,10 +1,5 @@
-"""The element type codes geozl carries in a codec header.
-
-Mirrors geozl_dtype in core/include/geozl/dtype.h, and the numbers are frozen
-because a frame written today is read against them.
-"""
-
 import numpy as np
+
 
 _CODES = {
     np.dtype("uint8"): 0, np.dtype("uint16"): 1, np.dtype("uint32"): 2,
@@ -13,8 +8,7 @@ _CODES = {
     np.dtype("float32"): 9, np.dtype("float64"): 10,
 }
 
-# Element width per code, derived from the table above so the two cannot drift.
-# Codes are 0..N-1, so a tuple indexes straight by code.
+# Width per code, off the table above so the two cannot drift.
 _WIDTH = tuple(dt.itemsize
                for dt, _c in sorted(_CODES.items(), key=lambda kv: kv[1]))
 
@@ -27,5 +21,5 @@ def dtype_code(dtype):
 
 
 def dtype_width(code):
-    """Bytes per element for a wire code."""
-    return _WIDTH[code]
+    """Bytes per element, or None when the code names no type."""
+    return _WIDTH[code] if 0 <= code < len(_WIDTH) else None

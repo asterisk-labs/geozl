@@ -1,12 +1,18 @@
 import struct
+import sys
 
 import numpy as np
 from openzl import ext as _ext
 
+from .._dtype import dtype_code
 from .._ffi import _ptr, ffi, lib
 
 _CTID = 0x72D70C
 _NAME = "geozl.lossless.nodata"
+
+# What the kernels switch on. Anything else falls through their default and
+# leaves the buffer untouched.
+_WIDTHS = (1, 2, 4, 8)
 
 # uint8 code, then whatever that code needs. The C binding writes the same
 # bytes, see the codec spec.
@@ -37,8 +43,13 @@ def _pattern_bytes(pattern, elt):
 def nodata_bits(value, dtype):
     """Bit pattern a nodata value has at its own dtype, which is what the codec
     header carries. A float keeps its exact bits, so a NaN payload survives."""
-    return int(np.asarray(value, dtype=np.dtype(dtype)).view(
-        np.dtype(f"u{np.dtype(dtype).itemsize}")))
+    dt = np.dtype(dtype)
+    if dtype_code(dt) is None:
+        raise ValueError(f"{_NAME}: geozl has no code for dtype {dt}")
+    if dt == np.dtype("float16"):
+        raise ValueError(f"{_NAME}: a half float carries no sentinel, NaN "
+                         f"still works on one")
+    return int(np.asarray(value, dtype=dt).view(np.dtype(f"u{dt.itemsize}")))
 
 
 class _Encoder(_ext.CustomEncoder):
@@ -53,6 +64,9 @@ class _Encoder(_ext.CustomEncoder):
     def encode(self, state):
         inp = state.inputs[0]
         n, elt = inp.num_elts, inp.elt_width
+        if elt not in _WIDTHS:
+            raise ValueError(f"{_NAME}: {elt}-byte elements, the kernels take "
+                             f"1, 2, 4 or 8")
         vals = state.create_output(0, n, elt)
         mask = state.create_output(1, n, 1)
         pattern, holes = 0, 0
@@ -101,6 +115,9 @@ class NodataDecoder(_ext.CustomDecoder):
         vals = state.singleton_inputs[0]
         mask = state.singleton_inputs[1]
         elt = vals.elt_width
+        if elt not in _WIDTHS or mask.elt_width != 1:
+            raise ValueError(f"{_NAME}: bad stream widths, {elt} values, "
+                             f"{mask.elt_width} mask")
         header = state.codec_header
         if not header:
             raise _bad_header(header, vals, mask)
@@ -127,8 +144,9 @@ class NodataDecoder(_ext.CustomDecoder):
                     or mask.num_elts != 0):
                 raise _bad_header(header, vals, mask)
             pattern = int.from_bytes(header[1:1 + elt], "little")
+            # the count sizes an allocation and comes from the frame
             n = struct.unpack("<Q", header[1 + elt:])[0]
-            if n == 0:
+            if n == 0 or n > sys.maxsize // elt:
                 raise _bad_header(header, vals, mask)
             out = state.create_output(0, n, elt)
             lib.nodata_broadcast(_ptr(out.mut_content.as_nparray()), n, elt,

@@ -1,56 +1,20 @@
-"""quant_sqrt, and the sensor noise curve it quantizes against.
-
-The codec holds a bound in units of the noise, sigma**2 = a + b*x. Give it a and
-b in the recipe and the grid is fixed before any data is read, so every tile of
-the product lands on the same levels. Leave them out and the curve is fitted
-from whatever raster is being compressed, which is a fallback and not the
-intended path.
-
-fit_noise is how the curve gets measured once. Feed it the rasters, keep the two
-numbers, put them in the recipe for every tile.
-
-    import geozl
-
-    noise = geozl.lossy.fit_noise(stack)    # (N, H, W), or one (H, W)
-    print(noise)
-    frame = geozl.compress(tile, method="planar>zigzag>entropy",
-                           error=noise.recipe(0.5))
-
-There is no encoder class here yet. A frame carrying quant_sqrt is written
-through geozl.compress and read back through geozl.decompress.
-
-The fit pools block statistics across everything pushed before it solves, which
-is not the same as averaging separate fits. Two tiles that each cover one end of
-the intensity range give a usable curve together and neither gives one alone.
-"""
-
 from dataclasses import dataclass
 
 import numpy as np
 
+from .._codec import quantizer
 from .._dtype import dtype_code
 from .._ffi import _ptr, ffi, lib
 
-# The block side the fit measures on, plus the one-sample border its 3x3 mask
-# needs. Below this a raster carries no blocks at all.
-_MIN_SIDE = 10
+_MIN_SIDE = 10  # the block side plus the border its 3x3 mask needs
 
 
 @dataclass(frozen=True)
 class Noise:
-    """A fitted sigma**2 = a + b*x, with what the fit thought of itself.
-
-    a and b are the curve. The rest says how far to believe it, and the fit
-    reports them rather than deciding, because what counts as enough depends on
-    how the rasters were chosen.
-
-    blocks  blocks that went into the solve
-    bins    intensity bins that held enough blocks to count, out of 24
-    range   brightest bin over darkest; near one means the rasters were flat
-    colin   mean intensity over its spread; large means a and b are collinear
-            and the split between them is arbitrary even when the curve fits
-    resid   relative rms of the fit residuals
-    """
+    """a and b are the curve. The rest says how far to believe it, and the fit
+    reports rather than decides, since what counts as enough depends on how the
+    rasters were chosen. colin is the one that catches a bad fit: large means a
+    and b are collinear and the split between them is arbitrary."""
 
     a: float
     b: float
@@ -61,11 +25,8 @@ class Noise:
     resid: float
 
     def recipe(self, max_error, *, store=None):
-        """A quant_sqrt recipe holding max_error sigmas of this curve.
-
-        The numbers go in at full precision so the recipe resolves to the same
-        grid the fit produced, rather than to a nearby one.
-        """
+        """max_error sigmas of this curve, at full precision so it resolves to
+        the grid the fit produced and not to a nearby one."""
         if not max_error > 0:
             raise ValueError(f"max_error must be positive, got {max_error!r}")
         s = f"SQRT:MAX_ERROR={max_error:.17g}N,A={self.a:.17g},B={self.b:.17g}"
@@ -83,12 +44,8 @@ class Noise:
 
 
 def _rasters(data):
-    """Whatever was handed in, as a list of 2d C-contiguous arrays of one dtype.
-
-    A 3d array is a stack over its first axis. A sequence is taken as it comes,
-    so rasters of different shapes pool fine as long as the dtype matches, which
-    it has to: the fit reads raw samples through one code.
-    """
+    """A 3d array is a stack over its first axis. Shapes may differ, dtypes may
+    not, since the fit reads raw samples through one code."""
     if isinstance(data, np.ndarray):
         if data.ndim == 2:
             out = [data]
@@ -115,21 +72,14 @@ def _rasters(data):
 
 
 def fit_noise(data):
-    """Fit sigma**2 = a + b*x over one raster or a stack of them.
+    """Fit sigma**2 = a + b*x over a 2d raster, a 3d stack read as (N, H, W), or
+    any sequence of 2d arrays. Everything pools into one curve.
 
-    data is a 2d array, a 3d array read as (N, H, W), or any sequence of 2d
-    arrays sharing a dtype. Everything goes into one pool and one curve comes
-    out. Returns a Noise.
-
-    The method is the scatterplot of local mean against local variance with a low
-    quantile per intensity bin, after Abramova and others, SPIE 10004, 2016. The
-    same model is Foi, Trimeche, Katkovnik and Egiazarian, IEEE TIP 17(10), 2008.
-    A raster smaller than 10 samples on a side carries no blocks and is refused.
-
-    Raises RuntimeError with the reason when the pool does not support a curve,
-    which is the honest outcome for rasters that are flat or that cover too
-    little of their range. It is not something to work around by fitting per
-    tile; measure over more of the product instead.
+    Scatterplot of local mean against local variance, low quantile per intensity
+    bin, after Abramova and others, SPIE 10004, 2016. Raises RuntimeError when
+    the pool does not support a curve, which is the answer for rasters that are
+    flat or cover too little of their range. Pool more of the product rather
+    than falling back to one tile.
     """
     rasters, dt = _rasters(data)
     code = dtype_code(dt)
@@ -159,3 +109,23 @@ def fit_noise(data):
                      range=out.range, colin=out.colin, resid=out.resid)
     finally:
         lib.quant_sqrt_accum_free(acc)
+
+
+def _plan(spec, dtype, src, nb_elts, params):
+    err = ffi.new("char[]", 256)
+    stats = ffi.new("quant_sqrt_stats*")
+    if lib.quant_sqrt_scan(src, dtype, nb_elts, stats):
+        return "the stream holds no finite sample"
+    # NULL curve. resolve reads A and B off the recipe first, so one passed
+    # here alongside them would be dropped. Noise.recipe is the way in.
+    if lib.quant_sqrt_resolve(spec, dtype, stats, ffi.NULL, params, err,
+                              len(err)):
+        return ffi.string(err).decode("utf-8", "replace")
+    return None
+
+
+QuantSqrt, QuantSqrtDecoder = quantizer(
+    0x72D783, "geozl.lossy.quant_sqrt", "quant_sqrt", ("step", "offset"),
+    _plan)
+
+__all__ = ["Noise", "QuantSqrt", "QuantSqrtDecoder", "fit_noise"]

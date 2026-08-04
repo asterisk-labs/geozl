@@ -33,7 +33,34 @@ void nodata_fill(void* dst, const void* src, const uint8_t* mask, size_t width, 
 void nodata_restore(void* dst, const void* values, const uint8_t* mask, size_t nb_elts, size_t elt_width, uint64_t pattern);
 void nodata_broadcast(void* dst, size_t nb_elts, size_t elt_width, uint64_t pattern);
 
+// The three quantizers. Scan and resolve differ per curve.
+typedef struct { double max_error; unsigned char store; } quant_linear_spec;
+typedef struct { unsigned char flags; double step; } quant_linear_params;
+int quant_linear_parse(const char* s, quant_linear_spec* out, char* err, size_t err_size);
+int quant_linear_scan(const void* src, int dtype, size_t nb_elts, double* max_abs, int* any_negative);
+int quant_linear_resolve(const quant_linear_spec* sp, int dtype, double max_abs, int any_negative, quant_linear_params* out, char* err, size_t err_size);
+int quant_linear_encode(void* dst, const void* src, const quant_linear_params* p, int dtype, size_t nb_elts);
+int quant_linear_decode(void* dst, const void* src, const quant_linear_params* p, int dtype, size_t nb_elts);
+
+typedef struct { double rel_err; unsigned char store; } quant_log_spec;
+typedef struct { unsigned char flags; double step; } quant_log_params;
+typedef struct { double minAbs; double maxAbs; int anyNegative; int anySubnormal; } quant_log_stats;
+int quant_log_parse(const char* s, quant_log_spec* out, char* err, size_t err_size);
+int quant_log_scan(const void* src, int dtype, size_t nb_elts, quant_log_stats* out);
+int quant_log_resolve(const quant_log_spec* sp, int dtype, const quant_log_stats* sc, quant_log_params* out, char* err, size_t err_size);
+int quant_log_encode(void* dst, const void* src, const quant_log_params* p, int dtype, size_t nb_elts);
+int quant_log_decode(void* dst, const void* src, const quant_log_params* p, int dtype, size_t nb_elts);
+
+typedef struct { double k; double a; double b; unsigned char store; unsigned char have_ab; } quant_sqrt_spec;
+typedef struct { unsigned char flags; double step; double offset; } quant_sqrt_params;
+typedef struct { double lo; double hi; int anyNegative; int anyNonFinite; } quant_sqrt_stats;
 typedef struct { double a; double b; int ok; int blocks; int bins; double range; double colin; double resid; } quant_sqrt_noise;
+int quant_sqrt_parse(const char* s, quant_sqrt_spec* out, char* err, size_t err_size);
+int quant_sqrt_scan(const void* src, int dtype, size_t nb_elts, quant_sqrt_stats* out);
+int quant_sqrt_resolve(const quant_sqrt_spec* sp, int dtype, const quant_sqrt_stats* sc, const quant_sqrt_noise* ft, quant_sqrt_params* out, char* err, size_t err_size);
+int quant_sqrt_encode(void* dst, const void* src, const quant_sqrt_params* p, int dtype, size_t nb_elts);
+int quant_sqrt_decode(void* dst, const void* src, const quant_sqrt_params* p, int dtype, size_t nb_elts);
+
 typedef struct { double* mu; double* s2; size_t n; size_t cap; size_t stride; size_t seen; int failed; } quant_sqrt_accum;
 void quant_sqrt_accum_init(quant_sqrt_accum* acc);
 void quant_sqrt_accum_free(quant_sqrt_accum* acc);

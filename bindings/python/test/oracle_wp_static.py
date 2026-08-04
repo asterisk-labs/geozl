@@ -1,7 +1,3 @@
-"""Numpy reference fit for the wp_static kernel, the oracle the tests check the
-C fit against. Scores candidates by byte plane entropy, the way the entropy
-stage does, not by a 16 bit alphabet."""
-
 import numpy as np
 
 _PLANAR = ((1, -1, 0, 0), 0)

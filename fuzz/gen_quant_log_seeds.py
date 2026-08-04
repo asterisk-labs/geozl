@@ -1,13 +1,3 @@
-"""Seeds for the quant_log fuzzer.
-
-A mutator starting from random bytes spends its budget getting past the parser
-and the type byte. These are tiles with the shape of the rasters the codec is
-for, already wrapped in the layout the harness reads, so the first mutation
-lands somewhere the codec runs.
-
-No numpy, so this runs on a tree whose submodule is not fetched.
-"""
-
 import math
 import pathlib
 import struct
