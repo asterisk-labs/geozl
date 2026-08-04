@@ -132,3 +132,8 @@ int wp_static_decode(void *dst, const void *src, size_t width, size_t nbElts,
 }
 
 #undef WP_STATIC_DEC
+
+#undef scan8
+#undef scan16
+#undef scan32
+#undef scan64

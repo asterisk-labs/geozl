@@ -2,7 +2,7 @@
 
 #include "encode_quant_sqrt_kernel.h" // quant_sqrt_encode
 #include "graph_quant_sqrt.h"         // QUANT_SQRT_PARAM_*, QUANT_SQRT_HEADER_SIZE
-#include "quant_sqrt_dtype.h"         // QSQ_U8, QSQ_F64
+#include "quant_sqrt_dtype.h"         // dtype codes and the width table
 
 #include "openzl/zl_data.h"
 #include "openzl/zl_errors.h"
@@ -37,7 +37,7 @@ ZL_Report EI_geozl_quant_sqrt(ZL_Encoder *eictx, const ZL_Input *in) {
   quant_sqrt_params p;
   memcpy(&p, pp.paramPtr, sizeof(p));
 
-  if (dtype < QSQ_U8 || dtype > QSQ_F64 || quant_sqrt_width(dtype) != eltWidth)
+  if (!QSQ_DTYPE_OK(dtype) || quant_sqrt_width(dtype) != eltWidth)
     return ZL_returnError(ZL_ErrorCode_node_invalid_input);
 
   ZL_Output *out = ZL_Encoder_createTypedStream(eictx, 0, nbElts, eltWidth);

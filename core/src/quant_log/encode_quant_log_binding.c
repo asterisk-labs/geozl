@@ -2,7 +2,7 @@
 
 #include "encode_quant_log_kernel.h" // quant_log_encode
 #include "graph_quant_log.h"         // QUANT_LOG_PARAM_*, QUANT_LOG_HEADER_SIZE
-#include "quant_log_dtype.h"         // QLOG_U8, QLOG_F64
+#include "quant_log_dtype.h"         // dtype codes and the width table
 
 #include "openzl/zl_data.h"
 #include "openzl/zl_errors.h"
@@ -36,7 +36,7 @@ ZL_Report EI_geozl_quant_log(ZL_Encoder *eictx, const ZL_Input *in) {
   quant_log_params p;
   memcpy(&p, pp.paramPtr, sizeof(p));
 
-  if (dtype < QLOG_U8 || dtype > QLOG_F64 || quant_log_width(dtype) != eltWidth)
+  if (!QLOG_DTYPE_OK(dtype) || quant_log_width(dtype) != eltWidth)
     return ZL_returnError(ZL_ErrorCode_node_invalid_input);
 
   ZL_Output *out = ZL_Encoder_createTypedStream(eictx, 0, nbElts, eltWidth);

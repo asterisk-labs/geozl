@@ -1,6 +1,8 @@
 #ifndef GEOZL_CODECS_QUANT_SQRT_DTYPE_H
 #define GEOZL_CODECS_QUANT_SQRT_DTYPE_H
 
+#include "common/fp.h"
+
 #include <math.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -53,7 +55,7 @@ static inline double quant_sqrt_exact_int(int dtype) {
   case QSQ_F32:
     return 16777216.0; // 2^24
   default:
-    return 9007199254740992.0; // 2^53
+    return GEOZL_F64_EXACT_INT;
   }
 }
 
@@ -76,7 +78,7 @@ static inline double quant_sqrt_stream_max(int dtype) {
   case QSQ_F32:
     return 2147483647.0;
   default: // past 2^53 an index is not exact in the double that computes it
-    return 9007199254740992.0;
+    return GEOZL_F64_EXACT_INT;
   }
 }
 
@@ -140,8 +142,8 @@ static inline double quant_sqrt_value_lo(int dtype) {
 // the same number on every machine that reads the frame.
 static inline double quant_sqrt_index_top(double step, double offset, int dtype,
                                           int values) {
-  const double lim = values ? 9007199254740992.0 // 2^53
-                            : quant_sqrt_stream_max(dtype);
+  const double lim =
+      values ? GEOZL_F64_EXACT_INT : quant_sqrt_stream_max(dtype);
   if (!(step > 0.0) || !(offset >= 0.0))
     return 1.0;
   const double hi = quant_sqrt_value_hi(dtype) + offset;

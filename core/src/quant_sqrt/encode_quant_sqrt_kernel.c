@@ -73,8 +73,8 @@ static inline uint64_t qsq_fit_u(double v) {
     }                                                                          \
   } while (0)
 
-int quant_sqrt_encode(void *dst, const void *src, const quant_sqrt_params *p,
-                      int dtype, size_t nbElts) {
+int quant_sqrt_encode(void *restrict dst, const void *restrict src,
+                      const quant_sqrt_params *p, int dtype, size_t nbElts) {
   // Same predicate the decoder and the binding read.
   if (!quant_sqrt_params_ok(p, dtype))
     return 1;
@@ -163,7 +163,7 @@ int quant_sqrt_scan(const void *src, int dtype, size_t nbElts,
                     quant_sqrt_stats *out) {
   double lo = INFINITY, hi = -INFINITY;
   int nf = 0;
-  if (!QSQ_DTYPE_OK(dtype) || out == NULL)
+  if (src == NULL || out == NULL || !QSQ_DTYPE_OK(dtype))
     return 1;
 
   switch ((qsq_dtype)dtype) {
@@ -208,3 +208,11 @@ int quant_sqrt_scan(const void *src, int dtype, size_t nbElts,
   out->anyNonFinite = nf;
   return hi >= lo ? 0 : 1;
 }
+
+#undef QSQ_INDEX
+#undef QSQ_ENC_I
+#undef QSQ_I64_LO
+#undef QSQ_I64_HI
+#undef QSQ_U64_HI
+#undef QSQ_ENC_V
+#undef QSQ_SCAN

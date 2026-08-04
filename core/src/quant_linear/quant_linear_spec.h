@@ -13,10 +13,11 @@
 int quant_linear_parse(const char *s, quant_linear_spec *out, char *err,
                        size_t errSize);
 
-// maxAbs and anyNegative come from quant_linear_scan.
-int quant_linear_resolve(const quant_linear_spec *sp, int dtype, double maxAbs,
-                         int anyNegative, quant_linear_params *out, char *err,
-                         size_t errSize);
+// The stats come from quant_linear_scan over the whole raster, which this does
+// not see.
+int quant_linear_resolve(const quant_linear_spec *sp, int dtype,
+                         const quant_linear_stats *sc, quant_linear_params *out,
+                         char *err, size_t errSize);
 
 // The encoder's check on the frame it is about to write. worst comes back over
 // the declared bound, so at or under one is the bound holding.

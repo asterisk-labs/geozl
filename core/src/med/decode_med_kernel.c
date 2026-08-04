@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 
-#define MED_DEC(T)                                                             \
+#define MED_DEC(T, B)                                                          \
   do {                                                                         \
     T *d = (T *)dst;                                                           \
     const T *s = (const T *)src;                                               \
@@ -34,28 +34,7 @@
 
 int med_decode(void *dst, const void *src, size_t width, size_t nbElts,
                size_t eltWidth) {
-  // A width that does not divide nbElts would leave the last row short,
-  // and the row loops below assume every row is complete.
-  const size_t w = geozl_row_width(width, nbElts);
-  if (w == 0)
-    return 1;
-  switch (eltWidth) {
-  case 1:
-    MED_DEC(uint8_t);
-    break;
-  case 2:
-    MED_DEC(uint16_t);
-    break;
-  case 4:
-    MED_DEC(uint32_t);
-    break;
-  case 8:
-    MED_DEC(uint64_t);
-    break;
-  default:
-    return 1; // eltWidth must be 1, 2, 4 or 8
-  }
-  return 0;
+  GEOZL_ROW_DISPATCH(w, MED_DEC);
 }
 
 #undef MED_DEC

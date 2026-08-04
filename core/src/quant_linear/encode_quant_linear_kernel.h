@@ -9,7 +9,7 @@
 // keeps the element width dtype names, so dst must hold nbElts of it, and carries
 // the index unless QUANT_LINEAR_FLAG_STORE_VALUES asks for the reconstruction.
 // Returns 0, or nonzero for a dtype or step the resolver cannot have produced.
-int quant_linear_encode(void *dst, const void *src,
+int quant_linear_encode(void *restrict dst, const void *restrict src,
                         const quant_linear_params *p, int dtype, size_t nbElts);
 
 // Largest magnitude, and whether anything was negative. Non-finite samples are
@@ -17,7 +17,7 @@ int quant_linear_encode(void *dst, const void *src,
 // what puts them back. A finite sentinel is not skipped, because nothing here tells
 // one from a reading.
 // Returns 0 when the tile holds a nonzero finite sample, 1 otherwise.
-int quant_linear_scan(const void *src, int dtype, size_t nbElts, double *maxAbs,
-                      int *anyNegative);
+int quant_linear_scan(const void *src, int dtype, size_t nbElts,
+                      quant_linear_stats *out);
 
 #endif // GEOZL_CODECS_QUANT_LINEAR_ENCODE_KERNEL_H

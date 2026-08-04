@@ -64,7 +64,8 @@ static void mode_parse(const uint8_t *d, size_t n) {
 
   quant_linear_params p;
   for (int dt = QL_U8; dt <= QL_F64; ++dt) {
-    if (quant_linear_resolve(&sp, dt, 1e6, 0, &p, err, sizeof(err)) != 0)
+    if (quant_linear_resolve(&sp, dt, &(quant_linear_stats){1e6, 0}, &p, err,
+                             sizeof(err)) != 0)
       continue;
     // Whatever it produced, both kernels have to take it. A resolver that can
     // cut a grid its own kernels refuse is the failure this catches.
@@ -156,10 +157,9 @@ static void mode_roundtrip(const uint8_t *d, size_t n) {
   if (quant_linear_parse(rec, &sp, err, sizeof(err)) != 0)
     abort(); // the table is fixed, a failure here is a parser regression
 
-  double hi;
-  int neg;
-  quant_linear_scan(src, dtype, elts, &hi, &neg);
-  if (quant_linear_resolve(&sp, dtype, hi, neg, &p, err, sizeof(err)) != 0)
+  quant_linear_stats sc;
+  quant_linear_scan(src, dtype, elts, &sc);
+  if (quant_linear_resolve(&sp, dtype, &sc, &p, err, sizeof(err)) != 0)
     return; // refused, which is a valid answer
 
   if (quant_linear_encode(idx, src, &p, dtype, elts) != 0)
@@ -171,7 +171,7 @@ static void mode_roundtrip(const uint8_t *d, size_t n) {
   // and the flag that says so has to match what the scan found. The bound alone
   // does not catch a crossing of zero, since the bound at zero is wide enough to
   // cover it.
-  if ((neg == 0) != ((p.flags & QUANT_LINEAR_FLAG_NONNEGATIVE) != 0))
+  if ((sc.anyNegative == 0) != ((p.flags & QUANT_LINEAR_FLAG_NONNEGATIVE) != 0))
     abort();
 
   // Read the bound off the spec, not off the resolved parameters, which are what
@@ -216,11 +216,10 @@ static void mode_roundtrip(const uint8_t *d, size_t n) {
     return;
   const size_t half = elts / 2;
   for (size_t off = 0; off + half <= elts; off += half) {
-    double h2;
-    int n2;
+    quant_linear_stats s2;
     quant_linear_params ph;
-    quant_linear_scan((const char *)src + off * w, dtype, half, &h2, &n2);
-    if (quant_linear_resolve(&sp, dtype, h2, n2, &ph, err, sizeof(err)) != 0)
+    quant_linear_scan((const char *)src + off * w, dtype, half, &s2);
+    if (quant_linear_resolve(&sp, dtype, &s2, &ph, err, sizeof(err)) != 0)
       continue; // a half the recipe cannot serve says nothing about the grid
     if (ph.step != p.step)
       abort(); // the grid moved because the tile did

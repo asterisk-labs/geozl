@@ -65,7 +65,7 @@ static double ql_fit(double q, double lo, double hi) {
     }                                                                          \
   } while (0)
 
-int quant_linear_encode(void *dst, const void *src,
+int quant_linear_encode(void *restrict dst, const void *restrict src,
                         const quant_linear_params *p, int dtype,
                         size_t nbElts) {
   // Same predicate the decoder reads. This list used to be shorter, so an
@@ -128,11 +128,11 @@ int quant_linear_encode(void *dst, const void *src,
     }                                                                          \
   } while (0)
 
-int quant_linear_scan(const void *src, int dtype, size_t nbElts, double *maxAbs,
-                      int *anyNegative) {
+int quant_linear_scan(const void *src, int dtype, size_t nbElts,
+                      quant_linear_stats *out) {
   double hi = 0.0;
   int neg = 0;
-  if (!QL_DTYPE_OK(dtype))
+  if (src == NULL || out == NULL || !QL_DTYPE_OK(dtype))
     return 1;
 
   switch ((ql_dtype)dtype) {
@@ -171,9 +171,12 @@ int quant_linear_scan(const void *src, int dtype, size_t nbElts, double *maxAbs,
     break;
   }
 
-  if (maxAbs != NULL)
-    *maxAbs = hi;
-  if (anyNegative != NULL)
-    *anyNegative = neg;
+  out->maxAbs = hi;
+  out->anyNegative = neg;
   return hi > 0.0 ? 0 : 1;
 }
+
+#undef QL_ENC_UV
+#undef QL_ENC_IV
+#undef QL_ENC_F
+#undef QL_SCAN

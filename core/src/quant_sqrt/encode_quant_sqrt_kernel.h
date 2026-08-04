@@ -9,8 +9,8 @@
 // width of dtype, and carries the index unless QUANT_SQRT_FLAG_STORE_VALUES asks
 // for the reconstruction. Returns nonzero on parameters the resolver cannot have
 // produced.
-int quant_sqrt_encode(void *dst, const void *src, const quant_sqrt_params *p,
-                      int dtype, size_t nbElts);
+int quant_sqrt_encode(void *restrict dst, const void *restrict src,
+                      const quant_sqrt_params *p, int dtype, size_t nbElts);
 
 // One pass over the raster, for the refusals and the floor flag. A sample that is
 // not finite is counted and skipped; it has no place on the grid and the nodata

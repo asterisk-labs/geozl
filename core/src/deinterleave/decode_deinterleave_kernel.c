@@ -46,3 +46,5 @@ void deinterleave_join(void *dst, const void *in0, const void *in1,
   }
   }
 }
+
+#undef DEINTERLEAVE_JOIN

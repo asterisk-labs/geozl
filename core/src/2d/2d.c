@@ -610,16 +610,6 @@ GEOZL_API int geozl_2d_bench_c(const char *method, uint32_t width,
 // predictor. This does not drive compression, parse_candidate does.
 static int resolve_prior(const char *method, geozl_predictor *out,
                          size_t *outN) {
-  static const struct {
-    const char *name;
-    geozl_predictor id;
-  } named[] = {
-      {"delta_w", GEOZL_PRED_DELTA_W}, {"delta_n", GEOZL_PRED_DELTA_N},
-      {"planar", GEOZL_PRED_PLANAR},   {"med", GEOZL_PRED_MED},
-      {"average", GEOZL_PRED_AVERAGE}, {"wp_static", GEOZL_PRED_WP_STATIC},
-      {"delta_1d", GEOZL_PRED_DELTA_1D},
-  };
-
   if (method == NULL || method[0] == '\0') {
     size_t k = 0;
     for (int p = 0; p < GEOZL_PRED_COUNT; ++p)
@@ -632,9 +622,13 @@ static int resolve_prior(const char *method, geozl_predictor *out,
     *outN = 1;
     return 0;
   }
-  for (size_t i = 0; i < sizeof(named) / sizeof(named[0]); ++i) {
-    if (strcmp(method, named[i].name) == 0) {
-      out[0] = named[i].id;
+  // Matched against pred_name rather than a second table, so the two spellings
+  // cannot drift. Same reason parse_candidate generates instead of splitting.
+  for (int p = 0; p < GEOZL_PRED_COUNT; ++p) {
+    if (p == GEOZL_PRED_ID)
+      continue; // handled above, and it takes no second pass
+    if (strcmp(method, pred_name((geozl_predictor)p)) == 0) {
+      out[0] = (geozl_predictor)p;
       out[1] = GEOZL_PRED_ID;
       *outN = 2;
       return 0;

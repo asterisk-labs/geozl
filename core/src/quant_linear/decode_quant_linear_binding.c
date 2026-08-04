@@ -3,7 +3,7 @@
 #include "decode_quant_linear_kernel.h" // quant_linear_decode
 #include "graph_quant_linear.h"         // QUANT_LINEAR_HEADER_SIZE
 #include "quant_linear_check.h"         // quant_linear_params_ok
-#include "quant_linear_dtype.h"         // QL_U8, QL_F64
+#include "quant_linear_dtype.h"         // dtype codes and the width table
 
 #include "openzl/zl_data.h"
 #include "openzl/zl_errors.h"
@@ -38,7 +38,7 @@ ZL_Report DI_geozl_quant_linear(ZL_Decoder *dictx, const ZL_Input *ins[]) {
 
   // dtype comes from the header, so check it names a real type of the stream
   // width, the same check float_deconstruct makes.
-  if (dtype < QL_U8 || dtype > QL_F64 || quant_linear_width(dtype) != eltWidth)
+  if (!QL_DTYPE_OK(dtype) || quant_linear_width(dtype) != eltWidth)
     return ZL_returnError(ZL_ErrorCode_corruption);
 
   // Only a damaged frame gets here, and the encoder reads the same predicate.

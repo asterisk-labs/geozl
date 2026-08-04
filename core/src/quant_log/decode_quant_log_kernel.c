@@ -1,5 +1,6 @@
 #include "decode_quant_log_kernel.h"
 
+#include "quant_log_check.h"
 #include "quant_log_dtype.h"
 #include "quant_log_half.h"
 #include "quant_log_math.h"
@@ -164,3 +165,12 @@ int quant_log_decode(void *restrict dst, const void *restrict src,
   }
   return 0;
 }
+
+#undef QLOG_MAG
+#undef QLOG_LUT_BYTES
+#undef QLOG_DEC_INDEX
+#undef QLOG_DEC_VALUES
+#undef QLOG_DEC_FLOOR
+#undef QLOG_ID
+#undef QLOG_F32
+#undef QLOG_F16

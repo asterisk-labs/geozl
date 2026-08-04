@@ -120,8 +120,9 @@ static double plane_H(const uint32_t *hist, size_t nb) {
   return H;
 }
 
-// 8/16 bit scoring, unchanged: 16 bit zigzag into a lo (plane 0) and hi (plane
-// 1).
+// Two scorers, not one duplicated. WIDE reproduces the encoder exactly. NARROW
+// takes the cheaper int64 subtract truncated to int16, which only holds at 8
+// and 16 bits, and always scores two planes, over-counting every candidate alike.
 #define WP_SCORE_NARROW(T, ZCAST)                                              \
   do {                                                                         \
     const T *s = (const T *)src;                                               \

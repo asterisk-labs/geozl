@@ -30,4 +30,12 @@ typedef struct {
   unsigned char store;
 } quant_linear_spec;
 
+// What a pass over the tile reports. It decides the refusal and the floor flag.
+// Nothing here reaches a level, so two tiles that both resolve get the same
+// grid.
+typedef struct {
+  double maxAbs; // largest finite magnitude, or 0
+  int anyNegative;
+} quant_linear_stats;
+
 #endif // GEOZL_QUANT_LINEAR_PARAMS_H

@@ -2,7 +2,8 @@
 
 #include "decode_quant_log_kernel.h" // quant_log_decode
 #include "graph_quant_log.h"         // QUANT_LOG_HEADER_SIZE
-#include "quant_log_dtype.h"         // quant_log_params_ok
+#include "quant_log_check.h"         // quant_log_params_ok
+#include "quant_log_dtype.h"         // QLOG_DTYPE_OK, quant_log_width
 
 #include "openzl/zl_data.h"
 #include "openzl/zl_errors.h"

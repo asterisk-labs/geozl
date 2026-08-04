@@ -53,8 +53,8 @@
 #define QSQ_TOF32(v) ((float)(v))
 #define QSQ_TOF16(v) (quant_sqrt_float_to_half((float)(v)))
 
-int quant_sqrt_decode(void *dst, const void *src, const quant_sqrt_params *p,
-                      int dtype, size_t nbElts) {
+int quant_sqrt_decode(void *restrict dst, const void *restrict src,
+                      const quant_sqrt_params *p, int dtype, size_t nbElts) {
   // Same predicate the encoder and the binding read.
   if (!quant_sqrt_params_ok(p, dtype))
     return 1;
@@ -118,3 +118,9 @@ int quant_sqrt_decode(void *dst, const void *src, const quant_sqrt_params *p,
   }
   return 0;
 }
+
+#undef QSQ_DEC
+#undef QSQ_DEC_V
+#undef QSQ_ID
+#undef QSQ_TOF32
+#undef QSQ_TOF16

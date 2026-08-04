@@ -4,6 +4,8 @@
 // Wire codes, frozen. Carried in the codec header so the decoder rebuilds the
 // original type.
 
+#include "common/fp.h"
+
 #include <stddef.h>
 
 typedef enum {
@@ -52,7 +54,7 @@ static inline double quant_linear_exact_int(int dtype) {
   case QL_F32:
     return 16777216.0; // 2^24
   case QL_F64:
-    return 9007199254740992.0; // 2^53
+    return GEOZL_F64_EXACT_INT;
   default:
     return 0.0;
   }
@@ -77,7 +79,7 @@ static inline double quant_linear_stream_max(int dtype) {
   case QL_F32:
     return 2147483647.0;
   default: // past 2^53 an index is not exact in the double that computes it
-    return 9007199254740992.0;
+    return GEOZL_F64_EXACT_INT;
   }
 }
 

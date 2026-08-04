@@ -35,10 +35,11 @@ void nodata_broadcast(void* dst, size_t nb_elts, size_t elt_width, uint64_t patt
 
 // The three quantizers. Scan and resolve differ per curve.
 typedef struct { double max_error; unsigned char store; } quant_linear_spec;
+typedef struct { double maxAbs; int anyNegative; } quant_linear_stats;
 typedef struct { unsigned char flags; double step; } quant_linear_params;
 int quant_linear_parse(const char* s, quant_linear_spec* out, char* err, size_t err_size);
-int quant_linear_scan(const void* src, int dtype, size_t nb_elts, double* max_abs, int* any_negative);
-int quant_linear_resolve(const quant_linear_spec* sp, int dtype, double max_abs, int any_negative, quant_linear_params* out, char* err, size_t err_size);
+int quant_linear_scan(const void* src, int dtype, size_t nb_elts, quant_linear_stats* out);
+int quant_linear_resolve(const quant_linear_spec* sp, int dtype, const quant_linear_stats* sc, quant_linear_params* out, char* err, size_t err_size);
 int quant_linear_encode(void* dst, const void* src, const quant_linear_params* p, int dtype, size_t nb_elts);
 int quant_linear_decode(void* dst, const void* src, const quant_linear_params* p, int dtype, size_t nb_elts);
 

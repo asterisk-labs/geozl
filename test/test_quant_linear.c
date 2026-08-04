@@ -32,11 +32,10 @@ static int trip(const char *recipe, int dtype, const void *src, void *dec,
   quant_linear_spec sp;
   if (quant_linear_parse(recipe, &sp, err, sizeof(err)) != 0)
     return -1;
-  double hi = 0.0;
-  int neg = 0;
-  quant_linear_scan(src, dtype, n, &hi, &neg);
+  quant_linear_stats sc;
+  quant_linear_scan(src, dtype, n, &sc);
   quant_linear_params p;
-  if (quant_linear_resolve(&sp, dtype, hi, neg, &p, err, sizeof(err)) != 0)
+  if (quant_linear_resolve(&sp, dtype, &sc, &p, err, sizeof(err)) != 0)
     return -1;
   void *idx = malloc(n * quant_linear_width(dtype));
   int rc = -1;
@@ -58,12 +57,12 @@ static void an_integer_grid_never_reads_the_tile(void) {
 
   static const int dts[] = {QL_U8, QL_U16, QL_I16, QL_I32};
   for (size_t d = 0; d < sizeof(dts) / sizeof(*dts); ++d) {
-    CHECK(quant_linear_resolve(&sp, dts[d], 3.0, 0, &a, err,
-                               sizeof(err)) == 0);
-    CHECK(quant_linear_resolve(&sp, dts[d], 200.0, 0, &b, err,
-                               sizeof(err)) == 0);
-    CHECK(quant_linear_resolve(&sp, dts[d], 100.0, 1, &c, err,
-                               sizeof(err)) == 0);
+    CHECK(quant_linear_resolve(&sp, dts[d], &(quant_linear_stats){3.0, 0}, &a,
+                               err, sizeof(err)) == 0);
+    CHECK(quant_linear_resolve(&sp, dts[d], &(quant_linear_stats){200.0, 0}, &b,
+                               err, sizeof(err)) == 0);
+    CHECK(quant_linear_resolve(&sp, dts[d], &(quant_linear_stats){100.0, 1}, &c,
+                               err, sizeof(err)) == 0);
     CHECK(a.step == b.step);
     CHECK(a.step == c.step);
     CHECK(a.step == 10.0);
@@ -74,17 +73,17 @@ static void an_integer_grid_never_reads_the_tile(void) {
 
   // The step never rounds up past the bound.
   CHECK(quant_linear_parse("LINEAR:MAX_ERROR=0.94", &sp, err, sizeof(err)) == 0);
-  CHECK(quant_linear_resolve(&sp, QL_U16, 1000.0, 0, &a, err,
-                             sizeof(err)) == 0);
+  CHECK(quant_linear_resolve(&sp, QL_U16, &(quant_linear_stats){1000.0, 0}, &a,
+                             err, sizeof(err)) == 0);
   CHECK(a.step == 1.0); // floor(1.88), not 2
   CHECK(quant_linear_parse("LINEAR:MAX_ERROR=12.75", &sp, err, sizeof(err)) == 0);
-  CHECK(quant_linear_resolve(&sp, QL_I16, 1000.0, 1, &a, err,
-                             sizeof(err)) == 0);
+  CHECK(quant_linear_resolve(&sp, QL_I16, &(quant_linear_stats){1000.0, 1}, &a,
+                             err, sizeof(err)) == 0);
   CHECK(a.step == 25.0); // floor(25.5), not 26
   // And a bound under half a unit is lossless rather than a step of zero.
   CHECK(quant_linear_parse("LINEAR:MAX_ERROR=0.4", &sp, err, sizeof(err)) == 0);
-  CHECK(quant_linear_resolve(&sp, QL_U8, 200.0, 0, &a, err,
-                             sizeof(err)) == 0);
+  CHECK(quant_linear_resolve(&sp, QL_U8, &(quant_linear_stats){200.0, 0}, &a,
+                             err, sizeof(err)) == 0);
   CHECK(a.step == 1.0);
 }
 
@@ -95,18 +94,18 @@ static void the_float_index_path_reads_the_tile(void) {
   quant_linear_params a, b;
   CHECK(quant_linear_parse("LINEAR:MAX_ERROR=0.05", &sp, err, sizeof(err)) == 0);
   CHECK(sp.store == QUANT_LINEAR_STORE_INDEX);
-  CHECK(quant_linear_resolve(&sp, QL_F32, 100.0, 0, &a, err,
-                             sizeof(err)) == 0);
-  CHECK(quant_linear_resolve(&sp, QL_F32, 300.0, 0, &b, err,
-                             sizeof(err)) == 0);
+  CHECK(quant_linear_resolve(&sp, QL_F32, &(quant_linear_stats){100.0, 0}, &a,
+                             err, sizeof(err)) == 0);
+  CHECK(quant_linear_resolve(&sp, QL_F32, &(quant_linear_stats){300.0, 0}, &b,
+                             err, sizeof(err)) == 0);
   CHECK(a.step != b.step); // the documented limitation of this path
   CHECK((a.flags & QUANT_LINEAR_FLAG_STORE_VALUES) == 0);
 
   // A bound below what the output type resolves is refused rather than silently
   // returning the data untouched. At a million a float32 only resolves 0.0625.
   CHECK(quant_linear_parse("LINEAR:MAX_ERROR=1e-5", &sp, err, sizeof(err)) == 0);
-  CHECK(quant_linear_resolve(&sp, QL_F32, 1e5, 0, &a, err, sizeof(err)) !=
-        0);
+  CHECK(quant_linear_resolve(&sp, QL_F32, &(quant_linear_stats){1e5, 0}, &a,
+                             err, sizeof(err)) != 0);
 }
 
 static void the_float_value_path_does_not(void) {
@@ -117,10 +116,10 @@ static void the_float_value_path_does_not(void) {
   CHECK(quant_linear_parse("LINEAR:MAX_ERROR=0.5,STORE=VALUES", &sp, err,
                            sizeof(err)) == 0);
   CHECK(sp.store == QUANT_LINEAR_STORE_VALUES);
-  CHECK(quant_linear_resolve(&sp, QL_F32, 100.0, 0, &a, err,
-                             sizeof(err)) == 0);
-  CHECK(quant_linear_resolve(&sp, QL_F32, 30000.0, 0, &b, err,
-                             sizeof(err)) == 0);
+  CHECK(quant_linear_resolve(&sp, QL_F32, &(quant_linear_stats){100.0, 0}, &a,
+                             err, sizeof(err)) == 0);
+  CHECK(quant_linear_resolve(&sp, QL_F32, &(quant_linear_stats){30000.0, 0}, &b,
+                             err, sizeof(err)) == 0);
   CHECK(a.step == b.step);
   CHECK(a.step == 1.0);
   CHECK((a.flags & QUANT_LINEAR_FLAG_STORE_VALUES) != 0);
@@ -131,16 +130,16 @@ static void the_float_value_path_does_not(void) {
   quant_linear_spec fine;
   CHECK(quant_linear_parse("LINEAR:MAX_ERROR=0.0005,STORE=VALUES", &fine, err,
                            sizeof(err)) == 0);
-  CHECK(quant_linear_resolve(&fine, QL_F32, 1.0, 0, &a, err,
-                             sizeof(err)) != 0);
+  CHECK(quant_linear_resolve(&fine, QL_F32, &(quant_linear_stats){1.0, 0}, &a,
+                             err, sizeof(err)) != 0);
   // Past 2^24 a float32 no longer holds every integer, so the cast back would
   // round.
-  CHECK(quant_linear_resolve(&sp, QL_F32, 3e7, 0, &a, err, sizeof(err)) !=
-        0);
+  CHECK(quant_linear_resolve(&sp, QL_F32, &(quant_linear_stats){3e7, 0}, &a,
+                             err, sizeof(err)) != 0);
   // On an integer type the reconstruction is what the stream always carries, so
   // asking for it changes nothing.
-  CHECK(quant_linear_resolve(&sp, QL_U16, 60000.0, 0, &a, err,
-                             sizeof(err)) == 0);
+  CHECK(quant_linear_resolve(&sp, QL_U16, &(quant_linear_stats){60000.0, 0}, &a,
+                             err, sizeof(err)) == 0);
   CHECK(a.step == 1.0);
 }
 
@@ -408,11 +407,11 @@ static void verify_sees_the_bound_hold(void) {
     char err[256];
     quant_linear_spec sp;
     quant_linear_params p;
-    double hi = 0.0, worst = -1.0;
-    int neg = 0;
+    double worst = -1.0;
+    quant_linear_stats sc;
     CHECK(quant_linear_parse(cases[k].recipe, &sp, err, sizeof(err)) == 0);
-    quant_linear_scan(src, cases[k].dtype, N, &hi, &neg);
-    CHECK(quant_linear_resolve(&sp, cases[k].dtype, hi, neg, &p, err,
+    quant_linear_scan(src, cases[k].dtype, N, &sc);
+    CHECK(quant_linear_resolve(&sp, cases[k].dtype, &sc, &p, err,
                                sizeof(err)) == 0);
     CHECK(quant_linear_encode(mid, src, &p, cases[k].dtype, N) == 0);
     CHECK(quant_linear_decode(dec, mid, &p, cases[k].dtype, N) == 0);
@@ -506,7 +505,8 @@ static void every_value_holds_the_bound(void) {
       static const double tops[] = {255.0, 65535.0, 32767.0, 1e4, 1e4};
       const int neg = dt == GEOZL_DT_I16 || dt == GEOZL_DT_F16 ||
                       dt == GEOZL_DT_F32;
-      if (quant_linear_resolve(&sp, dt, tops[t], neg, &p, err, sizeof err) != 0) {
+      const quant_linear_stats sc = {tops[t], neg};
+      if (quant_linear_resolve(&sp, dt, &sc, &p, err, sizeof err) != 0) {
         // A refusal is an answer. No uniform grid spans the whole float domain,
         // so this is where the codec says that out loud.
         printf("  %-4s %-22s refused, %s\n", geozl_walk_types[t].name,

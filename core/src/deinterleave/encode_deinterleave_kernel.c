@@ -46,3 +46,5 @@ void deinterleave_split(void *out0, void *out1, const void *src, size_t nbElts,
   }
   }
 }
+
+#undef DEINTERLEAVE_SPLIT

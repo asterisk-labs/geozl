@@ -53,20 +53,36 @@
 #define GEOZL_SIMD_CAN_AVX2 0
 #endif
 
-/* Resolved once and read inline, because the kernels ask per row. */
+/* Resolved once and read inline, because the kernels ask per row.
+   Relaxed atomic: several threads can race to resolve, they all compute the
+   same value, but a plain int would still be a data race under C11. */
+#if defined(__STDC_NO_ATOMICS__)
 extern int geozl_simd_path;
+#define GEOZL_SIMD_LOAD(v) (v)
+#else
+#include <stdatomic.h>
+extern _Atomic int geozl_simd_path;
+#define GEOZL_SIMD_LOAD(v) atomic_load_explicit(&(v), memory_order_relaxed)
+#endif
 int geozl_simd_resolve(void);
 
 static inline int geozl_simd_now(void) {
-  const int p = geozl_simd_path;
+  const int p = GEOZL_SIMD_LOAD(geozl_simd_path);
   return p >= 0 ? p : geozl_simd_resolve();
 }
+
+/* The codes are wire values that cross into Python, so they cannot be reordered
+   to make AVX2 and NEON comparable. They are not one ladder anyway, NEON is a
+   different ISA and not a step above AVX2. Ask for a path by name. */
+static inline int geozl_simd_has(int path) { return geozl_simd_now() == path; }
 
 unsigned geozl_simd_built(void);
 unsigned geozl_simd_cpu(void);
 
 /* Best path that is both built and available, lowered by GEOZL_SIMD when that
-   names a narrower one. A value it does not recognise is ignored. */
+   names a narrower one. A value it does not recognise is ignored. This is the
+   name the Python side reports under; geozl_simd_now is the one the kernels
+   call. */
 int geozl_simd_active(void);
 
 const char *geozl_simd_name(int path);

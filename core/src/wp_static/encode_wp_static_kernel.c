@@ -60,3 +60,5 @@ int wp_static_encode(void *dst, const void *src, size_t width, size_t nbElts,
   }
   return 0;
 }
+
+#undef WP_STATIC_FWD

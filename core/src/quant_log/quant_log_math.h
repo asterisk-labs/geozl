@@ -11,6 +11,8 @@
 #ifndef GEOZL_CODECS_QUANT_LOG_MATH_H
 #define GEOZL_CODECS_QUANT_LOG_MATH_H
 
+#include "common/fp.h"
+
 #include <stdint.h>
 #include <string.h>
 
@@ -19,10 +21,21 @@
 
 // Round half away from zero. nearbyint follows the current rounding mode, which
 // the decoder cannot depend on.
+//
+// The conversion is undefined past what an int64 holds, and lands somewhere
+// different on x86 and on arm64, so anything that large is returned as it
+// stands; it is already whole. A nan fails the comparison and takes the same
+// exit, which keeps this total.
 static inline double qlog_round(double v) {
+  if (!(v > -GEOZL_F64_EXACT_INT && v < GEOZL_F64_EXACT_INT))
+    return v;
   return v < 0.0 ? -(double)(int64_t)(0.5 - v) : (double)(int64_t)(v + 0.5);
 }
 
+// 1 KB per translation unit that includes this. Kept here on purpose: as
+// externs in a .c they would be one copy, but every caller that links the
+// kernels by hand would then have a new file to add, which is a worse trade
+// than the kilobyte.
 static const double qlog_mlg[64] = {
     1.12272554232541195e-02, 3.34230015374502795e-02, 5.52824355011896015e-02, 7.68155970508308944e-02,
     9.80320829605267202e-02, 1.18941072723507429e-01, 1.39551352398793543e-01, 1.59871336778389411e-01,
@@ -120,10 +133,13 @@ static inline double qlog_exp2_frac(double f) {
 // 2^y. Splitting off the integer part leaves the series a bounded argument and
 // turns the rest into an exponent, which is exact. Out of range saturates.
 static inline double qlog_exp2(double y) {
-  if (y >= 1024.0)
-    return 1.0e308 * 10.0; // inf, without needing math.h
-  if (y <= -1200.0)
+  // Negated so a nan takes the floor rather than reaching the cast below, where
+  // it would be undefined. params_ok rules out the step that could produce one,
+  // but this is a header and the next caller may not have gone through it.
+  if (!(y > -1200.0))
     return 0.0;
+  if (y >= 1024.0)
+    return GEOZL_F64_INF;
   const double n = qlog_round(y);
   double v = qlog_exp2_frac(y - n);
   int k = (int)n;
@@ -153,7 +169,7 @@ static inline double qlog_index_level(double m, double step, int anchorExp2) {
 // 2^53 a double holds nothing else, so the rounding is already done.
 static inline double qlog_value_level(double j, double step) {
   const double v = qlog_exp2(j * step);
-  return v >= 9007199254740992.0 ? v : qlog_round(v);
+  return v >= GEOZL_F64_EXACT_INT ? v : qlog_round(v);
 }
 
 #endif // GEOZL_CODECS_QUANT_LOG_MATH_H

@@ -3,7 +3,7 @@
 #include "decode_quant_sqrt_kernel.h" // quant_sqrt_decode
 #include "graph_quant_sqrt.h"         // QUANT_SQRT_HEADER_SIZE
 #include "quant_sqrt_check.h"         // quant_sqrt_params_ok
-#include "quant_sqrt_dtype.h"         // QSQ_U8, QSQ_F64
+#include "quant_sqrt_dtype.h"         // dtype codes and the width table
 
 #include "openzl/zl_data.h"
 #include "openzl/zl_errors.h"
@@ -39,7 +39,7 @@ ZL_Report DI_geozl_quant_sqrt(ZL_Decoder *dictx, const ZL_Input *ins[]) {
 
   // dtype comes from the header, so check it names a real type of the stream
   // width before any kernel reads at that width.
-  if (dtype < QSQ_U8 || dtype > QSQ_F64 || quant_sqrt_width(dtype) != eltWidth)
+  if (!QSQ_DTYPE_OK(dtype) || quant_sqrt_width(dtype) != eltWidth)
     return ZL_returnError(ZL_ErrorCode_corruption);
 
   // Only a damaged frame gets here. The encoder reads the same predicate.

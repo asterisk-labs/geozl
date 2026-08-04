@@ -34,12 +34,9 @@ static unsigned probe_cpu(void) {
   return m;
 }
 
-unsigned geozl_simd_cpu(void) {
-  static unsigned cached; /* benign race, every writer computes the same */
-  if (cached == 0)
-    cached = probe_cpu();
-  return cached;
-}
+/* Not cached. The one caller is geozl_simd_resolve, which caches its own
+   answer, so a second cache here only added a second racing write. */
+unsigned geozl_simd_cpu(void) { return probe_cpu(); }
 
 static int top_of(unsigned mask) {
   int best = GEOZL_SIMD_SCALAR;
@@ -49,26 +46,44 @@ static int top_of(unsigned mask) {
   return best;
 }
 
-static int ceiling_from_env(void) {
+/* Paths GEOZL_SIMD leaves on the table. Unset, or set to something this build
+   does not know, allows everything; NEON used to double as that sentinel, which
+   meant GEOZL_SIMD=avx512 quietly meant no ceiling at all. */
+#define GEOZL_SIMD_ALL_ALLOWED (~0u)
+
+static unsigned allowed_from_env(void) {
   const char *v = getenv("GEOZL_SIMD");
   if (v == NULL || v[0] == '\0')
-    return GEOZL_SIMD_NEON;
+    return GEOZL_SIMD_ALL_ALLOWED;
   for (int p = GEOZL_SIMD_SCALAR; p <= GEOZL_SIMD_NEON; ++p)
-    if (strcmp(v, geozl_simd_name(p)) == 0)
-      return p;
-  return GEOZL_SIMD_NEON;
+    if (strcmp(v, geozl_simd_name(p)) == 0) {
+      /* Everything at or below the named path. The codes are not one ladder
+         across ISAs, but within a build only one ISA family is ever present,
+         so a ceiling inside that family is well defined. */
+      unsigned m = 0;
+      for (int q = GEOZL_SIMD_SCALAR; q <= p; ++q)
+        m |= GEOZL_SIMD_BIT(q);
+      return m;
+    }
+  return GEOZL_SIMD_ALL_ALLOWED;
 }
 
+#if defined(__STDC_NO_ATOMICS__)
 int geozl_simd_path = -1;
+#define GEOZL_SIMD_STORE(v, x) ((v) = (x))
+#else
+_Atomic int geozl_simd_path = -1;
+#define GEOZL_SIMD_STORE(v, x)                                                 \
+  atomic_store_explicit(&(v), (x), memory_order_relaxed)
+#endif
 
 int geozl_simd_resolve(void) {
-  const int ceiling = ceiling_from_env();
-  unsigned allowed = 0;
-  for (int p = GEOZL_SIMD_SCALAR; p <= ceiling; ++p)
-    allowed |= GEOZL_SIMD_BIT(p);
-  /* Benign race, every writer computes the same value. */
-  geozl_simd_path = top_of(geozl_simd_built() & geozl_simd_cpu() & allowed);
-  return geozl_simd_path;
+  const int p =
+      top_of(geozl_simd_built() & geozl_simd_cpu() & allowed_from_env());
+  /* Several threads can land here at once. They all compute the same value, so
+     the store is relaxed, but it has to be an atomic store all the same. */
+  GEOZL_SIMD_STORE(geozl_simd_path, p);
+  return p;
 }
 
 int geozl_simd_active(void) { return geozl_simd_now(); }

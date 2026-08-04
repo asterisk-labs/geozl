@@ -44,7 +44,7 @@ static double ql_lo(const quant_linear_params *p, int dtype) {
         d[i] = CONV(s[i]);                                                     \
   } while (0)
 
-int quant_linear_decode(void *dst, const void *src,
+int quant_linear_decode(void *restrict dst, const void *restrict src,
                         const quant_linear_params *p, int dtype,
                         size_t nbElts) {
   // Same predicate the encoder reads. The clamp leans on a finite step.
@@ -115,3 +115,6 @@ int quant_linear_decode(void *dst, const void *src,
   }
   return 0;
 }
+
+#undef QL_DEC_MUL
+#undef QL_DEC_CAST

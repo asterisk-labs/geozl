@@ -95,7 +95,9 @@ size_t nodata_mark_value(uint8_t *mask, const void *src, size_t nb_elts,
 }
 
 // A hole takes the last valid sample of its row, or the sample above when it
-// opens the row, which is already filled because rows run top to bottom.
+// opens the row, which is already filled because rows run top to bottom. A hole
+// that opens the first row has neither and takes zero, which is the one case
+// that can leave a step in the residual; there is nothing measured to copy.
 #define NODATA_FILL(T)                                                         \
   do {                                                                         \
     T *d = (T *)dst;                                                           \
@@ -144,3 +146,11 @@ void nodata_fill(void *dst, const void *src, const uint8_t *mask, size_t width,
     break; // rejected by the binding
   }
 }
+
+#undef NODATA_ISNAN16
+#undef NODATA_ISNAN32
+#undef NODATA_ISNAN64
+#undef NODATA_FIND_NAN
+#undef NODATA_MARK_NAN
+#undef NODATA_MARK_VALUE
+#undef NODATA_FILL

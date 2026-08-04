@@ -123,13 +123,14 @@ int quant_linear_parse(const char *s, quant_linear_spec *out, char *err,
   return 0;
 }
 
-int quant_linear_resolve(const quant_linear_spec *sp, int dtype, double maxAbs,
-                         int anyNegative, quant_linear_params *out, char *err,
-                         size_t errSize) {
+int quant_linear_resolve(const quant_linear_spec *sp, int dtype,
+                         const quant_linear_stats *sc, quant_linear_params *out,
+                         char *err, size_t errSize) {
   memset(out, 0, sizeof(*out));
   if (!QL_DTYPE_OK(dtype))
     return fail(err, errSize, "dtype %d is not a type this codec knows", dtype);
-  if (!anyNegative)
+  const double maxAbs = sc->maxAbs;
+  if (!sc->anyNegative)
     out->flags |= QUANT_LINEAR_FLAG_NONNEGATIVE;
 
   const int isInt = dtype <= QL_LAST_INT;

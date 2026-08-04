@@ -62,3 +62,6 @@ void nodata_broadcast(void *dst, size_t nb_elts, size_t elt_width,
     break; // rejected by the binding
   }
 }
+
+#undef NODATA_RESTORE
+#undef NODATA_BROADCAST

@@ -2,7 +2,7 @@
 
 #include "encode_quant_linear_kernel.h" // quant_linear_encode
 #include "graph_quant_linear.h" // QUANT_LINEAR_PARAM_*, QUANT_LINEAR_HEADER_SIZE
-#include "quant_linear_dtype.h"         // QL_U8, QL_F64
+#include "quant_linear_dtype.h" // dtype codes and the width table
 
 #include "openzl/zl_data.h"
 #include "openzl/zl_errors.h"
@@ -37,7 +37,7 @@ ZL_Report EI_geozl_quant_linear(ZL_Encoder *eictx, const ZL_Input *in) {
   quant_linear_params p;
   memcpy(&p, pp.paramPtr, sizeof(p));
 
-  if (dtype < QL_U8 || dtype > QL_F64 || quant_linear_width(dtype) != eltWidth)
+  if (!QL_DTYPE_OK(dtype) || quant_linear_width(dtype) != eltWidth)
     return ZL_returnError(ZL_ErrorCode_node_invalid_input);
 
   ZL_Output *out = ZL_Encoder_createTypedStream(eictx, 0, nbElts, eltWidth);

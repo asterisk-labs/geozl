@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 
-#define MED_FWD(T)                                                             \
+#define MED_FWD(T, B)                                                          \
   do {                                                                         \
     T *d = (T *)dst;                                                           \
     const T *s = (const T *)src;                                               \
@@ -29,28 +29,7 @@
 
 int med_encode(void *dst, const void *src, size_t width, size_t nbElts,
                size_t eltWidth) {
-  // A width that does not divide nbElts would leave the last row short,
-  // and the row loops below assume every row is complete.
-  const size_t w = geozl_row_width(width, nbElts);
-  if (w == 0)
-    return 1;
-  switch (eltWidth) {
-  case 1:
-    MED_FWD(uint8_t);
-    break;
-  case 2:
-    MED_FWD(uint16_t);
-    break;
-  case 4:
-    MED_FWD(uint32_t);
-    break;
-  case 8:
-    MED_FWD(uint64_t);
-    break;
-  default:
-    return 1; // eltWidth must be 1, 2, 4 or 8
-  }
-  return 0;
+  GEOZL_ROW_DISPATCH(w, MED_FWD);
 }
 
 #undef MED_FWD

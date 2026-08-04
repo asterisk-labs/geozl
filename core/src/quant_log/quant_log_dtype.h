@@ -1,15 +1,14 @@
 #ifndef GEOZL_CODECS_QUANT_LOG_DTYPE_H
 #define GEOZL_CODECS_QUANT_LOG_DTYPE_H
 
+#include "common/fp.h"
+
 #include "geozl/quant_log_params.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
-// The largest finite double. Above it is an infinity, which both kernels pin to
-// the top level rather than running a transform on an exponent field of all
-// ones, and which a step may not be.
-#define QLOG_FINITE_TOP 1.7976931348623157e308
+#define QLOG_FINITE_TOP GEOZL_F64_MAX
 
 // Wire codes, frozen.
 typedef enum {
@@ -124,7 +123,7 @@ static inline double quant_log_exact_int(int dtype) {
   case QLOG_F32:
     return 16777216.0; // 2^24
   default:
-    return 9007199254740992.0; // 2^53
+    return GEOZL_F64_EXACT_INT;
   }
 }
 
@@ -137,7 +136,7 @@ static inline double quant_log_stream_max(int dtype) {
   case QLOG_F32:
     return 2147483647.0;
   default:
-    return 9007199254740992.0; // past 2^53 an index is not exact in a double
+    return GEOZL_F64_EXACT_INT; // past it an index is not exact in a double
   }
 }
 
@@ -225,25 +224,9 @@ static inline double quant_log_index_top(double step, int dtype) {
 // small enough sends the quotient past what an int64 holds.
 static inline double quant_log_value_top(double step, int dtype) {
   const double v = quant_log_value_span(dtype) / step;
-  if (!(v < 9007199254740992.0)) // also catches nan
-    return 9007199254740992.0;
+  if (!(v < GEOZL_F64_EXACT_INT)) // also catches nan
+    return GEOZL_F64_EXACT_INT;
   return (double)(int64_t)v + 1.0;
-}
-
-// What a frame carries that a kernel can check without seeing the tile. A step
-// that is merely positive is not enough: an infinite one leaves the quotient
-// inside exp2 a nan, and the conversion that follows is undefined and lands
-// somewhere different on x86 and on arm64.
-static inline int quant_log_params_ok(const quant_log_params *p, int dtype) {
-  if (!QLOG_DTYPE_OK(dtype))
-    return 0;
-  if (!(p->step > 0.0) || !(p->step <= QLOG_FINITE_TOP))
-    return 0;
-  if ((p->flags & ~(unsigned)QUANT_LOG_FLAGS_KNOWN) != 0)
-    return 0;
-  // An integer type carries the reconstruction and nothing else.
-  return dtype > QLOG_LAST_INT ||
-         (p->flags & QUANT_LOG_FLAG_STORE_VALUES) != 0;
 }
 
 #endif // GEOZL_CODECS_QUANT_LOG_DTYPE_H

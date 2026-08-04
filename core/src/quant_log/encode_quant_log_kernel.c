@@ -1,5 +1,6 @@
 #include "encode_quant_log_kernel.h"
 
+#include "quant_log_check.h"
 #include "quant_log_dtype.h"
 #include "quant_log_half.h"
 #include "quant_log_math.h"
@@ -49,12 +50,20 @@ static inline double qlog_value_at(const double *lev, int64_t j, double step,
   return lev != NULL ? lev[j] : qlog_value_of(j, step, cap);
 }
 
-#define QLOG_PICK(a, anchor)                                                   \
-  ((a) > QLOG_FINITE_TOP                                                       \
-       ? top                                                                   \
-       : qlog_fit(qlog_log2_over((a), (anchor)) * inv + 0.5, 0.0, dtop))
+// Index of the level a magnitude lands on. Everything it reads is a parameter,
+// so a rename in a caller cannot quietly change which grid this cuts against.
+// bias is 0.5 on the value grid, where index 0 is the anchor, and 1.5 on the
+// index grid, where index magnitude 1 is.
+static inline int64_t qlog_pick(double a, int anchorExp2, double inv,
+                                double bias, double lo, double dtop,
+                                int64_t top) {
+  if (a > QLOG_FINITE_TOP)
+    return top;
+  return qlog_fit(qlog_log2_over(a, anchorExp2) * inv + bias, lo, dtop);
+}
 
-#define QLOG_LEV(a) qlog_value_at(lev, QLOG_PICK((a), 0), step, cap)
+#define QLOG_LEV(a)                                                            \
+  qlog_value_at(lev, qlog_pick((a), 0, inv, 0.5, 0.0, dtop, top), step, cap)
 
 // Cases 1 and 2, the value grid. The stream carries the reconstruction, so the
 // levels are whole numbers already folded onto the output range.
@@ -116,10 +125,7 @@ static inline double qlog_value_at(const double *lev, int64_t j, double step,
         d[i] = 0;                                                              \
         continue;                                                              \
       }                                                                        \
-      const int64_t m =                                                        \
-          a > QLOG_FINITE_TOP                                                  \
-              ? top                                                            \
-              : qlog_fit(qlog_log2_over(a, anchor) * inv + 1.5, 1.0, dtop);    \
+      const int64_t m = qlog_pick(a, anchor, inv, 1.5, 1.0, dtop, top);        \
       d[i] = (IT)(x < 0.0 ? -m : m);                                           \
     }                                                                          \
   } while (0)
@@ -225,9 +231,9 @@ int quant_log_encode(void *restrict dst, const void *restrict src,
 
 int quant_log_scan(const void *src, int dtype, size_t nbElts,
                    quant_log_stats *out) {
-  double lo = 1.0e308 * 10.0, hi = 0.0; // lo starts at inf
+  double lo = GEOZL_F64_INF, hi = 0.0;
   int neg = 0, sub = 0;
-  if (!QLOG_DTYPE_OK(dtype) || out == NULL)
+  if (src == NULL || out == NULL || !QLOG_DTYPE_OK(dtype))
     return 1;
   const double nmin =
       dtype > QLOG_LAST_INT ? quant_log_normal_min(dtype) : 0.0;
@@ -274,3 +280,11 @@ int quant_log_scan(const void *src, int dtype, size_t nbElts,
   out->anySubnormal = sub;
   return 0;
 }
+
+#undef QLOG_LEV_BYTES
+#undef QLOG_LEV
+#undef QLOG_ENC_U
+#undef QLOG_ENC_I
+#undef QLOG_ENC_FV
+#undef QLOG_ENC_FI
+#undef QLOG_SCAN
