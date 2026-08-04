@@ -5,6 +5,50 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-08-04
+
+### Fixed
+
+- A declared nodata sentinel crossed into C as a `double`, so any int64 or
+  uint64 value past 2^53 arrived truncated and masked nothing. It crosses as
+  bits now.
+- `geozl_row_width` folded a width past `nbElts` to one row instead of refusing
+  it, so a forged header decoded into a different raster and still returned
+  success. The fold moved to the encode side.
+- The sdist reached the README through `../../`, which `pip` refused as a path
+  traversal, and `testpaths` and the sdist `include` both named `tests` rather
+  than `test`.
+- ruff was configured in 0.8.0 and never run, and the notebook called `geozl`
+  two cells before importing it. The fuzz seed corpus is unchanged.
+
+### Added
+
+- `test_cross_reader.py`. Every codec is written twice and nothing compared the
+  two. Flipping the wire format leaves the 999 tests in `test_codecs.py` green
+  and fails 68 of these.
+- `test_cdef.py`, which diffs the hand written cdef in `_ffi.py` against the
+  headers. ABI mode verifies nothing, so drift corrupts memory instead of
+  raising.
+- `py.typed` with the public entry points annotated, plus ruff, mypy and a
+  `sanitize-full` job in CI. The existing sanitizer job is `FULL=OFF`, which
+  leaves `2d.c` uncovered.
+
+### Changed
+
+- The sentinel conversion has one implementation, in `_dtype.py`, and a NaN
+  sentinel takes the automatic path rather than matching one payload.
+- ruff and mypy read one config each from the repository root, and neither walks
+  into `extern`.
+
+### Breaking
+
+- `geozl_2d_compress_c` and `geozl_2d_bench_c` take `uint64_t nodataBits` where
+  they took `double nodataValue`.
+- A 0.8.0 frame written through the low level API with a row width of 0 or past
+  the tile is refused. Frames from `geozl.compress` are unaffected.
+- `nodata=3.5` on an integer tile raises instead of truncating, and one outside
+  the dtype raises `OverflowError`.
+
 ## [0.8.0] - 2026-08-04
 
 ### Added
@@ -104,5 +148,6 @@ First release.
   `register_decoders` for reading frames back.
 - A libFuzzer harness over the decode path.
 
+[0.8.1]: https://github.com/asterisk-labs/geozl/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/asterisk-labs/geozl/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/asterisk-labs/geozl/releases/tag/v0.7.0
