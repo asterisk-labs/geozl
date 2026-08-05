@@ -29,6 +29,11 @@ A [GeoZL](https://asterisk.coop/geozl/) codec is an OpenZL graph node that under
 
 If you want to implement a new codec, see [docs/adding-a-codec.md](docs/adding-a-codec.md).
 
+<p align="center">
+  <img src="docs/assets/svg/graph-recipes.svg" alt="geozl" width="750"/>
+</p>
+
+
 ## Status
 
 GeoZL is **experimental**.
