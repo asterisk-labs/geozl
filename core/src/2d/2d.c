@@ -52,7 +52,8 @@
 //
 // The file runs in that order: the palette of method names, the graph built
 // from one, the error plumbing OpenZL forces, and then the five entry points,
-// compress, frame size, decompress, bench and grid.
+// compress, frame size, decompress, bench and grid. Each direction is an open,
+// a run and a close, so the bench can time reps of the run against one open.
 
 // GEOZL_PRED_ID is the no-predictor branch: raw stream straight to a backend,
 // no zigzag. delta_1d is OpenZL's ZL_NODE_DELTA_INT and carries no zigzag either.
@@ -307,17 +308,34 @@ static void copy_err(char *dst, size_t cap, const char *src) {
   dst[n] = '\0';
 }
 
-// errCtx receives the reason on failure and an empty string on success,
-// truncated to errCtxSize. Pass NULL to drop it.
-static ZL_Report compress_impl(const char *method, uint32_t width,
-                               const char *error, int dtype, int nodataMode,
-                               uint64_t nodataBits, const void *src,
-                               size_t numElts, size_t eltWidth, void *dst,
-                               size_t dstCapacity, size_t *outSize,
-                               char *errCtx, size_t errCtxSize, int noChecksum) {
+// A compressor and the context bound to it. Registering the nodes and the graph
+// is fixed cost, so the bench builds this once and times the runs against it.
+typedef struct {
+  ZL_Compressor *c;
+  ZL_CCtx *cctx;
+} geozl_encoder;
+
+static void encoder_close(geozl_encoder *e) {
+  if (e->cctx != NULL)
+    ZL_CCtx_free(e->cctx);
+  if (e->c != NULL)
+    ZL_Compressor_free(e->c);
+  e->cctx = NULL;
+  e->c = NULL;
+}
+
+// Validates, resolves the error recipe, builds the graph and binds a context.
+// On failure *e is left empty and needs no close. checksum == 0 drops both
+// frame checksums; a lossy plan drops the content one anyway, since the frame
+// does not rebuild what that checksum was taken over.
+static ZL_Report encoder_open(geozl_encoder *e, const char *method,
+                              uint32_t width, const char *error, int dtype,
+                              int nodataMode, uint64_t nodataBits,
+                              const void *src, size_t numElts, size_t eltWidth,
+                              int checksum, char *errCtx, size_t errCtxSize) {
   const int has_err = errCtx != NULL && errCtxSize != 0;
-  if (has_err)
-    errCtx[0] = '\0';
+  e->c = NULL;
+  e->cctx = NULL;
 
   // ZL_TypedRef_createNumeric only returns NULL, so an unsupported width would
   // otherwise be reported as an allocation failure.
@@ -351,7 +369,8 @@ static ZL_Report compress_impl(const char *method, uint32_t width,
 
   // Cut here and not in the node, so compress, bench and profile all report the
   // same numbers. A SQRT recipe with no curve gets one fitted from this tile,
-  // since nothing at this entry point carries a product.
+  // since nothing at this entry point carries a product. It reads src, which
+  // does not move, so it belongs here and not in the run.
   geozl_lossy_recipe recipe;
   geozl_lossy_plan plan;
   {
@@ -367,16 +386,14 @@ static ZL_Report compress_impl(const char *method, uint32_t width,
     }
   }
 
-  ZL_Compressor *c = ZL_Compressor_create();
-  if (c == NULL)
+  e->c = ZL_Compressor_create();
+  if (e->c == NULL)
     return ZL_returnError(ZL_ErrorCode_allocation);
 
   ZL_Report r;
   err_owner owner = ERR_NONE;
-  ZL_TypedRef *in = NULL;
-  ZL_CCtx *cctx = NULL;
 
-  ZL_GraphID g = build_graph(c, pred, term, width, eltWidth, &plan, dtype,
+  ZL_GraphID g = build_graph(e->c, pred, term, width, eltWidth, &plan, dtype,
                              nodataMode, nodataBits);
   if (!ZL_GraphID_isValid(g)) {
     if (has_err)
@@ -385,62 +402,81 @@ static ZL_Report compress_impl(const char *method, uint32_t width,
                "transpose and store_lo terminals need 2 to 8",
                method, eltWidth);
     r = ZL_returnError(ZL_ErrorCode_graph_invalid);
-    goto done;
+    goto fail;
   }
-  r = ZL_Compressor_selectStartingGraphID(c, g);
+  r = ZL_Compressor_selectStartingGraphID(e->c, g);
   if (ZL_isError(r)) {
     owner = ERR_COMPRESSOR;
-    goto done;
+    goto fail;
   }
 
-  cctx = ZL_CCtx_create();
-  if (cctx == NULL) {
+  e->cctx = ZL_CCtx_create();
+  if (e->cctx == NULL) {
     r = ZL_returnError(ZL_ErrorCode_allocation);
-    goto done;
+    goto fail;
   }
-  r = ZL_CCtx_refCompressor(cctx, c);
+  // refCompressor resets any parameter already set, so it goes first.
+  r = ZL_CCtx_refCompressor(e->cctx, e->c);
   if (ZL_isError(r)) {
     owner = ERR_CCTX;
-    goto done;
+    goto fail;
   }
-  r = ZL_CCtx_setParameter(cctx, ZL_CParam_formatVersion, ZL_MAX_FORMAT_VERSION);
+  // OpenZL clears CCtx parameters after each session, and the bench runs many.
+  r = ZL_CCtx_setParameter(e->cctx, ZL_CParam_stickyParameters, 1);
   if (ZL_isError(r)) {
     owner = ERR_CCTX;
-    goto done;
+    goto fail;
   }
-  if (noChecksum || plan.family != GEOZL_LOSSY_NONE) {
-    r = ZL_CCtx_setParameter(cctx, ZL_CParam_contentChecksum,
+  r = ZL_CCtx_setParameter(e->cctx, ZL_CParam_formatVersion,
+                           ZL_MAX_FORMAT_VERSION);
+  if (ZL_isError(r)) {
+    owner = ERR_CCTX;
+    goto fail;
+  }
+  if (!checksum || plan.family != GEOZL_LOSSY_NONE) {
+    r = ZL_CCtx_setParameter(e->cctx, ZL_CParam_contentChecksum,
                              ZL_TernaryParam_disable);
     if (ZL_isError(r)) {
       owner = ERR_CCTX;
-      goto done;
+      goto fail;
     }
   }
-
-  in = ZL_TypedRef_createNumeric(src, eltWidth, numElts);
-  if (in == NULL) {
-    if (has_err)
-      snprintf(errCtx, errCtxSize, "could not wrap src as a numeric stream");
-    r = ZL_returnError(ZL_ErrorCode_allocation);
-    goto done;
+  if (!checksum) {
+    r = ZL_CCtx_setParameter(e->cctx, ZL_CParam_compressedChecksum,
+                             ZL_TernaryParam_disable);
+    if (ZL_isError(r)) {
+      owner = ERR_CCTX;
+      goto fail;
+    }
   }
+  return ZL_returnSuccess();
 
-  r = ZL_CCtx_compressTypedRef(cctx, dst, dstCapacity, in);
+fail:
+  if (owner == ERR_CCTX)
+    copy_err(errCtx, errCtxSize, ZL_CCtx_getErrorContextString(e->cctx, r));
+  else if (owner == ERR_COMPRESSOR)
+    copy_err(errCtx, errCtxSize, ZL_Compressor_getErrorContextString(e->c, r));
+  encoder_close(e);
+  return r;
+}
+
+// One compression through a prepared context, frame size in *outSize.
+static ZL_Report encoder_run(const geozl_encoder *e, const void *src,
+                             size_t numElts, size_t eltWidth, void *dst,
+                             size_t dstCapacity, size_t *outSize, char *errCtx,
+                             size_t errCtxSize) {
+  ZL_TypedRef *in = ZL_TypedRef_createNumeric(src, eltWidth, numElts);
+  if (in == NULL) {
+    if (errCtx != NULL && errCtxSize != 0)
+      snprintf(errCtx, errCtxSize, "could not wrap src as a numeric stream");
+    return ZL_returnError(ZL_ErrorCode_allocation);
+  }
+  ZL_Report r = ZL_CCtx_compressTypedRef(e->cctx, dst, dstCapacity, in);
+  ZL_TypedRef_free(in);
   if (ZL_isError(r))
-    owner = ERR_CCTX;
+    copy_err(errCtx, errCtxSize, ZL_CCtx_getErrorContextString(e->cctx, r));
   else if (outSize != NULL)
     *outSize = ZL_validResult(r);
-
-done:
-  if (owner == ERR_CCTX)
-    copy_err(errCtx, errCtxSize, ZL_CCtx_getErrorContextString(cctx, r));
-  else if (owner == ERR_COMPRESSOR)
-    copy_err(errCtx, errCtxSize, ZL_Compressor_getErrorContextString(c, r));
-  if (in != NULL)
-    ZL_TypedRef_free(in);
-  if (cctx != NULL)
-    ZL_CCtx_free(cctx);
-  ZL_Compressor_free(c);
   return r;
 }
 
@@ -452,9 +488,18 @@ GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
                                   size_t numElts, size_t eltWidth, void *dst,
                                   size_t dstCapacity, size_t *outSize,
                                   char *errCtx, size_t errCtxSize) {
-  ZL_Report r = compress_impl(method, width, error, dtype, nodataMode,
-                              nodataBits, src, numElts, eltWidth, dst,
-                              dstCapacity, outSize, errCtx, errCtxSize, 0);
+  if (errCtx != NULL && errCtxSize != 0)
+    errCtx[0] = '\0';
+
+  geozl_encoder e;
+  ZL_Report r = encoder_open(&e, method, width, error, dtype, nodataMode,
+                             nodataBits, src, numElts, eltWidth, 1, errCtx,
+                             errCtxSize);
+  if (!ZL_isError(r)) {
+    r = encoder_run(&e, src, numElts, eltWidth, dst, dstCapacity, outSize,
+                    errCtx, errCtxSize);
+    encoder_close(&e);
+  }
   return ZL_isError(r) ? (int)ZL_errorCode(r) : 0;
 }
 
@@ -465,40 +510,84 @@ GEOZL_API size_t geozl_2d_frame_dsize_c(const void *frame, size_t frameSize) {
   return ZL_isError(r) ? 0 : ZL_validResult(r);
 }
 
-// Decompress a geozl frame into dst. Returns 0 on success or the ZL_ErrorCode,
-// with the reason in errCtx. The frame is self-describing, so no method,
-// predictor or width is needed here.
-GEOZL_API int geozl_2d_decompress_c(const void *frame, size_t frameSize,
-                                    void *dst, size_t dstCapacity,
-                                    size_t *outSize, char *errCtx,
-                                    size_t errCtxSize) {
-  const int has_err = errCtx != NULL && errCtxSize != 0;
-  if (has_err)
-    errCtx[0] = '\0';
+// Same split on the decode side, where registering the decoders is the fixed
+// cost.
+typedef struct {
+  ZL_DCtx *dctx;
+} geozl_decoder;
 
-  ZL_DCtx *dctx = ZL_DCtx_create();
-  if (dctx == NULL)
-    return (int)ZL_ErrorCode_allocation;
+static void decoder_close(geozl_decoder *d) {
+  if (d->dctx != NULL)
+    ZL_DCtx_free(d->dctx);
+  d->dctx = NULL;
+}
 
-  ZL_Report r = geozl_register_decoders(dctx);
-  err_owner owner = ERR_NONE;
-  if (ZL_isError(r)) {
-    owner = ERR_DCTX;
-    goto done;
+// verify == 0 skips both checksum verifications. They are the only warning a
+// reader gets that a frame rotted, so nothing but a benchmark should pass 0.
+static ZL_Report decoder_open(geozl_decoder *d, int verify, char *errCtx,
+                              size_t errCtxSize) {
+  d->dctx = ZL_DCtx_create();
+  if (d->dctx == NULL)
+    return ZL_returnError(ZL_ErrorCode_allocation);
+
+  ZL_Report r = geozl_register_decoders(d->dctx);
+  if (ZL_isError(r))
+    goto fail;
+  if (!verify) {
+    // Same session reset as the CCtx above.
+    r = ZL_DCtx_setParameter(d->dctx, ZL_DParam_stickyParameters, 1);
+    if (ZL_isError(r))
+      goto fail;
+    r = ZL_DCtx_setParameter(d->dctx, ZL_DParam_checkCompressedChecksum,
+                             ZL_TernaryParam_disable);
+    if (ZL_isError(r))
+      goto fail;
+    r = ZL_DCtx_setParameter(d->dctx, ZL_DParam_checkContentChecksum,
+                             ZL_TernaryParam_disable);
+    if (ZL_isError(r))
+      goto fail;
   }
+  return ZL_returnSuccess();
+
+fail:
+  copy_err(errCtx, errCtxSize, ZL_DCtx_getErrorContextString(d->dctx, r));
+  decoder_close(d);
+  return r;
+}
+
+static ZL_Report decoder_run(const geozl_decoder *d, const void *frame,
+                             size_t frameSize, void *dst, size_t dstCapacity,
+                             size_t *outSize, char *errCtx, size_t errCtxSize) {
   // Our frames carry a single numeric output; ZL_DCtx_decompress only returns
   // serial, so the typed variant is required. dst must be 8-byte aligned.
   ZL_OutputInfo info;
-  r = ZL_DCtx_decompressTyped(dctx, &info, dst, dstCapacity, frame, frameSize);
+  ZL_Report r =
+      ZL_DCtx_decompressTyped(d->dctx, &info, dst, dstCapacity, frame,
+                              frameSize);
   if (ZL_isError(r))
-    owner = ERR_DCTX;
+    copy_err(errCtx, errCtxSize, ZL_DCtx_getErrorContextString(d->dctx, r));
   else if (outSize != NULL)
     *outSize = (size_t)info.decompressedByteSize;
+  return r;
+}
 
-done:
-  if (owner == ERR_DCTX)
-    copy_err(errCtx, errCtxSize, ZL_DCtx_getErrorContextString(dctx, r));
-  ZL_DCtx_free(dctx);
+// Decompress a geozl frame into dst. Returns 0 on success or the ZL_ErrorCode,
+// with the reason in errCtx. The frame is self-describing, so no method,
+// predictor or width is needed here. verify is decoder_open's.
+GEOZL_API int geozl_2d_decompress_c(const void *frame, size_t frameSize,
+                                    void *dst, size_t dstCapacity,
+                                    size_t *outSize, int verify, char *errCtx,
+                                    size_t errCtxSize) {
+  if (errCtx != NULL && errCtxSize != 0)
+    errCtx[0] = '\0';
+
+  geozl_decoder d;
+  ZL_Report r = decoder_open(&d, verify, errCtx, errCtxSize);
+  if (!ZL_isError(r)) {
+    r = decoder_run(&d, frame, frameSize, dst, dstCapacity, outSize, errCtx,
+                    errCtxSize);
+    decoder_close(&d);
+  }
   return ZL_isError(r) ? (int)ZL_errorCode(r) : 0;
 }
 
@@ -508,73 +597,119 @@ static double now_sec(void) {
   return (double)t.tv_sec + (double)t.tv_nsec * 1e-9;
 }
 
+// Best of the reps, or the whole run over reps when the best reads zero. A rep
+// over a small tile can finish inside a clock tick, and macOS ticks at a
+// microsecond. The mean is coarser but the run outlasts a tick.
+static double best_or_mean(double best, double run, size_t reps) {
+  return best > 0.0 ? best : run / (double)reps;
+}
+
 // Time one graph: reps compressions and reps decompressions, all in C so
 // the FFI is crossed once, not once per rep. Returns 0, or the ZL_ErrorCode of
 // the first failing round trip. compSize gets the frame size, encSec/decSec the
-// best (minimum) time of the reps.
+// per-rep time, which is 0 only if the clock could not resolve the whole run.
+//
+// checksum belongs to the frame, so a bench that drops it no longer measures
+// what compress writes and compSize stops being a size the caller will see.
+// verify belongs to the reader and costs no bytes. Both cost the same for every
+// graph in the grid, so neither moves a ranking.
 GEOZL_API int geozl_2d_bench_c(const char *method, uint32_t width,
                                const char *error, int dtype, int nodataMode,
                                uint64_t nodataBits, const void *src,
                                size_t numElts, size_t eltWidth, size_t reps,
-                               size_t *compSize, double *encSec, double *decSec,
-                               char *errCtx, size_t errCtxSize) {
-  // reps == 0 would leave cbuf unwritten and the timings at DBL_MAX
-  if (reps == 0)
+                               int checksum, int verify, size_t *compSize,
+                               double *encSec, double *decSec, char *errCtx,
+                               size_t errCtxSize) {
+  const int has_err = errCtx != NULL && errCtxSize != 0;
+  if (has_err)
+    errCtx[0] = '\0';
+
+  if (reps == 0) {
+    if (has_err)
+      snprintf(errCtx, errCtxSize, "reps is 0, there is nothing to time");
     return (int)ZL_ErrorCode_parameter_invalid;
+  }
+
+  geozl_encoder enc;
+  ZL_Report r = encoder_open(&enc, method, width, error, dtype, nodataMode,
+                             nodataBits, src, numElts, eltWidth, checksum,
+                             errCtx, errCtxSize);
+  if (ZL_isError(r))
+    return (int)ZL_errorCode(r);
+
+  geozl_decoder dec;
+  r = decoder_open(&dec, verify, errCtx, errCtxSize);
+  if (ZL_isError(r)) {
+    encoder_close(&enc);
+    return (int)ZL_errorCode(r);
+  }
 
   size_t cap = 1024 + numElts * eltWidth + numElts * eltWidth / 2;
   void *cbuf = malloc(cap);
-  if (cbuf == NULL)
-    return (int)ZL_ErrorCode_allocation;
-
+  void *dbuf = NULL;
   double bestEnc = DBL_MAX;
+  double bestDec = DBL_MAX;
+  double runEnc = 0.0;
+  double runDec = 0.0;
+  double mark;
   size_t sz = 0;
+  size_t dsize;
+  int rc = 0;
+
+  if (cbuf == NULL) {
+    rc = (int)ZL_ErrorCode_allocation;
+    goto done;
+  }
+
+  mark = now_sec();
   for (size_t i = 0; i < reps; ++i) {
     double t0 = now_sec();
-    ZL_Report r =
-        compress_impl(method, width, error, dtype, nodataMode, nodataBits,
-                      src, numElts, eltWidth, cbuf, cap, &sz, errCtx,
-                      errCtxSize, 1);
+    r = encoder_run(&enc, src, numElts, eltWidth, cbuf, cap, &sz, errCtx,
+                    errCtxSize);
     double dt = now_sec() - t0;
     if (ZL_isError(r)) {
-      free(cbuf);
-      return (int)ZL_errorCode(r);
+      rc = (int)ZL_errorCode(r);
+      goto done;
     }
     if (dt < bestEnc)
       bestEnc = dt;
   }
+  runEnc = now_sec() - mark;
 
-  size_t dsize = geozl_2d_frame_dsize_c(cbuf, sz);
-  void *dbuf = malloc(dsize ? dsize : 1); // malloc is max-aligned, fine for numeric
+  dsize = geozl_2d_frame_dsize_c(cbuf, sz);
+  dbuf = malloc(dsize ? dsize : 1); // malloc is max-aligned, fine for numeric
   if (dbuf == NULL) {
-    free(cbuf);
-    return (int)ZL_ErrorCode_allocation;
+    rc = (int)ZL_ErrorCode_allocation;
+    goto done;
   }
 
-  double bestDec = DBL_MAX;
+  mark = now_sec();
   for (size_t i = 0; i < reps; ++i) {
     double t0 = now_sec();
-    int rc = geozl_2d_decompress_c(cbuf, sz, dbuf, dsize, NULL, errCtx,
-                                   errCtxSize);
+    r = decoder_run(&dec, cbuf, sz, dbuf, dsize, NULL, errCtx, errCtxSize);
     double dt = now_sec() - t0;
-    if (rc != 0) {
-      free(dbuf);
-      free(cbuf);
-      return rc;
+    if (ZL_isError(r)) {
+      rc = (int)ZL_errorCode(r);
+      goto done;
     }
     if (dt < bestDec)
       bestDec = dt;
   }
+  runDec = now_sec() - mark;
 
   if (compSize != NULL)
     *compSize = sz;
   if (encSec != NULL)
-    *encSec = bestEnc;
+    *encSec = best_or_mean(bestEnc, runEnc, reps);
   if (decSec != NULL)
-    *decSec = bestDec;
+    *decSec = best_or_mean(bestDec, runDec, reps);
+
+done:
   free(dbuf);
   free(cbuf);
-  return 0;
+  decoder_close(&dec);
+  encoder_close(&enc);
+  return rc;
 }
 
 // Expands a method string into the predictor list geozl_2d_grid_c enumerates

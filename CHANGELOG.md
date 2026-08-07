@@ -5,6 +5,40 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-08-06
+
+### Fixed
+
+- `geozl.profile` reported a frame four bytes under the one `geozl.compress`
+  writes, because the bench turned the content checksum off and compress does
+  not. The ratio it ranks by is now the size you get, to the byte.
+- The timed region covered creating the compressor and the DCtx, registering
+  every node, graph and decoder, and refitting a curveless SQRT recipe, all on
+  every rep. Compression and decompression are now an open, a run and a close,
+  and the bench times reps of the run.
+- A rep that finished inside a clock tick left the timing at zero, which macOS
+  reaches at a microsecond. The bench falls back to the whole run over `reps`,
+  and a throughput that is still unresolvable comes back as `inf`.
+- `geozl_2d_bench_c` returned from `reps == 0` and from a failed allocation
+  without touching `errCtx`. `geozl.profile` turned `reps=0` into an empty table
+  and now raises.
+
+### Added
+
+- `verify` on `geozl.decompress` and `geozl_2d_decompress_c`, default on. Off
+  skips both checksum verifications, worth 1 to 30 per cent of decode. It cannot
+  add a checksum a frame does not carry.
+- `verify` on `geozl.profile`, default off, which moves the decode column only.
+- `checksum` on `geozl_2d_bench_c`. A bench that drops it stops measuring the
+  frame compress writes. `geozl.profile` leaves it on.
+- A `bytes` column on every `geozl.profile` row.
+
+### Breaking
+
+- `geozl_2d_decompress_c` takes `int verify` between `outSize` and `errCtx`.
+- `geozl_2d_bench_c` takes `int checksum, int verify` between `reps` and
+  `compSize`.
+
 ## [0.8.1] - 2026-08-04
 
 ### Fixed

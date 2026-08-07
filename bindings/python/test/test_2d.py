@@ -148,6 +148,40 @@ def test_corrupt_payload_is_reported():
         geozl.decompress(bytes(frame), dtype="int16")
 
 
+def test_verification_off_still_round_trips():
+    arr = _tile()
+    frame = geozl.compress(arr, method=GRAPH)
+    out = geozl.decompress(frame, dtype="int16", width=arr.shape[1],
+                           verify=False)
+    assert np.array_equal(out, arr)
+
+
+def test_verification_is_what_reads_the_checksums():
+    """Both checksums sit in the frame tail. Every flip there is refused with
+    verification on. With it off some come back untouched, which are the ones
+    that landed on a checksum and nowhere else, and the rest come back holding a
+    different raster without a word."""
+    arr = _tile()
+    frame = geozl.compress(arr, method=GRAPH)
+    intact = quiet = 0
+    for pos in range(2, 64):
+        bad = bytearray(frame)
+        bad[-pos] ^= 0xFF
+        bad = bytes(bad)
+        with pytest.raises(RuntimeError, match="decompress failed"):
+            geozl.decompress(bad, dtype="int16", width=arr.shape[1])
+        try:
+            out = geozl.decompress(bad, dtype="int16", width=arr.shape[1],
+                                   verify=False)
+        except RuntimeError:
+            continue
+        if np.array_equal(out, arr):
+            intact += 1
+        else:
+            quiet += 1
+    assert intact and quiet
+
+
 @pytest.mark.parametrize("recipe,bound",
                          [("LINEAR:MAX_ERROR=1", 1),
                           ("LINEAR:MAX_ERROR=2.0", 2.0),
@@ -179,11 +213,14 @@ def test_profile_names_graphs_compress_accepts():
     assert np.array_equal(_roundtrip(arr, method=best), arr)
 
 
-def test_profile_ratio_matches_the_frame_compress_produces():
+def test_profile_reports_the_frame_compress_writes_to_the_byte():
+    """Not approximately. The bench used to time with the content checksum off,
+    which left its frame four bytes under the one compress writes."""
     arr = _tile()
-    row = geozl.profile(arr, reps=1)[0]
-    frame = geozl.compress(arr, method=row["graph"])
-    assert len(frame) == pytest.approx(arr.nbytes / row["ratio"], rel=0.01)
+    for row in geozl.profile(arr, method=None, reps=1):
+        frame = geozl.compress(arr, method=row["graph"])
+        assert len(frame) == row["bytes"], row["graph"]
+        assert row["ratio"] == arr.nbytes / len(frame)
 
 
 def test_unbiased_prior_sweeps_more_graphs_than_a_named_one():
@@ -207,6 +244,28 @@ def test_transpose_terminals_drop_out_on_1_byte_elements():
 def test_profile_rejects_an_unknown_prior():
     with pytest.raises(ValueError, match="not one of"):
         geozl.profile(_tile(), method="not_a_predictor")
+
+
+def test_verify_moves_the_clock_and_never_the_frame():
+    arr = _tile()
+    on = geozl.profile(arr, method=None, reps=1, verify=True)
+    off = geozl.profile(arr, method=None, reps=1, verify=False)
+    assert {r["graph"]: r["bytes"] for r in on} == \
+           {r["graph"]: r["bytes"] for r in off}
+
+
+def test_profile_needs_at_least_one_rep():
+    # reps=0 failed every bench call and came back as an empty table
+    with pytest.raises(ValueError, match="at least 1"):
+        geozl.profile(_tile(), reps=0)
+
+
+def test_a_tile_too_small_to_time_still_profiles():
+    """One rep over a kilobyte can finish inside a clock tick, and macOS ticks
+    at a microsecond. A zero there used to divide."""
+    rows = geozl.profile(np.zeros((8, 8), np.uint8), method=None, reps=1)
+    assert rows
+    assert all(r["encode_mbps"] > 0 and r["decode_mbps"] > 0 for r in rows)
 
 
 def test_profile_lossy_beats_profile_lossless():
@@ -245,9 +304,8 @@ def test_order0_bits_of_a_constant_tile_is_zero():
 # nothing missing is untouched by any of it.
 
 def _holed(dtype=np.float32, hole=np.nan):
-    """Bigger than _tile on purpose. profile times with the content checksum
-    off, so its frame runs four bytes under the one compress writes, and a
-    small tile would spend the whole 1% tolerance on those four bytes."""
+    """Bigger than _tile on purpose, so the mask stream weighs something against
+    the raster."""
     arr = _tile(shape=(64, 64), dtype=np.int32).astype(dtype)
     arr[8:24, 12:40] = hole
     return arr
@@ -327,15 +385,14 @@ def test_profile_and_compress_agree_when_the_tile_holds_nan():
     will actually build. Without nodata reaching the bench the two disagree."""
     arr = _holed()
     row = geozl.profile(arr, reps=1)[0]
-    frame = geozl.compress(arr, method=row["graph"])
-    assert len(frame) == pytest.approx(arr.nbytes / row["ratio"], rel=0.01)
+    assert len(geozl.compress(arr, method=row["graph"])) == row["bytes"]
 
 
 def test_profile_takes_a_sentinel_too():
     arr = _holed(np.int32, hole=-9999)
     row = geozl.profile(arr, reps=1, nodata=-9999)[0]
     frame = geozl.compress(arr, method=row["graph"], nodata=-9999)
-    assert len(frame) == pytest.approx(arr.nbytes / row["ratio"], rel=0.01)
+    assert len(frame) == row["bytes"]
 
 
 def test_profile_rejects_a_sentinel_on_a_dtype_geozl_cannot_read():

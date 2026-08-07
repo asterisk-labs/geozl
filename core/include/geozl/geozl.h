@@ -117,21 +117,30 @@ GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
 GEOZL_API size_t geozl_2d_frame_dsize_c(const void *frame, size_t frameSize);
 
 // Decompress a self-describing frame into dst. Returns 0 or the ZL_ErrorCode.
+// verify == 0 skips both checksum verifications, worth 1 to 30 per cent of
+// decode depending on how fast the frame already reads. It cannot add a
+// checksum a frame does not carry, that is written at compression time.
 GEOZL_API int geozl_2d_decompress_c(const void *frame, size_t frameSize,
                                     void *dst, size_t dstCapacity,
-                                    size_t *outSize, char *errCtx,
+                                    size_t *outSize, int verify, char *errCtx,
                                     size_t errCtxSize);
 
 // Times one graph, reps compressions and reps decompressions, all in C so the
 // FFI is crossed once. Returns 0 or the ZL_ErrorCode of the first failing round
 // trip. The nodata pair matches geozl_2d_compress_c, so the graph timed here is
 // the one compress would build.
+//
+// checksum == 0 drops both checksums from the frame, so *compSize stops being
+// the size compress writes; a lossy recipe drops the content one either way.
+// verify is the decode side and costs no bytes. A profiler wants checksum 1 and
+// verify 0.
 GEOZL_API int geozl_2d_bench_c(const char *method, uint32_t width,
                                const char *error, int dtype, int nodataMode,
                                uint64_t nodataBits, const void *src,
                                size_t numElts, size_t eltWidth, size_t reps,
-                               size_t *compSize, double *encSec, double *decSec,
-                               char *errCtx, size_t errCtxSize);
+                               int checksum, int verify, size_t *compSize,
+                               double *encSec, double *decSec, char *errCtx,
+                               size_t errCtxSize);
 
 // Recipe names of the grid a method expands to, one per stride-byte slot,
 // count in *outCount. -1 on an unknown method.

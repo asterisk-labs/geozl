@@ -131,11 +131,15 @@ def compress(tile: ArrayLike, *, method: str, width: int | None = None,
 
 
 def decompress(frame: bytes, *, dtype: DTypeLike | None = None,
-               width: int | None = None) -> np.ndarray:
+               width: int | None = None, verify: bool = True) -> np.ndarray:
     """Decompress a self-describing geozl frame to a numpy array.
 
     Lossless frames keep the element width but not its sign, so pass dtype to
     recover int vs float. width reshapes to 2d.
+
+    verify checks the checksums the frame carries, which is what tells a frame
+    that rotted in storage from one that did not. Off buys 1 to 30 per cent of
+    decode and gives up the only warning you get.
     """
     lib = _load_lib_full()
     buf = np.frombuffer(frame, np.uint8)
@@ -149,7 +153,8 @@ def decompress(frame: bytes, *, dtype: DTypeLike | None = None,
     out_size = ffi.new("size_t*")
     err_ctx = ffi.new("char[]", 256)
     rc = lib.geozl_2d_decompress_c(_ptr(buf), buf.size, _ptr(out), out.size,
-                                   out_size, err_ctx, len(err_ctx))
+                                   out_size, int(verify), err_ctx,
+                                   len(err_ctx))
     if rc != 0:
         reason = ffi.string(err_ctx).decode("utf-8", "replace")
         raise RuntimeError(f"geozl.decompress failed: {reason} "
@@ -176,6 +181,12 @@ def _grid_names(method: str | None, elt: int) -> list[str]:
     return [ffi.string(names + i * stride).decode("utf-8") for i in range(n)]
 
 
+def _mbps(nbytes: int, seconds: float) -> float:
+    """inf when the whole run stayed inside a clock tick, which a small tile on
+    a coarse clock does. A number there would be one tick wide."""
+    return math.inf if seconds <= 0.0 else nbytes / seconds / 1e6
+
+
 def _order0_bits(arr: np.ndarray) -> float:
     b = np.frombuffer(arr.tobytes(), np.uint8)
     counts = np.bincount(b, minlength=256).astype(np.float64)
@@ -185,19 +196,28 @@ def _order0_bits(arr: np.ndarray) -> float:
 
 def profile(tile: ArrayLike, *, method: str | None = "planar",
             width: int | None = None, error: str | None = None,
-            reps: int = 5, nodata: Any = None) -> list[dict[str, Any]]:
+            reps: int = 5, nodata: Any = None,
+            verify: bool = False) -> list[dict[str, Any]]:
     """Benchmark every candidate graph on one tile, one row each.
 
-    A diagnostic, not on the compress path. Timing runs in C (checksum off) so
-    the numbers are the pure codec. shannon_pct is frame size against the tile's
+    A diagnostic, not on the compress path. Timing runs in C against one
+    compressor and one decoder per graph, so it reports the codec and not the
+    graph build. "bytes" is the frame compress writes for that method, and
+    "ratio" follows from it. shannon_pct is frame size against the tile's
     order-0 entropy (over 100 means structure was exploited). Every "graph" it
-    returns is a method compress takes.
+    returns is a method compress takes. A throughput comes back as inf when the
+    tile was too small for the clock to time.
+
+    verify is the one setting here that does not match compress. Off, the decode
+    timing skips the checksums, a constant every graph in the grid pays alike.
 
     error and nodata mean the same as they do in compress, and are passed
-    through so the graph timed here is the one compress would build. Without it a tile holding
-    NaN would be profiled through a different graph than the one it ends up
-    compressed with, and the sizes would not line up.
+    through so the graph timed here is the one compress would build. Without it
+    a tile holding NaN would be profiled through a different graph than the one
+    it ends up compressed with, and the sizes would not line up.
     """
+    if reps < 1:
+        raise ValueError(f"reps must be at least 1, got {reps}")
     err = _error_arg(error)
     lib = _load_lib_full()
     arr, width, elt = _prepare(tile, width)
@@ -211,24 +231,27 @@ def profile(tile: ArrayLike, *, method: str | None = "planar",
 
     nd_mode, nd_bits = _nodata_args(arr, nodata)
 
-    rows = []
+    rows: list[dict[str, Any]] = []
     for name in _grid_names(method, elt):
         comp = ffi.new("size_t*")
         enc = ffi.new("double*")
         dec = ffi.new("double*")
         err_ctx = ffi.new("char[]", 256)
+        # checksum on, so "bytes" is the frame compress writes and not an
+        # estimate of it
         rc = lib.geozl_2d_bench_c(
             name.encode("utf-8"), width, err, int(code), nd_mode, nd_bits,
-            _ptr(arr), arr.size, elt, reps, comp, enc, dec, err_ctx,
-            len(err_ctx))
+            _ptr(arr), arr.size, elt, reps, 1, int(verify), comp, enc, dec,
+            err_ctx, len(err_ctx))
         if rc != 0:
             continue
         size = int(comp[0])
         rows.append({
             "graph": name,
+            "bytes": size,
             "ratio": raw / size,
-            "encode_mbps": raw / enc[0] / 1e6,
-            "decode_mbps": raw / dec[0] / 1e6,
+            "encode_mbps": _mbps(raw, enc[0]),
+            "decode_mbps": _mbps(raw, dec[0]),
             "shannon_pct": 100.0 * ideal / size,
         })
     rows.sort(key=lambda r: r["ratio"], reverse=True)
