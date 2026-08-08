@@ -5,6 +5,43 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-08-07
+
+### Added
+
+- `geozl.graph`, one built graph for many tiles. `compress` registered every
+  node and built the DAG on each call, so a raster cut into 400 tiles paid for
+  400 compressors. The handle owns the compressor and the CCtx and frees them
+  with `ffi.gc`.
+- `geozl_2d_graph_open_c`, `geozl_2d_compress_graph_c` and
+  `geozl_2d_graph_close_c`, which are `geozl_2d_compress_c` split in two.
+- `categorical` terminal. One pass takes the share the dominant symbol holds and
+  routes to `constant` at 1, `field_lz` above 0.95, `entropy` below. A cloud
+  mask sits near 0.97 and a land cover map near 0.50, so no fixed backend serves
+  both. A function graph, so the frame records the arm and there is nothing to
+  register on decode.
+- `test_graph.py` and `test_categorical.py`.
+
+### Changed
+
+- The grid is 56 recipes, 32 at one byte per element. `categorical` applies at 1
+  or 2 bytes, refused at build rather than in the branch, so it does not apply
+  or not by what the tile happens to hold.
+
+### Breaking
+
+- `geozl.compress` takes `graph` and nothing else. The recipe, the width, the
+  error recipe and the nodata declaration moved to `geozl.graph`.
+- `geozl.decompress` returns flat `uint8`, without `dtype` and `width`. The
+  caller finishes with `.view(dtype).reshape(shape)`.
+- `geozl.profile` takes `prior`, not `method`. The word named a full recipe in
+  one call and a predictor family in the other.
+- A lossy graph freezes the plan cut against the raster it was built on, since
+  the quantizer parameters are part of the graph. A tile reaching past that
+  raster quantizes on the wrong grid, and one holding negatives where the raster
+  had none decodes floored at zero. Pass the product, not the first tile.
+- `geozl_terminal` codes after `zstd` shift by one. Nothing persists them.
+
 ## [0.9.0] - 2026-08-06
 
 ### Fixed

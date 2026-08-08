@@ -151,8 +151,8 @@
     background:linear-gradient(90deg,#339 0%,#09f 15%,#0c6 25%,#ff9 50%,#805c54 75%,#fff 100%); }
 
   /* function picker. A row of tabs over a rule, no boxes. */
-  .fnpick{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
-    gap:clamp(24px,3vw,44px); border-bottom:1px solid var(--line-strong); }
+  .fnpick{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:clamp(18px,2.2vw,34px); border-bottom:1px solid var(--line-strong); }
   .fnpick button{ min-width:0; display:flex; flex-direction:column; gap:8px; align-items:flex-start;
     text-align:left; padding:0 0 clamp(14px,1.7vw,20px); margin:0 0 -1px; border:0;
     border-bottom:2px solid transparent; background:none; color:var(--ink);
@@ -631,7 +631,7 @@
 
   @media (max-width:980px){
     .api-intro{ align-items:flex-start; }
-    .api-overview .fnpick{ grid-template-columns:repeat(3,minmax(0,1fr)); }
+    .api-overview .fnpick{ grid-template-columns:repeat(2,minmax(0,1fr)); }
     .profile-visual{ grid-template-columns:1fr; }
     .profile-chart .plot{ min-width:760px; max-height:none; }
   }

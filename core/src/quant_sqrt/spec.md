@@ -246,7 +246,8 @@ any sequence of rasters, pools their block statistics through `quant_sqrt_accum`
 solves once, and `Noise.recipe(max_error)` formats the string.
 
     noise = geozl.lossy.fit_noise(stack)
-    frame = geozl.compress(tile, method=..., error=noise.recipe(0.5))
+    g = geozl.graph(stack, method, error=noise.recipe(0.5))
+    frame = geozl.compress(tile, graph=g)
 
 The pooling is what makes it worth doing. Over eight 256 by 256 rasters of a
 synthetic scene whose curve is `100 + 1.0*x`, the fit returns `51.4 + 1.041*x`.

@@ -51,11 +51,11 @@ pip install geozl
 
 ## Example
 
-GeoZL has two entry points: a high-level API that compresses a tile in one call, and a low-level API that places individual codecs in an OpenZL graph.
+GeoZL has two entry points: a high-level API that builds a graph from a recipe string and runs tiles through it, and a low-level API that places individual codecs in an OpenZL graph.
 
 ### High-level API
 
-`geozl.profile` measures a set of candidate graphs on your tile and ranks them, `geozl.compress` runs the one you name and returns the frame. It never searches, so the slow call happens once and the fast one happens on every tile after that. `geozl.decompress` reverses the frame back to a tile.
+`geozl.profile` measures a set of candidate graphs on your tile and ranks them, `geozl.graph` builds the one you name, and `geozl.compress` runs a tile through it. Nothing searches, so the slow call happens once, the build happens once, and what is left per tile is the codec. `geozl.decompress` reverses a frame back to bytes.
 
 ```python
 import numpy as np
@@ -66,11 +66,12 @@ tile = np.random.randint(0, 4096, (1024, 1024), dtype=np.uint16)
 rows = geozl.profile(tile)                        # the slow call, run once
 best = rows[0]["graph"]                           # e.g. "planar>zigzag>transpose>entropy"
 
-frame = geozl.compress(tile, method=best)         # the fast call, run always
-frame = geozl.compress(tile, method=best, error="LINEAR:MAX_ERROR=2")  # near-lossless
-frame = geozl.compress(tile, method=best, error="LOG:MAX_ERROR=1%")   # bound follows the value
+g = geozl.graph(tile, best)                       # built once, run on many tiles
+g = geozl.graph(tile, best, error="LINEAR:MAX_ERROR=2")  # near-lossless
+g = geozl.graph(tile, best, error="LOG:MAX_ERROR=1%")    # bound follows the value
 
-back = geozl.decompress(frame, dtype="uint16", width=1024)
+frame = geozl.compress(tile, graph=g)             # the fast call, run always
+back = geozl.decompress(frame).view(np.uint16).reshape(1024, 1024)
 ```
 
 ### Low-level API

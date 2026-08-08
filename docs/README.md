@@ -9,7 +9,7 @@ Light "datasheet" design: bordered panels, Space Grotesk + IBM Plex Mono, no sha
 geozl-site/
 ├── index.html          landing (sheet · spec table · index · distribution)
 ├── docs.html           Documentation
-├── api-high.html       High-level API   — compress()
+├── api-high.html       High-level API   — graph() and compress()
 ├── api-low.html        Low-level API    — build the OpenZL graph in Python
 ├── benchmark.html      Benchmark        — ratio vs speed
 └── assets/

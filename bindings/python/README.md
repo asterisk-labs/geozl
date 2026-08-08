@@ -9,14 +9,16 @@ import geozl
 
 tile = np.fromfile("b04.raw", dtype=np.uint16).reshape(1024, 1024)
 
-frame = geozl.compress(tile, method="planar>zigzag>transpose>entropy")
-back = geozl.decompress(frame, dtype="uint16", width=1024)
+g = geozl.graph(tile, "planar>zigzag>transpose>entropy")
+frame = geozl.compress(tile, graph=g)
+back = geozl.decompress(frame).view(np.uint16).reshape(1024, 1024)
 ```
 
-Twelve codecs, lossless and lossy, reachable two ways. `geozl.compress` takes a
-recipe string and builds the graph for you. `geozl.lossless` and `geozl.lossy`
-hand you the individual nodes to place in an OpenZL graph yourself, and
-`geozl.register_decoders` teaches a `DCtx` to read what they wrote.
+Thirteen codecs, lossless and lossy, reachable two ways. `geozl.graph` takes a
+recipe string and builds the graph for you, and `geozl.compress` runs one tile
+through it. `geozl.lossless` and `geozl.lossy` hand you the individual nodes to
+place in an OpenZL graph yourself, and `geozl.register_decoders` teaches a
+`DCtx` to read what they wrote.
 
 Wheels carry a prebuilt native library. A source install has to build it first,
 see the build instructions in the repository.
