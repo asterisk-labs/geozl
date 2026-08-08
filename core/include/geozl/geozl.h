@@ -113,6 +113,26 @@ GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
                                   size_t dstCapacity, size_t *outSize,
                                   char *errCtx, size_t errCtxSize);
 
+// geozl_2d_compress_c split in two, for a caller with many tiles that share a
+// graph. Same arguments up to the destination. src is read at open, since the
+// error recipe is cut against it.
+typedef struct geozl_2d_graph_s geozl_2d_graph;
+
+GEOZL_API int geozl_2d_graph_open_c(geozl_2d_graph **out, const char *method,
+                                    uint32_t width, const char *error,
+                                    int dtype, int nodataMode,
+                                    uint64_t nodataBits, const void *src,
+                                    size_t numElts, size_t eltWidth,
+                                    char *errCtx, size_t errCtxSize);
+
+// The element width comes from the graph, numElts is this tile's.
+GEOZL_API int geozl_2d_compress_graph_c(geozl_2d_graph *g, const void *src,
+                                        size_t numElts, void *dst,
+                                        size_t dstCapacity, size_t *outSize,
+                                        char *errCtx, size_t errCtxSize);
+
+GEOZL_API void geozl_2d_graph_close_c(geozl_2d_graph *g);
+
 // Decompressed byte size of a frame, or 0 if it cannot be read.
 GEOZL_API size_t geozl_2d_frame_dsize_c(const void *frame, size_t frameSize);
 

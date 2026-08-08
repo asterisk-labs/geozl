@@ -8,7 +8,9 @@
 #include "openzl/zl_decompress.h"
 #include "openzl/zl_errors_types.h"
 #include "openzl/zl_graph_api.h"
+#include "openzl/zl_input.h"   // ZL_Input_numElts and friends
 #include "openzl/zl_version.h" // ZL_MAX_FORMAT_VERSION
+#include "openzl/codecs/zl_constant.h"   // ZL_GRAPH_CONSTANT
 #include "openzl/codecs/zl_conversion.h" // ZL_NODE_CONVERT_*
 #include "openzl/codecs/zl_delta.h"      // ZL_NODE_DELTA_INT
 #include "openzl/codecs/zl_entropy.h"    // ZL_GRAPH_ENTROPY
@@ -72,15 +74,27 @@ typedef enum {
 // A terminal fixes the layout (interleaved or transposed to byte lanes) and the
 // backend. The transposed ones send every lane to one backend; store_lo
 // transposes but routes each lane on its own.
+//
+// categorical sits ahead of the transposed group on purpose: geozl_2d_grid_c
+// drops everything from GEOZL_TERM_T_ENTROPY on for a 1-byte element, and a
+// 1-byte element is what a class raster is.
 typedef enum {
   GEOZL_TERM_ENTROPY = 0, // adaptive FSE/Huffman
   GEOZL_TERM_FIELD_LZ,    // field-wise LZ over the numeric residual
   GEOZL_TERM_ZSTD,        // serialize, then zstd
+  GEOZL_TERM_CATEGORICAL, // dispatch on the dominant symbol's share
   GEOZL_TERM_T_ENTROPY,   // transpose to lanes, entropy (shuffle + entropy)
   GEOZL_TERM_T_ZSTD,      // transpose to lanes, zstd (shuffle + zstd)
   GEOZL_TERM_STORE_LO,    // transpose, low lane stored, high lanes entropy
   GEOZL_TERM_COUNT
 } geozl_terminal;
+
+// Share of the stream the dominant symbol has to hold before LZ beats an
+// entropy backend. Measured on synthetic categorical fields, where the
+// crossover tracks this share and barely moves with the class count. Real land
+// cover has straight parcel edges those fields do not reproduce, so this is the
+// number to re-measure against WorldCover or CORINE.
+#define GEOZL_CATEGORICAL_LZ 0.95
 
 static const char *pred_name(geozl_predictor p) {
   switch (p) {
@@ -101,6 +115,7 @@ static const char *term_name(geozl_terminal t) {
   case GEOZL_TERM_ENTROPY:   return "entropy";
   case GEOZL_TERM_FIELD_LZ:  return "field_lz";
   case GEOZL_TERM_ZSTD:      return "zstd";
+  case GEOZL_TERM_CATEGORICAL: return "categorical";
   case GEOZL_TERM_T_ENTROPY: return "transpose>entropy";
   case GEOZL_TERM_T_ZSTD:    return "transpose>zstd";
   case GEOZL_TERM_STORE_LO:  return "store_lo";
@@ -185,6 +200,62 @@ static ZL_Report geozl_storelo_fg(ZL_Graph *g, ZL_Edge *inputs[],
   return ZL_returnSuccess();
 }
 
+// Boyer-Moore majority vote, then an exact count of the candidate. A histogram
+// would want a table the element width does not bound, and both thresholds sit
+// above one half, which is the regime the vote resolves exactly. Under one half
+// the candidate fails its count, and the answer there is entropy either way.
+static size_t dominant_count(const void *src, size_t n, size_t eltWidth) {
+  const unsigned char *p = (const unsigned char *)src;
+  uint64_t cand = 0;
+  size_t votes = 0;
+  for (size_t i = 0; i < n; ++i) {
+    uint64_t v = 0;
+    memcpy(&v, p + i * eltWidth, eltWidth);
+    if (votes == 0) {
+      cand = v;
+      votes = 1;
+    } else if (v == cand) {
+      ++votes;
+    } else {
+      --votes;
+    }
+  }
+  size_t hits = 0;
+  for (size_t i = 0; i < n; ++i) {
+    uint64_t v = 0;
+    memcpy(&v, p + i * eltWidth, eltWidth);
+    hits += (v == cand);
+  }
+  return hits;
+}
+
+// A class raster splits by how much of the stream the dominant symbol takes,
+// not by how many classes it holds. All of it is ZL_GRAPH_CONSTANT, most of it
+// means runs and LZ collapses them, otherwise the texture dominates and the
+// skew is the signal. One pass answers both questions. The branch is data
+// dependent, but OpenZL records which graph each stream took, so the frame
+// carries it and there is no decoder to register.
+static ZL_Report geozl_categorical_fg(ZL_Graph *g, ZL_Edge *inputs[],
+                                      size_t nbInputs) {
+  (void)g;
+  (void)nbInputs;
+  const ZL_Input *in = ZL_Edge_getData(inputs[0]);
+  const size_t n = ZL_Input_numElts(in);
+  // ZL_GRAPH_CONSTANT refuses an empty stream, and an empty one has no dominant
+  // symbol to measure.
+  if (n == 0)
+    return ZL_Edge_setDestination(inputs[0], ZL_GRAPH_ENTROPY);
+
+  const size_t hits =
+      dominant_count(ZL_Input_ptr(in), n, ZL_Input_eltWidth(in));
+  ZL_GraphID dst = ZL_GRAPH_ENTROPY;
+  if (hits == n)
+    dst = ZL_GRAPH_CONSTANT;
+  else if ((double)hits > GEOZL_CATEGORICAL_LZ * (double)n)
+    dst = ZL_GRAPH_FIELD_LZ;
+  return ZL_Edge_setDestination(inputs[0], dst);
+}
+
 // One candidate graph, or ZL_GRAPH_ILLEGAL if the pair does not apply.
 static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
                                   geozl_terminal t, uint32_t width,
@@ -211,6 +282,27 @@ static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
   case GEOZL_TERM_ZSTD:
     head[n++] = ZL_NODE_CONVERT_NUM_TO_SERIAL;
     return chain(c, head, n, ZL_GRAPH_ZSTD);
+  case GEOZL_TERM_CATEGORICAL: {
+    // The entropy arm takes 1 or 2 bytes and the other two take any width, so
+    // without this the terminal would apply or not by what the tile happens to
+    // hold. Numeric in, no transpose, so no conversion node ahead of it.
+    if (eltWidth > 2)
+      return ZL_GRAPH_ILLEGAL;
+    static const ZL_Type in_mask = ZL_Type_numeric;
+    static const ZL_GraphID used[3] = {ZL_GRAPH_CONSTANT, ZL_GRAPH_FIELD_LZ,
+                                       ZL_GRAPH_ENTROPY};
+    ZL_FunctionGraphDesc desc = {0};
+    desc.name = "geozl_categorical";
+    desc.graph_f = geozl_categorical_fg;
+    desc.inputTypeMasks = &in_mask;
+    desc.nbInputs = 1;
+    desc.customGraphs = used;
+    desc.nbCustomGraphs = 3;
+    ZL_GraphID fg = ZL_Compressor_registerFunctionGraph(c, &desc);
+    if (!ZL_GraphID_isValid(fg))
+      return ZL_GRAPH_ILLEGAL;
+    return chain(c, head, n, fg);
+  }
   case GEOZL_TERM_T_ENTROPY:
   case GEOZL_TERM_T_ZSTD: {
     // transpose to byte lanes, every lane to one backend
@@ -308,34 +400,43 @@ static void copy_err(char *dst, size_t cap, const char *src) {
   dst[n] = '\0';
 }
 
-// A compressor and the context bound to it. Registering the nodes and the graph
-// is fixed cost, so the bench builds this once and times the runs against it.
-typedef struct {
+// A compressor, the context bound to it, and the two numbers every compression
+// through it has to agree on. Registering the nodes and the graph is fixed
+// cost, so a caller with N tiles opens this once and runs each tile against it.
+// eltWidth and dtype live here rather than travelling per call because the
+// quantizer tables are indexed by them and a mismatch is silent.
+struct geozl_2d_graph_s {
   ZL_Compressor *c;
   ZL_CCtx *cctx;
-} geozl_encoder;
+  size_t eltWidth;
+  int dtype;
+};
 
-static void encoder_close(geozl_encoder *e) {
-  if (e->cctx != NULL)
-    ZL_CCtx_free(e->cctx);
-  if (e->c != NULL)
-    ZL_Compressor_free(e->c);
-  e->cctx = NULL;
-  e->c = NULL;
+GEOZL_API void geozl_2d_graph_close_c(geozl_2d_graph *g) {
+  if (g == NULL)
+    return;
+  if (g->cctx != NULL)
+    ZL_CCtx_free(g->cctx);
+  if (g->c != NULL)
+    ZL_Compressor_free(g->c);
+  free(g);
 }
 
 // Validates, resolves the error recipe, builds the graph and binds a context.
-// On failure *e is left empty and needs no close. checksum == 0 drops both
-// frame checksums; a lossy plan drops the content one anyway, since the frame
-// does not rebuild what that checksum was taken over.
-static ZL_Report encoder_open(geozl_encoder *e, const char *method,
-                              uint32_t width, const char *error, int dtype,
-                              int nodataMode, uint64_t nodataBits,
-                              const void *src, size_t numElts, size_t eltWidth,
-                              int checksum, char *errCtx, size_t errCtxSize) {
+// On failure *out is NULL and there is nothing to close. checksum == 0 drops
+// both frame checksums; a lossy plan drops the content one anyway, since the
+// frame does not rebuild what that checksum was taken over.
+//
+// src is read here and not in the run, since the error recipe is cut against
+// it, so the plan every later tile carries is the one measured on this one.
+static ZL_Report graph_open(geozl_2d_graph **out, const char *method,
+                            uint32_t width, const char *error, int dtype,
+                            int nodataMode, uint64_t nodataBits,
+                            const void *src, size_t numElts, size_t eltWidth,
+                            int checksum, char *errCtx, size_t errCtxSize) {
   const int has_err = errCtx != NULL && errCtxSize != 0;
-  e->c = NULL;
-  e->cctx = NULL;
+  geozl_2d_graph *e;
+  *out = NULL;
 
   // ZL_TypedRef_createNumeric only returns NULL, so an unsupported width would
   // otherwise be reported as an allocation failure.
@@ -368,9 +469,7 @@ static ZL_Report encoder_open(geozl_encoder *e, const char *method,
   }
 
   // Cut here and not in the node, so compress, bench and profile all report the
-  // same numbers. A SQRT recipe with no curve gets one fitted from this tile,
-  // since nothing at this entry point carries a product. It reads src, which
-  // does not move, so it belongs here and not in the run.
+  // same numbers.
   geozl_lossy_recipe recipe;
   geozl_lossy_plan plan;
   {
@@ -386,9 +485,16 @@ static ZL_Report encoder_open(geozl_encoder *e, const char *method,
     }
   }
 
-  e->c = ZL_Compressor_create();
-  if (e->c == NULL)
+  e = calloc(1, sizeof(*e));
+  if (e == NULL)
     return ZL_returnError(ZL_ErrorCode_allocation);
+  e->eltWidth = eltWidth;
+
+  e->c = ZL_Compressor_create();
+  if (e->c == NULL) {
+    free(e);
+    return ZL_returnError(ZL_ErrorCode_allocation);
+  }
 
   ZL_Report r;
   err_owner owner = ERR_NONE;
@@ -399,7 +505,8 @@ static ZL_Report encoder_open(geozl_encoder *e, const char *method,
     if (has_err)
       snprintf(errCtx, errCtxSize,
                "method \"%s\" does not apply to %zu-byte elements; the "
-               "transpose and store_lo terminals need 2 to 8",
+               "transpose and store_lo terminals need 2 to 8, categorical "
+               "needs 1 or 2",
                method, eltWidth);
     r = ZL_returnError(ZL_ErrorCode_graph_invalid);
     goto fail;
@@ -449,6 +556,7 @@ static ZL_Report encoder_open(geozl_encoder *e, const char *method,
       goto fail;
     }
   }
+  *out = e;
   return ZL_returnSuccess();
 
 fail:
@@ -456,16 +564,15 @@ fail:
     copy_err(errCtx, errCtxSize, ZL_CCtx_getErrorContextString(e->cctx, r));
   else if (owner == ERR_COMPRESSOR)
     copy_err(errCtx, errCtxSize, ZL_Compressor_getErrorContextString(e->c, r));
-  encoder_close(e);
+  geozl_2d_graph_close_c(e);
   return r;
 }
 
-// One compression through a prepared context, frame size in *outSize.
-static ZL_Report encoder_run(const geozl_encoder *e, const void *src,
-                             size_t numElts, size_t eltWidth, void *dst,
-                             size_t dstCapacity, size_t *outSize, char *errCtx,
-                             size_t errCtxSize) {
-  ZL_TypedRef *in = ZL_TypedRef_createNumeric(src, eltWidth, numElts);
+// One compression through a prepared graph, frame size in *outSize.
+static ZL_Report graph_run(const geozl_2d_graph *e, const void *src,
+                           size_t numElts, void *dst, size_t dstCapacity,
+                           size_t *outSize, char *errCtx, size_t errCtxSize) {
+  ZL_TypedRef *in = ZL_TypedRef_createNumeric(src, e->eltWidth, numElts);
   if (in == NULL) {
     if (errCtx != NULL && errCtxSize != 0)
       snprintf(errCtx, errCtxSize, "could not wrap src as a numeric stream");
@@ -480,6 +587,33 @@ static ZL_Report encoder_run(const geozl_encoder *e, const void *src,
   return r;
 }
 
+// The same two halves as the bindings see them, ZL_Report folded to 0 or the
+// ZL_ErrorCode.
+GEOZL_API int geozl_2d_graph_open_c(geozl_2d_graph **out, const char *method,
+                                    uint32_t width, const char *error,
+                                    int dtype, int nodataMode,
+                                    uint64_t nodataBits, const void *src,
+                                    size_t numElts, size_t eltWidth,
+                                    char *errCtx, size_t errCtxSize) {
+  if (errCtx != NULL && errCtxSize != 0)
+    errCtx[0] = '\0';
+  ZL_Report r =
+      graph_open(out, method, width, error, dtype, nodataMode, nodataBits, src,
+                 numElts, eltWidth, 1, errCtx, errCtxSize);
+  return ZL_isError(r) ? (int)ZL_errorCode(r) : 0;
+}
+
+GEOZL_API int geozl_2d_compress_graph_c(geozl_2d_graph *g, const void *src,
+                                        size_t numElts, void *dst,
+                                        size_t dstCapacity, size_t *outSize,
+                                        char *errCtx, size_t errCtxSize) {
+  if (errCtx != NULL && errCtxSize != 0)
+    errCtx[0] = '\0';
+  ZL_Report r = graph_run(g, src, numElts, dst, dstCapacity, outSize, errCtx,
+                          errCtxSize);
+  return ZL_isError(r) ? (int)ZL_errorCode(r) : 0;
+}
+
 // The one compression entry. Returns 0 or the ZL_ErrorCode, keeping ZL_Report
 // out of the bindings, with the reason in errCtx and the frame size in *outSize.
 GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
@@ -491,14 +625,14 @@ GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
   if (errCtx != NULL && errCtxSize != 0)
     errCtx[0] = '\0';
 
-  geozl_encoder e;
-  ZL_Report r = encoder_open(&e, method, width, error, dtype, nodataMode,
-                             nodataBits, src, numElts, eltWidth, 1, errCtx,
-                             errCtxSize);
+  geozl_2d_graph *e;
+  ZL_Report r = graph_open(&e, method, width, error, dtype, nodataMode,
+                           nodataBits, src, numElts, eltWidth, 1, errCtx,
+                           errCtxSize);
   if (!ZL_isError(r)) {
-    r = encoder_run(&e, src, numElts, eltWidth, dst, dstCapacity, outSize,
-                    errCtx, errCtxSize);
-    encoder_close(&e);
+    r = graph_run(e, src, numElts, dst, dstCapacity, outSize, errCtx,
+                  errCtxSize);
+    geozl_2d_graph_close_c(e);
   }
   return ZL_isError(r) ? (int)ZL_errorCode(r) : 0;
 }
@@ -630,17 +764,17 @@ GEOZL_API int geozl_2d_bench_c(const char *method, uint32_t width,
     return (int)ZL_ErrorCode_parameter_invalid;
   }
 
-  geozl_encoder enc;
-  ZL_Report r = encoder_open(&enc, method, width, error, dtype, nodataMode,
-                             nodataBits, src, numElts, eltWidth, checksum,
-                             errCtx, errCtxSize);
+  geozl_2d_graph *enc;
+  ZL_Report r = graph_open(&enc, method, width, error, dtype, nodataMode,
+                           nodataBits, src, numElts, eltWidth, checksum,
+                           errCtx, errCtxSize);
   if (ZL_isError(r))
     return (int)ZL_errorCode(r);
 
   geozl_decoder dec;
   r = decoder_open(&dec, verify, errCtx, errCtxSize);
   if (ZL_isError(r)) {
-    encoder_close(&enc);
+    geozl_2d_graph_close_c(enc);
     return (int)ZL_errorCode(r);
   }
 
@@ -664,8 +798,7 @@ GEOZL_API int geozl_2d_bench_c(const char *method, uint32_t width,
   mark = now_sec();
   for (size_t i = 0; i < reps; ++i) {
     double t0 = now_sec();
-    r = encoder_run(&enc, src, numElts, eltWidth, cbuf, cap, &sz, errCtx,
-                    errCtxSize);
+    r = graph_run(enc, src, numElts, cbuf, cap, &sz, errCtx, errCtxSize);
     double dt = now_sec() - t0;
     if (ZL_isError(r)) {
       rc = (int)ZL_errorCode(r);
@@ -708,7 +841,7 @@ done:
   free(dbuf);
   free(cbuf);
   decoder_close(&dec);
-  encoder_close(&enc);
+  geozl_2d_graph_close_c(enc);
   return rc;
 }
 
@@ -760,6 +893,10 @@ GEOZL_API int geozl_2d_grid_c(const char *method, size_t eltWidth, char *names,
       // the transpose-based terminals need at least a 2-byte element
       if ((geozl_terminal)t >= GEOZL_TERM_T_ENTROPY &&
           (eltWidth < 2 || eltWidth > 8))
+        continue;
+      // categorical's entropy arm tops out at 2, the same place ZL_GRAPH_ENTROPY
+      // does
+      if ((geozl_terminal)t == GEOZL_TERM_CATEGORICAL && eltWidth > 2)
         continue;
       if (k < maxNames)
         candidate_name(preds[i], (geozl_terminal)t, names + k * stride, stride);

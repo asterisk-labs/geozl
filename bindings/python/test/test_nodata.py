@@ -39,9 +39,13 @@ def _holes(shape=(ROWS, COLS)):
     return ((y - 16) ** 2 + (x - 20) ** 2 < 120) | (y == shape[0] - 1)
 
 
+def _frame(arr, **kw):
+    return geozl.compress(arr, graph=geozl.graph(arr, **kw))
+
+
 def _roundtrip(arr, **kw):
-    frame = geozl.compress(arr, **kw)
-    out = geozl.decompress(frame, dtype=arr.dtype.name, width=arr.shape[1])
+    frame = _frame(arr, **kw)
+    out = geozl.decompress(frame).view(arr.dtype).reshape(arr.shape)
     return frame, out
 
 
@@ -71,8 +75,8 @@ def test_tile_with_no_holes_sends_no_mask():
     """The all valid code drops the mask stream, so declaring a sentinel that
     the tile does not contain has to cost about nothing."""
     tile = _smooth(np.uint16)
-    absent = len(geozl.compress(tile, method=GRAPH, nodata=40000))
-    plain = len(geozl.compress(tile, method=GRAPH))
+    absent = len(_frame(tile, method=GRAPH, nodata=40000))
+    plain = len(_frame(tile, method=GRAPH))
     assert absent <= plain + 16
 
 
@@ -117,8 +121,8 @@ def test_sentinel_every_dtype(dtype):
 def test_holes_do_not_blow_up_the_frame():
     tile = _smooth(np.float32)
     tile[_holes()] = -9999.0
-    with_codec = len(geozl.compress(tile, method=GRAPH_WIDE, nodata=-9999.0))
-    without = len(geozl.compress(tile, method=GRAPH_WIDE))
+    with_codec = len(_frame(tile, method=GRAPH_WIDE, nodata=-9999.0))
+    without = len(_frame(tile, method=GRAPH_WIDE))
     assert with_codec < without * 1.5
 
 
@@ -148,7 +152,7 @@ def test_sentinel_needs_a_known_dtype():
     tile = _smooth(np.float32).astype(np.dtype("f4"))
     # A dtype geozl has no code for cannot carry a sentinel.
     with pytest.raises(ValueError):
-        geozl.compress(tile.view(np.dtype("V4")), method=GRAPH_WIDE, nodata=1)
+        geozl.graph(tile.view(np.dtype("V4")), method=GRAPH_WIDE, nodata=1)
 
 
 def _low_level_roundtrip(node, arr):

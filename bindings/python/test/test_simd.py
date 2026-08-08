@@ -97,7 +97,8 @@ def test_vector_and_scalar_agree_byte_for_byte():
         "t = (1200 + rng.normal(0, 40, (256, 256))).round().astype(np.int16)\n"
         "t[40:90, 10:200] = -9999\n"
         "t[::7, ::11] = -9999\n"
-        "f = geozl.compress(t, method='planar>zigzag>entropy', nodata=-9999)\n"
+        "g = geozl.graph(t, 'planar>zigzag>entropy', nodata=-9999)\n"
+        "f = geozl.compress(t, graph=g)\n"
         "print(hashlib.sha256(f).hexdigest())\n"
     )
     assert run_with("scalar", snippet) == run_with(None, snippet)

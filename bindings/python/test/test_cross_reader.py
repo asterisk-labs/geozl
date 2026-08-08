@@ -43,6 +43,10 @@ def _method(predictor, dtype):
     return f"{predictor}>{tail}"
 
 
+def _frame_from_c(arr, method, **kw):
+    return geozl.compress(arr, graph=geozl.graph(arr, method=method, **kw))
+
+
 def _read_with_python_decoders(frame):
     d = zl.DCtx()
     geozl.register_decoders(d)
@@ -64,7 +68,7 @@ def _frame_from_python_node(node, arr):
                          ids=[p for p, _ in _PREDICTORS])
 def test_a_c_frame_reads_in_the_python_decoders(predictor, node, dtype):
     arr = _tile(dtype)
-    frame = geozl.compress(arr, method=_method(predictor, dtype))
+    frame = _frame_from_c(arr, _method(predictor, dtype))
     out = _read_with_python_decoders(frame).view(arr.dtype)
     assert np.array_equal(out.reshape(arr.shape), arr)
 
@@ -75,7 +79,8 @@ def test_a_c_frame_reads_in_the_python_decoders(predictor, node, dtype):
 def test_a_python_frame_reads_in_the_c_decoders(predictor, node, dtype):
     arr = _tile(dtype)
     frame = _frame_from_python_node(node(_W), arr)
-    assert np.array_equal(geozl.decompress(frame, dtype=dtype, width=_W), arr)
+    out = geozl.decompress(frame).view(dtype).reshape(-1, _W)
+    assert np.array_equal(out, arr)
 
 
 @pytest.mark.parametrize("error", [
@@ -93,9 +98,8 @@ def test_both_decoders_return_the_same_bytes_on_a_lossy_frame(error):
     n = w * w
     arr = (10.0 ** np.linspace(-3, 4, n) * rng.uniform(0.9, 1.1, n)
            ).reshape(w, w).astype(np.float32)
-    frame = geozl.compress(arr, method="planar>zigzag>transpose>entropy",
-                           error=error)
-    from_c = geozl.decompress(frame, dtype="float32", width=w)
+    frame = _frame_from_c(arr, "planar>zigzag>transpose>entropy", error=error)
+    from_c = geozl.decompress(frame).view(np.float32).reshape(w, w)
     from_py = _read_with_python_decoders(frame).view(np.float32)
     assert np.array_equal(from_py.reshape(from_c.shape).view(np.uint32),
                           from_c.view(np.uint32))
@@ -111,9 +115,9 @@ def test_the_nodata_header_reads_in_both_directions(dtype, hole):
     arr = _tile("int32").astype(dtype)
     arr[4:12, 6:20] = np.array(hole).astype(dtype)
     kw = {} if dtype == "float32" else {"nodata": hole}
-    frame = geozl.compress(arr, method="planar>zigzag>transpose>entropy", **kw)
+    frame = _frame_from_c(arr, "planar>zigzag>transpose>entropy", **kw)
 
-    from_c = geozl.decompress(frame, dtype=dtype, width=_W)
+    from_c = geozl.decompress(frame).view(np.dtype(dtype)).reshape(_W, _W)
     from_py = _read_with_python_decoders(frame).view(np.dtype(dtype))
     assert np.array_equal(from_py.reshape(arr.shape).view(f"u{arr.itemsize}"),
                           from_c.view(f"u{arr.itemsize}"))

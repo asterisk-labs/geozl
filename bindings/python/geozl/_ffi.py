@@ -72,6 +72,10 @@ int geozl_2d_compress_c(const char* method, uint32_t width, const char* error, i
 size_t geozl_2d_frame_dsize_c(const void* frame, size_t frame_size);
 int geozl_2d_decompress_c(const void* frame, size_t frame_size, void* dst, size_t dst_capacity, size_t* out_size, int verify, char* err_ctx, size_t err_ctx_size);
 int geozl_2d_bench_c(const char* method, uint32_t width, const char* error, int dtype, int nodata_mode, uint64_t nodata_bits, const void* src, size_t num_elts, size_t elt_width, size_t reps, int checksum, int verify, size_t* comp_size, double* enc_sec, double* dec_sec, char* err_ctx, size_t err_ctx_size);
+typedef struct geozl_2d_graph_s geozl_2d_graph;
+int geozl_2d_graph_open_c(geozl_2d_graph** out, const char* method, uint32_t width, const char* error, int dtype, int nodata_mode, uint64_t nodata_bits, const void* src, size_t num_elts, size_t elt_width, char* err_ctx, size_t err_ctx_size);
+int geozl_2d_compress_graph_c(geozl_2d_graph* g, const void* src, size_t num_elts, void* dst, size_t dst_capacity, size_t* out_size, char* err_ctx, size_t err_ctx_size);
+void geozl_2d_graph_close_c(geozl_2d_graph* g);
 int geozl_2d_grid_c(const char* method, size_t elt_width, char* names, size_t stride, size_t max_names, size_t* out_count);
 
 unsigned geozl_simd_built(void);

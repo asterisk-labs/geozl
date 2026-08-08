@@ -2,7 +2,7 @@ import math
 from typing import Any
 
 import numpy as np
-from numpy.typing import ArrayLike, DTypeLike
+from numpy.typing import ArrayLike
 
 from ._dtype import dtype_code
 from ._ffi import _load_lib_full, _ptr, ffi
@@ -22,15 +22,15 @@ _NODATA_NONE, _NODATA_NAN, _NODATA_VALUE = 0, 1, 2
 
 def _nodata_args(arr: np.ndarray, nodata: Any) -> tuple[int, int]:
     """Mode and sentinel bits for the C side. A declared sentinel wins,
-    otherwise a float tile holding NaN takes the automatic path and everything
-    else gets nothing, so a tile with no missing samples pays for no mask."""
+    otherwise a float raster holding NaN takes the automatic path and everything
+    else gets nothing, so a raster with no missing samples pays for no mask."""
     if nodata is None:
         if arr.dtype.kind == "f" and np.isnan(arr).any():
             return _NODATA_NAN, 0
         return _NODATA_NONE, 0
     if dtype_code(arr.dtype) is None:
         raise ValueError(f"nodata needs a dtype geozl knows, got {arr.dtype}")
-    # as bits a NaN matches one payload, not every NaN in the tile
+    # as bits a NaN matches one payload, not every NaN in the raster
     if arr.dtype.kind == "f" and isinstance(nodata, float) and math.isnan(nodata):
         return _NODATA_NAN, 0
     return _NODATA_VALUE, nodata_bits(nodata, arr.dtype)
@@ -38,7 +38,7 @@ def _nodata_args(arr: np.ndarray, nodata: Any) -> tuple[int, int]:
 
 def _error_arg(error: str | None) -> Any:
     """The error recipe as C wants it. A recipe rather than a number so it
-    crosses compress, profile and bench unchanged, and so the string names which
+    crosses graph, profile and bench unchanged, and so the string names which
     quantizer runs. A bare float is refused rather than read as an absolute
     bound, since there are three curves and a number says nothing about which
     one was meant."""
@@ -55,87 +55,148 @@ def _is_native(dt: np.dtype) -> bool:
     return dt.byteorder in ("=", "|") or dt.newbyteorder("=") == dt
 
 
-def _prepare(tile: ArrayLike,
-             width: int | None) -> tuple[np.ndarray, int, int]:
+def _as_raster(tile: ArrayLike) -> tuple[np.ndarray, int]:
     arr = np.ascontiguousarray(tile)
     if not _is_native(arr.dtype):
         raise ValueError(f"dtype {arr.dtype} is not native byte order; the "
                          f"kernels read native, byte-swap it first")
-    if width is None:
-        if arr.ndim < 2:
-            raise ValueError("give width for a 1d tile")
-        width = arr.shape[-1]
     elt = arr.dtype.itemsize
     if elt not in _ELT_WIDTHS:
         raise ValueError(f"dtype {arr.dtype} is {elt} bytes per element, an "
                          f"OpenZL numeric stream is 1, 2, 4 or 8")
+    return arr, elt
+
+
+def _prepare(tile: ArrayLike,
+             width: int | None) -> tuple[np.ndarray, int, int]:
+    arr, elt = _as_raster(tile)
+    if width is None:
+        if arr.ndim < 2:
+            raise ValueError("give width for a 1d raster")
+        width = arr.shape[-1]
     return arr, int(width), elt
 
 
-def compress(tile: ArrayLike, *, method: str, width: int | None = None,
-             error: str | None = None, nodata: Any = None) -> bytes:
-    """Compress a 2d tile into one OpenZL frame through the graph method names.
+def _dtype_arg(arr: np.ndarray, error: str | None) -> int:
+    """The dtype code goes through even when lossless, the nodata codec needs it
+    to read a sentinel at the right width and signedness."""
+    code = dtype_code(arr.dtype)
+    if error is None:
+        return 0 if code is None else code
+    if code is None:
+        raise ValueError(f"the quantizers do not support dtype {arr.dtype}")
+    return code
 
-    method is a recipe, the same string profile puts in its "graph" column, and
-    it has to apply to the element width: the transpose and store_lo terminals
-    want 2 to 8 bytes. Returns the frame as bytes.
 
-    error is a recipe too. None is lossless. "LINEAR:MAX_ERROR=V" bounds the
+class Graph:
+    """A built graph, reusable across tiles. Freed when it is collected.
+
+    Not thread safe: the compression context is bound to the graph, so one
+    Graph per thread.
+    """
+
+    __slots__ = ("_h", "method", "width", "dtype", "itemsize", "error",
+                 "nodata")
+
+    def __init__(self, handle: Any, *, method: str, width: int,
+                 dtype: np.dtype, itemsize: int, error: str | None,
+                 nodata: Any) -> None:
+        self._h = handle
+        self.method = method
+        self.width = width
+        self.dtype = dtype
+        self.itemsize = itemsize
+        self.error = error
+        self.nodata = nodata
+
+
+def graph(raster: ArrayLike, method: str, *, width: int | None = None,
+          error: str | None = None, nodata: Any = None) -> Graph:
+    """Build one graph, to compress many tiles through.
+
+    method is a recipe, the same string profile puts in its "graph" column.
+
+    width is the stride the predictor steps by, taken from the last axis when
+    left unset. Not the row length: a width of Y*X over a (B, Y, X) cube
+    predicts each band from the one before it.
+
+    error is a recipe. None is lossless. "LINEAR:MAX_ERROR=V" bounds the
     absolute error, "LOG:MAX_ERROR=P%" the relative one, and
     "SQRT:MAX_ERROR=VN" holds V times the noise of a sensor whose variance is
     a + b*x. Which one fits follows from how the measurement error of the data
     grows with the value, so elevation takes LINEAR, optical radiance takes
     SQRT, and SAR backscatter takes LOG.
 
-    A SQRT recipe with no A and B fits the noise curve from this tile alone, so
-    neighbouring tiles land on different grids. Measure it once over the product
-    with geozl.fit_noise and pass Noise.recipe(...) instead.
+    A SQRT recipe with no A and B fits the noise curve from raster alone, so
+    graphs built on different rasters land on different grids. Measure it once
+    over the product with geozl.fit_noise and pass Noise.recipe(...) instead.
+
+    raster is what the error recipe is cut against, and what it cuts becomes
+    part of the graph. Pass the product, not its first tile.
 
     nodata declares the value that marks a sample as never measured, following
-    GDAL, where nodata is a property of the band rather than a switch. Left
-    unset a float tile still gets its NaN handled, since a NaN says so itself,
-    while a sentinel such as -9999 cannot be told from a measurement.
+    GDAL, where nodata is a property of the band rather than a switch. Read off
+    raster the same way, so a product whose holes are NaN has to show one here.
     """
     if not isinstance(method, str) or not method:
         raise ValueError(f"method must be a recipe name, got {method!r}")
     err = _error_arg(error)
 
     lib = _load_lib_full()
-    arr, width, elt = _prepare(tile, width)
-    n = arr.size
-
-    # The dtype code goes through even when lossless, the nodata codec needs it
-    # to read a sentinel at the right width and signedness.
-    code = dtype_code(arr.dtype)
-    if error is None:
-        code = 0 if code is None else code
-    elif code is None:
-        raise ValueError(f"the quantizers do not support dtype {arr.dtype}")
-
+    arr, width, elt = _prepare(raster, width)
+    code = _dtype_arg(arr, error)
     nd_mode, nd_bits = _nodata_args(arr, nodata)
+
+    out = ffi.new("geozl_2d_graph**")
+    err_ctx = ffi.new("char[]", 256)
+    rc = lib.geozl_2d_graph_open_c(
+        out, method.encode("utf-8"), width, err, int(code), nd_mode, nd_bits,
+        _ptr(arr), arr.size, elt, err_ctx, len(err_ctx))
+    if rc != 0:
+        reason = ffi.string(err_ctx).decode("utf-8", "replace")
+        raise RuntimeError(f"geozl.graph failed (method={method!r}): "
+                           f"{reason} (ZL error code {rc})")
+
+    return Graph(ffi.gc(out[0], lib.geozl_2d_graph_close_c),
+                 method=method, width=width, dtype=arr.dtype, itemsize=elt,
+                 error=error, nodata=nodata)
+
+
+def compress(tile: ArrayLike, *, graph: Graph) -> bytes:
+    """Compress one tile through a prepared graph. Returns the frame as bytes.
+
+    The tile's row length is not checked against the graph's width, since the
+    width is a stride and the two are not the same question.
+    """
+    if not isinstance(graph, Graph):
+        raise TypeError(f"graph must be a geozl.Graph, got "
+                        f"{type(graph).__name__}")
+    lib = _load_lib_full()
+    arr, elt = _as_raster(tile)
+    if elt != graph.itemsize:
+        raise ValueError(f"this graph streams {graph.itemsize}-byte elements, "
+                         f"got {arr.dtype}")
+    n = arr.size
 
     # Sized past the worst case; an incompressible tile still fits in 1.5x.
     cap = 1024 + n * elt + n * elt // 2
     dst = np.empty(cap, np.uint8)
     out_size = ffi.new("size_t*")
     err_ctx = ffi.new("char[]", 256)
-    rc = lib.geozl_2d_compress_c(
-        method.encode("utf-8"), width,
-        err, int(code), nd_mode, nd_bits,
-        _ptr(arr), n, elt, _ptr(dst), cap, out_size, err_ctx, len(err_ctx))
+    rc = lib.geozl_2d_compress_graph_c(graph._h, _ptr(arr), n, _ptr(dst), cap,
+                                       out_size, err_ctx, len(err_ctx))
     if rc != 0:
         reason = ffi.string(err_ctx).decode("utf-8", "replace")
-        raise RuntimeError(f"geozl.compress failed (method={method!r}): "
+        raise RuntimeError(f"geozl.compress failed (method={graph.method!r}): "
                            f"{reason} (ZL error code {rc})")
     return dst[:out_size[0]].tobytes()
 
 
-def decompress(frame: bytes, *, dtype: DTypeLike | None = None,
-               width: int | None = None, verify: bool = True) -> np.ndarray:
-    """Decompress a self-describing geozl frame to a numpy array.
+def decompress(frame: bytes, *, verify: bool = True) -> np.ndarray:
+    """Decompress a self-describing geozl frame into a flat uint8 array.
 
-    Lossless frames keep the element width but not its sign, so pass dtype to
-    recover int vs float. width reshapes to 2d.
+    The frame names its own codecs but not the caller's type or shape, so the
+    caller finishes with .view(dtype).reshape(shape).
 
     verify checks the checksums the frame carries, which is what tells a frame
     that rotted in storage from one that did not. Off buys 1 to 30 per cent of
@@ -159,24 +220,18 @@ def decompress(frame: bytes, *, dtype: DTypeLike | None = None,
         reason = ffi.string(err_ctx).decode("utf-8", "replace")
         raise RuntimeError(f"geozl.decompress failed: {reason} "
                            f"(ZL error code {rc})")
-
-    out = out[:out_size[0]]
-    if dtype is not None:
-        out = out.view(np.dtype(dtype))
-    if width:
-        out = out.reshape(-1, int(width))
-    return out
+    return out[:out_size[0]]
 
 
-def _grid_names(method: str | None, elt: int) -> list[str]:
+def _grid_names(prior: str | None, elt: int) -> list[str]:
     lib = _load_lib_full()
     stride, cap = 48, 64
     names = ffi.new("char[]", stride * cap)
     count = ffi.new("size_t*")
-    rc = lib.geozl_2d_grid_c((method or "").encode("utf-8"), elt, names, stride,
+    rc = lib.geozl_2d_grid_c((prior or "").encode("utf-8"), elt, names, stride,
                              cap, count)
     if rc != 0:
-        raise ValueError(f"method {method!r} is not one of {PRIORS} or None")
+        raise ValueError(f"prior {prior!r} is not one of {PRIORS} or None")
     n = min(int(count[0]), cap)
     return [ffi.string(names + i * stride).decode("utf-8") for i in range(n)]
 
@@ -194,7 +249,7 @@ def _order0_bits(arr: np.ndarray) -> float:
     return float(-(p * np.log2(p)).sum())
 
 
-def profile(tile: ArrayLike, *, method: str | None = "planar",
+def profile(tile: ArrayLike, *, prior: str | None = "planar",
             width: int | None = None, error: str | None = None,
             reps: int = 5, nodata: Any = None,
             verify: bool = False) -> list[dict[str, Any]]:
@@ -205,16 +260,19 @@ def profile(tile: ArrayLike, *, method: str | None = "planar",
     graph build. "bytes" is the frame compress writes for that method, and
     "ratio" follows from it. shannon_pct is frame size against the tile's
     order-0 entropy (over 100 means structure was exploited). Every "graph" it
-    returns is a method compress takes. A throughput comes back as inf when the
-    tile was too small for the clock to time.
+    returns is a method geozl.graph takes. A throughput comes back as inf when
+    the tile was too small for the clock to time.
+
+    prior narrows the sweep to one predictor plus the id pass. None sweeps every
+    predictor, "none" sweeps the no-predictor branch alone.
 
     verify is the one setting here that does not match compress. Off, the decode
     timing skips the checksums, a constant every graph in the grid pays alike.
 
-    error and nodata mean the same as they do in compress, and are passed
-    through so the graph timed here is the one compress would build. Without it
-    a tile holding NaN would be profiled through a different graph than the one
-    it ends up compressed with, and the sizes would not line up.
+    error and nodata mean the same as they do in graph, and are passed through
+    so the graph timed here is the one graph would build. Without them a tile
+    holding NaN would be profiled through a different graph than the one it ends
+    up compressed with, and the sizes would not line up.
     """
     if reps < 1:
         raise ValueError(f"reps must be at least 1, got {reps}")
@@ -223,16 +281,11 @@ def profile(tile: ArrayLike, *, method: str | None = "planar",
     arr, width, elt = _prepare(tile, width)
     raw = arr.nbytes
     ideal = raw * _order0_bits(arr) / 8.0
-    code = dtype_code(arr.dtype)
-    if error is None:
-        code = 0 if code is None else code
-    elif code is None:
-        raise ValueError(f"the quantizers do not support dtype {arr.dtype}")
-
+    code = _dtype_arg(arr, error)
     nd_mode, nd_bits = _nodata_args(arr, nodata)
 
     rows: list[dict[str, Any]] = []
-    for name in _grid_names(method, elt):
+    for name in _grid_names(prior, elt):
         comp = ffi.new("size_t*")
         enc = ffi.new("double*")
         dec = ffi.new("double*")
