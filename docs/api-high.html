@@ -36,11 +36,11 @@
 <p class="sec-h"><span class="sq"></span> Python API</p>
 <h1>Measure, pick, <span class="u">run</span>.</h1>
 <div class="lead">
-<p class="l-top">Four functions. One explicit workflow.</p>
-<p><code>profile</code> measures the candidate recipes on your own tile and ranks them by compression ratio and throughput.</p>
-<p><code>graph</code> builds the recipe you select, once. It never searches or silently changes the method.</p>
-<p><code>compress</code> runs a tile through that graph and returns a frame.</p>
-<p><code>decompress</code> hands back the bytes; the shape and the sign are yours to restore.</p>
+<p class="l-top">Four functions, and nothing implicit.</p>
+<p><code>profile</code> ranks the recipes on your own tile.</p>
+<p><code>graph</code> builds the one you pick, once, exactly as named.</p>
+<p><code>compress</code> runs a tile through it and returns a frame.</p>
+<p><code>decompress</code> hands back flat bytes. The dtype and the shape are yours.</p>
 </div>
 <div class="runrow">
 <a href="https://colab.research.google.com/github/asterisk-labs/geozl/blob/main/docs/notebooks/high-level-api.ipynb" rel="noopener noreferrer" target="_blank">
@@ -70,37 +70,37 @@
 </div><div aria-label="Python API functions" class="fnpick" role="tablist">
 <button aria-controls="pan-profile" aria-selected="true" id="tab-profile" role="tab" tabindex="0">
 <span class="pk-index">01</span><span class="pk-top"><span class="pk-sq"></span><span class="pk-n">profile</span><span class="pk-r">→ list[dict]</span></span>
-<span class="pk-d">Benchmarks candidate recipes on a representative tile and ranks the results.</span>
+<span class="pk-d">Ranks every recipe that applies, on one representative tile.</span>
 </button>
 <button aria-controls="pan-graph" aria-selected="false" id="tab-graph" role="tab" tabindex="-1">
 <span class="pk-index">02</span><span class="pk-top"><span class="pk-sq"></span><span class="pk-n">graph</span><span class="pk-r">→ Graph</span></span>
-<span class="pk-d">Builds one recipe exactly as named, to run many tiles through.</span>
+<span class="pk-d">Builds one recipe, to run many tiles through.</span>
 </button>
 <button aria-controls="pan-compress" aria-selected="false" id="tab-compress" role="tab" tabindex="-1">
 <span class="pk-index">03</span><span class="pk-top"><span class="pk-sq"></span><span class="pk-n">compress</span><span class="pk-r">→ bytes</span></span>
-<span class="pk-d">Runs one tile through a built graph and returns an OpenZL frame.</span>
+<span class="pk-d">Runs one tile through a built graph, and returns a frame.</span>
 </button>
 <button aria-controls="pan-decompress" aria-selected="false" id="tab-decompress" role="tab" tabindex="-1">
 <span class="pk-index">04</span><span class="pk-top"><span class="pk-sq"></span><span class="pk-n">decompress</span><span class="pk-r">→ ndarray</span></span>
-<span class="pk-d">Reads the frame back into a flat array of bytes.</span>
+<span class="pk-d">Reads a frame back into a flat array of bytes.</span>
 </button>
 </div>
 <div class="fnbody">
 <div aria-labelledby="tab-profile" class="fnpanel" id="pan-profile" role="tabpanel">
 <p class="sig">signature <b>profile(tile, *, prior="planar", width=None, error=None, reps=5, nodata=None, verify=False) → list[dict]</b></p>
-<div class="spec2"><div class="row"><span class="nm">prior</span><span class="ty">str · None</span><span class="ds">Selects the predictor family to benchmark. Use None to sweep every predictor.</span></div><div class="row"><span class="nm">reps</span><span class="ty">int</span><span class="ds">Times each recipe repeatedly and keeps the fastest run.</span></div><div class="row"><span class="nm">error</span><span class="ty">str · None</span><span class="ds">Adds the same bounded-error quantisation step to every candidate, so the graph timed here is the one <code>graph</code> would build. <code>None</code> stays lossless.</span></div><div class="row"><span class="nm">nodata</span><span class="ty">float · None</span><span class="ds">Profiles through the same graph <code>graph</code> would build for a tile that carries missing samples.</span></div><div class="row"><span class="nm">→ row</span><span class="ty">dict</span><span class="ds">Returns graph, ratio, encode_mbps, decode_mbps and shannon_pct, sorted by ratio.</span></div></div>
+<div class="spec2"><div class="row"><span class="nm">prior</span><span class="ty">str · None</span><span class="ds">One predictor plus the id pass. None sweeps them all, "none" sweeps the no-predictor branch alone.</span></div><div class="row"><span class="nm">reps</span><span class="ty">int</span><span class="ds">Times each recipe this many times and keeps the fastest run.</span></div><div class="row"><span class="nm">error</span><span class="ty">str · None</span><span class="ds">Means what it does in <code>graph</code>, and belongs here too, or the ranking is of graphs nobody will build.</span></div><div class="row"><span class="nm">nodata</span><span class="ty">float · None</span><span class="ds">Means what it does in <code>graph</code>, for the same reason.</span></div><div class="row"><span class="nm">→ row</span><span class="ty">dict</span><span class="ds">graph, bytes, ratio, encode_mbps, decode_mbps, shannon_pct. Sorted by ratio.</span></div></div>
 </div>
 <div aria-labelledby="tab-graph" class="fnpanel" hidden="" id="pan-graph" role="tabpanel">
 <p class="sig">signature <b>graph(raster, method, *, width=None, error=None, nodata=None) → Graph</b></p>
-<div class="spec2"><div class="row"><span class="nm">raster</span><span class="ty">ndarray</span><span class="ds">A 2‑D array, or 1‑D with <code>width</code> given. Native byte order, 1, 2, 4 or 8 bytes per element. Pass the product, not its first tile: what <code>error</code> and <code>nodata</code> are cut against here becomes part of the graph.</span></div><div class="row"><span class="nm">method</span><span class="ty">str</span><span class="ds">The graph to build, a full recipe string taken straight from the <code>profile</code> table. The transpose and <code>store_lo</code> terminals split each sample into byte lanes, so they need 2 to 8 bytes per element; <code>categorical</code> needs 1 or 2.</span></div><div class="row"><span class="nm">width</span><span class="ty">int · None</span><span class="ds">The stride the predictor steps back by, read from <code>raster.shape[-1]</code> when left off. Not the row length: <code>Y*X</code> over a <code>(B, Y, X)</code> cube predicts each band from the one before it.</span></div><div class="row"><span class="nm">error</span><span class="ty">str · None</span><span class="ds"><code>None</code> is lossless. Otherwise a recipe naming one of the three quantizers, <code>LINEAR:</code>, <code>LOG:</code> or <code>SQRT:</code>, which is prepended to the graph and holds every sample inside the bound it declares.</span></div><div class="row"><span class="nm">nodata</span><span class="ty">float · None</span><span class="ds">The value that marks a sample as never measured, as GDAL means it. Read off <code>raster</code>, so a product whose holes are NaN has to show one here.</span></div></div>
+<div class="spec2"><div class="row"><span class="nm">raster</span><span class="ty">ndarray</span><span class="ds">A 2‑D array, or 1‑D with <code>width</code> given. Native byte order, 1, 2, 4 or 8 bytes per element. Only scanned when <code>error</code> is set, to decide whether the recipe can represent the range and whether the graph is built for nonnegative data. It has to cover the product, so pass <code>width</code> too.</span></div><div class="row"><span class="nm">method</span><span class="ty">str</span><span class="ds">A full recipe string, straight from the <code>profile</code> table. The transposed terminals need 2 to 8 bytes per element, <code>categorical</code> needs 1 or 2.</span></div><div class="row"><span class="nm">width</span><span class="ty">int · None</span><span class="ds">The stride the predictor steps back by, read from <code>raster.shape[-1]</code> when left off. A stride, not a row length: <code>Y*X</code> over a <code>(B, Y, X)</code> cube predicts each band from the one before it.</span></div><div class="row"><span class="nm">error</span><span class="ty">str · None</span><span class="ds"><code>None</code> is lossless. Otherwise a recipe naming one of <code>LINEAR:</code>, <code>LOG:</code> or <code>SQRT:</code>, prepended to the graph, holding every sample inside the bound it declares.</span></div><div class="row"><span class="nm">nodata</span><span class="ty">float · None</span><span class="ds">The value that marks a sample as never measured, as GDAL means it. Left off, a float raster holding NaN takes NaN as its own.</span></div></div>
 </div>
 <div aria-labelledby="tab-compress" class="fnpanel" hidden="" id="pan-compress" role="tabpanel">
 <p class="sig">signature <b>compress(tile, *, graph) → bytes</b></p>
-<div class="spec2"><div class="row"><span class="nm">tile</span><span class="ty">ndarray</span><span class="ds">One tile, at the element width the graph was built for. Its row length is not checked against the graph's width, since that width is a stride and the two are not the same question.</span></div><div class="row"><span class="nm">graph</span><span class="ty">Graph</span><span class="ds">The handle <code>geozl.graph</code> returned. Hold one per width, dtype and error recipe, and run every tile of that group through it.</span></div><div class="row"><span class="nm">→ frame</span><span class="ty">bytes</span><span class="ds">One self-describing OpenZL frame, independent of every other frame the graph wrote.</span></div></div>
+<div class="spec2"><div class="row"><span class="nm">tile</span><span class="ty">ndarray</span><span class="ds">One tile, at the element width the graph was built for. That is the only check. A tile whose rows do not match the graph's stride still compresses, and predicts across a boundary that is not there.</span></div><div class="row"><span class="nm">graph</span><span class="ty">Graph</span><span class="ds">The handle <code>geozl.graph</code> returned. One per stride, dtype and error recipe. Not thread safe, so one per thread.</span></div><div class="row"><span class="nm">→ frame</span><span class="ty">bytes</span><span class="ds">One self-describing frame, independent of every other frame the graph wrote.</span></div></div>
 </div>
 <div aria-labelledby="tab-decompress" class="fnpanel" hidden="" id="pan-decompress" role="tabpanel">
 <p class="sig">signature <b>decompress(frame, *, verify=True) → ndarray</b></p>
-<div class="spec2"><div class="row"><span class="nm">frame</span><span class="ty">bytes</span><span class="ds">The frame names its own codecs but not your dtype or your shape, so what comes back is flat <code>uint8</code> and you finish with <code>.view(dtype).reshape(shape)</code>.</span></div><div class="row"><span class="nm">verify</span><span class="ty">bool</span><span class="ds">Checks the checksums the frame carries, which is what tells a frame that rotted in storage from one that did not. Off buys 1 to 30 per cent of decode.</span></div></div>
+<div class="spec2"><div class="row"><span class="nm">frame</span><span class="ty">bytes</span><span class="ds">The frame names its own codecs but not your dtype or shape, so what comes back is flat <code>uint8</code>. Finish with <code>.view(dtype).reshape(shape)</code>.</span></div><div class="row"><span class="nm">verify</span><span class="ty">bool</span><span class="ds">Checks the checksums the frame carries, which is what tells a frame that rotted in storage from one that did not. Off buys 1 to 30 per cent of decode and gives up the only warning you get.</span></div></div>
 </div>
 </div>
 </section>
@@ -140,10 +140,10 @@ raw = tile.nbytes</pre></div>
 <p class="sec-h"><span class="sq"></span> the graph model</p>
 <div class="band">
 <div class="prose">
-<p>OpenZL builds a compressor as a directed graph of modular codecs. GeoZL narrows that freedom down to <strong>56 valid raster recipes</strong>, each one a spatial predictor, a zigzag mapping, an optional byte-lane layout and an encoding backend.</p>
+<p>OpenZL builds a compressor as a directed graph of modular codecs. GeoZL narrows that freedom down to a <strong>closed grid of raster recipes</strong>, each one a spatial predictor, a zigzag mapping, an optional byte-lane layout and an encoding backend.</p>
 <p>The recipe string records the exact path, for example <code>planar&gt;zigzag&gt;transpose&gt;entropy</code>. <code>profile</code> measures the candidates on your own tile and <code>graph</code> later builds the one you pick, unchanged.</p>
 </div>
-<aside class="side"><span class="st">where 56 comes from</span>Eight predictors, counting the no-predictor branch, times seven terminals. A terminal is a layout and a backend together, which is why <code>transpose&gt;zstd</code> and <code>store_lo</code> each count once. On a single-byte element the three transposed terminals drop out and the grid falls to 32, since <code>categorical</code> stays.</aside>
+<aside class="side"><span class="st">where 56 comes from</span>Eight predictors, counting the no-predictor branch, times seven terminals. A terminal is a layout and a backend together, which is why <code>transpose&gt;zstd</code> and <code>store_lo</code> each count once. The element width closes some off. At one byte the three transposed terminals go and the grid is 32; at four or eight <code>categorical</code> goes and it is 48. Two bytes is the only width that gets all 56.</aside>
 </div>
 <p class="flow-h">the stages <em>predictor and layout are optional</em></p>
 <div class="flow">
@@ -161,12 +161,12 @@ raw = tile.nbytes</pre></div>
 <div class="profile-visual">
 <div class="profile-copy">
 <div class="prose">
-<p><code>profile</code> builds the candidate recipes, runs a compress and decompress round trip with each one, and hands back the results ranked by compression ratio. Every <code>graph</code> string it returns is a method <code>geozl.graph</code> takes.</p>
-<p>Run it <strong>once</strong>, on a tile that represents the dataset. Each row carries the ratio, both throughputs and the distance to the Shannon floor, so the trade between size and speed stays yours to make.</p>
+<p><code>profile</code> runs a round trip with every recipe that applies and ranks them by ratio. Every <code>graph</code> string it hands back is a method <code>geozl.graph</code> takes.</p>
+<p>Run it <strong>once</strong>, on a tile that represents the dataset. A row carries the ratio, both throughputs and the distance to the Shannon floor, so the trade between size and speed stays yours.</p>
 </div>
 <p class="flow-h">what it does <em>reps=5, fastest run kept</em></p>
 <div class="flow">
-<div><span class="ix">01</span><b>build</b><span class="d">56 recipes</span></div>
+<div><span class="ix">01</span><b>build</b><span class="d">every recipe that applies</span></div>
 <div><span class="ix">02</span><b>measure</b><span class="d">ratio and speed</span></div>
 <div class="on"><span class="ix">03</span><b>rank</b><span class="d">best ratio first</span></div>
 </div>
@@ -259,23 +259,22 @@ best = rows[0]["graph"]</pre></div>
 <p class="sec-h"><span class="sq"></span> graph and compress <span class="sig">the production step</span></p>
 <div class="band">
 <div class="prose">
-<p><code>profile</code> is the step that chooses, so it runs once, offline, on a sample. <code>graph</code> is the step that builds, and it also runs once. <code>compress</code> is the only one that runs on every tile.</p>
-<p><code>graph</code> takes the recipe you pinned and builds it exactly as named. It never searches, never falls back and never rewrites the graph, so the same tile through the same handle always gives the same frame.</p>
-<p>The split matters because registering the nodes and building the DAG is fixed cost. A raster cut into 400 tiles used to pay it 400 times.</p>
+<p><code>profile</code> chooses and <code>graph</code> builds. Both run once. <code>compress</code> is the only one that runs on every tile.</p>
+<p><code>graph</code> builds the recipe you pinned exactly as named. It never searches and never falls back, so the same tile through the same handle always gives the same frame.</p>
 </div>
-<aside class="side"><span class="st">why they are separate</span>The search is the expensive half, so it stays off the hot path. The build is the fixed half, so it stays out of the loop. What is left per tile is the codec.</aside>
+<aside class="side"><span class="st">why they are separate</span>Registering the nodes and building the DAG is a fixed cost. Paying it once instead of once per tile is the whole point of the split.</aside>
 </div>
 <p class="flow-h">profile once, build once, compress every tile <em>same data family</em></p>
 <div class="flow">
 <div><span class="ix">once</span><b>sample tile</b><span class="d">One representative scene.</span></div>
-<div><span class="ix">once</span><b>profile</b><span class="d">Compares the 56 candidates and pins the winner.</span></div>
+<div><span class="ix">once</span><b>profile</b><span class="d">Compares the candidates, pins the winner.</span></div>
 <div><span class="ix">once</span><b>graph</b><span class="d">Builds that recipe and holds it.</span></div>
 <div><span class="ix">per tile</span><b>compress</b><span class="d">One pass through the handle.</span></div>
 <div class="on"><span class="ix">per tile</span><b>frame</b><span class="d">Deterministic, and independent of the others.</span></div>
 </div>
 <div class="lbl">python · choose once, build once, run many times</div>
 <div class="code"><pre>best = geozl.<span class="fn">profile</span>(tile, prior=None)[0]["graph"]
-g = geozl.<span class="fn">graph</span>(scene, best)
+g = geozl.<span class="fn">graph</span>(tile, best)
 
 for tile in tiles:
     frame = geozl.<span class="fn">compress</span>(tile, graph=g)</pre></div>
@@ -283,20 +282,20 @@ for tile in tiles:
 </section>
 <section class="lossy-slide" data-slide="error" id="maxerror">
 <p class="sec-h"><span class="sq"></span> error <span class="sig">bounded-error compression</span></p>
-<div class="band"><div class="prose"><p>Set <code>error</code> to trade exact reconstruction for a smaller frame while keeping a hard per-sample bound. The recipe names the quantizer and the bound together, and <code>None</code> stays lossless.</p>
-<p><code>LINEAR:MAX_ERROR=V</code> holds <code>|x − x̂| ≤ V</code> on a grid anchored at zero. The step is <code>Δ = 2V</code> and each sample comes back as <code>x̂ = round(x / Δ) · Δ</code>. On an integer raster that step is discrete, which is why the curve below falls in visible steps rather than a smooth line.</p>
-<p><code>LOG:MAX_ERROR=P%</code> holds the same fraction of every sample instead, so the slack grows with the value. <code>SQRT:MAX_ERROR=VN</code> holds <code>V</code> times the sensor noise, whose variance is <code>a + b·x</code>. Which one fits follows from how the measurement error of the data grows, so elevation takes <code>LINEAR</code>, SAR backscatter takes <code>LOG</code>, and optical radiance takes <code>SQRT</code>.</p>
+<div class="band"><div class="prose"><p>Set <code>error</code> to trade exact reconstruction for a smaller frame, while keeping a hard per-sample bound. The recipe names the quantizer and the bound together. <code>None</code> stays lossless.</p>
+<p><code>LINEAR:MAX_ERROR=V</code> holds <code>|x − x̂| ≤ V</code> on a grid anchored at zero, step <code>Δ = 2V</code>, each sample back as <code>x̂ = round(x / Δ) · Δ</code>. On an integer raster that step is discrete, which is why the curve below falls in visible steps.</p>
+<p><code>LOG:MAX_ERROR=P%</code> holds the same fraction of every sample, so the slack grows with the value. <code>SQRT:MAX_ERROR=VN</code> holds <code>V</code> times the sensor noise, whose variance is <code>a + b·x</code>. Which one fits follows from how the measurement error grows: elevation takes <code>LINEAR</code>, SAR backscatter <code>LOG</code>, optical radiance <code>SQRT</code>.</p>
 <p>All three take <code>,STORE=VALUES</code>, which writes the reconstruction instead of the index and drops the multiply out of the decode.</p></div><aside class="side"><span class="st">practical reading</span>Look for the knee of the curve, the point where more error stops buying much more compression.</aside></div>
 
-<div class="band"><div class="prose"><p><b>The noise curve, measured once.</b> A <code>SQRT</code> recipe with no <code>A</code> and <code>B</code> fits the curve from whatever raster <code>graph</code> was handed. That is a fallback. Two graphs built on different tiles land on different grids, so a value that straddles a tile boundary rebuilds two ways, and a tile with no dynamic range gives a plausible curve that is not the sensor.</p>
-<p><code>geozl.lossy.fit_noise</code> is the way round it. Hand it an <code>(N, H, W)</code> stack, or any sequence of rasters sharing a dtype, and it pools their block statistics before solving, which is not the same as averaging separate fits. Two tiles that each cover one end of the intensity range give a usable curve together and neither gives one alone.</p>
+<div class="band"><div class="prose"><p><b>The noise curve, measured once.</b> A <code>SQRT</code> recipe with no <code>A</code> and <code>B</code> is fit from whatever raster <code>graph</code> was handed, which is a fallback. Two tiles give two curves, so two grids, and a value on a tile boundary rebuilds two ways.</p>
+<p><code>geozl.lossy.fit_noise</code> is the way round it. Hand it an <code>(N, H, W)</code> stack, or any rasters sharing a dtype, and it pools their block statistics before solving, which is not the same as averaging separate fits. Two tiles each covering one end of the range give a curve together that neither gives alone.</p>
 <pre class="code"><code>noise = geozl.lossy.fit_noise(stack)
 print(noise)   # sigma^2 = 72.9 + 1.016*x  [1922 blocks, 8/24 bins, ...]
 
-g = geozl.graph(stack, "planar&gt;zigzag&gt;transpose&gt;entropy",
+g = geozl.graph(tile, "planar&gt;zigzag&gt;transpose&gt;entropy",
                 error=noise.recipe(0.5))
 frame = geozl.compress(tile, graph=g)</code></pre>
-<p>The returned <code>Noise</code> carries <code>a</code> and <code>b</code> plus four numbers saying how far to believe them, <code>blocks</code>, <code>bins</code>, <code>range</code> and <code>colin</code>. A high <code>colin</code> means the two are collinear and the split between them is arbitrary, which is the failure the encoder cannot catch on its own, since it verifies against the bound it computed.</p></div><aside class="side"><span class="st">rule of thumb</span>Measure the curve over the product, not over the tile. Keep the two numbers and put them in every recipe.</aside></div>
+<p>The returned <code>Noise</code> carries <code>a</code> and <code>b</code> plus <code>blocks</code>, <code>bins</code>, <code>range</code> and <code>colin</code>, which say how far to believe them. A high <code>colin</code> means the split between <code>a</code> and <code>b</code> is arbitrary. The encoder cannot catch that, since it verifies against the bound it computed.</p></div><aside class="side"><span class="st">rule of thumb</span>Measure the curve over the product. Keep the two numbers and put them in every recipe, so every tile lands on one grid.</aside></div>
 <div class="chart">
 <div class="lbl">frame size vs. allowed error</div>
 <div class="cbody"><svg aria-label="Frame size falling as the error budget grows, against the lossless reference line, with the knee of the curve marked" class="plot" role="img" viewbox="0 0 1100 340">
@@ -362,8 +361,8 @@ frame = geozl.compress(tile, graph=g)</code></pre>
 <p class="sec-h"><span class="sq"></span> decompress <span class="sig">get the array back</span></p>
 <div class="band">
 <div class="prose">
-<p>The frame names every codec it used, so nothing has to be told how to undo it. What it does not carry is the NumPy sign and the 2-D shape, because neither is a property of the bytes.</p>
-<p>So <code>decompress</code> hands back a flat <code>uint8</code> array and you finish with <code>.view</code> and <code>.reshape</code>. Those two facts live in your code, not in the file.</p>
+<p>The frame names every codec it used, so nothing has to be told how to undo it. What it does not carry is the dtype and the shape, because neither is a property of the bytes.</p>
+<p>So <code>decompress</code> hands back a flat <code>uint8</code> array and you finish with <code>.view</code> and <code>.reshape</code>.</p>
 </div>
 <aside class="side"><span class="st">round trip</span>With a lossless recipe the array that comes back is bit for bit the array that went in. With <code>error</code> set it comes back inside the bound you asked for.</aside>
 </div>

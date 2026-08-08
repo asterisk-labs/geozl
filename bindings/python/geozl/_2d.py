@@ -123,20 +123,10 @@ def graph(raster: ArrayLike, method: str, *, width: int | None = None,
     error is a recipe. None is lossless. "LINEAR:MAX_ERROR=V" bounds the
     absolute error, "LOG:MAX_ERROR=P%" the relative one, and
     "SQRT:MAX_ERROR=VN" holds V times the noise of a sensor whose variance is
-    a + b*x. Which one fits follows from how the measurement error of the data
-    grows with the value, so elevation takes LINEAR, optical radiance takes
-    SQRT, and SAR backscatter takes LOG.
+    a + b*x.
 
-    A SQRT recipe with no A and B fits the noise curve from raster alone, so
-    graphs built on different rasters land on different grids. Measure it once
-    over the product with geozl.fit_noise and pass Noise.recipe(...) instead.
-
-    raster is what the error recipe is cut against, and what it cuts becomes
-    part of the graph. Pass the product, not its first tile.
-
-    nodata declares the value that marks a sample as never measured, following
-    GDAL, where nodata is a property of the band rather than a switch. Read off
-    raster the same way, so a product whose holes are NaN has to show one here.
+    nodata is the value that marks a sample as never measured. Left unset, a
+    float raster holding NaN takes NaN as its own.
     """
     if not isinstance(method, str) or not method:
         raise ValueError(f"method must be a recipe name, got {method!r}")
@@ -165,8 +155,9 @@ def graph(raster: ArrayLike, method: str, *, width: int | None = None,
 def compress(tile: ArrayLike, *, graph: Graph) -> bytes:
     """Compress one tile through a prepared graph. Returns the frame as bytes.
 
-    The tile's row length is not checked against the graph's width, since the
-    width is a stride and the two are not the same question.
+    Only the element width is checked. A tile whose rows do not match the
+    graph's stride still compresses, and predicts across a boundary that is not
+    there.
     """
     if not isinstance(graph, Graph):
         raise TypeError(f"graph must be a geozl.Graph, got "
@@ -253,26 +244,23 @@ def profile(tile: ArrayLike, *, prior: str | None = "planar",
             width: int | None = None, error: str | None = None,
             reps: int = 5, nodata: Any = None,
             verify: bool = False) -> list[dict[str, Any]]:
-    """Benchmark every candidate graph on one tile, one row each.
+    """Benchmark every candidate graph on one tile, one row each, ranked by
+    ratio. A diagnostic, not on the compress path.
 
-    A diagnostic, not on the compress path. Timing runs in C against one
-    compressor and one decoder per graph, so it reports the codec and not the
-    graph build. "bytes" is the frame compress writes for that method, and
-    "ratio" follows from it. shannon_pct is frame size against the tile's
-    order-0 entropy (over 100 means structure was exploited). Every "graph" it
-    returns is a method geozl.graph takes. A throughput comes back as inf when
-    the tile was too small for the clock to time.
+    Timing is one compressor and one decoder per graph, so it reports the codec
+    and not the build. "bytes" is the frame compress writes, "graph" is a method
+    geozl.graph takes, and shannon_pct is that frame against the tile's order-0
+    entropy, over 100 where structure was exploited. A throughput is inf when
+    the tile was too small for the clock.
 
-    prior narrows the sweep to one predictor plus the id pass. None sweeps every
-    predictor, "none" sweeps the no-predictor branch alone.
+    prior narrows the sweep to one predictor plus the id pass. None sweeps them
+    all, "none" sweeps the no-predictor branch alone.
 
-    verify is the one setting here that does not match compress. Off, the decode
-    timing skips the checksums, a constant every graph in the grid pays alike.
+    width, error and nodata mean what they do in graph, and belong here too, or
+    the ranking is of graphs nobody will build.
 
-    error and nodata mean the same as they do in graph, and are passed through
-    so the graph timed here is the one graph would build. Without them a tile
-    holding NaN would be profiled through a different graph than the one it ends
-    up compressed with, and the sizes would not line up.
+    verify defaults off, unlike compress, so decode timing skips a constant
+    every graph pays alike.
     """
     if reps < 1:
         raise ValueError(f"reps must be at least 1, got {reps}")

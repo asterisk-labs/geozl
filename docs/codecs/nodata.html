@@ -38,8 +38,9 @@
         <p class="desc">A nodata sample is not a small value, it is the absence of one. Left where it sits,
         every cloud edge and every scene border becomes a <b>cliff the predictor has to encode</b>. nodata
         takes them out first. Outcome 0 is the raster with each hole filled by the <b>last valid sample on
-        its row</b>, so what runs next sees a flat run instead of a jump. Outcome 1 is a <b>validity
-        mask</b>, one byte per sample, following GDAL where 0 discards and 255 keeps. The original bit
+        its row</b>, or the one above where a hole opens the row, so what runs next sees a flat run
+        instead of a jump. Outcome 1 is a <b>validity
+        mask</b>, one byte per sample, following GDAL, where 0 discards and any nonzero byte keeps. The original bit
         pattern rides in the header and comes back on decode, exact down to the NaN payload. A tile with
         <b>nothing missing sends no mask at all</b>, and one where nothing was measured sends neither
         stream. The node sits <b>at the head of the graph</b>, ahead of any quantizer, because a quantizer has no

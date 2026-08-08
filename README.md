@@ -21,11 +21,11 @@
 
 ## What is OpenZL and GeoZL?
 
-[OpenZL](https://github.com/facebook/openzl) is a new compression framework that treats compression as a graph of codecs. Each frame carries the recipe needed to decode it, which lets a universal OpenZL decoder follow the graph without knowing how the data was originally encoded.
+[OpenZL](https://github.com/facebook/openzl) treats compression as a graph of codecs. Each frame carries the recipe needed to decode it, so a universal OpenZL decoder can follow the graph without knowing how the data was encoded.
 
 That model works well for one-dimensional streams, but it does not know that a raster has spatial structure. **GeoZL adds that missing spatial layer.**
 
-A [GeoZL](https://asterisk.coop/geozl/) codec is an OpenZL graph node that understands raster tiles. It transforms a typed numeric stream, stores the metadata needed to reverse that transform in the codec header, and lets the rest of the OpenZL graph continue as usual.
+A [GeoZL](https://asterisk.coop/geozl/) codec is an OpenZL graph node that understands raster tiles. It transforms a typed numeric stream, puts whatever reverses that transform in the codec header, and lets the rest of the graph continue as usual.
 
 If you want to implement a new codec, see [docs/adding-a-codec.md](docs/adding-a-codec.md).
 
@@ -51,11 +51,11 @@ pip install geozl
 
 ## Example
 
-GeoZL has two entry points: a high-level API that builds a graph from a recipe string and runs tiles through it, and a low-level API that places individual codecs in an OpenZL graph.
+Two entry points. A high-level API that builds a graph from a recipe string and runs tiles through it, and a low-level API that places individual codecs in an OpenZL graph yourself.
 
 ### High-level API
 
-`geozl.profile` measures a set of candidate graphs on your tile and ranks them, `geozl.graph` builds the one you name, and `geozl.compress` runs a tile through it. Nothing searches, so the slow call happens once, the build happens once, and what is left per tile is the codec. `geozl.decompress` reverses a frame back to bytes.
+`geozl.profile` ranks the candidate graphs on your tile, `geozl.graph` builds the one you name, and `geozl.compress` runs a tile through it. The search runs once, the build runs once, and what is left per tile is the codec. `geozl.decompress` reverses a frame back to bytes.
 
 ```python
 import numpy as np
@@ -67,7 +67,7 @@ rows = geozl.profile(tile)                        # the slow call, run once
 best = rows[0]["graph"]                           # e.g. "planar>zigzag>transpose>entropy"
 
 g = geozl.graph(tile, best)                       # built once, run on many tiles
-g = geozl.graph(tile, best, error="LINEAR:MAX_ERROR=2")  # near-lossless
+g = geozl.graph(tile, best, error="LINEAR:MAX_ERROR=2")  # absolute bound
 g = geozl.graph(tile, best, error="LOG:MAX_ERROR=1%")    # bound follows the value
 
 frame = geozl.compress(tile, graph=g)             # the fast call, run always

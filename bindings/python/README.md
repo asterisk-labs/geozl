@@ -14,7 +14,7 @@ frame = geozl.compress(tile, graph=g)
 back = geozl.decompress(frame).view(np.uint16).reshape(1024, 1024)
 ```
 
-Thirteen codecs, lossless and lossy, reachable two ways. `geozl.graph` takes a
+Eleven codecs, lossless and lossy, reachable two ways. `geozl.graph` takes a
 recipe string and builds the graph for you, and `geozl.compress` runs one tile
 through it. `geozl.lossless` and `geozl.lossy` hand you the individual nodes to
 place in an OpenZL graph yourself, and `geozl.register_decoders` teaches a
