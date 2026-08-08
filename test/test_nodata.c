@@ -79,29 +79,30 @@ static void test_infinity_is_a_value(void) {
   CHECK(pattern == ODD_NAN);
 }
 
-// The two shapes that carry no mask. Neither goes through nodata_restore, so
-// what the kernels owe is a count of 0 and a count of nbElts.
-static void test_all_valid_and_all_hole(void) {
-  static uint32_t tile[16], out[16];
+// The two shapes that used to skip the fill. There is one shape now, so both
+// have to come back through it, and the all hole tile is the one that proves
+// the wire needs no case of its own.
+static void test_degenerate_tiles_round_trip(void) {
+  static uint32_t tile[16], vals[16], out[16];
   static uint8_t m[16];
 
   for (int i = 0; i < 16; ++i)
     tile[i] = 0x40000000u + (uint32_t)i;
-  CHECK(nodata_mark_nan(m, tile, 16, 4) == 0);
   CHECK(nodata_mark_value(m, tile, 16, 4, 0xDEADBEEFu) == 0);
+  nodata_fill(vals, tile, m, 4, 16, 4);
+  nodata_restore(out, vals, m, 16, 4, 0xDEADBEEFu);
+  CHECK(memcmp(out, tile, sizeof tile) == 0);
 
   for (int i = 0; i < 16; ++i)
     tile[i] = ODD_NAN;
   CHECK(nodata_mark_nan(m, tile, 16, 4) == 16);
-  nodata_broadcast(out, 16, 4, ODD_NAN);
+  nodata_fill(vals, tile, m, 4, 16, 4);
+  // Nothing measured to copy, so the fill is all zero and the mask carries the
+  // whole tile.
+  for (int i = 0; i < 16; ++i)
+    CHECK(vals[i] == 0);
+  nodata_restore(out, vals, m, 16, 4, ODD_NAN);
   CHECK(memcmp(out, tile, sizeof tile) == 0);
-
-  // Every width, since the broadcast switches on it.
-  static uint64_t wide[8], wout[8];
-  for (int i = 0; i < 8; ++i)
-    wide[i] = 0x0102030405060708ull;
-  nodata_broadcast(wout, 8, 8, 0x0102030405060708ull);
-  CHECK(memcmp(wout, wide, sizeof wide) == 0);
 }
 
 static void test_sentinel_all_widths(void) {
@@ -156,7 +157,7 @@ int main(void) {
   build_tile();
   test_nan_round_trip();
   test_infinity_is_a_value();
-  test_all_valid_and_all_hole();
+  test_degenerate_tiles_round_trip();
   test_sentinel_all_widths();
   test_fill_beats_sentinel();
 

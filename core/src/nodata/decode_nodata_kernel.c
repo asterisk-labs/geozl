@@ -35,33 +35,4 @@ void nodata_restore(void *dst, const void *values, const uint8_t *mask,
   }
 }
 
-#define NODATA_BROADCAST(T)                                                    \
-  do {                                                                         \
-    T *d = (T *)dst;                                                           \
-    const T p = (T)pattern;                                                    \
-    for (size_t i = 0; i < nb_elts; ++i)                                       \
-      d[i] = p;                                                                \
-  } while (0)
-
-void nodata_broadcast(void *dst, size_t nb_elts, size_t elt_width,
-                      uint64_t pattern) {
-  switch (elt_width) {
-  case 1:
-    NODATA_BROADCAST(uint8_t);
-    break;
-  case 2:
-    NODATA_BROADCAST(uint16_t);
-    break;
-  case 4:
-    NODATA_BROADCAST(uint32_t);
-    break;
-  case 8:
-    NODATA_BROADCAST(uint64_t);
-    break;
-  default:
-    break; // rejected by the binding
-  }
-}
-
 #undef NODATA_RESTORE
-#undef NODATA_BROADCAST

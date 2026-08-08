@@ -357,13 +357,15 @@ def test_a_nan_sentinel_takes_the_automatic_path():
     (np.uint64, 2 ** 64 - 1),   # the unsigned end, and the cast that was UB
 ])
 def test_a_wide_sentinel_reaches_the_codec(dtype, hole):
-    """An all-hole tile answers with a pattern and a count when the sentinel
-    matches, and stores the raster when it misses. The round trip is exact
-    either way, so the two sizes are the only witness."""
+    """A sentinel scattered through a smooth raster is filled away when it
+    matches and left as a cliff when it misses, so the two sizes are the
+    witness. Carried through a double the wide ones would miss."""
     n = 128
-    arr = np.full((n, n), dtype(hole), dtype=dtype)
+    arr = _tile((n, n)).astype(dtype)
+    arr.reshape(-1)[::7] = dtype(hole)
     matched = _frame(arr, method=GRAPH, nodata=hole)
-    missed = _frame(arr, method=GRAPH, nodata=dtype(1))
+    # 1000 is past the ramp, so the miss really misses
+    missed = _frame(arr, method=GRAPH, nodata=dtype(1000))
     assert len(matched) * 2 < len(missed)
     assert np.array_equal(
         geozl.decompress(matched).view(arr.dtype).reshape(n, n), arr)

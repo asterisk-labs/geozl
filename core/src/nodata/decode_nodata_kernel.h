@@ -12,9 +12,4 @@
 void nodata_restore(void *dst, const void *values, const uint8_t *mask,
                     size_t nb_elts, size_t elt_width, uint64_t pattern);
 
-// Writes @pattern into every sample, which is the whole of a tile where
-// nothing was measured.
-void nodata_broadcast(void *dst, size_t nb_elts, size_t elt_width,
-                      uint64_t pattern);
-
 #endif // GEOZL_CODECS_NODATA_DECODE_KERNEL_H

@@ -42,12 +42,12 @@
         instead of a jump. Outcome 1 is a <b>validity
         mask</b>, one byte per sample, following GDAL, where 0 discards and any nonzero byte keeps. The original bit
         pattern rides in the header and comes back on decode, exact down to the NaN payload. A tile with
-        <b>nothing missing sends no mask at all</b>, and one where nothing was measured sends neither
-        stream. The node sits <b>at the head of the graph</b>, ahead of any quantizer, because a quantizer has no
-        sane answer for a sample that was never measured.</p>
+        <b>nothing missing still pays for a mask</b>, so the node belongs in the graphs you build for the
+        tiles that need it. It sits <b>at the head of the graph</b>, ahead of any quantizer, because a
+        quantizer has no sane answer for a sample that was never measured.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D70C</dd>
-          <dt>header</dt><dd>uint8 code + the pattern at the sample width, + the count when both streams are dropped</dd>
+          <dt>header</dt><dd>the pattern at the sample width, and nothing else</dd>
           <dt>modes</dt><dd>every NaN &middot; one declared sentinel</dd>
           <dt>widths</dt><dd>8 &middot; 16 &middot; 32 &middot; 64-bit samples</dd>
           <dt>decode</dt><dd>branchless select, values where the mask keeps, pattern where it discards</dd>

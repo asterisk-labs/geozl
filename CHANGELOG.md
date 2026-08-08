@@ -5,6 +5,27 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-08-08
+
+### Changed
+
+- The nodata codec header is the bit pattern and nothing else. One shape on the
+  wire needs no code to tell shapes apart, and no count, since the values stream
+  already carries it.
+
+### Breaking
+
+- The `all valid` and `all hole` wire codes are gone. A clean tile now writes a
+  mask of all valid, which codes to nothing, and an all hole tile fills to two
+  constant streams the backends collapse. 0.10.0 frames using either code no
+  longer decode.
+- The codec refuses an empty tile, at both readers. It used to write one the
+  decoder could not read back.
+- `nodata_broadcast` is gone, and with it the sample count the header carried.
+  That count was the one number a nodata frame declared about itself, so the
+  check that caught an overflowing one goes too, and a forged nodata header has
+  nothing left to lie about.
+
 ## [0.10.0] - 2026-08-07
 
 ### Added

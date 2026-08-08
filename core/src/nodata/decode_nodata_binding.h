@@ -2,7 +2,6 @@
 #define GEOZL_CODECS_NODATA_DECODE_BINDING_H
 
 #include "common/graph_num1to2.h"
-#include "nodata/nodata_wire.h"
 #include "openzl/zl_dtransform.h"
 
 ZL_Report DI_geozl_nodata(ZL_Decoder *dictx, const ZL_Input *ins[]);

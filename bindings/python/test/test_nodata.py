@@ -1,5 +1,3 @@
-import struct
-
 import numpy as np
 import pytest
 
@@ -71,21 +69,22 @@ def test_a_second_nan_payload_is_a_hole_too():
     assert not np.isnan(out[0, 0])
 
 
-def test_tile_with_no_holes_sends_no_mask():
-    """The all valid code drops the mask stream, so declaring a sentinel that
-    the tile does not contain has to cost about nothing."""
+def test_a_clean_tile_round_trips():
+    """Declaring a sentinel the tile does not contain is a mask of all valid.
+    It costs a stream that codes to nothing, and it still round trips."""
     tile = _smooth(np.uint16)
-    absent = len(_frame(tile, method=GRAPH, nodata=40000))
-    plain = len(_frame(tile, method=GRAPH))
-    assert absent <= plain + 16
+    frame, out = _roundtrip(tile, method=GRAPH, nodata=40000)
+    assert np.array_equal(out, tile)
+    assert len(frame) < 2 * len(_frame(tile, method=GRAPH))
 
 
-def test_tile_that_is_all_holes_sends_neither_stream():
+def test_tile_that_is_all_holes_round_trips():
+    """No shape of its own. The fill leaves both streams constant and the
+    backends collapse them."""
     tile = np.full((ROWS, COLS), -9999, dtype=np.int32)
     frame, out = _roundtrip(tile, method=GRAPH_WIDE, nodata=-9999)
     assert np.array_equal(out, tile)
-    # Both streams gone, so what is left is frame scaffolding and a header.
-    assert len(frame) < 200
+    assert len(frame) < 400
 
 
 def test_all_nan_tile_round_trips():
@@ -126,11 +125,11 @@ def test_holes_do_not_blow_up_the_frame():
     assert with_codec < without * 1.5
 
 
-def test_tile_without_holes_skips_the_codec():
-    """No missing samples, no mask stream, so the frame has to match the one the
-    same tile produced before the codec existed."""
+def test_an_undeclared_tile_without_nan_gets_no_codec():
+    """The node is only in the graph when a mode is set, and nothing sets one
+    for a float raster that holds no NaN."""
     tile = _smooth(np.float32)
-    assert _2d._nodata_args(tile, None) == (_2d._NODATA_NONE, 0.0)
+    assert _2d._nodata_args(tile, None) == (_2d._NODATA_NONE, 0)
 
 
 def test_nan_detected_only_on_float():
@@ -201,17 +200,14 @@ def test_low_level_sentinel_needs_a_dtype():
         geozl.lossless.Nodata(COLS, value=-9999)
 
 
-def test_low_level_all_valid_and_all_hole():
-    """Both no mask shapes through the node placed by hand, since the high
-    level path never builds the graph when there is nothing to mask."""
+def test_the_degenerate_tiles_go_through_the_one_wire_shape():
+    """Both ends of the range, no holes at all and nothing but holes."""
     node = geozl.lossless.Nodata(COLS, value=-9999, dtype=np.int32)
     clean = _smooth(np.int32)
-    out = _low_level_roundtrip(node, clean)
-    assert np.array_equal(out, clean.reshape(-1))
+    assert np.array_equal(_low_level_roundtrip(node, clean), clean.reshape(-1))
 
     empty = np.full((ROWS, COLS), -9999, dtype=np.int32)
-    out = _low_level_roundtrip(node, empty)
-    assert np.array_equal(out, empty.reshape(-1))
+    assert np.array_equal(_low_level_roundtrip(node, empty), empty.reshape(-1))
 
 
 def test_python_and_c_pack_the_same_header():
@@ -222,65 +218,6 @@ def test_python_and_c_pack_the_same_header():
     assert _nd.nodata_bits(np.float32(-9999.0), np.float32) == 0xC61C3C00
     assert _nd._pattern_bytes(0xFFFFD8F1, 4) == b"\xf1\xd8\xff\xff"
     assert _nd._pattern_bytes(0x7FC0BEEF, 4) == b"\xef\xbe\xc0\x7f"
-
-
-def _forgeable_frame(node, arr):
-    """A frame from a node placed by hand, checksums off so a forged header is
-    what the decoder trips on."""
-    zl = pytest.importorskip("openzl.ext")
-    c = zl.Compressor()
-    backend = zl.graphs.Compress()(c)
-    c.select_starting_graph(node(c, backend, backend))
-    cc = zl.CCtx()
-    cc.ref_compressor(c)
-    cc.set_parameter(zl.CParam.FormatVersion, zl.MAX_FORMAT_VERSION)
-    cc.set_parameter(zl.CParam.ContentChecksum, 2)   # ZL_TernaryParam_disable
-    cc.set_parameter(zl.CParam.CompressedChecksum, 2)
-    flat = np.ascontiguousarray(arr).reshape(-1)
-    return bytearray(cc.compress([zl.Input(zl.Type.Numeric, flat)]))
-
-
-def _only(frame, needle):
-    at = frame.find(needle)
-    assert at >= 0 and frame.find(needle, at + 1) < 0, \
-        "the codec header is no longer shaped the way this test looks for it"
-    return at
-
-
-def _decode_forged(frame):
-    zl = pytest.importorskip("openzl.ext")
-    d = zl.DCtx()
-    d.set_parameter(zl.DParam.CheckCompressedChecksum, 2)
-    d.set_parameter(zl.DParam.CheckContentChecksum, 2)
-    geozl.register_decoders(d)
-    return d.decompress(bytes(frame))
-
-
-def test_python_decoder_rejects_an_unknown_code():
-    """The wire code is the first thing the decoder trusts, so a frame carrying
-    one it does not know has to be refused rather than read behind."""
-    tile = _smooth(np.uint32)
-    tile[_holes()] = 0xDEADBEEF
-    frame = _forgeable_frame(
-        geozl.lossless.Nodata(COLS, value=0xDEADBEEF, dtype=np.uint32), tile)
-    # restore writes the code then the sentinel at the sample width, and that
-    # pattern is distinctive enough to find the header without guessing.
-    frame[_only(frame, bytes([1]) + struct.pack("<I", 0xDEADBEEF))] = 9
-    with pytest.raises(Exception, match="bad codec header"):
-        _decode_forged(frame)
-
-
-def test_python_decoder_rejects_an_all_hole_count_it_cannot_allocate():
-    """The count sizes the output and comes from the frame, so it has to be
-    caught before it is multiplied by the element width, the way C does."""
-    tile = np.full((4, 4), -9999, np.int32)
-    frame = _forgeable_frame(
-        geozl.lossless.Nodata(4, value=-9999, dtype=np.int32), tile)
-    at = _only(frame, bytes([3]) + struct.pack("<i", -9999)
-               + struct.pack("<Q", tile.size))
-    frame[at + 5:at + 13] = struct.pack("<Q", 2 ** 63)
-    with pytest.raises(Exception, match="bad codec header"):
-        _decode_forged(frame)
 
 
 def test_a_sentinel_needs_a_type_that_can_carry_one():

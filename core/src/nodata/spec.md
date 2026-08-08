@@ -1,42 +1,29 @@
 ## Nodata Decoder Specification
 
 ### Inputs
-Two numeric streams.
+Two numeric streams, both `nbElts` elements long.
 
 - `values`, the raster with every missing sample replaced by a fill. Element
   width 1, 2, 4 or 8.
 - `mask`, one byte per sample. Following GDAL, `0` marks a sample that was never
   measured and any nonzero byte marks a valid one.
 
-How many elements each stream holds depends on the header code below, and a
-reader must check the sizes against the code rather than trust it alone.
+`nbElts` is the length of `values`, and a reader must reject a frame where
+`mask` is a different length or where either is empty.
 
 ### Codec Header
-Little endian. Byte 0 is the code, and a reader must reject a code it does not
-know rather than interpret the bytes behind it.
+`eltWidth` bytes, little endian, the bit pattern to restore at the width of a
+sample. There is nothing else in it.
 
-| code | name | header size | `values` | `mask` |
-| --- | --- | --- | --- | --- |
-| 1 | restore | `1 + eltWidth` | `nbElts` | `nbElts` |
-| 2 | all valid | `1` | `nbElts` | empty |
-| 3 | all hole | `1 + eltWidth + 8` | empty | empty |
+No code, since there is one shape, and no count, since `values` carries it.
+Nothing the frame declares reaches an allocation.
 
-For codes 1 and 3, bytes `1..eltWidth` hold the bit pattern to restore, at the
-width of a sample. Code 3 drops both streams, so the sample count has nowhere
-else to live and follows the pattern as a uint64. That count sizes an
-allocation, so a reader must reject a value that overflows when multiplied by
-the element width.
+An encoder must refuse an empty tile, which has no mask to carry.
 
 ### Decoding
-
-Code 1, the output is `values` with the stored pattern written wherever `mask`
-is zero.
+The output is `values` with the stored pattern written wherever `mask` is zero.
 
     out[i] = mask[i] == 0 ? pattern : values[i]
-
-Code 2, nothing was missing, so the output is `values` unchanged. Code 3,
-nothing was measured, so the output is the stored pattern repeated `nbElts`
-times.
 
 The pattern is stored as bits rather than as a number, so a NaN comes back with
 the payload it went in with, and a sentinel such as -9999 comes back unchanged.

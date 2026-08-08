@@ -2,7 +2,6 @@
 #define GEOZL_CODECS_NODATA_ENCODE_BINDING_H
 
 #include "common/graph_num1to2.h"
-#include "nodata/nodata_wire.h"
 #include "openzl/zl_ctransform.h"
 
 // Encoder side selectors. The wire header never carries these, by the time it

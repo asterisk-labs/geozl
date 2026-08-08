@@ -31,7 +31,6 @@ size_t nodata_mark_nan(uint8_t* mask, const void* src, size_t nb_elts, size_t el
 size_t nodata_mark_value(uint8_t* mask, const void* src, size_t nb_elts, size_t elt_width, uint64_t pattern);
 void nodata_fill(void* dst, const void* src, const uint8_t* mask, size_t width, size_t nb_elts, size_t elt_width);
 void nodata_restore(void* dst, const void* values, const uint8_t* mask, size_t nb_elts, size_t elt_width, uint64_t pattern);
-void nodata_broadcast(void* dst, size_t nb_elts, size_t elt_width, uint64_t pattern);
 
 // The three quantizers. Scan and resolve differ per curve.
 typedef struct { double max_error; unsigned char store; } quant_linear_spec;
