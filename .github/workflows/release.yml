@@ -60,8 +60,9 @@ jobs:
           LD_LIBRARY_PATH="" python -c "import numpy as np, geozl; \
             t=(np.arange(256*256,dtype=np.uint16)%97).reshape(256,256); \
             best=geozl.profile(t, reps=1)[0]['graph']; \
-            f=geozl.compress(t, method=best); \
-            d=geozl.decompress(f, dtype=np.uint16).reshape(t.shape); \
+            g=geozl.graph(t, best); \
+            f=geozl.compress(t, graph=g); \
+            d=geozl.decompress(f).view(np.uint16).reshape(t.shape); \
             assert (d == t).all(), 'round-trip mismatch'; \
             print('compress', len(f), 'bytes, round-trip ok')"
       - uses: actions/upload-artifact@v4
@@ -106,8 +107,9 @@ jobs:
           python -c "import numpy as np, geozl; \
             t=(np.arange(256*256,dtype=np.uint16)%97).reshape(256,256); \
             best=geozl.profile(t, reps=1)[0]['graph']; \
-            f=geozl.compress(t, method=best); \
-            d=geozl.decompress(f, dtype=np.uint16).reshape(t.shape); \
+            g=geozl.graph(t, best); \
+            f=geozl.compress(t, graph=g); \
+            d=geozl.decompress(f).view(np.uint16).reshape(t.shape); \
             assert (d == t).all(), 'round-trip mismatch'; \
             print('compress', len(f), 'bytes, round-trip ok')"
       - uses: actions/upload-artifact@v4
