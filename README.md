@@ -55,45 +55,78 @@ Two entry points. A high-level API that builds a graph from a recipe string and 
 
 ### High-level API
 
-`geozl.profile` ranks the candidate graphs on your tile, `geozl.graph` builds the one you name, and `geozl.compress` runs a tile through it. The search runs once, the build runs once, and what is left per tile is the codec. `geozl.decompress` reverses a frame back to bytes.
+`geozl.profile` benchmarks the candidate graphs on your tile, `geozl.graph` builds the one you name, and `geozl.compress` runs a tile through it. The search runs once, the build runs once, and what is left per tile is the codec.
 
 ```python
 import numpy as np
 import geozl
 
-tile = np.random.randint(0, 4096, (1024, 1024), dtype=np.uint16)
+y, x = np.mgrid[0:1024, 0:1024]
+tile = (2000 + 8 * y + 5 * x).astype(np.uint16)      # a raster, not noise
 
-rows = geozl.profile(tile)                        # the slow call, run once
-best = rows[0]["graph"]                           # e.g. "planar>zigzag>transpose>entropy"
+rows = geozl.profile(tile, prior=None)               # the slow call, run once
+best = rows[0]["graph"]                              # e.g. "average>zigzag>transpose>zstd"
 
-g = geozl.graph(tile, best)                       # built once, run on many tiles
+g = geozl.graph(tile, best)                          # built once, run on many tiles
+frame = geozl.compress(tile, graph=g)                # the fast call, run always
+
+back = geozl.decompress(frame)                       # flat uint8
+back = back.view(np.uint16).reshape(1024, 1024)
+```
+
+`prior` narrows the sweep to one predictor plus the id pass, and defaults to `"planar"`. That is 14 of the 56 candidates, so pass `prior=None` when you want the whole grid and are willing to pay for it.
+
+`decompress` returns a flat `uint8` array, never `bytes`. The frame names every codec it used, so nothing has to be told how to undo it, but it does not carry the NumPy sign or the 2-D shape because neither is a property of the bytes. Those two facts live in your code, which is why the call ends in `.view` and `.reshape`. Pass `verify=False` to skip the checksums the frame carries, which buys 1 to 30 per cent of decode and gives up the only warning you get.
+
+A lossy bound is a property of the graph, not of the tile.
+
+```python
 g = geozl.graph(tile, best, error="LINEAR:MAX_ERROR=2")  # absolute bound
 g = geozl.graph(tile, best, error="LOG:MAX_ERROR=1%")    # bound follows the value
-
-frame = geozl.compress(tile, graph=g)             # the fast call, run always
-back = geozl.decompress(frame).view(np.uint16).reshape(1024, 1024)
 ```
+
+So is a sentinel. It has to be a value the raster can hold, so a hole marked `-9999` needs a signed or float raster to sit in.
+
+```python
+holed = tile.astype(np.float32)
+holed[::7, ::5] = -9999
+
+g = geozl.graph(holed, best, nodata=-9999)               # holes into a mask
+```
+
+### Recipes
+
+A recipe is a predictor and a terminal. Any predictor other than `id` gets `zigzag` between the two, since a residual is signed and the backends read unsigned.
+
+| predictor | | terminal | |
+|---|---|---|---|
+| `id` | no prediction | `entropy` | adaptive FSE or Huffman |
+| `delta_1d` | residual against the previous sample | `field_lz` | field-wise LZ over the residual |
+| `delta_w`, `delta_n` | west or north neighbour | `zstd` | serialize, then zstd |
+| `planar`, `med`, `average` | two-dimensional predictors | `categorical` | dispatch on the dominant symbol's share |
+| `wp_static` | fitted weighted predictor | `transpose>entropy`, `transpose>zstd` | to lanes first, which is shuffle |
+| | | `store_lo` | transpose, low lane stored, high lanes entropy |
 
 ### Low-level API
 
-For anything else, place the codecs in an `openzl.ext` graph yourself, alongside regular OpenZL nodes.
+For anything else, place the codecs in an `openzl.ext` graph yourself, alongside regular OpenZL nodes. A node is applied to its successor, so the graph is written back to front and the last line runs first.
 
 ```python
 import openzl.ext as zl
 import geozl
 
 c = zl.Compressor()
-g = zl.graphs.Compress()
+g = zl.graphs.Compress()(c)
 
 g = zl.nodes.Zigzag()(c, g)
-g = geozl.lossless.Planar(width=512)(c, g)
+g = geozl.lossless.Planar(512)(c, g)   # runs first, so this is planar>zigzag>entropy
 
 c.select_starting_graph(g)
 ```
 
 ### Decoding
 
-Either way, a reader has to register the geozl decoders before it can follow the frame.
+`geozl.decompress` registers the geozl decoders itself and reads any frame, including one you built by hand with the low-level API. Registration is only your job when you drive your own `DCtx`.
 
 ```python
 import openzl.ext as zl
@@ -103,6 +136,8 @@ d = zl.DCtx()
 geozl.register_decoders(d)
 tile = d.decompress(frame)[0].content.as_nparray()
 ```
+
+`as_nparray` types the stream by element width alone and always unsigned, so a signed tile comes back as its unsigned twin and needs a `.view(dtype)` to read right.
 
 ## Codecs
 
