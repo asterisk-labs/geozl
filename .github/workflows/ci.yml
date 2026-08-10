@@ -148,12 +148,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install cmake ninja numpy cffi openzl pytest
 
-      # GEOZL_SIMD caps the dispatch, so sse2 and avx2 exercise the two paths of
-      # one binary, the same binary the wheel ships. A compiler flag cannot do
-      # that any more, a target attribute overrides -mno-avx2. scalar still needs
-      # the flag because it is a compile-time switch, and release is the shape
-      # release.yml builds. NEON runs on the macOS arm64 runner, which has an
-      # openzl wheel unlike the linux arm one.
+      # GEOZL_SIMD caps the dispatch, so sse2 and avx2 exercise two paths of the
+      # one binary the wheel ships. A compiler flag cannot, a target attribute
+      # overrides -mno-avx2. scalar is compile-time, release is the shape
+      # release.yml builds, and NEON needs the macOS wheel.          
       - name: Build and test with the ${{ matrix.name }} kernels
         env:
           CFLAGS: ${{ matrix.cflags }}

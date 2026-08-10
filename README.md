@@ -21,11 +21,13 @@
 
 ## What is OpenZL and GeoZL?
 
-[OpenZL](https://github.com/facebook/openzl) treats compression as a graph of codecs. Each frame carries the recipe needed to decode it, so a universal OpenZL decoder can follow the graph without knowing how the data was encoded.
+[OpenZL](https://github.com/facebook/openzl) represents compression as a graph of codecs. Each compressed frame includes the information needed to decode that graph, which means a generic OpenZL decoder can follow the recipe without needing to know in advance how the data was encoded.
 
-That model works well for one-dimensional streams, but it does not know that a raster has spatial structure. **GeoZL adds that missing spatial layer.**
+That works well for one-dimensional streams. Raster data is a little different, though: pixels have neighbours, rows and columns matter, and there is useful spatial structure that a regular byte stream does not capture.
 
-A [GeoZL](https://asterisk.coop/geozl/) codec is an OpenZL graph node that understands raster tiles. It transforms a typed numeric stream, puts whatever reverses that transform in the codec header, and lets the rest of the graph continue as usual.
+**GeoZL adds that spatial awareness to OpenZL.**
+
+A [GeoZL](https://asterisk.coop/geozl/) codec is simply a custom OpenZL graph node designed for raster tiles. It takes a typed numeric stream, applies a raster-aware transform, stores whatever information is needed to reverse that transform in the codec header, and then passes the result on to the rest of the OpenZL graph.
 
 If you want to implement a new codec, see [docs/adding-a-codec.md](docs/adding-a-codec.md).
 
@@ -36,7 +38,7 @@ If you want to implement a new codec, see [docs/adding-a-codec.md](docs/adding-a
 
 ## Status
 
-GeoZL is **experimental**.
+GeoZL is currently **experimental**.
 
 > [!WARNING]
 > **GeoZL codecs are not part of OpenZL.**
@@ -51,11 +53,20 @@ pip install geozl
 
 ## Example
 
-Two entry points. A high-level API that builds a graph from a recipe string and runs tiles through it, and a low-level API that places individual codecs in an OpenZL graph yourself.
+There are two ways to use GeoZL.
+
+The high-level API handles graph selection and construction for you. The low-level API lets you place GeoZL codecs directly into an `openzl.ext` graph alongside regular OpenZL nodes.
+
 
 ### High-level API
 
-`geozl.profile` benchmarks the candidate graphs on your tile, `geozl.graph` builds the one you name, and `geozl.compress` runs a tile through it. The search runs once, the build runs once, and what is left per tile is the codec.
+At the high level:
+
+* `geozl.profile` tries candidate graphs on a tile.
+* `geozl.graph` builds the graph you choose.
+* `geozl.compress` runs tiles through that graph.
+
+The expensive search happens once, graph construction happens once, and the resulting graph can then be reused across many tiles.
 
 ```python
 import numpy as np
@@ -64,52 +75,72 @@ import geozl
 y, x = np.mgrid[0:1024, 0:1024]
 tile = (2000 + 8 * y + 5 * x).astype(np.uint16)      # a raster, not noise
 
-rows = geozl.profile(tile, prior=None)               # the slow call, run once
+rows = geozl.profile(tile, prior=None)               # slow: usually run once
 best = rows[0]["graph"]                              # e.g. "average>zigzag>transpose>zstd"
 
-g = geozl.graph(tile, best)                          # built once, run on many tiles
-frame = geozl.compress(tile, graph=g)                # the fast call, run always
+g = geozl.graph(tile, best)                          # build once
+frame = geozl.compress(tile, graph=g)                # reuse for many tiles
 
-back = geozl.decompress(frame)                       # flat uint8
+back = geozl.decompress(frame)                       # flat uint8 array
 back = back.view(np.uint16).reshape(1024, 1024)
 ```
 
-`prior` narrows the sweep to one predictor plus the id pass, and defaults to `"planar"`. That is 14 of the 56 candidates, so pass `prior=None` when you want the whole grid and are willing to pay for it.
 
-`decompress` returns a flat `uint8` array, never `bytes`. The frame names every codec it used, so nothing has to be told how to undo it, but it does not carry the NumPy sign or the 2-D shape because neither is a property of the bytes. Those two facts live in your code, which is why the call ends in `.view` and `.reshape`. Pass `verify=False` to skip the checksums the frame carries, which buys 1 to 30 per cent of decode and gives up the only warning you get.
-
-A lossy bound is a property of the graph, not of the tile.
+By default, `prior` is `"planar"`. That limits the search to the planar predictor plus the `id` pass: 14 candidates instead of the full set of 56. If you want GeoZL to search the entire grid, pass `prior=None`:
 
 ```python
-g = geozl.graph(tile, best, error="LINEAR:MAX_ERROR=2")  # absolute bound
-g = geozl.graph(tile, best, error="LOG:MAX_ERROR=1%")    # bound follows the value
+rows = geozl.profile(tile, prior=None)
 ```
 
-So is a sentinel. It has to be a value the raster can hold, so a hole marked `-9999` needs a signed or float raster to sit in.
+It takes longer, but gives the profiler more options to work with.
+
+One detail worth knowing is that `geozl.decompress` returns a flat NumPy `uint8` array, not `bytes`.
+
+The frame records every codec needed to reverse the compression pipeline, but it does not store the NumPy signedness or the original 2-D shape. Those are properties of your application rather than the raw byte stream.
+
+That is why reconstruction ends with:
+
+```python
+back = back.view(np.uint16).reshape(1024, 1024)
+```
+
+GeoZL also verifies the checksums stored in the frame during decoding. If decode speed matters more than validation, you can disable that with:
+
+```python
+back = geozl.decompress(frame, verify=False)
+```
+
+Depending on the data, skipping verification can improve decode performance by roughly 1–30%, but you also lose the checksum warning if the frame is corrupted.
+
+### Lossy bounds
+
+Lossy settings belong to the graph, not to an individual tile.
+
+For example:
+
+```python
+g = geozl.graph(tile, best, error="LINEAR:MAX_ERROR=2")  # absolute error bound
+g = geozl.graph(tile, best, error="LOG:MAX_ERROR=1%")    # bound scales with the value
+```
+
+The same is true for NoData values.
+
+The sentinel must be representable by the raster dtype. For example, a NoData value of `-9999` cannot live in an unsigned integer raster, so the data needs to be signed or floating point first.
 
 ```python
 holed = tile.astype(np.float32)
 holed[::7, ::5] = -9999
 
-g = geozl.graph(holed, best, nodata=-9999)               # holes into a mask
+g = geozl.graph(holed, best, nodata=-9999)
 ```
 
-### Recipes
-
-A recipe is a predictor and a terminal. Any predictor other than `id` gets `zigzag` between the two, since a residual is signed and the backends read unsigned.
-
-| predictor | | terminal | |
-|---|---|---|---|
-| `id` | no prediction | `entropy` | adaptive FSE or Huffman |
-| `delta_1d` | residual against the previous sample | `field_lz` | field-wise LZ over the residual |
-| `delta_w`, `delta_n` | west or north neighbour | `zstd` | serialize, then zstd |
-| `planar`, `med`, `average` | two-dimensional predictors | `categorical` | dispatch on the dominant symbol's share |
-| `wp_static` | fitted weighted predictor | `transpose>entropy`, `transpose>zstd` | to lanes first, which is shuffle |
-| | | `store_lo` | transpose, low lane stored, high lanes entropy |
+GeoZL separates those missing samples into a validity mask and fills the holes before the rest of the graph runs.
 
 ### Low-level API
 
-For anything else, place the codecs in an `openzl.ext` graph yourself, alongside regular OpenZL nodes. A node is applied to its successor, so the graph is written back to front and the last line runs first.
+If you need more control, you can build the OpenZL graph yourself and mix GeoZL nodes with regular `openzl.ext` nodes.
+
+One thing that is slightly unintuitive at first: a node is applied to its successor, so the graph is written back to front. In other words, the last node you add runs first.
 
 ```python
 import openzl.ext as zl
@@ -119,14 +150,14 @@ c = zl.Compressor()
 g = zl.graphs.Compress()(c)
 
 g = zl.nodes.Zigzag()(c, g)
-g = geozl.lossless.Planar(512)(c, g)   # runs first, so this is planar>zigzag>entropy
+g = geozl.lossless.Planar(512)(c, g)   # runs first: planar>zigzag>entropy
 
 c.select_starting_graph(g)
 ```
 
 ### Decoding
 
-`geozl.decompress` registers the geozl decoders itself and reads any frame, including one you built by hand with the low-level API. Registration is only your job when you drive your own `DCtx`.
+You only need to register the decoders yourself when you manage your own OpenZL `DCtx`:
 
 ```python
 import openzl.ext as zl
@@ -137,23 +168,21 @@ geozl.register_decoders(d)
 tile = d.decompress(frame)[0].content.as_nparray()
 ```
 
-`as_nparray` types the stream by element width alone and always unsigned, so a signed tile comes back as its unsigned twin and needs a `.view(dtype)` to read right.
-
 ## Codecs
 
-| codec | CTid | what it does |
-|---|---:|---|
-| `delta_w` | `0x72D701` | residual against the west neighbour |
-| `delta_n` | `0x72D702` | residual against the north neighbour |
-| `planar` | `0x72D703` | predicts each pixel from `W + N - NW` |
-| `deinterleave` | `0x72D704` | separates a two-lane interleaved stream |
-| `med` | `0x72D705` | median edge detector predictor |
-| `average` | `0x72D706` | floor average of the west and north neighbours |
-| `wp_static` | `0x72D707` | fits a weighted predictor and stores the weights in the frame |
-| `nodata` | `0x72D70C` | pulls missing samples into a validity mask and fills the holes |
-| `quant_linear` | `0x72D781` | uniform grid, fixed absolute bound, `LINEAR:MAX_ERROR=V` |
-| `quant_log` | `0x72D782` | logarithmic grid, bound is a fraction of the value, `LOG:MAX_ERROR=P%` |
-| `quant_sqrt` | `0x72D783` | square root grid, bound grows with the sensor noise, `SQRT:MAX_ERROR=VN` |
+| codec          |       CTid | what it does                                                       |
+| -------------- | ---------: | ------------------------------------------------------------------ |
+| `delta_w`      | `0x72D701` | residual against the west neighbour                                |
+| `delta_n`      | `0x72D702` | residual against the north neighbour                               |
+| `planar`       | `0x72D703` | predicts each pixel from `W + N - NW`                              |
+| `deinterleave` | `0x72D704` | separates a two-lane interleaved stream                            |
+| `med`          | `0x72D705` | median edge detector predictor                                     |
+| `average`      | `0x72D706` | floor average of the west and north neighbours                     |
+| `wp_static`    | `0x72D707` | fits a weighted predictor and stores its weights in the frame      |
+| `nodata`       | `0x72D70C` | moves missing samples into a validity mask and fills the holes     |
+| `quant_linear` | `0x72D781` | uniform grid with a fixed absolute bound: `LINEAR:MAX_ERROR=V`     |
+| `quant_log`    | `0x72D782` | logarithmic grid with a relative bound: `LOG:MAX_ERROR=P%`         |
+| `quant_sqrt`   | `0x72D783` | square-root grid whose bound grows with noise: `SQRT:MAX_ERROR=VN` |
 
 ## License
 
