@@ -27,8 +27,8 @@ void deinterleave_split(void* out0, void* out1, const void* src, size_t nb_elts,
 void deinterleave_join(void* dst, const void* in0, const void* in1, size_t nb_elts, size_t elt_width);
 
 int nodata_find_nan(uint64_t* pattern, const void* src, size_t nb_elts, size_t elt_width);
-size_t nodata_mark_nan(uint8_t* mask, const void* src, size_t nb_elts, size_t elt_width);
-size_t nodata_mark_value(uint8_t* mask, const void* src, size_t nb_elts, size_t elt_width, uint64_t pattern);
+void nodata_mark_nan(uint8_t* mask, const void* src, size_t nb_elts, size_t elt_width);
+void nodata_mark_value(uint8_t* mask, const void* src, size_t nb_elts, size_t elt_width, uint64_t pattern);
 void nodata_fill(void* dst, const void* src, const uint8_t* mask, size_t width, size_t nb_elts, size_t elt_width);
 void nodata_restore(void* dst, const void* values, const uint8_t* mask, size_t nb_elts, size_t elt_width, uint64_t pattern);
 

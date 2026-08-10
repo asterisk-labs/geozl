@@ -51,8 +51,7 @@ static void test_nan_round_trip(void) {
   CHECK(nodata_find_nan(&pattern, src32, N, 4) == 1);
   CHECK(pattern == ODD_NAN);
 
-  const size_t marked = nodata_mark_value(mask, src32, N, 4, pattern);
-  CHECK(marked > 0 && marked < N);
+  nodata_mark_value(mask, src32, N, 4, pattern);
 
   nodata_fill(filled32, src32, mask, COLS, N, 4);
   nodata_restore(back32, filled32, mask, N, 4, pattern);
@@ -88,14 +87,18 @@ static void test_degenerate_tiles_round_trip(void) {
 
   for (int i = 0; i < 16; ++i)
     tile[i] = 0x40000000u + (uint32_t)i;
-  CHECK(nodata_mark_value(m, tile, 16, 4, 0xDEADBEEFu) == 0);
+  nodata_mark_value(m, tile, 16, 4, 0xDEADBEEFu);
+  for (int i = 0; i < 16; ++i)
+    CHECK(m[i] == GEOZL_NODATA_VALID);
   nodata_fill(vals, tile, m, 4, 16, 4);
   nodata_restore(out, vals, m, 16, 4, 0xDEADBEEFu);
   CHECK(memcmp(out, tile, sizeof tile) == 0);
 
   for (int i = 0; i < 16; ++i)
     tile[i] = ODD_NAN;
-  CHECK(nodata_mark_nan(m, tile, 16, 4) == 16);
+  nodata_mark_nan(m, tile, 16, 4);
+  for (int i = 0; i < 16; ++i)
+    CHECK(m[i] == GEOZL_NODATA_INVALID);
   nodata_fill(vals, tile, m, 4, 16, 4);
   // Nothing measured to copy, so the fill is all zero and the mask carries the
   // whole tile.
@@ -120,8 +123,9 @@ static void test_sentinel_all_widths(void) {
     for (size_t i = 0; i < n; i += 5)
       memcpy((uint8_t *)tile + i * ew, &sentinel, ew);
 
-    const size_t hits = nodata_mark_value(m, tile, n, ew, sentinel);
-    CHECK(hits == (n + 4) / 5);
+    nodata_mark_value(m, tile, n, ew, sentinel);
+    for (size_t i = 0; i < n; ++i)
+      CHECK(m[i] == ((i % 5 == 0) ? GEOZL_NODATA_INVALID : GEOZL_NODATA_VALID));
     nodata_fill(vals, tile, m, 16, n, ew);
     nodata_restore(out, vals, m, n, ew, sentinel);
     CHECK(memcmp(out, tile, n * ew) == 0);
@@ -153,10 +157,44 @@ static void test_fill_beats_sentinel(void) {
   CHECK(nz_filled < nz_raw);
 }
 
+// Every NaN is a hole whatever its payload. An infinity is not.
+static void test_mark_nan_takes_every_payload(void) {
+  static uint32_t tile[8];
+  static uint8_t m[8];
+  for (int i = 0; i < 8; ++i)
+    tile[i] = 0x40000000u + (uint32_t)i;
+  tile[1] = ODD_NAN;
+  tile[5] = 0x7FA00001u; // a different payload
+  tile[6] = 0x7F800000u; // +inf
+
+  nodata_mark_nan(m, tile, 8, 4);
+  for (int i = 0; i < 8; ++i)
+    CHECK(m[i] == ((i == 1 || i == 5) ? GEOZL_NODATA_INVALID
+                                      : GEOZL_NODATA_VALID));
+}
+
+// The kernels are reachable without a binding to reject the width first.
+static void test_unsupported_width_leaves_a_readable_mask(void) {
+  static uint8_t m[16], tile[48];
+  memset(tile, 0, sizeof tile);
+
+  memset(m, 0xAA, sizeof m);
+  nodata_mark_nan(m, tile, 16, 3);
+  for (int i = 0; i < 16; ++i)
+    CHECK(m[i] == GEOZL_NODATA_VALID);
+
+  memset(m, 0xAA, sizeof m);
+  nodata_mark_value(m, tile, 16, 3, 0);
+  for (int i = 0; i < 16; ++i)
+    CHECK(m[i] == GEOZL_NODATA_VALID);
+}
+
 int main(void) {
   build_tile();
   test_nan_round_trip();
   test_infinity_is_a_value();
+  test_mark_nan_takes_every_payload();
+  test_unsupported_width_leaves_a_readable_mask();
   test_degenerate_tiles_round_trip();
   test_sentinel_all_widths();
   test_fill_beats_sentinel();

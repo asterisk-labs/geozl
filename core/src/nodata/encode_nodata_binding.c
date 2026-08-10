@@ -45,12 +45,12 @@ ZL_Report EI_geozl_nodata(ZL_Encoder *eictx, const ZL_Input *in) {
 
   uint64_t pattern = 0;
   uint8_t *mp8 = (uint8_t *)ZL_Output_ptr(mask);
-  if (mode == GEOZL_NODATA_MODE_NAN) {
+  if (mode == GEOZL_NODATA_NAN) {
     // The marking is the NaN test itself, so a second payload is a hole too,
     // and the pattern is the first one found.
     nodata_find_nan(&pattern, ZL_Input_ptr(in), nbElts, eltWidth);
     nodata_mark_nan(mp8, ZL_Input_ptr(in), nbElts, eltWidth);
-  } else if (mode == GEOZL_NODATA_MODE_VALUE) {
+  } else if (mode == GEOZL_NODATA_VALUE) {
     ZL_CopyParam vp =
         ZL_Encoder_getLocalCopyParam(eictx, GEOZL_NODATA_PARAM_VALUE);
     if (vp.paramId != GEOZL_NODATA_PARAM_VALUE || vp.paramSize != 8)

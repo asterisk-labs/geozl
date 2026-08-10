@@ -16,14 +16,15 @@
 int nodata_find_nan(uint64_t *pattern, const void *src, size_t nb_elts,
                     size_t elt_width);
 
-// Marks every NaN, whatever its payload, and returns how many. Widths other
-// than 2, 4 and 8 hold no IEEE value, so the mask comes out all valid.
-size_t nodata_mark_nan(uint8_t *mask, const void *src, size_t nb_elts,
-                       size_t elt_width);
+// Marks every NaN, whatever its payload. Widths other than 2, 4 and 8 hold no
+// IEEE value, so the mask comes out all valid.
+void nodata_mark_nan(uint8_t *mask, const void *src, size_t nb_elts,
+                     size_t elt_width);
 
-// Marks every sample whose bit pattern equals @pattern. Returns how many.
-size_t nodata_mark_value(uint8_t *mask, const void *src, size_t nb_elts,
-                         size_t elt_width, uint64_t pattern);
+// Marks every sample whose bit pattern equals @pattern. An unsupported width
+// leaves the mask all valid, as nodata_mark_nan does.
+void nodata_mark_value(uint8_t *mask, const void *src, size_t nb_elts,
+                       size_t elt_width, uint64_t pattern);
 
 // Copies src to dst, replacing every marked sample. @width is the row width in
 // samples, 0 or a width that does not divide nb_elts treats the tile as one

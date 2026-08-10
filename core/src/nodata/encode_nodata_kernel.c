@@ -41,17 +41,13 @@ int nodata_find_nan(uint64_t *pattern, const void *src, size_t nb_elts,
 #define NODATA_MARK_NAN(T, TEST)                                               \
   do {                                                                         \
     const T *s = (const T *)src;                                               \
-    size_t n = 0;                                                              \
-    for (size_t i = 0; i < nb_elts; ++i) {                                     \
-      const int hit = TEST(s[i]);                                              \
-      mask[i] = hit ? GEOZL_NODATA_INVALID : GEOZL_NODATA_VALID;               \
-      n += (size_t)hit;                                                        \
-    }                                                                          \
-    return n;                                                                  \
+    for (size_t i = 0; i < nb_elts; ++i)                                       \
+      mask[i] = TEST(s[i]) ? GEOZL_NODATA_INVALID : GEOZL_NODATA_VALID;        \
+    return;                                                                    \
   } while (0)
 
-size_t nodata_mark_nan(uint8_t *mask, const void *src, size_t nb_elts,
-                       size_t elt_width) {
+void nodata_mark_nan(uint8_t *mask, const void *src, size_t nb_elts,
+                     size_t elt_width) {
   switch (elt_width) {
   case 2:
     NODATA_MARK_NAN(uint16_t, NODATA_ISNAN16);
@@ -61,7 +57,7 @@ size_t nodata_mark_nan(uint8_t *mask, const void *src, size_t nb_elts,
     NODATA_MARK_NAN(uint64_t, NODATA_ISNAN64);
   default:
     memset(mask, GEOZL_NODATA_VALID, nb_elts);
-    return 0;
+    return;
   }
 }
 
@@ -69,17 +65,13 @@ size_t nodata_mark_nan(uint8_t *mask, const void *src, size_t nb_elts,
   do {                                                                         \
     const T *s = (const T *)src;                                               \
     const T p = (T)pattern;                                                    \
-    size_t n = 0;                                                              \
-    for (size_t i = 0; i < nb_elts; ++i) {                                     \
-      const int hit = (s[i] == p);                                             \
-      mask[i] = hit ? GEOZL_NODATA_INVALID : GEOZL_NODATA_VALID;               \
-      n += (size_t)hit;                                                        \
-    }                                                                          \
-    return n;                                                                  \
+    for (size_t i = 0; i < nb_elts; ++i)                                       \
+      mask[i] = (s[i] == p) ? GEOZL_NODATA_INVALID : GEOZL_NODATA_VALID;       \
+    return;                                                                    \
   } while (0)
 
-size_t nodata_mark_value(uint8_t *mask, const void *src, size_t nb_elts,
-                         size_t elt_width, uint64_t pattern) {
+void nodata_mark_value(uint8_t *mask, const void *src, size_t nb_elts,
+                       size_t elt_width, uint64_t pattern) {
   switch (elt_width) {
   case 1:
     NODATA_MARK_VALUE(uint8_t);
@@ -90,7 +82,8 @@ size_t nodata_mark_value(uint8_t *mask, const void *src, size_t nb_elts,
   case 8:
     NODATA_MARK_VALUE(uint64_t);
   default:
-    return 0;
+    memset(mask, GEOZL_NODATA_VALID, nb_elts);
+    return;
   }
 }
 

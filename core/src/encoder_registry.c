@@ -116,17 +116,9 @@ ZL_NodeID geozl_node_floatmult(ZL_Compressor *c, double base) {
 
 ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width,
                             geozl_nodata_mode mode, uint64_t valueBits) {
-  // geozl_nodata_mode is the public spelling and GEOZL_NODATA_MODE_* the param
-  // the encoder reads. The two numberings differ, so the translation belongs
-  // here, at the one boundary a caller crosses, and not in every caller.
-  int param;
-  switch (mode) {
-  case GEOZL_NODATA_NAN:   param = GEOZL_NODATA_MODE_NAN;   break;
-  case GEOZL_NODATA_VALUE: param = GEOZL_NODATA_MODE_VALUE; break;
-  case GEOZL_NODATA_NONE:
-  default:
+  // NONE has no node to build.
+  if (mode != GEOZL_NODATA_NAN && mode != GEOZL_NODATA_VALUE)
     return ZL_NODE_ILLEGAL;
-  }
 
   const ZL_TypedEncoderDesc desc = EI_NODATA(GEOZL_CTID_NODATA);
   ZL_NodeID base = ZL_Compressor_registerTypedEncoder(c, &desc);
@@ -138,7 +130,7 @@ ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width,
   geozl_st_le64(bits, valueBits);
   const ZL_IntParam ip[2] = {
       {.paramId = GEOZL_NODATA_PARAM_WIDTH, .paramValue = (int)width},
-      {.paramId = GEOZL_NODATA_PARAM_MODE, .paramValue = param},
+      {.paramId = GEOZL_NODATA_PARAM_MODE, .paramValue = (int)mode},
   };
   const ZL_CopyParam cp = {.paramId = GEOZL_NODATA_PARAM_VALUE,
                            .paramPtr = bits,

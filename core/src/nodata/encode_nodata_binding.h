@@ -2,6 +2,7 @@
 #define GEOZL_CODECS_NODATA_ENCODE_BINDING_H
 
 #include "common/graph_num1to2.h"
+#include "geozl/geozl.h" // geozl_nodata_mode
 #include "openzl/zl_ctransform.h"
 
 // Encoder side selectors. The wire header never carries these, by the time it
@@ -10,8 +11,7 @@
 #define GEOZL_NODATA_PARAM_MODE 2
 #define GEOZL_NODATA_PARAM_VALUE 3
 
-#define GEOZL_NODATA_MODE_VALUE 1 // pattern comes in GEOZL_NODATA_PARAM_VALUE
-#define GEOZL_NODATA_MODE_NAN 2   // encoder finds the non-finite pattern itself
+// PARAM_MODE carries a geozl_nodata_mode.
 
 ZL_Report EI_geozl_nodata(ZL_Encoder *eictx, const ZL_Input *in);
 
