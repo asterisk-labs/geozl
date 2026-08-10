@@ -70,10 +70,13 @@ typedef enum {
   GEOZL_NODATA_VALUE = 2
 } geozl_nodata_mode;
 
-// mode is GEOZL_NODATA_MODE_NAN or _VALUE from encode_nodata_binding.h, and
-// valueBits is the sentinel's bit pattern at the sample width, ignored for NaN.
+// mode is one of the three above. NONE has no node, since a tile with nothing
+// missing wants no mask, so it is refused here rather than turned into an empty
+// one. valueBits is the sentinel's bit pattern at the sample width, read only
+// for VALUE and ignored for NAN.
 GEOZL_API ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width,
-                                      int mode, uint64_t valueBits);
+                                      geozl_nodata_mode mode,
+                                      uint64_t valueBits);
 
 // 2d high-level compression through the graph method names, as geozl_2d_grid_c
 // spells it, e.g. "planar>zigzag>transpose>entropy". The transpose and store_lo

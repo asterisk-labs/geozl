@@ -24,7 +24,7 @@ free one, never reuse or renumber.**
 The codec header is the only channel from encoder to decoder, the decoder never
 sees a local param. Whatever the decode needs per tile is written on encode with
 `ZL_Encoder_sendCodecHeader` and read on decode with `ZL_Decoder_getCodecHeader`,
-inline in the two bindings. Keep it minimal! For instace, most predictors carry
+inline in the two bindings. Keep it minimal! For instance, most predictors carry
 a four byte width, wp_static that width plus a shift and four coefficients,
 a quantizer its dtype, flags and step, deinterleave nothing.
 
@@ -111,5 +111,7 @@ preconditions.
 - [ ] node builder in `encoder_registry.c` and `geozl.h`
 - [ ] `core/CMakeLists.txt` only if the codec has a source outside the convention
 - [ ] cdef and module on the Python side, if exposed
-- [ ] listed in the README codec table
+- [ ] the catalog, all four, or `test_catalog.py` fails. README table, cards in
+      `docs/docs.html`, the `CODECS` array in `docs/assets/js/main.js`, and a page
+      under `docs/codecs/`
 - [ ] round trip and cross reader pass

@@ -47,12 +47,13 @@ jobs:
             coverage report --format=markdown --show-missing
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # anybadge is pure Python, no pkg_resources, so setuptools removing it does
-      # not break the badge like coverage-badge does.
+      # Labelled for what it measures. --cov=geozl is the Python package, so the
+      # C under core/ is not in this number; the C tests and the sanitizer jobs
+      # are what cover that, and neither reports a percentage.
       - name: Generate the coverage badge
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          anybadge --label=coverage --value="$(coverage report --format=total)" \
+          anybadge --label='python coverage' --value="$(coverage report --format=total)" \
                    --suffix='%' --file=coverage.svg --overwrite 60=red 80=yellow 100=green
 
       - name: Commit the coverage badge

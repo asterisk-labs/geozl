@@ -1,17 +1,8 @@
-(() => {
-  "use strict";
+/* Codec pager, the only thing this file does. The active nav link is marked in
+   the HTML of each page, which is why there is no runtime pass for it here.
 
-  const year = String(new Date().getFullYear());
-  document.querySelectorAll("[data-year]").forEach((el) => { el.textContent = year; });
-
-  const current = location.pathname.split("/").pop() || "index.html";
-  document.querySelectorAll(".nav a").forEach((a) => {
-    if (a.getAttribute("href") === current) a.classList.add("here");
-  });
-})();
-
-/* Codec pager. This list is the catalog order, so adding a codec here is
-   enough for its page to pick up prev and next. */
+   CODECS is the catalog order and has to match the cards in docs.html and the
+   table in the README. test_catalog.py fails the build when the three drift. */
 (() => {
   "use strict";
 

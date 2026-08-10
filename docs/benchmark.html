@@ -33,7 +33,8 @@
 <p class="kicker"><span class="k-sq"></span> benchmark</p>
 <h1>Ratio and <span class="u">speed</span>.</h1>
 <p class="lead">How geozl trades compression ratio against encode and decode throughput, across raster types.</p>
-<div class="soon"><span class="s-sq"></span> Ratio-versus-speed charts across datasets and codecs are being prepared.</div>
+<p class="lead">One raster is measured today, a 512 × 512 <code>int16</code> window of the Copernicus DEM, with every applicable recipe timed and drawn against its pareto front on the <a href="api-high.html#profile">Python API page</a>.</p>
+<div class="soon"><span class="s-sq"></span> What is missing is the sweep across raster families rather than one tile. DEM, Sentinel-2 L1C and Sentinel-1 RTC do not rank the recipes the same way, so one scene says nothing about the next. Until those are measured on hardware worth quoting, run <code>geozl.profile</code> on a tile of your own.</div>
 </main>
 <footer class="colophon">
 <span class="by">

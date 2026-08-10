@@ -34,8 +34,9 @@ static unsigned probe_cpu(void) {
   return m;
 }
 
-/* Not cached. The one caller is geozl_simd_resolve, which caches its own
-   answer, so a second cache here only added a second racing write. */
+/* Not cached. geozl_simd_resolve caches its own answer and is the only caller
+   on a hot path; the other is simd_info on the Python side, which asks once and
+   is reporting. A cache here would only add a second racing write. */
 unsigned geozl_simd_cpu(void) { return probe_cpu(); }
 
 static int top_of(unsigned mask) {

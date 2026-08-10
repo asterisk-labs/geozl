@@ -21,9 +21,8 @@
 #include "openzl/codecs/zl_zigzag.h"     // ZL_NODE_ZIGZAG
 #include "openzl/codecs/zl_zstd.h"       // ZL_GRAPH_ZSTD
 
-#include "lossy/lossy_node.h"             // geozl_node_lossy
-#include "lossy/lossy_recipe.h"           // geozl_lossy_parse and friends
-#include "nodata/encode_nodata_binding.h" // GEOZL_NODATA_MODE_*
+#include "lossy/lossy_node.h"   // geozl_node_lossy
+#include "lossy/lossy_recipe.h" // geozl_lossy_parse and friends
 
 #include <float.h>
 #include <stdint.h>
@@ -363,16 +362,16 @@ static ZL_GraphID build_graph(ZL_Compressor *c, geozl_predictor p,
   if (nodataMode == GEOZL_NODATA_NONE)
     return sel;
 
+  // The sentinel arrives as 64 bits whatever the sample width, so cut it down
+  // to the bits an element actually holds before it reaches the header.
   uint64_t bits = 0;
-  int mode = GEOZL_NODATA_MODE_NAN;
-  if (nodataMode == GEOZL_NODATA_VALUE) {
+  if (nodataMode == GEOZL_NODATA_VALUE)
     bits = (eltWidth == 8)
                ? nodataBits
                : (nodataBits & (((uint64_t)1 << (8 * eltWidth)) - 1));
-    mode = GEOZL_NODATA_MODE_VALUE;
-  }
 
-  ZL_NodeID nd = geozl_node_nodata(c, width, mode, bits);
+  ZL_NodeID nd =
+      geozl_node_nodata(c, width, (geozl_nodata_mode)nodataMode, bits);
   if (!ZL_NodeID_isValid(nd))
     return ZL_GRAPH_ILLEGAL;
   // Outcome 0 is the raster and carries on down the recipe, outcome 1 is the

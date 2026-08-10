@@ -106,7 +106,7 @@
 </section>
 <section class="load-slide" data-slide="load the raster" id="tile">
 <p class="sec-h"><span class="sq"></span> load the raster</p>
-<div class="load-lead"><strong>Load one representative raster tile.</strong><span>Read a 512 × 512 window from the Copernicus DEM and cast it to <code>int16</code>. This NumPy array becomes the input to GeoZL.</span></div><div class="two load-grid">
+<div class="load-lead"><strong>Load one representative raster tile.</strong><span>Read a 512 × 512 window from the Copernicus DEM and cast it to <code>int16</code>. This NumPy array becomes the input to geozl.</span></div><div class="two load-grid">
 <div>
 <div class="lbl">python · load a 512 × 512 tile</div>
 <div class="code"><pre>import numpy as np
@@ -140,7 +140,7 @@ raw = tile.nbytes</pre></div>
 <p class="sec-h"><span class="sq"></span> the graph model</p>
 <div class="band">
 <div class="prose">
-<p>OpenZL builds a compressor as a directed graph of modular codecs. GeoZL narrows that freedom down to a <strong>closed grid of raster recipes</strong>, each one a spatial predictor, a zigzag mapping, an optional byte-lane layout and an encoding backend.</p>
+<p>OpenZL builds a compressor as a directed graph of modular codecs. geozl narrows that freedom down to a <strong>closed grid of raster recipes</strong>, each one a spatial predictor, a zigzag mapping, an optional byte-lane layout and an encoding backend.</p>
 <p>The recipe string records the exact path, for example <code>planar&gt;zigzag&gt;transpose&gt;entropy</code>. <code>profile</code> measures the candidates on your own tile and <code>graph</code> later builds the one you pick, unchanged.</p>
 </div>
 <aside class="side"><span class="st">where 56 comes from</span>Eight predictors, counting the no-predictor branch, times seven terminals. A terminal is a layout and a backend together, which is why <code>transpose&gt;zstd</code> and <code>store_lo</code> each count once. The element width closes some off. At one byte the three transposed terminals go and the grid is 32; at four or eight <code>categorical</code> goes and it is 48. Two bytes is the only width that gets all 56.</aside>
@@ -180,7 +180,7 @@ best = rows[0]["graph"]</pre></div>
 </div>
 </div>
 <div class="chart profile-chart">
-<div class="lbl">compression ratio vs decode speed <span class="lg"><span class="hint">hover any square</span><span><i class="l-front"></i> pareto front</span><span><i class="l-rest"></i> dominated</span></span></div>
+<div class="lbl">compression ratio vs decode speed <span class="lg"><span class="hint">48 of the 56, categorical not measured here</span><span class="hint">hover any square</span><span><i class="l-front"></i> pareto front</span><span><i class="l-rest"></i> dominated</span></span></div>
 <div class="cbody"><svg aria-label="Forty-eight candidate recipes plotted by compression ratio and decode speed, with the Pareto front highlighted" class="plot" role="img" viewbox="0 0 1100 380">
 <g class="grid">
 <line x1="76" x2="1066" y1="273.1" y2="273.1"></line>

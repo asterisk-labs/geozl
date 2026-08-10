@@ -8,7 +8,7 @@
 <title>geozl · quant_sqrt</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <link rel="icon" href="../assets/svg/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/css/style.css">
 </head>
@@ -37,16 +37,14 @@
         <p class="subtitle">Wider slack where <span class="u">the noise is wider</span>.</p>
         <p class="desc">A bound shaped by the sensor. Shot noise grows with the square root of the signal,
         so a bright sample gets more room than a dark one and every sample is held to the
-        <b>same fraction of its own noise</b>. Ask for the gap between levels to follow that square root
-        and the grid comes out uniform in <b>u = &#8730;(x + offset)</b>, which puts the levels at
-        <b>(q &middot; step)&#178; &minus; offset</b> and leaves the whole decode as two multiplies and a
-        subtract. The encoder takes the level nearest the sample <b>in x</b> and not in that warped domain,
-        because the cell boundaries are not the midpoints there, and the difference is worth a third of the
-        step. <b>MAX_ERROR counts sigmas.</b> The curve behind it, <b>&#963;&#178; = a + b&middot;x</b>, is
-        either handed over in the recipe or <b>measured off the raster</b>, and a measured one comes back
-        with four numbers saying how far to trust it. Measure it <b>once over the product</b> and not once
-        per tile, or neighbouring tiles land on different grids; <code>geozl.fit_noise</code> pools a stack
-        of rasters into one curve.</p>
+        <b>same fraction of its own noise</b>. The levels are uniform in <b>u = &#8730;(x + offset)</b>,
+        which puts them at <b>(q &middot; step)&#178; &minus; offset</b> and leaves the whole decode as two
+        multiplies and a subtract. The encoder takes the level nearest the sample <b>in x</b> rather than
+        in u, because the cell boundaries are not the midpoints there, and the difference is worth a third
+        of the step. <b>MAX_ERROR counts sigmas</b> of <b>&#963;&#178; = a + b&middot;x</b>, a curve the
+        recipe either carries or <b>measures off the raster</b>, and a measured one reports four numbers
+        saying how far to trust it. Fit it <b>once over the product</b>, since two tiles fitted separately
+        land on different grids; <code>geozl.lossy.fit_noise</code> pools a stack into one curve.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D783</dd>
           <dt>header</dt><dd>dtype + flags + step + offset &middot; 18 bytes</dd>
@@ -56,8 +54,7 @@
         </dl>
 
         <div class="actions">
-          <!-- TODO replace href="#" with the source-code link -->
-          <a class="btn-code" href="#">
+          <a class="btn-code" href="https://github.com/asterisk-labs/geozl/tree/main/core/src/quant_sqrt" target="_blank" rel="noopener noreferrer">
             <span>Code</span>
             <svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
           </a>
