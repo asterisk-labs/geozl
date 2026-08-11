@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="geozl nodata pulls the samples that were never measured out of the raster and sends them as a validity mask.">
+<meta name="description" content="geozl nodata splits nodata samples out of the raster as a validity mask before prediction and quantization.">
 <meta name="theme-color" content="#F1EDE4">
 <title>geozl · nodata</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,20 +34,16 @@
       <div class="col-text">
         <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> split &middot; 1&#8594;2 <span class="sep">/</span> lossless</p>
         <h1 class="name">nodata</h1>
-        <p class="subtitle">The samples that were <span class="u">never measured</span>.</p>
-        <p class="desc">A nodata sample marks an absence, not a measurement. Left where it sits,
-        every cloud edge and every scene border becomes a <b>cliff the predictor has to encode</b>. nodata
-        takes them out first. Outcome 0 is the raster with each hole filled by the <b>last valid sample on
-        its row</b>, or the one above where a hole opens the row, so what runs next sees a flat run
-        instead of a jump. Outcome 1 is a <b>validity
-        mask</b>, one byte per sample, following GDAL, where 0 discards and any nonzero byte keeps. The original bit
-        pattern rides in the header and comes back on decode, exact down to the NaN payload. A clean tile
-        <b>still pays for its mask</b>, so the node belongs only in the graphs built for tiles that need
-        it. It goes <b>at the head of those</b>, ahead of any quantizer, which has no sane answer for a
-        sample that was never measured.</p>
+        <p class="subtitle">Split the nodata out <span class="u">before anything predicts across it</span>.</p>
+        <p class="desc">Splits the raster in two. Outcome 0 is the raster with each nodata hole
+        <b>filled from the previous valid sample</b> on its row, or the row above at a row start, so
+        downstream stages see a flat run instead of a jump. Outcome 1 is a <b>validity mask</b>, one byte
+        per sample, 0 discards and nonzero keeps. The original bit pattern is stored in the header and
+        restored exactly on decode, NaN payload included. A clean tile still pays for its mask, so use it
+        <b>only on tiles that contain nodata</b>, ahead of any quantizer.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D70C</dd>
-          <dt>header</dt><dd>the pattern at the sample width, and nothing else</dd>
+          <dt>header</dt><dd>the nodata pattern at the sample width</dd>
           <dt>modes</dt><dd>every NaN &middot; one declared sentinel</dd>
           <dt>widths</dt><dd>8 &middot; 16 &middot; 32 &middot; 64-bit samples</dd>
           <dt>decode</dt><dd>branchless select, values where the mask keeps, pattern where it discards</dd>
@@ -64,7 +60,7 @@
 
       <div class="panel">
         <object class="diagram" type="image/svg+xml" data="../assets/svg/codecs/nodata.svg"
-                aria-label="nodata pulls the samples that were never measured out of the raster. The holes leave as a validity mask, the values that stay are filled from the west neighbour, and on decode the stored pattern is written back wherever the mask is zero"></object>
+                aria-label="nodata splits the raster into a filled value stream and a validity mask. Holes are filled from the west neighbour, and on decode the stored pattern is written back wherever the mask is zero"></object>
         <span class="p-cap">holes leave as a mask, values fill in behind them</span>
       </div>
     </main>

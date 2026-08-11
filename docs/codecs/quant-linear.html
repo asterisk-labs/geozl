@@ -36,13 +36,10 @@
         <h1 class="name">quant_linear</h1>
         <p class="subtitle">A uniform grid, <span class="u">anchored at zero</span>.</p>
         <p class="desc">An absolute bound. <b>|x &minus; x&#770;| &le; V</b> puts the levels on a uniform
-        grid of step <b>2V</b>, anchored at zero. Where the step has to be whole it is <b>floor(2V)</b>
-        and not the nearest, because rounding up breaks the bound while truncating only gives up ratio.
-        What the stream carries depends on the input. An integer, or a float already on a whole-number
-        grid, sends the <b>reconstruction</b> and the decoder copies or casts. Anything else sends the
-        <b>index</b> and the decoder multiplies, which is the one path where rounding bites and the only
-        reason the tile maximum enters at all. The encoder then decodes what it just wrote, measures every
-        sample, and <b>refuses the frame</b> rather than write one that misses.</p>
+        grid of step <b>2V</b>, anchored at zero, floored when the step must be an integer. Integer input,
+        or floats already on a whole-number grid, store the <b>reconstruction</b> and the decoder copies or
+        casts. Anything else stores the <b>index</b> and the decoder multiplies by the step. Every sample
+        is <b>verified against the bound</b> before the frame is written.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D781</dd>
           <dt>header</dt><dd>dtype + flags + step &middot; 10 bytes</dd>

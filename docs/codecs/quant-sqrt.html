@@ -35,16 +35,12 @@
         <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> near-lossless <span class="sep">/</span> lossy</p>
         <h1 class="name">quant_sqrt</h1>
         <p class="subtitle">Wider slack where <span class="u">the noise is wider</span>.</p>
-        <p class="desc">A bound shaped by the sensor. Shot noise grows with the square root of the signal,
-        so a bright sample gets more room than a dark one and every sample is held to the
-        <b>same fraction of its own noise</b>. The levels are uniform in <b>u = &#8730;(x + offset)</b>,
-        which puts them at <b>(q &middot; step)&#178; &minus; offset</b> and leaves the whole decode as two
-        multiplies and a subtract. The encoder takes the level nearest the sample <b>in x</b> rather than
-        in u, because the cell boundaries are not the midpoints there, and the difference is worth a third
-        of the step. <b>MAX_ERROR counts sigmas</b> of <b>&#963;&#178; = a + b&middot;x</b>, a curve the
-        recipe either carries or <b>measures off the raster</b>, and a measured one reports four numbers
-        saying how far to trust it. Fit it <b>once over the product</b>, since two tiles fitted separately
-        land on different grids; <code>geozl.lossy.fit_noise</code> pools a stack into one curve.</p>
+        <p class="desc">A noise-proportional bound. <b>MAX_ERROR counts sigmas</b> of the sensor noise
+        <b>&#963;&#178; = a + b&middot;x</b>. The levels are uniform in <b>u = &#8730;(x + offset)</b>, so
+        level q reconstructs as <b>(q &middot; step)&#178; &minus; offset</b>, two multiplies and a
+        subtract. The recipe either carries <b>a</b> and <b>b</b> or fits them from the raster. Fit the
+        curve <b>once over the whole product</b> with <code>geozl.lossy.fit_noise</code>, since two tiles
+        fitted separately land on different grids.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D783</dd>
           <dt>header</dt><dd>dtype + flags + step + offset &middot; 18 bytes</dd>

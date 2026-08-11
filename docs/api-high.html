@@ -161,14 +161,8 @@ raw = tile.nbytes</pre></div>
 <div class="profile-visual">
 <div class="profile-copy">
 <div class="prose">
-<p><code>profile</code> runs a round trip with every recipe that applies and ranks them by ratio. Every <code>graph</code> string it hands back is a method <code>geozl.graph</code> takes.</p>
-<p>Run it <strong>once</strong>, on a tile that represents the dataset. A row carries the ratio, both throughputs and the distance to the Shannon floor, so the trade between size and speed stays yours.</p>
-</div>
-<p class="flow-h">what it does <em>reps=5, fastest run kept</em></p>
-<div class="flow">
-<div><span class="ix">01</span><b>build</b><span class="d">every recipe that applies</span></div>
-<div><span class="ix">02</span><b>measure</b><span class="d">ratio and speed</span></div>
-<div class="on"><span class="ix">03</span><b>rank</b><span class="d">best ratio first</span></div>
+<p><code>profile</code> runs a round trip with every recipe that applies to the tile, five reps each with the fastest kept, and ranks the results by ratio. Each row carries the recipe string, the ratio, both throughputs and the distance to the Shannon floor.</p>
+<p>Run it <strong>once</strong>, on a tile that represents the dataset. The chart is why the ranking is not the whole answer: the best ratio is rarely the fastest decode, so pick from the Pareto front.</p>
 </div>
 <div class="profile-code">
 <div class="lbl">python · benchmark one representative tile</div>
@@ -257,12 +251,9 @@ best = rows[0]["graph"]</pre></div>
 </div></div></section>
 <section class="compress-slide" data-slide="compress" id="compress">
 <p class="sec-h"><span class="sq"></span> graph and compress <span class="sig">the production step</span></p>
-<div class="band">
 <div class="prose">
-<p><code>profile</code> chooses and <code>graph</code> builds. Both run once. <code>compress</code> is the only one that runs on every tile.</p>
-<p><code>graph</code> builds the recipe you pinned exactly as named. It never searches and never falls back, so the same tile through the same handle always gives the same frame.</p>
-</div>
-<aside class="side"><span class="st">why they are separate</span>Registering the nodes and building the DAG is a fixed cost. Paying it once instead of once per tile is the whole point of the split.</aside>
+<p><code>profile</code> chooses and <code>graph</code> builds. Both run once. <code>compress</code> is the only call that runs on every tile.</p>
+<p><code>graph</code> builds the recipe exactly as named, with no search and no fallback, and holds the finished DAG. Building the DAG is a fixed cost paid once instead of once per tile, and the same tile through the same handle always gives the same frame.</p>
 </div>
 <p class="flow-h">profile once, build once, compress every tile <em>same data family</em></p>
 <div class="flow">
@@ -282,20 +273,15 @@ for tile in tiles:
 </section>
 <section class="lossy-slide" data-slide="error" id="maxerror">
 <p class="sec-h"><span class="sq"></span> error <span class="sig">bounded-error compression</span></p>
-<div class="band"><div class="prose"><p>Set <code>error</code> to trade exact reconstruction for a smaller frame, while keeping a hard per-sample bound. The recipe names the quantizer and the bound together. <code>None</code> stays lossless.</p>
-<p><code>LINEAR:MAX_ERROR=V</code> holds <code>|x − x̂| ≤ V</code> on a grid anchored at zero, step <code>Δ = 2V</code>, each sample back as <code>x̂ = round(x / Δ) · Δ</code>. On an integer raster that step is discrete, which is why the curve below falls in visible steps.</p>
-<p><code>LOG:MAX_ERROR=P%</code> holds the same fraction of every sample, so the slack grows with the value. <code>SQRT:MAX_ERROR=VN</code> holds <code>V</code> times the sensor noise, whose variance is <code>a + b·x</code>. Which one fits follows from how the measurement error grows: elevation takes <code>LINEAR</code>, SAR backscatter <code>LOG</code>, optical radiance <code>SQRT</code>.</p>
-<p>All three take <code>,STORE=VALUES</code>, which writes the reconstruction instead of the index and drops the multiply out of the decode.</p></div><aside class="side"><span class="st">practical reading</span>Look for the knee of the curve, the point where more error stops buying much more compression.</aside></div>
-
-<div class="band"><div class="prose"><p><b>The noise curve, measured once.</b> A <code>SQRT</code> recipe with no <code>A</code> and <code>B</code> is fit from whatever raster <code>graph</code> was handed, which is a fallback. Two tiles give two curves, so two grids, and a value on a tile boundary rebuilds two ways.</p>
-<p><code>geozl.lossy.fit_noise</code> is the way round it. Hand it an <code>(N, H, W)</code> stack, or any rasters sharing a dtype, and it pools their block statistics before solving, which is not the same as averaging separate fits. Two tiles each covering one end of the range give a curve together that neither gives alone.</p>
-<pre class="code"><code>noise = geozl.lossy.fit_noise(stack)
-print(noise)   # sigma^2 = 72.9 + 1.016*x  [1922 blocks, 8/24 bins, ...]
-
-g = geozl.graph(tile, "planar&gt;zigzag&gt;transpose&gt;entropy",
-                error=noise.recipe(0.5))
-frame = geozl.compress(tile, graph=g)</code></pre>
-<p>The returned <code>Noise</code> carries <code>a</code> and <code>b</code> plus <code>blocks</code>, <code>bins</code>, <code>range</code> and <code>colin</code>, which say how far to believe them. A high <code>colin</code> means the split between <code>a</code> and <code>b</code> is arbitrary. The encoder cannot catch that, since it verifies against the bound it computed.</p></div><aside class="side"><span class="st">rule of thumb</span>Measure the curve over the product. Keep the two numbers and put them in every recipe, so every tile lands on one grid.</aside></div>
+<div class="prose">
+<p>Set <code>error</code> to trade exact reconstruction for a smaller frame under a hard per-sample bound, verified on every sample before the frame is written. <code>None</code> stays lossless. Pick the quantizer by how the measurement error grows, and add <code>,STORE=VALUES</code> to write the reconstruction instead of the index.</p>
+</div>
+<div class="eq">
+<span><em>linear · elevation</em><span class="expr">|x − x̂| ≤ V</span></span>
+<span><em>log · SAR backscatter</em><span class="expr">|x − x̂| ≤ P% of x</span></span>
+<span><em>sqrt · optical radiance</em><span class="expr">|x − x̂| ≤ V·σ(x), σ² = a + b·x</span></span>
+</div>
+<p class="note">For <code>SQRT</code>, fit the noise curve once over the whole product with <code>geozl.lossy.fit_noise(stack)</code> and put <code>a</code> and <code>b</code> in every recipe, so every tile lands on one grid. A recipe without them is fit from whatever raster <code>graph</code> was handed, and two tiles fit separately rebuild differently on their shared boundary. The knee of the curve below is where more error stops buying much more compression.</p>
 <div class="chart">
 <div class="lbl">frame size vs. allowed error</div>
 <div class="cbody"><svg aria-label="Frame size falling as the error budget grows, against the lossless reference line, with the knee of the curve marked" class="plot" role="img" viewbox="0 0 1100 340">
@@ -359,19 +345,9 @@ frame = geozl.compress(tile, graph=g)</code></pre>
 
 <section class="decompress-slide" data-slide="decompress" id="decompress">
 <p class="sec-h"><span class="sq"></span> decompress <span class="sig">get the array back</span></p>
-<div class="band">
 <div class="prose">
-<p>The frame names every codec it used, so nothing has to be told how to undo it. What it does not carry is the dtype and the shape, because neither is a property of the bytes.</p>
-<p>So <code>decompress</code> hands back a flat <code>uint8</code> array and you finish with <code>.view</code> and <code>.reshape</code>.</p>
-</div>
-<aside class="side"><span class="st">round trip</span>With a lossless recipe the array that comes back is bit for bit the array that went in. With <code>error</code> set it comes back inside the bound you asked for.</aside>
-</div>
-<p class="flow-h">what the call rebuilds <em>frame in, bytes out</em></p>
-<div class="flow">
-<div><span class="ix">in</span><b>frame</b><span class="d">The compressed bytes returned by <code>compress</code>.</span></div>
-<div><span class="ix">01</span><b>undo</b><span class="d">Walks the codecs the frame names, in reverse.</span></div>
-<div><span class="ix">02</span><b>verify</b><span class="d">Checks the checksums the frame carries.</span></div>
-<div class="on"><span class="ix">out</span><b>ndarray</b><span class="d">Flat uint8. View and reshape to taste.</span></div>
+<p>The frame names every codec it used, so <code>decompress</code> takes the bytes and nothing else. It undoes the codecs in reverse, checks the checksums the frame carries, and returns a flat <code>uint8</code> array.</p>
+<p>Dtype and shape are not properties of the bytes, so you finish with <code>.view</code> and <code>.reshape</code>. A lossless recipe returns the input bit for bit. With <code>error</code> set, every sample comes back inside the bound.</p>
 </div>
 <div class="lbl">python · restore the raster</div>
 <div class="code"><pre>back = geozl.<span class="fn">decompress</span>(frame)
