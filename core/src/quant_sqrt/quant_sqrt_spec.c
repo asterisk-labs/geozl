@@ -3,6 +3,8 @@
 #include "quant_sqrt_dtype.h"
 #include "quant_sqrt_half.h"
 
+#include "common/recipe_parse.h"
+
 #include <errno.h>
 #include <float.h>
 #include <locale.h>
@@ -29,78 +31,13 @@
 // out let an f64 grid run 1.40x over its declared bound.
 #define QSQ_INDEX_TERMS 3.0
 
-static int fail(char *err, size_t errSize, const char *fmt, ...) {
-  if (err != NULL && errSize != 0) {
-    va_list ap;
-    va_start(ap, fmt);
-    vsnprintf(err, errSize, fmt, ap);
-    va_end(ap);
-  }
-  return 1;
-}
-
-// Has to be consumed whole, so "1.0.0" fails instead of reading as 1.0. strtod
-// reads the separator LC_NUMERIC declares and a recipe always writes a dot, so
-// the dot is translated rather than the conversion replaced, which keeps it
-// correctly rounded.
-static int number(const char *s, const char *end, double *out) {
-  char buf[80];
-  const size_t n = (size_t)(end - s);
-  if (n == 0)
-    return 1;
-
-  const char *point = localeconv()->decimal_point;
-  if (point == NULL || point[0] == '\0')
-    point = ".";
-  const size_t plen = strlen(point);
-  if (n + plen >= sizeof(buf))
-    return 1;
-
-  size_t w = 0;
-  for (size_t i = 0; i < n; ++i) {
-    if (s[i] == '.') {
-      memcpy(buf + w, point, plen);
-      w += plen;
-    } else {
-      buf[w++] = s[i];
-    }
-  }
-  buf[w] = '\0';
-
-  char *tail = NULL;
-  errno = 0;
-  const double v = strtod(buf, &tail);
-  if (tail != buf + w || errno == ERANGE || !isfinite(v))
-    return 1;
-  *out = v;
-  return 0;
-}
-
-static const char *field_end(const char *s) {
-  while (*s != '\0' && *s != ',')
-    ++s;
-  return s;
-}
-
-static int keyed(const char **cur, const char *name, const char **vbeg,
-                 const char **vend) {
-  const char *t = *cur;
-  const size_t n = strlen(name);
-  if (strncmp(t, name, n) != 0 || t[n] != '=')
-    return 1;
-  *vbeg = t + n + 1;
-  *vend = field_end(*vbeg);
-  *cur = *vend;
-  return 0;
-}
-
 int quant_sqrt_parse(const char *s, quant_sqrt_spec *out, char *err,
                      size_t errSize) {
   memset(out, 0, sizeof(*out));
   out->store = QUANT_SQRT_STORE_INDEX;
 
   if (s == NULL || strncmp(s, "SQRT:", 5) != 0)
-    return fail(err, errSize,
+    return geozl_recipe_fail(err, errSize,
                 "quant_sqrt takes \"SQRT:MAX_ERROR=VN\", got \"%s\"",
                 s == NULL ? "" : s);
 
@@ -109,62 +46,62 @@ int quant_sqrt_parse(const char *s, quant_sqrt_spec *out, char *err,
   int haveError = 0, haveA = 0, haveB = 0;
 
   for (;;) {
-    if (keyed(&cur, "MAX_ERROR", &vb, &ve) == 0) {
+    if (geozl_recipe_keyed(&cur, "MAX_ERROR", &vb, &ve) == 0) {
       // Without the N a MAX_ERROR of 0.5 reads as half a count, which is also a
       // plausible thing to mean and quantizes a hundred times finer.
       double v;
-      if (haveError || ve == vb || ve[-1] != 'N' || number(vb, ve - 1, &v))
-        return fail(err, errSize,
+      if (haveError || ve == vb || ve[-1] != 'N' || geozl_recipe_number(vb, ve - 1, &v))
+        return geozl_recipe_fail(err, errSize,
                     "error \"%s\": MAX_ERROR takes one number ending in N, "
                     "which counts sigmas of noise",
                     s);
       if (!(v > 0.0))
-        return fail(err, errSize, "error \"%s\": MAX_ERROR must be positive", s);
+        return geozl_recipe_fail(err, errSize, "error \"%s\": MAX_ERROR must be positive", s);
       out->k = v;
       haveError = 1;
-    } else if (keyed(&cur, "A", &vb, &ve) == 0) {
-      if (haveA || number(vb, ve, &out->a))
-        return fail(err, errSize, "error \"%s\": A takes one number", s);
+    } else if (geozl_recipe_keyed(&cur, "A", &vb, &ve) == 0) {
+      if (haveA || geozl_recipe_number(vb, ve, &out->a))
+        return geozl_recipe_fail(err, errSize, "error \"%s\": A takes one number", s);
       if (!(out->a >= 0.0))
-        return fail(err, errSize,
+        return geozl_recipe_fail(err, errSize,
                     "error \"%s\": A is a variance at zero signal and cannot be "
                     "negative",
                     s);
       haveA = 1;
-    } else if (keyed(&cur, "B", &vb, &ve) == 0) {
-      if (haveB || number(vb, ve, &out->b))
-        return fail(err, errSize, "error \"%s\": B takes one number", s);
+    } else if (geozl_recipe_keyed(&cur, "B", &vb, &ve) == 0) {
+      if (haveB || geozl_recipe_number(vb, ve, &out->b))
+        return geozl_recipe_fail(err, errSize, "error \"%s\": B takes one number", s);
       if (!(out->b > 0.0))
-        return fail(err, errSize,
+        return geozl_recipe_fail(err, errSize,
                     "error \"%s\": B must be positive; with B at zero the noise "
                     "does not grow with the signal and this curve is flat",
                     s);
       haveB = 1;
-    } else if (keyed(&cur, "STORE", &vb, &ve) == 0) {
+    } else if (geozl_recipe_keyed(&cur, "STORE", &vb, &ve) == 0) {
       const size_t n = (size_t)(ve - vb);
       if (n == 5 && strncmp(vb, "INDEX", 5) == 0)
         out->store = QUANT_SQRT_STORE_INDEX;
       else if (n == 6 && strncmp(vb, "VALUES", 6) == 0)
         out->store = QUANT_SQRT_STORE_VALUES;
       else
-        return fail(err, errSize, "error \"%s\": STORE takes INDEX or VALUES", s);
+        return geozl_recipe_fail(err, errSize, "error \"%s\": STORE takes INDEX or VALUES", s);
     } else {
-      return fail(err, errSize,
+      return geozl_recipe_fail(err, errSize,
                   "error \"%s\": unknown key, expected MAX_ERROR, A, B or STORE",
                   s);
     }
     if (*cur == '\0')
       break;
     if (*cur != ',' || cur[1] == '\0')
-      return fail(err, errSize, "error \"%s\": a key has to follow every comma",
+      return geozl_recipe_fail(err, errSize, "error \"%s\": a key has to follow every comma",
                   s);
     ++cur;
   }
 
   if (!haveError)
-    return fail(err, errSize, "error \"%s\": MAX_ERROR is required", s);
+    return geozl_recipe_fail(err, errSize, "error \"%s\": MAX_ERROR is required", s);
   if (haveA != haveB)
-    return fail(err, errSize,
+    return geozl_recipe_fail(err, errSize,
                 "error \"%s\": A and B travel together; give both or neither "
                 "and let the fit find them",
                 s);
@@ -214,17 +151,17 @@ int quant_sqrt_resolve(const quant_sqrt_spec *sp, int dtype,
                        quant_sqrt_params *out, char *err, size_t errSize) {
   memset(out, 0, sizeof(*out));
   if (!QSQ_DTYPE_OK(dtype))
-    return fail(err, errSize, "dtype %d is not a type this codec knows", dtype);
+    return geozl_recipe_fail(err, errSize, "dtype %d is not a type this codec knows", dtype);
   if (!(sp->k > 0.0))
-    return fail(err, errSize, "MAX_ERROR must be positive");
+    return geozl_recipe_fail(err, errSize, "MAX_ERROR must be positive");
 
   double a, b;
   if (curve_of(sp, ft, &a, &b) != 0) {
     if (ft == NULL)
-      return fail(err, errSize,
+      return geozl_recipe_fail(err, errSize,
                   "this recipe carries no A and B, so it needs a curve from "
                   "quant_sqrt_fit");
-    return fail(err, errSize,
+    return geozl_recipe_fail(err, errSize,
                 "the fit did not hold: %d blocks over %d bins, range %.1fx, "
                 "collinearity %.1f, residual %.3f",
                 ft->blocks, ft->bins, ft->range, ft->colin, ft->resid);
@@ -235,7 +172,7 @@ int quant_sqrt_resolve(const quant_sqrt_spec *sp, int dtype,
   const double c = sp->k * sqrt(b);
   const double offset = a / b;
   if (!isfinite(c) || !(c > 0.0) || !isfinite(offset) || !(offset >= 0.0))
-    return fail(err, errSize,
+    return geozl_recipe_fail(err, errSize,
                 "a MAX_ERROR of %g with A=%g and B=%g does not give a curve",
                 sp->k, a, b);
   out->offset = offset;
@@ -243,7 +180,7 @@ int quant_sqrt_resolve(const quant_sqrt_spec *sp, int dtype,
   // Nothing below -offset has a bound, since the model puts the variance there
   // at or under zero.
   if (sc->lo < -offset)
-    return fail(err, errSize,
+    return geozl_recipe_fail(err, errSize,
                 "a shot bound is defined at or above -A/B, which is %g, and "
                 "this raster reaches %g",
                 -offset, sc->lo);
@@ -270,7 +207,7 @@ int quant_sqrt_resolve(const quant_sqrt_spec *sp, int dtype,
     // small enough to square to zero.
     const double levels = 0.5 / (QSQ_INDEX_TERMS * DBL_EPSILON);
     if (!(u / out->step < levels))
-      return fail(err, errSize,
+      return geozl_recipe_fail(err, errSize,
                   "this bound needs %g levels over this raster, past the %g the "
                   "arithmetic that finds one resolves",
                   u / out->step, levels);
@@ -281,7 +218,7 @@ int quant_sqrt_resolve(const quant_sqrt_spec *sp, int dtype,
       const double need = 1.0 / c;          // sqrt(x + offset) has to reach this
       const double xmin = need * need - offset;
       if (sc->hi >= sc->lo && sc->lo < xmin)
-        return fail(err, errSize,
+        return geozl_recipe_fail(err, errSize,
                     "STORE=VALUES rounds to whole numbers, which holds this "
                     "bound only at or above %g, and this raster reaches %g",
                     xmin, sc->lo);
@@ -290,7 +227,7 @@ int quant_sqrt_resolve(const quant_sqrt_spec *sp, int dtype,
       if (maxAbs > 0.0) {
         const double top = ceil(maxAbs);
         if (top > lim)
-          return fail(err, errSize,
+          return geozl_recipe_fail(err, errSize,
                       "STORE=VALUES needs a reconstruction exact in the output "
                       "type, and %g is past the %g it carries",
                       top, lim);
@@ -317,7 +254,7 @@ int quant_sqrt_resolve(const quant_sqrt_spec *sp, int dtype,
 
   out->step = c - charge - chargeIndex;
   if (!(out->step > 0.0))
-    return fail(err, errSize,
+    return geozl_recipe_fail(err, errSize,
                 "this bound is at or below the rounding of the output type "
                 "between %g and %g, where the type resolves %g and the bound "
                 "asks for %g",
@@ -325,7 +262,7 @@ int quant_sqrt_resolve(const quant_sqrt_spec *sp, int dtype,
 
   const double q = u / out->step;
   if (!(q < quant_sqrt_stream_max(dtype)))
-    return fail(err, errSize,
+    return geozl_recipe_fail(err, errSize,
                 "this bound needs more levels than a %zu-byte index carries",
                 quant_sqrt_width(dtype));
   return 0;

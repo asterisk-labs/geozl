@@ -4,6 +4,8 @@
 #include "quant_log_half.h"
 #include "quant_log_math.h"
 
+#include "common/recipe_parse.h"
+
 #include <errno.h>
 #include <locale.h>
 #include <math.h>
@@ -12,75 +14,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int fail(char *err, size_t errSize, const char *fmt, ...) {
-  if (err != NULL && errSize != 0) {
-    va_list ap;
-    va_start(ap, fmt);
-    vsnprintf(err, errSize, fmt, ap);
-    va_end(ap);
-  }
-  return 1;
-}
-
-// Consumed whole, so "1.0.0" fails instead of reading as 1.0. A recipe writes a
-// point and strtod reads whatever LC_NUMERIC declares, so it is translated first.
-static int number(const char *s, const char *end, double *out) {
-  const char *point = localeconv()->decimal_point;
-  if (point == NULL || point[0] == '\0')
-    point = ".";
-  const size_t plen = strlen(point);
-
-  char buf[64];
-  const size_t n = (size_t)(end - s);
-  // Worst case every character is a point, each growing to plen bytes.
-  if (n == 0 || n >= sizeof(buf) / plen)
-    return 1;
-
-  size_t w = 0;
-  for (size_t i = 0; i < n; ++i) {
-    if (s[i] == '.') {
-      memcpy(buf + w, point, plen);
-      w += plen;
-    } else {
-      buf[w++] = s[i];
-    }
-  }
-  buf[w] = '\0';
-
-  char *tail = NULL;
-  errno = 0;
-  const double v = strtod(buf, &tail);
-  if (tail != buf + w || errno == ERANGE || !isfinite(v))
-    return 1;
-  *out = v;
-  return 0;
-}
-
-static const char *field_end(const char *s) {
-  while (*s != '\0' && *s != ',')
-    ++s;
-  return s;
-}
-
-static int keyed(const char **cur, const char *name, const char **vbeg,
-                 const char **vend) {
-  const char *t = *cur;
-  const size_t n = strlen(name);
-  if (strncmp(t, name, n) != 0 || t[n] != '=')
-    return 1;
-  *vbeg = t + n + 1;
-  *vend = field_end(*vbeg);
-  *cur = *vend;
-  return 0;
-}
-
 int quant_log_parse(const char *s, quant_log_spec *out, char *err,
                     size_t errSize) {
   memset(out, 0, sizeof(*out));
   out->store = QUANT_LOG_STORE_INDEX;
 
   if (s == NULL || strncmp(s, "LOG:", 4) != 0)
-    return fail(err, errSize, "quant_log takes \"LOG:MAX_ERROR=V%%\", got \"%s\"",
+    return geozl_recipe_fail(err, errSize, "quant_log takes \"LOG:MAX_ERROR=V%%\", got \"%s\"",
                 s == NULL ? "" : s);
 
   const char *cur = s + 4;
@@ -88,45 +28,45 @@ int quant_log_parse(const char *s, quant_log_spec *out, char *err,
   int haveError = 0, haveStore = 0;
 
   for (;;) {
-    if (keyed(&cur, "MAX_ERROR", &vb, &ve) == 0) {
+    if (geozl_recipe_keyed(&cur, "MAX_ERROR", &vb, &ve) == 0) {
       // The per cent sign is required, or MAX_ERROR=1 reads as a bound of one and
       // the caller almost certainly meant a hundredth of that.
       double v;
-      if (haveError || ve == vb || ve[-1] != '%' || number(vb, ve - 1, &v))
-        return fail(err, errSize,
+      if (haveError || ve == vb || ve[-1] != '%' || geozl_recipe_number(vb, ve - 1, &v))
+        return geozl_recipe_fail(err, errSize,
                     "error \"%s\": MAX_ERROR takes one number ending in %%", s);
       if (!(v > 0.0))
-        return fail(err, errSize, "error \"%s\": MAX_ERROR must be positive", s);
+        return geozl_recipe_fail(err, errSize, "error \"%s\": MAX_ERROR must be positive", s);
       if (!(v < 100.0))
-        return fail(err, errSize,
+        return geozl_recipe_fail(err, errSize,
                     "error \"%s\": a MAX_ERROR of %g%% is the value itself", s,
                     v);
       out->rel_err = v / 100.0;
       haveError = 1;
-    } else if (keyed(&cur, "STORE", &vb, &ve) == 0) {
+    } else if (geozl_recipe_keyed(&cur, "STORE", &vb, &ve) == 0) {
       const size_t n = (size_t)(ve - vb);
       if (haveStore)
-        return fail(err, errSize, "error \"%s\": STORE is given twice", s);
+        return geozl_recipe_fail(err, errSize, "error \"%s\": STORE is given twice", s);
       if (n == 5 && strncmp(vb, "INDEX", 5) == 0)
         out->store = QUANT_LOG_STORE_INDEX;
       else if (n == 6 && strncmp(vb, "VALUES", 6) == 0)
         out->store = QUANT_LOG_STORE_VALUES;
       else
-        return fail(err, errSize, "error \"%s\": STORE takes INDEX or VALUES", s);
+        return geozl_recipe_fail(err, errSize, "error \"%s\": STORE takes INDEX or VALUES", s);
       haveStore = 1;
     } else {
-      return fail(err, errSize,
+      return geozl_recipe_fail(err, errSize,
                   "error \"%s\": unknown key, expected MAX_ERROR or STORE", s);
     }
     if (*cur == '\0')
       break;
     if (*cur != ',' || cur[1] == '\0')
-      return fail(err, errSize, "error \"%s\": a key has to follow every comma",
+      return geozl_recipe_fail(err, errSize, "error \"%s\": a key has to follow every comma",
                   s);
     ++cur;
   }
   if (!haveError)
-    return fail(err, errSize, "error \"%s\": MAX_ERROR is required", s);
+    return geozl_recipe_fail(err, errSize, "error \"%s\": MAX_ERROR is required", s);
   return 0;
 }
 
@@ -135,9 +75,9 @@ int quant_log_resolve(const quant_log_spec *sp, int dtype,
                       char *err, size_t errSize) {
   memset(out, 0, sizeof(*out));
   if (!QLOG_DTYPE_OK(dtype))
-    return fail(err, errSize, "dtype %d is not a type this codec knows", dtype);
+    return geozl_recipe_fail(err, errSize, "dtype %d is not a type this codec knows", dtype);
   if (!(sp->rel_err > 0.0))
-    return fail(err, errSize, "MAX_ERROR must be positive");
+    return geozl_recipe_fail(err, errSize, "MAX_ERROR must be positive");
 
   const double b = sp->rel_err;
   const int isInt = dtype <= QLOG_LAST_INT;
@@ -158,7 +98,7 @@ int quant_log_resolve(const quant_log_spec *sp, int dtype,
     const double half =
         (log1p(r - 1.0) - log1p(slack * QLOG_LN2)) * QLOG_LOG2E - slack;
     if (!(half > 0.0))
-      return fail(err, errSize,
+      return geozl_recipe_fail(err, errSize,
                   "a MAX_ERROR of %g%% is too tight for a whole-number "
                   "reconstruction",
                   b * 100.0);
@@ -171,7 +111,7 @@ int quant_log_resolve(const quant_log_spec *sp, int dtype,
     if (!isInt) {
       const double cross = 0.5 / (r - 1.0);
       if (sc->minAbs < cross)
-        return fail(err, errSize,
+        return geozl_recipe_fail(err, errSize,
                     "STORE=VALUES rounds to whole numbers, which holds a "
                     "MAX_ERROR of %g%% only at or above %g, and this tile "
                     "reaches %g",
@@ -182,7 +122,7 @@ int quant_log_resolve(const quant_log_spec *sp, int dtype,
         const double j = ceil(log2(sc->maxAbs) / out->step);
         const double top = qlog_value_level(j, out->step);
         if (top > lim)
-          return fail(err, errSize,
+          return geozl_recipe_fail(err, errSize,
                       "STORE=VALUES needs a reconstruction exact in the output "
                       "type, and %g is past the %g it carries",
                       top, lim);
@@ -196,7 +136,7 @@ int quant_log_resolve(const quant_log_spec *sp, int dtype,
   const double half =
       (log1p(b) - log1p(eps) - log1p(slack * QLOG_LN2)) * QLOG_LOG2E - slack;
   if (!(half > 0.0))
-    return fail(err, errSize,
+    return geozl_recipe_fail(err, errSize,
                 "a MAX_ERROR of %g%% is at or below what this type rebuilds to, "
                 "which bottoms out near %g%%",
                 b * 100.0, (eps + slack * QLOG_LN2) * 100.0);
@@ -205,7 +145,7 @@ int quant_log_resolve(const quant_log_spec *sp, int dtype,
   // The whole type has to fit, since the grid never reads the tile and so cannot
   // be cut down to the range that happens to be present.
   if (quant_log_index_top(out->step, dtype) >= quant_log_stream_max(dtype))
-    return fail(err, errSize,
+    return geozl_recipe_fail(err, errSize,
                 "a MAX_ERROR of %g%% needs more levels than a %zu-byte index "
                 "carries",
                 b * 100.0, quant_log_width(dtype));
