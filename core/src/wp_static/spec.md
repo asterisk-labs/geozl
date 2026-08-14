@@ -8,12 +8,14 @@ A single numeric stream of 8, 16, 32 or 64-bit integers holding the residual pla
 ### Codec Header
 Little endian, in order: a uint32 row width in samples, a uint8 right shift, then four int16 coefficients cN, cNW, cNE, cNN. The number of rows is the element count divided by the width.
 
+The plane count is an optional trailing uint32, so the header is thirteen bytes for one plane and seventeen for more. Each plane is predicted on its own, its first row taking its northern neighbours as zero. The coefficients are fit once over the whole stream and shared by every plane. A count that does not split the elements into whole-row planes is corruption.
+
 ### Decoding
 The prediction is W + K, with W the left reconstructed sample and K a linear kernel over the row above,
 
   K = (cN*N + cNW*NW + cNE*NE + cNN*NN + round) >> shift,
 
-where N is the sample above, NW above left, NE above right, NN two above, round = shift ? 1 << (shift - 1) : 0, and any neighbour outside the plane is zero. The sum is accumulated in signed 32-bit for 8 and 16-bit samples and signed 64-bit for 32 and 64-bit, then normalized by an arithmetic right shift, so coefficients are small fixed point that keep the sum within that width. Zero edge neighbours make row zero the horizontal predictor and column zero the vertical part of the kernel. Each sample is reconstructed as res + W + K in native width modular arithmetic. K carries no left dependency, so a row folds K into the residual and resolves the W chain as a prefix sum, as in planar. The defaults cN=1, cNW=-1, cNE=0, cNN=0, shift=0 reproduce planar.
+where N is the sample above, NW above left, NE above right, NN two above, round = shift ? 1 << (shift - 1) : 0, and any neighbour outside the plane is zero. The sum is accumulated in signed 32-bit for 8 and 16-bit samples and signed 64-bit for 32 and 64-bit, then normalized by an arithmetic right shift, so coefficients are small fixed point that keep the sum within that width. Zero edge neighbours make the first row of each plane the horizontal predictor and column zero the vertical part of the kernel. Each sample is reconstructed as res + W + K in native width modular arithmetic. K carries no left dependency, so a row folds K into the residual and resolves the W chain as a prefix sum, as in planar. The defaults cN=1, cNW=-1, cNE=0, cNN=0, shift=0 reproduce planar.
 
 ### Outputs
 A single numeric stream of the same element width and the same length as the input.

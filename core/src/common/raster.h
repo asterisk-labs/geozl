@@ -50,4 +50,19 @@ static inline uint32_t geozl_row_width_declared(uint32_t width, size_t nbElts) {
     return 0;                                                                  \
   } while (0)
 
+
+// A count that does not split the stream into whole-row planes is not a plane
+// count, and collapses to one.
+static inline uint32_t geozl_planes_declared(uint32_t planes, uint32_t width,
+                                             size_t nbElts) {
+  if (planes <= 1 || width == 0 || nbElts == 0)
+    return 1;
+  if (nbElts % planes != 0)
+    return 1;
+  const size_t per = nbElts / planes;
+  if (per == 0 || per % width != 0)
+    return 1;
+  return planes;
+}
+
 #endif // GEOZL_COMMON_RASTER_H

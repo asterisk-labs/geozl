@@ -28,41 +28,59 @@
 
 #include <string.h>
 
-// Register a width predictor and attach the row width, the one param it takes.
-static ZL_NodeID width_node(ZL_Compressor *c, const ZL_TypedEncoderDesc *desc,
-                            uint32_t width) {
+// Register a predictor and attach the geometry it reads.
+static ZL_NodeID geometry_node(ZL_Compressor *c,
+                               const ZL_TypedEncoderDesc *desc, uint32_t width,
+                               uint32_t planes) {
   ZL_NodeID base = ZL_Compressor_registerTypedEncoder(c, desc);
   if (!ZL_NodeID_isValid(base))
     return base;
-  ZL_LocalParams lp = ZL_LP_1INTPARAM(GEOZL_PARAM_WIDTH, (int)width);
+  const ZL_IntParam ip[2] = {
+      {.paramId = GEOZL_PARAM_WIDTH, .paramValue = (int)width},
+      {.paramId = GEOZL_PARAM_PLANES, .paramValue = (int)planes},
+  };
+  // one plane is what the codec assumes, so leave the param off
+  ZL_LocalParams lp = {.intParams = {.intParams = ip,
+                                     .nbIntParams = planes > 1 ? 2u : 1u}};
   ZL_NodeParameters np = {.localParams = &lp};
   ZL_RESULT_OF(ZL_NodeID) r = ZL_Compressor_parameterizeNode(c, base, &np);
   return ZL_RES_isError(r) ? ZL_NODE_ILLEGAL : ZL_RES_value(r);
+}
+
+// delta_w only reads to its left, so it never crosses a plane boundary.
+static ZL_NodeID width_node(ZL_Compressor *c, const ZL_TypedEncoderDesc *desc,
+                            uint32_t width) {
+  return geometry_node(c, desc, width, 1);
 }
 
 ZL_NodeID geozl_node_delta_w(ZL_Compressor *c, uint32_t width) {
   const ZL_TypedEncoderDesc desc = EI_DELTA_W(GEOZL_CTID_DELTA_W);
   return width_node(c, &desc, width);
 }
-ZL_NodeID geozl_node_delta_n(ZL_Compressor *c, uint32_t width) {
+ZL_NodeID geozl_node_delta_n(ZL_Compressor *c, uint32_t width,
+                            uint32_t planes) {
   const ZL_TypedEncoderDesc desc = EI_DELTA_N(GEOZL_CTID_DELTA_N);
-  return width_node(c, &desc, width);
+  return geometry_node(c, &desc, width, planes);
 }
-ZL_NodeID geozl_node_planar(ZL_Compressor *c, uint32_t width) {
+ZL_NodeID geozl_node_planar(ZL_Compressor *c, uint32_t width,
+                            uint32_t planes) {
   const ZL_TypedEncoderDesc desc = EI_PLANAR(GEOZL_CTID_PLANAR);
-  return width_node(c, &desc, width);
+  return geometry_node(c, &desc, width, planes);
 }
-ZL_NodeID geozl_node_med(ZL_Compressor *c, uint32_t width) {
+ZL_NodeID geozl_node_med(ZL_Compressor *c, uint32_t width,
+                            uint32_t planes) {
   const ZL_TypedEncoderDesc desc = EI_MED(GEOZL_CTID_MED);
-  return width_node(c, &desc, width);
+  return geometry_node(c, &desc, width, planes);
 }
-ZL_NodeID geozl_node_average(ZL_Compressor *c, uint32_t width) {
+ZL_NodeID geozl_node_average(ZL_Compressor *c, uint32_t width,
+                            uint32_t planes) {
   const ZL_TypedEncoderDesc desc = EI_AVERAGE(GEOZL_CTID_AVERAGE);
-  return width_node(c, &desc, width);
+  return geometry_node(c, &desc, width, planes);
 }
-ZL_NodeID geozl_node_wp_static(ZL_Compressor *c, uint32_t width) {
+ZL_NodeID geozl_node_wp_static(ZL_Compressor *c, uint32_t width,
+                            uint32_t planes) {
   const ZL_TypedEncoderDesc desc = EI_WP_STATIC(GEOZL_CTID_WP_STATIC);
-  return width_node(c, &desc, width);
+  return geometry_node(c, &desc, width, planes);
 }
 
 ZL_NodeID geozl_node_deinterleave(ZL_Compressor *c) {

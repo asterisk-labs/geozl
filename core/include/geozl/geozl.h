@@ -28,12 +28,22 @@ GEOZL_API int geozl_ctid_is_lossy(uint32_t ctid);
 // Node builders. Each registers the codec's encoder, attaches per-tile
 // parameters, and returns a node to chain into a graph, or ZL_NODE_ILLEGAL on
 // failure. width is the row width in samples.
+//
+// planes is the stacked image count, B for a (B, Y, X) cube. Every predictor
+// but delta_w reads the row above and restarts at each boundary, so nothing is
+// predicted across planes. A count that does not split the stream into
+// whole-row planes is treated as 1.
 GEOZL_API ZL_NodeID geozl_node_delta_w(ZL_Compressor *c, uint32_t width);
-GEOZL_API ZL_NodeID geozl_node_delta_n(ZL_Compressor *c, uint32_t width);
-GEOZL_API ZL_NodeID geozl_node_planar(ZL_Compressor *c, uint32_t width);
-GEOZL_API ZL_NodeID geozl_node_med(ZL_Compressor *c, uint32_t width);
-GEOZL_API ZL_NodeID geozl_node_average(ZL_Compressor *c, uint32_t width);
-GEOZL_API ZL_NodeID geozl_node_wp_static(ZL_Compressor *c, uint32_t width);
+GEOZL_API ZL_NodeID geozl_node_delta_n(ZL_Compressor *c, uint32_t width,
+                                       uint32_t planes);
+GEOZL_API ZL_NodeID geozl_node_planar(ZL_Compressor *c, uint32_t width,
+                                      uint32_t planes);
+GEOZL_API ZL_NodeID geozl_node_med(ZL_Compressor *c, uint32_t width,
+                                   uint32_t planes);
+GEOZL_API ZL_NodeID geozl_node_average(ZL_Compressor *c, uint32_t width,
+                                       uint32_t planes);
+GEOZL_API ZL_NodeID geozl_node_wp_static(ZL_Compressor *c, uint32_t width,
+                                         uint32_t planes);
 GEOZL_API ZL_NodeID geozl_node_deinterleave(ZL_Compressor *c);
 GEOZL_API ZL_NodeID geozl_node_binoffset(ZL_Compressor *c);
 GEOZL_API ZL_NodeID geozl_node_intmult(ZL_Compressor *c, uint64_t base);
@@ -110,6 +120,7 @@ GEOZL_API ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width,
 // Returns 0 or the ZL_ErrorCode. The reason lands in errCtx, the size in
 // *outSize.
 GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
+                                  uint32_t planes,
                                   const char *error, int dtype, int nodataMode,
                                   uint64_t nodataBits, const void *src,
                                   size_t numElts, size_t eltWidth, void *dst,
@@ -122,7 +133,8 @@ GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
 typedef struct geozl_2d_graph_s geozl_2d_graph;
 
 GEOZL_API int geozl_2d_graph_open_c(geozl_2d_graph **out, const char *method,
-                                    uint32_t width, const char *error,
+                                    uint32_t width, uint32_t planes,
+                                    const char *error,
                                     int dtype, int nodataMode,
                                     uint64_t nodataBits, const void *src,
                                     size_t numElts, size_t eltWidth,
@@ -158,6 +170,7 @@ GEOZL_API int geozl_2d_decompress_c(const void *frame, size_t frameSize,
 // verify is the decode side and costs no bytes. A profiler wants checksum 1 and
 // verify 0.
 GEOZL_API int geozl_2d_bench_c(const char *method, uint32_t width,
+                               uint32_t planes,
                                const char *error, int dtype, int nodataMode,
                                uint64_t nodataBits, const void *src,
                                size_t numElts, size_t eltWidth, size_t reps,

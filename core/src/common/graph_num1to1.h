@@ -12,5 +12,8 @@
   }
 
 #define GEOZL_PARAM_WIDTH 1
+// Stacked planes. A predictor that reads the row above restarts at every plane
+// boundary, since those two rows sit a whole image apart.
+#define GEOZL_PARAM_PLANES 2
 
 #endif // GEOZL_COMMON_GRAPH_NUM1TO1_H

@@ -156,14 +156,14 @@ static int parse_candidate(const char *name, geozl_predictor *outP,
 }
 
 static ZL_NodeID predictor_node(ZL_Compressor *c, geozl_predictor p,
-                                uint32_t width) {
+                                uint32_t width, uint32_t planes) {
   switch (p) {
   case GEOZL_PRED_DELTA_W:   return geozl_node_delta_w(c, width);
-  case GEOZL_PRED_DELTA_N:   return geozl_node_delta_n(c, width);
-  case GEOZL_PRED_PLANAR:    return geozl_node_planar(c, width);
-  case GEOZL_PRED_MED:       return geozl_node_med(c, width);
-  case GEOZL_PRED_AVERAGE:   return geozl_node_average(c, width);
-  case GEOZL_PRED_WP_STATIC: return geozl_node_wp_static(c, width);
+  case GEOZL_PRED_DELTA_N:   return geozl_node_delta_n(c, width, planes);
+  case GEOZL_PRED_PLANAR:    return geozl_node_planar(c, width, planes);
+  case GEOZL_PRED_MED:       return geozl_node_med(c, width, planes);
+  case GEOZL_PRED_AVERAGE:   return geozl_node_average(c, width, planes);
+  case GEOZL_PRED_WP_STATIC: return geozl_node_wp_static(c, width, planes);
   default:                   return ZL_NODE_ILLEGAL;
   }
 }
@@ -258,7 +258,7 @@ static ZL_Report geozl_categorical_fg(ZL_Graph *g, ZL_Edge *inputs[],
 // One candidate graph, or ZL_GRAPH_ILLEGAL if the pair does not apply.
 static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
                                   geozl_terminal t, uint32_t width,
-                                  size_t eltWidth) {
+                                  uint32_t planes, size_t eltWidth) {
   ZL_NodeID head[3];
   size_t n = 0;
   if (p == GEOZL_PRED_ID) {
@@ -266,7 +266,7 @@ static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
   } else if (p == GEOZL_PRED_DELTA_1D) {
     head[n++] = ZL_NODE_DELTA_INT;
   } else {
-    ZL_NodeID pred = predictor_node(c, p, width);
+    ZL_NodeID pred = predictor_node(c, p, width, planes);
     if (!ZL_NodeID_isValid(pred))
       return ZL_GRAPH_ILLEGAL;
     head[n++] = pred;
@@ -343,10 +343,10 @@ static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
 // and then nodata around it, outermost last.
 static ZL_GraphID build_graph(ZL_Compressor *c, geozl_predictor p,
                                  geozl_terminal t, uint32_t width,
-                                 size_t eltWidth,
+                                 uint32_t planes, size_t eltWidth,
                                  const geozl_lossy_plan *plan, int dtype,
                                  int nodataMode, uint64_t nodataBits) {
-  ZL_GraphID sel = build_candidate(c, p, t, width, eltWidth);
+  ZL_GraphID sel = build_candidate(c, p, t, width, planes, eltWidth);
   if (!ZL_GraphID_isValid(sel))
     return ZL_GRAPH_ILLEGAL;
 
@@ -429,7 +429,8 @@ GEOZL_API void geozl_2d_graph_close_c(geozl_2d_graph *g) {
 // src is read here and not in the run, since the error recipe is cut against
 // it, so the plan every later tile carries is the one measured on this one.
 static ZL_Report graph_open(geozl_2d_graph **out, const char *method,
-                            uint32_t width, const char *error, int dtype,
+                            uint32_t width, uint32_t planes,
+                            const char *error, int dtype,
                             int nodataMode, uint64_t nodataBits,
                             const void *src, size_t numElts, size_t eltWidth,
                             int checksum, char *errCtx, size_t errCtxSize) {
@@ -498,7 +499,7 @@ static ZL_Report graph_open(geozl_2d_graph **out, const char *method,
   ZL_Report r;
   err_owner owner = ERR_NONE;
 
-  ZL_GraphID g = build_graph(e->c, pred, term, width, eltWidth, &plan, dtype,
+  ZL_GraphID g = build_graph(e->c, pred, term, width, planes, eltWidth, &plan, dtype,
                              nodataMode, nodataBits);
   if (!ZL_GraphID_isValid(g)) {
     if (has_err)
@@ -589,7 +590,8 @@ static ZL_Report graph_run(const geozl_2d_graph *e, const void *src,
 // The same two halves as the bindings see them, ZL_Report folded to 0 or the
 // ZL_ErrorCode.
 GEOZL_API int geozl_2d_graph_open_c(geozl_2d_graph **out, const char *method,
-                                    uint32_t width, const char *error,
+                                    uint32_t width, uint32_t planes,
+                                    const char *error,
                                     int dtype, int nodataMode,
                                     uint64_t nodataBits, const void *src,
                                     size_t numElts, size_t eltWidth,
@@ -597,7 +599,7 @@ GEOZL_API int geozl_2d_graph_open_c(geozl_2d_graph **out, const char *method,
   if (errCtx != NULL && errCtxSize != 0)
     errCtx[0] = '\0';
   ZL_Report r =
-      graph_open(out, method, width, error, dtype, nodataMode, nodataBits, src,
+      graph_open(out, method, width, planes, error, dtype, nodataMode, nodataBits, src,
                  numElts, eltWidth, 1, errCtx, errCtxSize);
   return ZL_isError(r) ? (int)ZL_errorCode(r) : 0;
 }
@@ -616,6 +618,7 @@ GEOZL_API int geozl_2d_compress_graph_c(geozl_2d_graph *g, const void *src,
 // The one compression entry. Returns 0 or the ZL_ErrorCode, keeping ZL_Report
 // out of the bindings, with the reason in errCtx and the frame size in *outSize.
 GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
+                                  uint32_t planes,
                                   const char *error, int dtype, int nodataMode,
                                   uint64_t nodataBits, const void *src,
                                   size_t numElts, size_t eltWidth, void *dst,
@@ -625,7 +628,7 @@ GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
     errCtx[0] = '\0';
 
   geozl_2d_graph *e;
-  ZL_Report r = graph_open(&e, method, width, error, dtype, nodataMode,
+  ZL_Report r = graph_open(&e, method, width, planes, error, dtype, nodataMode,
                            nodataBits, src, numElts, eltWidth, 1, errCtx,
                            errCtxSize);
   if (!ZL_isError(r)) {
@@ -747,6 +750,7 @@ static double best_or_mean(double best, double run, size_t reps) {
 // verify belongs to the reader and costs no bytes. Both cost the same for every
 // graph in the grid, so neither moves a ranking.
 GEOZL_API int geozl_2d_bench_c(const char *method, uint32_t width,
+                               uint32_t planes,
                                const char *error, int dtype, int nodataMode,
                                uint64_t nodataBits, const void *src,
                                size_t numElts, size_t eltWidth, size_t reps,
@@ -764,7 +768,7 @@ GEOZL_API int geozl_2d_bench_c(const char *method, uint32_t width,
   }
 
   geozl_2d_graph *enc;
-  ZL_Report r = graph_open(&enc, method, width, error, dtype, nodataMode,
+  ZL_Report r = graph_open(&enc, method, width, planes, error, dtype, nodataMode,
                            nodataBits, src, numElts, eltWidth, checksum,
                            errCtx, errCtxSize);
   if (ZL_isError(r))

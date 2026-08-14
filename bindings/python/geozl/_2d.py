@@ -67,14 +67,26 @@ def _as_raster(tile: ArrayLike) -> tuple[np.ndarray, int]:
     return arr, elt
 
 
-def _prepare(tile: ArrayLike,
-             width: int | None) -> tuple[np.ndarray, int, int]:
+def _prepare(tile: ArrayLike, width: int | None,
+             planes: int | None = None) -> tuple[np.ndarray, int, int, int]:
     arr, elt = _as_raster(tile)
     if width is None:
         if arr.ndim < 2:
             raise ValueError("give width for a 1d raster")
         width = arr.shape[-1]
-    return arr, int(width), elt
+    if planes is None:
+        # a (B, Y, X) cube is B stacked images, anything else is one
+        planes = arr.shape[0] if arr.ndim >= 3 else 1
+    width, planes = int(width), int(planes)
+    if planes < 1:
+        raise ValueError(f"planes must be at least 1, got {planes}")
+    if planes > 1:
+        n = arr.size
+        if n % planes or (n // planes) % width:
+            raise ValueError(
+                f"{planes} planes do not split {n} elements into whole rows "
+                f"of {width}")
+    return arr, width, planes, elt
 
 
 def _dtype_arg(arr: np.ndarray, error: str | None) -> int:
@@ -95,15 +107,16 @@ class Graph:
     Graph per thread.
     """
 
-    __slots__ = ("_h", "method", "width", "dtype", "itemsize", "error",
-                 "nodata")
+    __slots__ = ("_h", "method", "width", "planes", "dtype", "itemsize",
+                 "error", "nodata")
 
-    def __init__(self, handle: Any, *, method: str, width: int,
+    def __init__(self, handle: Any, *, method: str, width: int, planes: int,
                  dtype: np.dtype, itemsize: int, error: str | None,
                  nodata: Any) -> None:
         self._h = handle
         self.method = method
         self.width = width
+        self.planes = planes
         self.dtype = dtype
         self.itemsize = itemsize
         self.error = error
@@ -111,14 +124,20 @@ class Graph:
 
 
 def graph(raster: ArrayLike, method: str, *, width: int | None = None,
-          error: str | None = None, nodata: Any = None) -> Graph:
+          planes: int | None = None, error: str | None = None,
+          nodata: Any = None) -> Graph:
     """Build one graph, to compress many tiles through.
 
     method is a recipe, the same string profile puts in its "graph" column.
 
-    width is the stride the predictor steps by, taken from the last axis when
-    left unset. Not the row length: a width of Y*X over a (B, Y, X) cube
-    predicts each band from the one before it.
+    width is the row length, taken from the last axis when left unset.
+
+    planes is how many stacked images the stream holds, taken from the first
+    axis of a (B, Y, X) cube and 1 otherwise. Every predictor except delta_w
+    reads the row above and restarts at each plane boundary, so a cube is
+    predicted band by band while the rest of the graph still sees one stream.
+    Pass a width of Y*X instead to get the old behaviour, each band predicted
+    from the one before it.
 
     error is a recipe. None is lossless. "LINEAR:MAX_ERROR=V" bounds the
     absolute error, "LOG:MAX_ERROR=P%" the relative one, and
@@ -133,14 +152,14 @@ def graph(raster: ArrayLike, method: str, *, width: int | None = None,
     err = _error_arg(error)
 
     lib = _load_lib_full()
-    arr, width, elt = _prepare(raster, width)
+    arr, width, planes, elt = _prepare(raster, width, planes)
     code = _dtype_arg(arr, error)
     nd_mode, nd_bits = _nodata_args(arr, nodata)
 
     out = ffi.new("geozl_2d_graph**")
     err_ctx = ffi.new("char[]", 256)
     rc = lib.geozl_2d_graph_open_c(
-        out, method.encode("utf-8"), width, err, int(code), nd_mode, nd_bits,
+        out, method.encode("utf-8"), width, planes, err, int(code), nd_mode, nd_bits,
         _ptr(arr), arr.size, elt, err_ctx, len(err_ctx))
     if rc != 0:
         reason = ffi.string(err_ctx).decode("utf-8", "replace")
@@ -148,7 +167,8 @@ def graph(raster: ArrayLike, method: str, *, width: int | None = None,
                            f"{reason} (ZL error code {rc})")
 
     return Graph(ffi.gc(out[0], lib.geozl_2d_graph_close_c),
-                 method=method, width=width, dtype=arr.dtype, itemsize=elt,
+                 method=method, width=width, planes=planes,
+                 dtype=arr.dtype, itemsize=elt,
                  error=error, nodata=nodata)
 
 
@@ -241,7 +261,8 @@ def _order0_bits(arr: np.ndarray) -> float:
 
 
 def profile(tile: ArrayLike, *, prior: str | None = "planar",
-            width: int | None = None, error: str | None = None,
+            width: int | None = None, planes: int | None = None,
+            error: str | None = None,
             reps: int = 5, nodata: Any = None,
             verify: bool = False) -> list[dict[str, Any]]:
     """Benchmark every candidate graph on one tile, one row each, ranked by
@@ -266,7 +287,7 @@ def profile(tile: ArrayLike, *, prior: str | None = "planar",
         raise ValueError(f"reps must be at least 1, got {reps}")
     err = _error_arg(error)
     lib = _load_lib_full()
-    arr, width, elt = _prepare(tile, width)
+    arr, width, planes, elt = _prepare(tile, width, planes)
     raw = arr.nbytes
     ideal = raw * _order0_bits(arr) / 8.0
     code = _dtype_arg(arr, error)
@@ -281,7 +302,7 @@ def profile(tile: ArrayLike, *, prior: str | None = "planar",
         # checksum on, so "bytes" is the frame compress writes and not an
         # estimate of it
         rc = lib.geozl_2d_bench_c(
-            name.encode("utf-8"), width, err, int(code), nd_mode, nd_bits,
+            name.encode("utf-8"), width, planes, err, int(code), nd_mode, nd_bits,
             _ptr(arr), arr.size, elt, reps, 1, int(verify), comp, enc, dec,
             err_ctx, len(err_ctx))
         if rc != 0:

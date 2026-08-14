@@ -42,7 +42,7 @@
         and a right shift travel in the header, and with the default weights it reduces to planar.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D707</dd>
-          <dt>header</dt><dd>uint32 width &middot; uint8 shift &middot; 4&times;int16 coeffs</dd>
+          <dt>header</dt><dd>uint32 width &middot; uint8 shift &middot; 4&times;int16 coeffs<br>+ uint32 &middot; plane count, when above one</dd>
           <dt>widths</dt><dd>8 &middot; 16 &middot; 32 &middot; 64-bit integers</dd>
           <dt>decode</dt><dd>P = W + ((&#931; c&#7522;&middot;tap&#7522; + round) &gt;&gt; shift), prefix sum per row</dd>
         </dl>

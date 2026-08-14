@@ -43,7 +43,7 @@
         noisy tiles where neither a delta nor a full plane wins.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D706</dd>
-          <dt>header</dt><dd>uint32 &middot; row width in samples</dd>
+          <dt>header</dt><dd>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</dd>
           <dt>widths</dt><dd>8 &middot; 16 &middot; 32 &middot; 64-bit integers</dd>
           <dt>decode</dt><dd>floor((W + N) / 2) per sample, in order</dd>
         </dl>

@@ -5,6 +5,31 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-08-14
+
+### Added
+
+- Stacked planes. The five predictors that read the row above (`planar`,
+  `delta_n`, `average`, `med`, `wp_static`) take a plane count and restart at
+  each boundary, so a `(B, Y, X)` cube is predicted band by band. Nothing is
+  predicted across planes. `delta_w` only reads to its left and is unchanged.
+
+- `geozl.graph(cube, method)` infers the count from the first axis, so a cube
+  needs no new argument. `planes=` overrides it, and `profile` takes it too.
+
+### Changed
+
+- The five codec headers grow an optional trailing `uint32`, written only above
+  one plane. A four byte header (thirteen for `wp_static`) still means one
+  plane, so frames written by earlier versions decode byte for byte.
+
+### Breaking
+
+- `geozl_node_planar`, `geozl_node_delta_n`, `geozl_node_average`,
+  `geozl_node_med` and `geozl_node_wp_static` take a `planes` argument, and
+  `geozl_2d_compress_c`, `geozl_2d_graph_open_c` and `geozl_2d_bench_c` take one
+  after `width`. Pass `1` for the old behaviour.
+
 ## [0.11.0] - 2026-08-08
 
 ### Changed

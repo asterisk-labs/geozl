@@ -5,8 +5,10 @@ A single numeric stream of 8, 16, 32 or 64-bit integers holding the vertical res
 ### Codec Header
 A single uint32, little endian, the row width in samples. The number of rows is the element count divided by the width.
 
+The header is four bytes for one plane and eight for more, the extra uint32 being the plane count, so a four byte header still means one plane. Each plane is predicted on its own, its first row taking N and NW as zero rather than reaching into the plane before it. A count that does not split the elements into whole-row planes is corruption.
+
 ### Decoding
-The first row is copied through as absolute values. Every later row is reconstructed by adding the reconstructed row above to the residual, sample by sample, using native width modular addition. Columns are independent, there is no horizontal carry.
+The first row of each plane is copied through as absolute values. Every later row is reconstructed by adding the reconstructed row above to the residual, sample by sample, using native width modular addition. Columns are independent, there is no horizontal carry.
 
 ### Outputs
 A single numeric stream of the same element width and the same length as the input.
