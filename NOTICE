@@ -1,0 +1,12 @@
+GeoZL
+Copyright (c) 2026, Asterisk Labs
+Licensed under the BSD 3-Clause License, see LICENSE.
+
+`libgeozl` statically links the following software. Binary distributions include
+their licence texts under `dist-info/licenses/`.
+
+  OpenZL 0.2.0            BSD 3-Clause     licenses/LICENSE.OpenZL
+  Zstandard 1.5.7         BSD 3-Clause     licenses/LICENSE.Zstandard
+  LZ4 1.10.0 (lib only)   BSD 2-Clause     licenses/LICENSE.LZ4
+
+Only LZ4's BSD-licensed `lib` directory is built.
