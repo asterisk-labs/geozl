@@ -4,9 +4,9 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
-<meta content="geozl benchmarks — compression ratio versus throughput." name="description"/>
+<meta content="GeoZL benchmarks — compression ratio versus throughput." name="description"/>
 <meta content="#F1EDE4" name="theme-color"/>
-<title>geozl — benchmark</title>
+<title>GeoZL — benchmark</title>
 <link href="assets/svg/favicon.svg" rel="icon" type="image/svg+xml"/>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -19,33 +19,34 @@
 <span class="reg tl">+</span><span class="reg tr">+</span>
 <span class="reg bl">+</span><span class="reg br">+</span>
 <header class="masthead">
-<a aria-label="geozl home" class="lockup vt-lockup" href="index.html">
+<a aria-label="GeoZL home" class="lockup vt-lockup" href="index.html">
 <img alt="" class="marksvg" src="assets/svg/mark.svg"/>
 <span class="wm-sm">GeoZL</span>
 </a>
+<div aria-label="Project links" class="offsite">
+<a aria-label="GeoZL on GitHub" href="https://github.com/asterisk-labs/geozl" rel="noopener noreferrer" title="GitHub"><svg aria-hidden="true" class="github" viewbox="0 0 24 24"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg></a>
+<a aria-label="GeoZL on PyPI" href="https://pypi.org/project/geozl/" rel="noopener noreferrer" title="PyPI"><svg aria-hidden="true" viewbox="0 0 16 16"><path d="M8 1.3 14.3 4.7v6.6L8 14.7l-6.3-3.4V4.7Z"></path><path d="M1.7 4.7 8 8.1l6.3-3.4M8 8.1v6.6"></path></svg></a>
+<a aria-label="Rumi, the raster format built with GeoZL" href="https://asterisk.coop/rumi/" rel="noopener noreferrer" title="Rumi"><svg aria-hidden="true" viewbox="0 0 16 16"><path d="M1 1h14v14H1zM1 5.5l6 .8 4.2 2.1L15 9.2M7 1l-.5 5.3 4.7 2.1L9.5 15"></path></svg></a>
+</div>
 <nav aria-label="Sections" class="nav">
 <a href="docs.html">Docs</a>
 <a href="api-high.html">API</a>
 <a class="here" href="benchmark.html">Benchmark</a>
-<a href="links.html">Links</a>
 </nav>
 </header>
-<main class="page">
+<main class="page benchmark-page">
 <p class="kicker"><span class="k-sq"></span> benchmark</p>
 <h1>Ratio and <span class="u">speed</span>.</h1>
 <p class="lead">The current benchmark uses one 512 × 512 <code>int16</code> window of the Copernicus DEM. Every applicable recipe is timed and plotted against its Pareto front on the <a href="api-high.html#profile">Python API page</a>.</p>
-<div class="soon"><span class="s-sq"></span> Results depend on the raster and hardware. Until DEM, Sentinel-2 L1C and Sentinel-1 RTC are measured consistently, run <code>geozl.profile</code> on a representative tile of your own.</div>
 </main>
 <footer class="colophon">
-<span class="by">
-        Made with
-        <svg aria-hidden="true" class="heart" fill="currentColor" viewbox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
-        by
-        <a class="ast-link" href="https://asterisk.coop" rel="noopener noreferrer" target="_blank">
-<img alt="" class="ast" src="assets/svg/asterisk.svg"/>
-          asterisk labs
-        </a>
-</span>
+<span>Made with</span>
+<span class="heart" aria-label="love" role="img"></span>
+<span>by</span>
+<a class="by" href="https://asterisk.coop" rel="noopener noreferrer">
+<img src="assets/svg/asterisk-mark.svg" alt="" width="15" height="17"/>
+<span>asterisk labs</span>
+</a>
 </footer>
 </div>
 </body>

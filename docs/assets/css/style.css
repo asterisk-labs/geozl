@@ -539,20 +539,6 @@ body:not(.landing) .sheet{ min-height:min(820px,calc(100svh - clamp(32px,5.2vw,6
   border-top:1px solid var(--line-strong);
   font:400 11px/1.4 "IBM Plex Mono",monospace;
 }
-.by{ display:flex; align-items:center; gap:8px; color:var(--ink); font-weight:500; flex-wrap:wrap; }
-.by .heart{ width:14px; height:14px; color:#D72459; transform-origin:center; }
-.by:hover .heart{ animation:beat 2.4s ease-in-out infinite; }
-@keyframes beat{
-  0%,55%,100%{ transform:scale(1); }
-  10%{ transform:scale(1.22); }
-  20%{ transform:scale(1); }
-  30%{ transform:scale(1.13); }
-  40%{ transform:scale(1); }
-}
-.ast-link{ display:inline-flex; align-items:center; gap:7px; color:var(--ink); text-decoration:none; }
-.ast-link .ast{ height:17px; width:auto; }
-.ast-link:hover{ opacity:.66; }
-
 /* Codec-page footer (status bar with family + ctid) */
 .footer{
   padding:clamp(18px,2.4vw,26px) clamp(28px,5vw,70px); border-top:1px solid var(--line);

@@ -3,11 +3,12 @@
     @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 
     svg{
-      --paper:#F1EDE4; --ink:#17161C; --ink-2:#625D53; --purple:#4A2BE8; --green:#A9FFA6; --orange:#FE6B37;
+      --paper:#111721; --ink:#E6EDF3; --ink-2:#8F9AAA; --purple:#7457FF; --green:#91F2BC; --orange:#FF7A4F;
       --tint-add:color-mix(in srgb,var(--purple) 15%,var(--paper));
       --tint-sub:color-mix(in srgb,var(--orange) 18%,var(--paper));
       --tint-keep:color-mix(in srgb,var(--green) 48%,var(--paper));
       --ease:cubic-bezier(.22,.7,.2,1);
+      background:transparent;
       font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
     }
 

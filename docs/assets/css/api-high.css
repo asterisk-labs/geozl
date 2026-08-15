@@ -644,6 +644,52 @@
     .flow > div:first-child{ border-top:0; }
   }
 
+  /* The recipe is a graph, so show its branching structure instead of a
+     second paragraph. Only the selected recipe is accented; alternatives
+     stay quiet and readable against the dark sheet. */
+  .pipeline-diagram{ margin:clamp(16px,2vw,22px) 0 12px; overflow-x:auto; border-block:1px solid var(--line); }
+  .pipeline-map{ display:block; width:100%; min-width:760px; height:auto; }
+  .pipeline-map .map-stage{ fill:var(--ink-2); font:500 10px/1 "IBM Plex Mono",monospace; letter-spacing:.12em; text-transform:uppercase; }
+  .pipeline-map .map-edges path{ fill:none; stroke:var(--line-strong); stroke-width:1.35; vector-effect:non-scaling-stroke; marker-end:url(#map-arrow); }
+  .pipeline-map .map-edges.active path{ stroke:var(--page); stroke-width:2; marker-end:url(#map-arrow-active); }
+  .pipeline-map #map-arrow path{ fill:var(--ink-2); }
+  .pipeline-map #map-arrow-active path{ fill:var(--page); }
+  .pipeline-map .map-node rect{ fill:rgba(255,255,255,.018); stroke:var(--line-strong); stroke-width:1; vector-effect:non-scaling-stroke; }
+  .pipeline-map .map-node.is-active rect{ fill:color-mix(in srgb,var(--page) 8%,transparent); stroke:var(--page); }
+  .pipeline-map .map-label{ fill:var(--ink); font:600 12px/1 "IBM Plex Mono",monospace; }
+  .pipeline-map .map-meta{ fill:var(--ink-2); font:500 9px/1 "IBM Plex Mono",monospace; letter-spacing:.03em; }
+
+  /* Decompression is the same recipe read backwards. The bytes and values
+     remain neutral grey; the arrow between transformations carries the page
+     accent and provides the direction. */
+  .decode-diagram{ display:grid; grid-template-columns:minmax(190px,.75fr) minmax(430px,1.65fr) minmax(190px,.75fr); gap:14px; align-items:stretch; margin:18px 0; }
+  .decode-card{ min-width:0; min-height:116px; padding:14px 15px 12px; border:1px solid var(--line-strong); background:rgba(255,255,255,.018); display:grid; grid-template-columns:1fr auto; align-content:start; gap:10px 12px; }
+  .decode-card b{ color:var(--ink); font:600 13px/1 "IBM Plex Mono",monospace; }
+  .decode-k{ color:var(--ink-2); font:500 9px/1 "IBM Plex Mono",monospace; letter-spacing:.1em; text-transform:uppercase; }
+  .decode-card code{ grid-column:1/-1; color:var(--ink-2); font:500 9px/1.25 "IBM Plex Mono",monospace; }
+  .decode-bytes{ grid-column:1/-1; display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); gap:3px; }
+  .decode-bytes i{ height:8px; border:1px solid rgba(231,237,245,.28); background:rgba(231,237,245,.2); }
+  .decode-bytes i:nth-child(3n){ background:rgba(231,237,245,.34); }
+  .decode-bytes i:nth-child(5n){ background:rgba(231,237,245,.1); }
+  .decode-route{ min-width:0; display:grid; grid-template-columns:repeat(7,max-content); grid-template-rows:1fr auto; align-items:center; justify-content:center; gap:8px; }
+  .decode-route span{ padding:8px 9px; border:1px solid var(--line); color:var(--ink); background:rgba(255,255,255,.018); font:500 9.5px/1 "IBM Plex Mono",monospace; }
+  .decode-route i{ color:var(--page); font:600 13px/1 "IBM Plex Mono",monospace; font-style:normal; }
+  .decode-route small{ grid-column:1/-1; justify-self:center; color:var(--ink-2); font:500 9.5px/1.3 "IBM Plex Mono",monospace; white-space:nowrap; }
+  .decode-route small code{ color:var(--ink); font:inherit; }
+  .decode-matrix{ grid-column:1/-1; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); border-left:1px solid var(--line); border-top:1px solid var(--line); }
+  .decode-matrix i{ min-width:0; padding:4px 2px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); color:var(--ink-2); text-align:center; font:500 8px/1 "IBM Plex Mono",monospace; font-style:normal; }
+
+  @media (min-width:981px) and (max-height:780px){
+    .pipeline-map{ max-height:185px; }
+    .decode-diagram{ margin:13px 0; }
+    .decode-card{ min-height:102px; padding-block:11px 9px; }
+  }
+  @media (max-width:980px){
+    .decode-diagram{ grid-template-columns:1fr; }
+    .decode-route{ justify-content:start; overflow-x:auto; padding-block:4px; }
+    .decode-card{ min-height:0; }
+  }
+
 
 /* 2026 visual pass: fewer, calmer slides and reliable viewport fit */
 @media (min-width:981px){
@@ -683,8 +729,5 @@
      still take their colour from CSS as they did when inlined. */
   .ic{ display:block; width:14px; height:14px; flex:0 0 auto; background:currentColor;
     -webkit-mask:center/contain no-repeat; mask:center/contain no-repeat; }
-  .ic-heart{ -webkit-mask-image:url("../svg/heart.svg"); mask-image:url("../svg/heart.svg"); }
   .ic-prev{ -webkit-mask-image:url("../svg/chevron-left.svg"); mask-image:url("../svg/chevron-left.svg"); }
   .ic-next{ -webkit-mask-image:url("../svg/chevron-right.svg"); mask-image:url("../svg/chevron-right.svg"); }
-  .ic-copy{ width:12px; height:12px; -webkit-mask-image:url("../svg/copy.svg"); mask-image:url("../svg/copy.svg"); }
-  .ic-check{ width:12px; height:12px; -webkit-mask-image:url("../svg/check.svg"); mask-image:url("../svg/check.svg"); }

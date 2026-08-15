@@ -85,7 +85,7 @@ def codec_page_identity(path: Path) -> dict[str, str]:
     """The identifiers a codec page exposes to readers."""
     body = _read(path)
     patterns = {
-        "title": r"<title>geozl\s*·\s*(\w+)</title>",
+        "title": r"<title>GeoZL\s*·\s*(\w+)</title>",
         "name": r'<h1 class="name">(\w+)</h1>',
         "ctid": r"<dt>ctid</dt><dd>(0x[0-9A-Fa-f]+)</dd>",
         "footer_ctid": r'<span class="pg-mid mono">(0x[0-9A-Fa-f]+)</span>',

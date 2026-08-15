@@ -1,4 +1,4 @@
-# The geozl site
+# The GeoZL site
 
 Static HTML, no build step and no framework. Every page is hand written, the CSS
 is one file plus one page-specific sheet, and the JavaScript is optional
@@ -20,7 +20,6 @@ docs/
 ├── codecs/*.html       11 pages, one per codec, each with an animated diagram
 ├── api-high.html       graph(), compress(), profile() and the lossy recipes
 ├── benchmark.html      ratio against throughput
-├── links.html          GitHub, Hugging Face, source.coop
 ├── compatibility.md    frame compatibility policy
 ├── c-api.md            C source compatibility policy
 ├── adding-a-codec.md   how to write one, for contributors
@@ -29,7 +28,7 @@ docs/
     ├── css/style.css       everything shared
     ├── css/api-high.css     only api-high.html, which is the heaviest page
     ├── js/main.js           codec pager, loaded by codecs/*.html
-    ├── js/deck.js           deck navigation on api-high
+    ├── js/deck.js           horizontal slide navigation on api-high
     ├── js/tabs.js           the function picker on api-high
     ├── js/copy.js           copy buttons over the code blocks
     ├── js/plot-tooltip.js   nearest-point tooltip for any .plot
@@ -39,9 +38,9 @@ docs/
         ├── mark.svg          animated 2x2 prediction mark
         ├── banner.svg        the README banner
         ├── codecs/*.svg      11 diagrams, one per codec page
-        ├── asterisk.svg, asterisk_banner.svg
+        ├── asterisk-mark.svg, asterisk_banner.svg
         ├── github.svg, huggingface.svg, source-coop.svg
-        └── favicon.svg, heart.svg, check.svg, copy.svg, colab.svg, chevron-*.svg
+        └── favicon.svg, heart.svg, colab.svg, chevron-*.svg
 ```
 
 ## The catalog is written down five times

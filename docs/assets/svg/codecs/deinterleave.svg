@@ -3,7 +3,8 @@
     @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 
     svg{
-      --paper:#F1EDE4; --ink:#17161C; --ink-2:#625D53; --purple:#4A2BE8; --green:#A9FFA6; --ease:cubic-bezier(.22,.7,.2,1);
+      --paper:#111721; --ink:#E6EDF3; --ink-2:#8F9AAA; --purple:#7457FF; --green:#91F2BC; --ease:cubic-bezier(.22,.7,.2,1);
+      background:transparent;
       font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
     }
 

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/svg/banner.svg" alt="geozl" width="750"/>
+  <img src="docs/assets/svg/banner.svg" alt="GeoZL" width="750"/>
 </p>
 
 <p align="center">
@@ -19,7 +19,7 @@ of codecs. GeoZL adds raster-aware nodes for numeric tiles: spatial predictors,
 NoData handling and bounded-error quantizers.
 
 <p align="center">
-  <img src="docs/assets/svg/graph-recipes.svg" alt="geozl" width="750"/>
+  <img src="docs/assets/svg/graph-recipes.svg" alt="GeoZL" width="750"/>
 </p>
 
 
