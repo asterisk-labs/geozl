@@ -188,11 +188,14 @@ def compress(tile: ArrayLike, *, graph: Graph) -> bytes:
     return dst[:out_size[0]].tobytes()
 
 
-def decompress(frame: bytes, *, verify: bool = True) -> np.ndarray:
+def decompress(frame: bytes, *, verify: bool = True,
+               max_output_size: int | None = None) -> np.ndarray:
     """Decompress a frame into a flat ``uint8`` array.
 
     Restore the dtype and shape with ``.view(dtype).reshape(shape)``. Set
     ``verify=False`` to skip checksum verification.
+
+    Use ``max_output_size`` to limit allocations when reading untrusted frames.
     """
     lib = _load_lib_full()
     buf = np.frombuffer(frame, np.uint8)
@@ -202,6 +205,11 @@ def decompress(frame: bytes, *, verify: bool = True) -> np.ndarray:
 
     # Numeric output must be 8-byte aligned; a uint64 backing store guarantees it.
     dsize = int(dsize)
+    if max_output_size is not None and dsize > max_output_size:
+        raise ValueError(
+            f"geozl.decompress: the frame declares {dsize} bytes of output, "
+            f"above the {max_output_size} allowed"
+        )
     out = np.empty((dsize + 7) // 8, np.uint64).view(np.uint8)[:dsize]
     out_size = ffi.new("size_t*")
     err_ctx = ffi.new("char[]", 256)

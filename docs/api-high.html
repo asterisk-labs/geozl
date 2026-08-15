@@ -104,8 +104,8 @@
 <div class="spec2"><div class="row"><span class="nm">tile</span><span class="ty">ndarray</span><span class="ds">Matching dtype; geometry is not checked.</span></div><div class="row"><span class="nm">graph</span><span class="ty">Graph</span><span class="ds">Reusable graph; not thread-safe.</span></div><div class="row"><span class="nm">→ frame</span><span class="ty">bytes</span><span class="ds">Self-describing OpenZL frame.</span></div></div>
 </div>
 <div aria-labelledby="tab-decompress" class="fnpanel" hidden="" id="pan-decompress" role="tabpanel">
-<p class="sig">signature <b>decompress(frame, *, verify=True) → ndarray</b></p>
-<div class="spec2"><div class="row"><span class="nm">frame</span><span class="ty">bytes</span><span class="ds">Returns flat <code>uint8</code>.</span></div><div class="row"><span class="nm">verify</span><span class="ty">bool</span><span class="ds">Checks frame checksums.</span></div></div>
+<p class="sig">signature <b>decompress(frame, *, verify=True, max_output_size=None) → ndarray</b></p>
+<div class="spec2"><div class="row"><span class="nm">frame</span><span class="ty">bytes</span><span class="ds">Returns flat <code>uint8</code>.</span></div><div class="row"><span class="nm">verify</span><span class="ty">bool</span><span class="ds">Checks frame checksums.</span></div><div class="row"><span class="nm">max_output_size</span><span class="ty">int | None</span><span class="ds">Ceiling on the bytes allocated. The size is read from the frame, so pass one for untrusted input.</span></div></div>
 </div>
 </div>
 </section>

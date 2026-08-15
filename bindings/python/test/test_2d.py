@@ -148,6 +148,25 @@ def test_corrupt_payload_is_reported():
         geozl.decompress(bytes(frame))
 
 
+def test_max_output_size_refuses_before_allocating():
+    # the declared size is the frame's word, so untrusted bytes need a ceiling
+    arr = _tile()
+    frame = _frame(arr, method=GRAPH)
+    with pytest.raises(ValueError, match="above the .* allowed"):
+        geozl.decompress(frame, max_output_size=arr.nbytes - 1)
+
+
+def test_max_output_size_allows_an_exact_fit():
+    arr = _tile()
+    out = geozl.decompress(_frame(arr, method=GRAPH), max_output_size=arr.nbytes)
+    assert np.array_equal(out.view(arr.dtype).reshape(arr.shape), arr)
+
+
+def test_no_ceiling_is_the_default():
+    arr = _tile()
+    assert geozl.decompress(_frame(arr, method=GRAPH)).nbytes == arr.nbytes
+
+
 def test_verification_off_still_round_trips():
     arr = _tile()
     out = geozl.decompress(_frame(arr, method=GRAPH), verify=False)
