@@ -90,3 +90,6 @@ oom-*
 *.jp2
 
 .coverage
+
+# Local backup of the pre-migration documentation site
+/docs/legacy/
