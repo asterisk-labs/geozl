@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="geozl average predicts each pixel from the floor average of W and N.">
+<meta name="theme-color" content="#F1EDE4">
+<title>geozl · average</title>
+<link rel="icon" href="../assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/style.css">
+<link rel="stylesheet" href="../assets/css/migration.css">
+</head>
+<body style="--page:var(--purple)">
+  <div class="sheet">
+    <span class="reg tl">+</span><span class="reg tr">+</span>
+    <span class="reg bl">+</span><span class="reg br">+</span>
+
+    <header class="masthead">
+      <a class="lockup vt-lockup" href="../index.html" aria-label="geozl home">
+        <img class="marksvg" src="../assets/svg/mark.svg" alt="">
+        <span class="wm-sm">GeoZL</span>
+      </a>
+      <nav class="nav" aria-label="Sections">
+        <a href="../docs.html" class="here">Docs</a>
+        <a href="../api-high.html">API</a>
+        <a href="../benchmark.html">Benchmark</a>
+        <a href="../links.html">Links</a>
+      </nav>
+    </header>
+
+    <main class="codoc">
+      <div class="col-text">
+        <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> predictor &middot; 2D <span class="sep">/</span> lossless</p>
+        <h1 class="name">average</h1>
+        <p class="subtitle">The floor average of <span class="u">W and N</span>.</p>
+        <p class="desc">The gentlest 2D predictor. Each pixel is predicted by the floor average of its
+        west and north neighbours, <b>floor((W + N) / 2)</b>, computed as
+        <b>(W&gt;&gt;1) + (N&gt;&gt;1) + (W &amp; N &amp; 1)</b> so it never overflows the sample width.
+        Edge neighbours are zero, so the first row predicts floor(W/2) and the first column floor(N/2).
+        It reads the reconstructed W, so each sample is decoded in order. A good fit for smooth, slightly
+        noisy tiles where neither a delta nor a full-plane predictor gives the smaller residuals.</p>
+        <dl class="spec">
+          <dt>ctid</dt><dd>0x72D706</dd>
+          <dt>header</dt><dd>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</dd>
+          <dt>widths</dt><dd>8 &middot; 16 &middot; 32 &middot; 64-bit integers</dd>
+          <dt>decode</dt><dd>floor((W + N) / 2) per sample, in order</dd>
+        </dl>
+
+        <div class="actions">
+          <a class="btn-code" href="https://github.com/asterisk-labs/geozl/tree/main/core/src/average" target="_blank" rel="noopener noreferrer">
+            <span>Code</span>
+            <svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+          </a>
+          <span class="usage mono">geozl.lossless.Average(width, planes=1)</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <object class="diagram" type="image/svg+xml" data="../assets/svg/codecs/average.svg"
+                aria-label="average predicts each pixel from the floor average of its west and north neighbours"></object>
+      </div>
+    </main>
+
+    <footer class="footer pager">
+      <a class="pg prev" href="med.html" style="--fam:var(--purple)" aria-label="Previous codec, med"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg><span class="pg-fam"></span><span class="pg-lab"><span class="pg-k">prev · 04</span><span class="pg-n">med</span></span></a>
+      <span class="pg-mid mono">0x72D706</span>
+      <a class="pg next" href="wp-static.html" style="--fam:var(--purple)" aria-label="Next codec, wp_static"><span class="pg-lab"><span class="pg-k">next · 06</span><span class="pg-n">wp_static</span></span><span class="pg-fam"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+    </footer>
+  </div>
+</body>
+</html>
