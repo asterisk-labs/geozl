@@ -165,10 +165,12 @@ if(GEOZL_BUILD_FULL)
     # so ASan and UBSan see the decoders. The instrumentation itself is set
     # globally above, this only pulls in libFuzzer's main.
     if(GEOZL_BUILD_FUZZERS)
-        add_executable(geozl_decode_fuzzer
-            ${CMAKE_CURRENT_SOURCE_DIR}/../fuzz/decode_fuzzer.c)
-        target_link_libraries(geozl_decode_fuzzer PRIVATE geozl)
-        target_link_options(geozl_decode_fuzzer PRIVATE -fsanitize=fuzzer)
+        foreach(fz decode binding)
+            add_executable(geozl_${fz}_fuzzer
+                ${CMAKE_CURRENT_SOURCE_DIR}/../fuzz/${fz}_fuzzer.c)
+            target_link_libraries(geozl_${fz}_fuzzer PRIVATE geozl)
+            target_link_options(geozl_${fz}_fuzzer PRIVATE -fsanitize=fuzzer)
+        endforeach()
 
         # A mutator hardly ever produces a frame that still parses, so the
         # decode fuzzer spends its budget in the OpenZL frame reader and rarely

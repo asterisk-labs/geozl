@@ -5,6 +5,8 @@
 # make exhaustive the C tests over every value of a type, minutes
 # make test-san   run both suites against an ASan and UBSan build
 # make fuzz       build and run the fuzzers, report in fuzz/out (needs clang)
+# make fuzz-check same, but exits non-zero on any finding, for CI
+# make fuzz-replay run saved corpora once and exit
 # make fuzz-build build the fuzzers without running them
 # make clean-fuzz remove fuzz output, every corpus and the build tree
 # make install    cmake --install into PREFIX (/usr/local)
@@ -29,7 +31,7 @@ FUZZ_JOBS ?= 0
 CORE       := core
 FUZZ_OUT   := fuzz/out
 FUZZ_CORPUS := fuzz/corpus
-FUZZ_TARGETS := roundtrip lossy_recipe quant_linear quant_log quant_sqrt decode
+FUZZ_TARGETS := roundtrip lossy_recipe quant_linear quant_log quant_sqrt decode binding
 OPENZL     := extern/openzl
 PY_DIR     := bindings/python
 PY_LIB_DIR := $(PY_DIR)/geozl/_lib
@@ -115,7 +117,8 @@ else
 endif
 
 .PHONY: all build configure lib python test test-c test-san fuzz fuzz-build \
-        fuzz-report clean-fuzz exhaustive install submodules clean help
+        fuzz-seed fuzz-report fuzz-check fuzz-replay clean-fuzz exhaustive \
+        install submodules clean help
 
 all: python
 
@@ -194,14 +197,16 @@ else
   CLANG ?= clang
 endif
 
-fuzz-build: $(OPENZL)/CMakeLists.txt python
+fuzz-build: $(OPENZL)/CMakeLists.txt
 	cmake -S $(CORE) -B core/build-fuzz -G $(GEN) -DCMAKE_BUILD_TYPE=$(BUILD) \
 	      -DGEOZL_BUILD_FULL=ON -DGEOZL_SANITIZE=ON -DGEOZL_BUILD_FUZZERS=ON \
 	      -DCMAKE_C_COMPILER=$(CLANG) -DCMAKE_CXX_COMPILER=$(CLANG)++
-	cmake --build core/build-fuzz --target geozl_decode_fuzzer \
+	cmake --build core/build-fuzz --target geozl_decode_fuzzer geozl_binding_fuzzer \
 	      geozl_roundtrip_fuzzer geozl_lossy_recipe_fuzzer \
 	      geozl_quant_linear_fuzzer \
 	      geozl_quant_log_fuzzer geozl_quant_sqrt_fuzzer
+
+fuzz-seed: python
 	@$(PYTHON) fuzz/gen_corpus.py $(FUZZ_CORPUS)/decode
 	@$(PYTHON) fuzz/gen_quant_log_seeds.py $(FUZZ_CORPUS)/quant_log
 
@@ -214,7 +219,7 @@ fuzz-build: $(OPENZL)/CMakeLists.txt python
 # fuzz/corpus/<target> is where each one writes what it found, and it is not
 # transient. A long run is worth nothing if the next one starts cold, so
 # clean-fuzz is the only thing that removes it.
-fuzz: fuzz-build
+fuzz: fuzz-build fuzz-seed
 	@mkdir -p $(FUZZ_OUT)
 	@for t in $(FUZZ_TARGETS); do \
 	  d=$(abspath $(FUZZ_CORPUS))/$$t; mkdir -p $$d; \
@@ -249,6 +254,28 @@ fuzz-report:
 	@echo; echo "full report in $(FUZZ_OUT)/report.txt"
 
 
+fuzz-check: fuzz fuzz-report
+	@found=$$(ls -1 $(FUZZ_OUT) 2>/dev/null | grep -E '^(crash|oom|leak|timeout)-' || true); \
+	if [ -n "$$found" ]; then \
+	  echo "fuzzing found:"; echo "$$found"; exit 1; \
+	fi; \
+	echo "no findings in $(FUZZ_TIME)s per target"
+
+fuzz-replay: fuzz-build
+	@mkdir -p $(FUZZ_OUT)
+	@failed=""; \
+	for t in $(FUZZ_TARGETS); do \
+	  d=$(abspath $(FUZZ_CORPUS))/$$t; mkdir -p $$d; \
+	  echo "$$t corpus replay"; \
+	  (cd $(FUZZ_OUT) && ASAN_OPTIONS=allocator_may_return_null=1 \
+	    $(abspath core/build-fuzz)/geozl_$${t}_fuzzer $$d \
+	    -runs=0 -max_len=4096 \
+	    -artifact_prefix=$(abspath $(FUZZ_OUT))/ > $$t.log 2>&1) \
+	    || { failed="$$failed $$t"; tail -30 $(FUZZ_OUT)/$$t.log; }; \
+	done; \
+	if [ -n "$$failed" ]; then echo "failed:$$failed"; exit 1; fi; \
+	echo "all corpora passed"
+
 clean-fuzz:
 	rm -rf $(FUZZ_OUT) $(FUZZ_CORPUS) core/build-fuzz
 	rm -f crash-* leak-* timeout-* oom-* fuzz-*.log
@@ -271,6 +298,8 @@ help:
 	@echo "make exhaustive the C tests over every value of a type, minutes"
 	@echo "make test-san   run both suites against an ASan and UBSan build"
 	@echo "make fuzz       build and run the fuzzers, report in fuzz/out (needs clang)"
+	@echo "make fuzz-check run the fuzzers and fail on a finding"
+	@echo "make fuzz-replay run each saved corpus once"
 	@echo "make fuzz-build build the fuzzers without running them"
 	@echo "make clean-fuzz remove fuzz output, every corpus and the build tree"
 	@echo "make install    cmake --install into PREFIX ($(PREFIX))"

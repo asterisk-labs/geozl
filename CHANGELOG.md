@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Low-level Python predictor nodes accept `planes`, matching their C nodes.
 
+- `fuzz/binding_fuzzer.c` builds valid frames around fuzzed codec headers and
+  streams. `make fuzz-replay` runs saved corpora; `make fuzz-check` runs a new
+  campaign and fails when libFuzzer writes a finding.
+
 ## [0.12.0] - 2026-08-14
 
 ### Added
