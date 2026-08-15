@@ -1,79 +1,1371 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1" name="viewport"/>
-<meta content="geozl — geospatial codec extensions for OpenZL." name="description"/>
-<meta content="#F1EDE4" name="theme-color"/>
-<meta content="geozl — geospatial codec extensions for OpenZL" property="og:title"/>
-<meta content="Raster codecs for OpenZL. Lossless and near-lossless." property="og:description"/>
-<meta content="website" property="og:type"/>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#080b10">
+<meta name="description" content="GeoZL adds raster-aware codecs to OpenZL compression graphs.">
+<meta property="og:title" content="GeoZL — raster-aware codecs for OpenZL">
+<meta property="og:description" content="Spatial predictors, stream transforms and bounded-error quantizers for OpenZL compression graphs.">
+<meta property="og:type" content="website">
 <title>geozl</title>
-<link href="assets/svg/favicon.svg" rel="icon" type="image/svg+xml"/>
-<link href="https://fonts.googleapis.com" rel="preconnect"/>
-<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
-<link href="assets/css/style.css" rel="stylesheet"/>
+<link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #080b10;
+  --panel: #111721;
+  --panel-soft: rgba(255, 255, 255, 0.035);
+  --edge: rgba(231, 237, 244, 0.12);
+  --edge-strong: rgba(231, 237, 244, 0.2);
+  --rule: rgba(231, 237, 244, 0.075);
+  --ink: #f1f5f9;
+  --ink-soft: #c3ccd7;
+  --dim: #8f9aaa;
+  --faint: #626d7b;
+  --violet: #7457ff;
+  --gold: #ffd54a;
+  --mint: #91f2bc;
+  --ember: #ff7a4f;
+  --sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono", Consolas, monospace;
+  --page: 1180px;
+  --pad-inline: clamp(20px, 4vw, 56px);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  min-width: 320px;
+  overflow-x: clip;
+  background: var(--bg);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  min-height: 100svh;
+  overflow-x: clip;
+  background:
+    radial-gradient(circle at 50% -20%, rgba(116, 87, 255, 0.09), transparent 34rem),
+    var(--bg);
+  color: var(--ink);
+  font: 400 16px/1.55 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  color: inherit;
+  font: inherit;
+}
+
+svg,
+canvas {
+  display: block;
+}
+
+code {
+  font-family: var(--mono);
+}
+
+::selection {
+  background: rgba(116, 87, 255, 0.35);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 4px;
+}
+
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ambient::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  opacity: 0.34;
+  background-image:
+    linear-gradient(var(--rule) 1px, transparent 1px),
+    linear-gradient(90deg, var(--rule) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(circle at 64% 46%, black 0, transparent 68%);
+  -webkit-mask-image: radial-gradient(circle at 64% 46%, black 0, transparent 68%);
+}
+
+.ambient canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  mask-image: radial-gradient(circle at 64% 46%, black 0, transparent 68%);
+  -webkit-mask-image: radial-gradient(circle at 64% 46%, black 0, transparent 68%);
+}
+
+.ambient-orb {
+  position: absolute;
+  width: 28rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: blur(100px);
+  opacity: 0.08;
+}
+
+.ambient-orb--violet {
+  top: 4%;
+  right: 4%;
+  background: var(--violet);
+}
+
+.ambient-orb--mint {
+  right: 28%;
+  bottom: -22rem;
+  background: var(--mint);
+}
+
+.page {
+  width: min(100%, calc(var(--page) + (var(--pad-inline) * 2)));
+  min-height: 100vh;
+  min-height: 100svh;
+  margin-inline: auto;
+  padding: max(18px, env(safe-area-inset-top)) var(--pad-inline) max(16px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: clamp(18px, 3vh, 32px);
+}
+
+.masthead {
+  min-width: 0;
+  min-height: 46px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+}
+
+.wordmark {
+  width: max-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.geozl-mark {
+  width: 40px;
+  height: 40px;
+  color: #dfe7ef;
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.3));
+}
+
+.geozl-mark .cell,
+.geozl-mark .target {
+  fill: var(--panel);
+  stroke: currentColor;
+  stroke-width: 1.3;
+}
+
+.geozl-mark .cell--nw { animation: mark-nw 6s step-end infinite; }
+.geozl-mark .cell--n  { animation: mark-n 6s step-end infinite; }
+.geozl-mark .cell--w  { animation: mark-w 6s step-end infinite; }
+.geozl-mark .target   { animation: mark-target 6s step-end infinite; }
+.geozl-mark .arrow {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.56;
+}
+
+@keyframes mark-nw { 0%, 24% { fill: var(--violet) } 25%, 100% { fill: var(--panel) } }
+@keyframes mark-n  { 0%, 24%, 50%, 100% { fill: var(--panel) } 25%, 49% { fill: var(--gold) } }
+@keyframes mark-w  { 0%, 49%, 75%, 100% { fill: var(--panel) } 50%, 74% { fill: var(--mint) } }
+@keyframes mark-target { 0%, 74%, 100% { fill: var(--panel) } 75%, 99% { fill: var(--ember) } }
+
+.wordmark span {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.045em;
+}
+
+.nav {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: clamp(18px, 2.4vw, 30px);
+}
+
+.nav a {
+  position: relative;
+  padding: 6px 0;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1;
+  transition: color 200ms ease;
+}
+
+.nav a::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  content: "";
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 260ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.nav a:hover,
+.nav a:focus-visible {
+  color: var(--ink-soft);
+}
+
+.nav a:hover::after,
+.nav a:focus-visible::after {
+  transform: scaleX(1);
+}
+
+.offsite {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.offsite a {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+
+.offsite svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.62;
+  transition: opacity 160ms ease;
+}
+
+.offsite .github {
+  fill: currentColor;
+  stroke: none;
+}
+
+.offsite a:hover,
+.offsite a:focus-visible {
+  transform: translateY(-1px);
+  border-color: var(--edge);
+  background: var(--panel-soft);
+}
+
+.offsite a:hover svg,
+.offsite a:focus-visible svg {
+  opacity: 1;
+}
+
+main {
+  min-width: 0;
+  display: grid;
+  align-items: center;
+}
+
+.hero {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(340px, 0.9fr) minmax(500px, 1.1fr);
+  align-items: center;
+  gap: clamp(42px, 5vw, 78px);
+}
+
+.hero-copy,
+.geozl-flow {
+  min-width: 0;
+}
+
+.eyebrow {
+  width: max-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 18px;
+  color: var(--mint);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  max-width: 10.5ch;
+  font-size: clamp(48px, 5.3vw, 70px);
+  font-weight: 650;
+  letter-spacing: -0.065em;
+  line-height: 0.96;
+}
+
+.hero h1 span {
+  display: block;
+  color: var(--dim);
+  font-weight: 500;
+}
+
+.hero-summary {
+  max-width: 52ch;
+  margin-top: 22px;
+  color: var(--ink-soft);
+  font-size: clamp(15px, 1.1vw, 17px);
+  line-height: 1.65;
+}
+
+.install {
+  position: relative;
+  width: min(100%, 510px);
+  min-height: 52px;
+  margin-top: 28px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: stretch;
+  border-block: 1px solid var(--edge);
+}
+
+.install-label {
+  padding-right: 16px;
+  display: flex;
+  align-items: center;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.install-command {
+  min-width: 0;
+  min-height: 52px;
+  padding-left: 14px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  border-left: 1px solid var(--rule);
+}
+
+.prompt {
+  color: var(--mint);
+  font-family: var(--mono);
+  font-size: 13px;
+  user-select: none;
+}
+
+.install code {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy-command {
+  align-self: stretch;
+  padding: 0 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-left: 1px solid var(--rule);
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.copy-command:hover,
+.copy-command:focus-visible {
+  color: var(--ink);
+  background: var(--panel-soft);
+}
+
+.copy-command.is-copied {
+  color: var(--mint);
+}
+
+.copy-command svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+}
+
+.copy-feedback {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.geozl-flow {
+  width: min(100%, 700px);
+  justify-self: end;
+}
+
+.recipe-stage {
+  position: relative;
+  width: 100%;
+  min-height: 330px;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  padding: 18px 0 22px;
+  border-block: 1px solid var(--rule);
+  background: transparent;
+}
+
+.recipe-meta {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding-inline: 18px;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.07em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.recipe-meta strong {
+  color: var(--mint);
+  font-weight: 500;
+}
+
+.recipe-window {
+  position: relative;
+  width: 100%;
+}
+
+.graph-canvas {
+  width: 100%;
+  height: 250px;
+  display: block;
+}
+
+.geozl-flow figcaption {
+  padding-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  border-top: 1px solid var(--rule);
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.geozl-flow figcaption span:first-child {
+  color: var(--mint);
+}
+
+.frame-definition {
+  text-align: right;
+}
+
+.frame-definition b,
+.frame-definition em {
+  font-style: normal;
+  font-weight: 500;
+}
+
+.frame-definition b { color: var(--ink-soft); }
+.frame-definition em:first-of-type { color: var(--mint); }
+.frame-definition em:last-of-type { color: var(--ink-soft); }
+
+.colophon {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--faint);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.heart {
+  width: 13px;
+  height: 13px;
+  background: var(--violet);
+  clip-path: path("M6.5 11.8 5.7 11C2.8 8.4.9 6.7.9 4.5.9 2.8 2.2 1.5 3.9 1.5c1 0 1.9.4 2.6 1.2.6-.8 1.6-1.2 2.5-1.2 1.8 0 3.1 1.3 3.1 3 0 2.2-1.9 3.9-4.8 6.5Z");
+  transform-origin: center;
+  animation: heartbeat 2.4s ease-in-out infinite;
+}
+
+@keyframes heartbeat {
+  0%, 55%, 100% { transform: scale(1); }
+  10% { transform: scale(1.22); }
+  20% { transform: scale(1); }
+  30% { transform: scale(1.14); }
+  40% { transform: scale(1); }
+}
+
+.by {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--dim);
+  transition: color 160ms ease;
+}
+
+.by:hover,
+.by:focus-visible { color: var(--ink-soft); }
+
+.asterisk-mark {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, 3px);
+  grid-template-rows: repeat(3, 3px);
+  gap: 1px;
+  transform: rotate(45deg);
+}
+
+.asterisk-mark i {
+  background: var(--faint);
+}
+
+.asterisk-mark i:nth-child(2) { background: var(--gold); }
+.asterisk-mark i:nth-child(4),
+.asterisk-mark i:nth-child(6) { background: var(--mint); }
+.asterisk-mark i:nth-child(5),
+.asterisk-mark i:nth-child(8) { background: var(--violet); }
+
+@media (max-width: 1000px) {
+  .hero {
+    grid-template-columns: minmax(290px, 0.82fr) minmax(430px, 1.18fr);
+    gap: 36px;
+  }
+
+  .hero h1 { font-size: clamp(44px, 5.8vw, 60px); }
+}
+
+@media (max-width: 860px) {
+  main { align-items: start; }
+
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 30px;
+  }
+
+  .hero-copy { width: min(100%, 720px); }
+
+  .hero h1 {
+    max-width: 11ch;
+    font-size: clamp(46px, 9vw, 64px);
+  }
+
+  .geozl-flow { width: 100%; }
+}
+
+@media (max-width: 760px) {
+  .page {
+    grid-template-rows: auto auto auto;
+    gap: 26px;
+  }
+
+  .masthead {
+    grid-template-columns: 1fr auto;
+    row-gap: 14px;
+  }
+
+  .nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: start;
+  }
+}
+
+@media (max-width: 560px) {
+  .hero h1 { font-size: clamp(44px, 13vw, 58px); }
+  .hero-summary { margin-top: 20px; font-size: 15px; }
+  .install { margin-top: 25px; }
+  .install-label { padding-right: 12px; font-size: 9px; }
+  .copy-command { padding-inline: 14px; }
+  .copy-command span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .recipe-stage { min-height: 250px; }
+  .recipe-meta { padding-inline: 10px; font-size: 8px; }
+  .geozl-flow figcaption { flex-direction: column; gap: 4px; }
+  .frame-definition { text-align: left; }
+}
+
+@media (max-width: 420px) {
+  .page { padding-inline: 18px; }
+  .geozl-mark { width: 36px; height: 36px; }
+  .wordmark span { font-size: 20px; }
+  .offsite a { width: 34px; height: 34px; }
+  .nav { width: 100%; justify-content: space-between; gap: 0; }
+  .nav a { font-size: 10px; }
+}
+
+@media (min-width: 861px) and (max-height: 760px) {
+  .hero { gap: 44px; }
+  .hero h1 { font-size: clamp(46px, 5.4vw, 66px); }
+  .hero-summary { margin-top: 18px; font-size: 15px; }
+  .install { margin-top: 22px; }
+  .geozl-flow { width: min(100%, 620px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+</style>
 </head>
-<body class="landing">
-<div class="sheet">
-<span class="reg tl">+</span><span class="reg tr">+</span>
-<span class="reg bl">+</span><span class="reg br">+</span>
-<header class="masthead">
-<span class="mono">geozl</span>
-<span class="mono status"><span class="dot"></span>v0.13.0 · active development</span>
-</header>
-<section class="hero">
-<div class="hero-id">
-<div class="lockup-hero vt-lockup">
-<img alt="" class="marksvg-lg" src="assets/svg/mark.svg"/>
-<h1 class="wordmark">GeoZL</h1>
+
+<body>
+<div class="ambient" aria-hidden="true">
+  <span class="ambient-orb ambient-orb--violet"></span>
+  <span class="ambient-orb ambient-orb--mint"></span>
+  <canvas id="backdrop"></canvas>
 </div>
-<p class="tagline">Geospatial codec extensions for OpenZL.</p>
+
+<div class="page">
+  <header class="masthead">
+    <a class="wordmark" href="#why" aria-label="geozl home">
+      <svg class="geozl-mark" viewBox="0 0 100 100" role="img" aria-label="geozl">
+        <rect class="cell cell--nw" x="4" y="4" width="32" height="32"></rect>
+        <rect class="cell cell--n" x="64" y="4" width="32" height="32"></rect>
+        <rect class="cell cell--w" x="4" y="64" width="32" height="32"></rect>
+        <rect class="target" x="64" y="64" width="32" height="32"></rect>
+        <path class="arrow" d="M72 42v14m-4-5 4 5 4-5M42 72h14m-5-4 5 4-5 4M40 40l17 17m-7-1h7v-7"></path>
+      </svg>
+      <span>geozl</span>
+    </a>
+
+    <nav class="nav" aria-label="Primary navigation">
+      <a href="#why">why?</a>
+      <a href="docs.html">codecs</a>
+      <a href="api-high.html">api</a>
+      <a href="benchmark.html">benchmark</a>
+    </nav>
+
+    <div class="offsite" aria-label="Project links">
+      <a href="https://github.com/asterisk-labs/geozl" title="GitHub" aria-label="geozl on GitHub" rel="noopener noreferrer">
+        <svg class="github" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg>
+      </a>
+      <a href="https://pypi.org/project/geozl/" title="PyPI" aria-label="geozl on PyPI" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.3 14.3 4.7v6.6L8 14.7l-6.3-3.4V4.7Z"></path><path d="M1.7 4.7 8 8.1l6.3-3.4M8 8.1v6.6"></path></svg>
+      </a>
+      <a href="https://asterisk.coop/rumi/" title="rumi" aria-label="rumi, the raster format built with geozl" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 1h14v14H1zM1 5.5l6 .8 4.2 2.1L15 9.2M7 1l-.5 5.3 4.7 2.1L9.5 15"></path></svg>
+      </a>
+    </div>
+  </header>
+
+  <main id="why">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow" data-project-status>v0.13.0 · active development</p>
+        <h1 id="hero-title">Built for <span>raster data.</span></h1>
+        <p class="hero-summary">Spatial predictors, stream transforms and bounded-error quantizers expose raster structure to OpenZL compression graphs.</p>
+
+        <div class="install" data-copy-root>
+          <span class="install-label">Install</span>
+          <div class="install-command">
+            <span class="prompt" aria-hidden="true">$</span>
+            <code>pip install geozl</code>
+            <button class="copy-command" type="button" data-copy="pip install geozl" aria-label="Copy install command">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h10v10H8z"></path><path d="M6 15H4V4h11v2"></path></svg>
+              <span>Copy</span>
+            </button>
+          </div>
+          <p class="copy-feedback" aria-live="polite"></p>
+        </div>
+      </div>
+
+      <figure class="geozl-flow">
+        <div class="recipe-stage">
+          <div class="recipe-meta" aria-hidden="true">
+            <strong data-graph-kicker>Graph 01 / baseline</strong>
+            <span data-graph-meta>one stream</span>
+          </div>
+          <div class="recipe-window">
+            <canvas class="graph-canvas" id="graph-evolution" role="img" aria-label="An evolving GeoZL graph. It begins with a simple entropy path, adds spatial prediction, branches missing data into values and masks, then separates complex values into real and imaginary lanes with independent nodata branches before writing a self-describing OpenZL frame."></canvas>
+          </div>
+        </div>
+        <figcaption>
+          <span data-graph-caption>One stream, one backend</span>
+          <span class="frame-definition"><b>frame</b> = <em>decoder recipe</em> + <em>compressed payloads</em> (R · RM · I · IM)</span>
+        </figcaption>
+      </figure>
+    </section>
+  </main>
+
+  <footer class="colophon">
+    <span>Made with</span>
+    <span class="heart" aria-label="love" role="img"></span>
+    <span>by</span>
+    <a class="by" href="https://asterisk.coop" rel="noopener noreferrer">
+      <span class="asterisk-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+      <span>asterisk labs</span>
+    </a>
+  </footer>
 </div>
-<div class="spec mono">
-<div class="spec-row"><span class="k">Base</span><span class="v">OpenZL</span></div>
-<div class="spec-row"><span class="k">Model</span><span class="v">codec DAG</span></div>
-<div class="spec-row"><span class="k">Adds</span><span class="v">raster codecs</span></div>
-<div class="spec-row"><span class="k">CTid</span><span class="v">0x72D700–0x72D7FF</span></div>
-<div class="spec-row"><span class="k">Verify</span><span class="v">checksum</span></div>
-<div class="spec-row"><span class="k">Mode</span><span class="v">lossless · near-lossless</span></div>
-</div>
-</section>
-<nav aria-label="geozl" class="index">
-<a class="idx doc" href="docs.html">
-<div class="idx-top"><span class="sq"></span><span class="no mono">01</span></div>
-<div class="idx-body"><div class="idx-name">Documentation</div><div class="idx-tag mono">start here</div></div>
-<span aria-hidden="true" class="idx-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-<a class="idx hi" href="api-high.html">
-<div class="idx-top"><span class="sq"></span><span class="no mono">02</span></div>
-<div class="idx-body"><div class="idx-name">Python API</div><div class="idx-tag mono">graph()</div></div>
-<span aria-hidden="true" class="idx-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-<a class="idx bench" href="benchmark.html">
-<div class="idx-top"><span class="sq"></span><span class="no mono">03</span></div>
-<div class="idx-body"><div class="idx-name">Benchmark</div><div class="idx-tag mono">ratio &amp; speed</div></div>
-<span aria-hidden="true" class="idx-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-<a class="idx links" href="links.html">
-<div class="idx-top"><span class="sq"></span><span class="no mono">04</span></div>
-<div class="idx-body"><div class="idx-name">Links</div><div class="idx-tag mono">code &amp; data</div></div>
-<span aria-hidden="true" class="idx-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-</nav>
-<footer class="colophon">
-<span class="by">
-        Made with
-        <svg aria-hidden="true" class="heart" fill="currentColor" viewbox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
-        by
-        <a class="ast-link" href="https://asterisk.coop" rel="noopener noreferrer" target="_blank">
-<img alt="" class="ast" src="assets/svg/asterisk.svg"/>
-          asterisk labs
-        </a>
-</span>
-</footer>
-</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var copyButton = document.querySelector('.copy-command');
+
+  copyButton.addEventListener('click', function () {
+    var text = copyButton.getAttribute('data-copy');
+    var feedback = document.querySelector('.copy-feedback');
+    var copied = navigator.clipboard && window.isSecureContext
+      ? navigator.clipboard.writeText(text).then(function () { return true; }).catch(function () { return false; })
+      : Promise.resolve(false);
+
+    copied.then(function (ok) {
+      copyButton.classList.toggle('is-copied', ok);
+      copyButton.querySelector('span').textContent = ok ? 'Copied' : 'Copy';
+      feedback.textContent = ok ? 'Install command copied.' : 'Select the command and copy it manually.';
+      window.setTimeout(function () {
+        copyButton.classList.remove('is-copied');
+        copyButton.querySelector('span').textContent = 'Copy';
+      }, 1800);
+    });
+  });
+
+  var graphCanvas = document.getElementById('graph-evolution');
+  var graphContext = graphCanvas.getContext('2d');
+  var graphKicker = document.querySelector('[data-graph-kicker]');
+  var graphMeta = document.querySelector('[data-graph-meta]');
+  var graphCaption = document.querySelector('[data-graph-caption]');
+  var graphDpr = Math.min(window.devicePixelRatio || 1, 2);
+  var graphWidth = 0;
+  var graphHeight = 0;
+  var graphStart = performance.now();
+  var graphRaf = 0;
+  var graphSceneShown = -1;
+
+  var graphColors = {
+    ink: '#f1f5f9',
+    soft: '#c3ccd7',
+    dim: '#8f9aaa',
+    faint: '#626d7b',
+    panel: 'rgba(17, 23, 33, 0.86)',
+    edge: 'rgba(231, 237, 244, 0.18)',
+    rule: 'rgba(231, 237, 244, 0.09)',
+    violet: '#7457ff',
+    gold: '#ffd54a',
+    mint: '#91f2bc',
+    ember: '#ff7a4f'
+  };
+
+  var graphScenes = [
+    {
+      duration: 3500,
+      motionDelay: 500,
+      motionDuration: 1100,
+      kicker: 'Graph 01 / baseline',
+      meta: 'frame / 1 payload',
+      caption: 'One stream, one backend',
+      draw: drawBaseline
+    },
+    {
+      duration: 4300,
+      motionDelay: 550,
+      motionDuration: 1750,
+      kicker: 'Graph 02 / spatial',
+      meta: 'frame / 1 payload',
+      caption: 'Spatial structure becomes small residuals',
+      draw: drawSpatial
+    },
+    {
+      duration: 7000,
+      motionDelay: 750,
+      motionDuration: 3800,
+      kicker: 'Graph 03 / nodata',
+      meta: 'frame / 2 payloads',
+      caption: 'Missing samples leave as a validity mask',
+      draw: drawNodata
+    },
+    {
+      duration: 12500,
+      motionDelay: 700,
+      motionDuration: 5200,
+      kicker: 'Graph 04 / complex64',
+      meta: 'frame / 4 payloads',
+      caption: 'Real, imaginary, values and masks travel independently',
+      draw: drawComplex
+    }
+  ];
+
+  var graphTotal = graphScenes.reduce(function (sum, scene) {
+    return sum + scene.duration;
+  }, 0);
+
+  function clamp01(value) {
+    return Math.max(0, Math.min(1, value));
+  }
+
+  function ease(value) {
+    value = clamp01(value);
+    return 1 - Math.pow(1 - value, 3);
+  }
+
+  function graphCompact() {
+    return graphWidth < 480;
+  }
+
+  function graphFont(size, weight) {
+    return (weight || 500) + ' ' + size + 'px "SFMono-Regular", "Cascadia Code", Consolas, monospace';
+  }
+
+  function resizeGraph() {
+    var box = graphCanvas.getBoundingClientRect();
+    graphDpr = Math.min(window.devicePixelRatio || 1, 2);
+    graphWidth = Math.max(1, box.width);
+    graphHeight = Math.max(1, box.height);
+    graphCanvas.width = Math.round(graphWidth * graphDpr);
+    graphCanvas.height = Math.round(graphHeight * graphDpr);
+    graphContext.setTransform(graphDpr, 0, 0, graphDpr, 0, 0);
+  }
+
+  function drawText(text, x, y, color, size, align, alpha, weight) {
+    graphContext.save();
+    graphContext.globalAlpha = alpha;
+    graphContext.fillStyle = color;
+    graphContext.font = graphFont(size, weight);
+    graphContext.textAlign = align || 'left';
+    graphContext.textBaseline = 'middle';
+    graphContext.fillText(text, x, y);
+    graphContext.restore();
+  }
+
+  function drawLine(a, b, color, alpha, dashed) {
+    var angle = Math.atan2(b.y - a.y, b.x - a.x);
+    graphContext.save();
+    graphContext.globalAlpha = alpha;
+    graphContext.strokeStyle = color || graphColors.edge;
+    graphContext.lineWidth = 1;
+    graphContext.setLineDash(dashed ? [4, 5] : []);
+    graphContext.beginPath();
+    graphContext.moveTo(a.x, a.y);
+    graphContext.lineTo(b.x, b.y);
+    graphContext.stroke();
+    graphContext.setLineDash([]);
+    graphContext.fillStyle = color || graphColors.edge;
+    graphContext.beginPath();
+    graphContext.moveTo(b.x, b.y);
+    graphContext.lineTo(b.x - 5 * Math.cos(angle - 0.45), b.y - 5 * Math.sin(angle - 0.45));
+    graphContext.lineTo(b.x - 5 * Math.cos(angle + 0.45), b.y - 5 * Math.sin(angle + 0.45));
+    graphContext.closePath();
+    graphContext.fill();
+    graphContext.restore();
+  }
+
+  function drawNode(node, alpha) {
+    var compact = graphCompact();
+    var label = compact && node.short ? node.short : node.label;
+    var x = node.x - node.w / 2;
+    var y = node.y - node.h / 2;
+    graphContext.save();
+    graphContext.globalAlpha = alpha;
+    graphContext.fillStyle = graphColors.panel;
+    graphContext.strokeStyle = node.color || graphColors.edge;
+    graphContext.lineWidth = 1;
+    graphContext.fillRect(x, y, node.w, node.h);
+    graphContext.strokeRect(x + 0.5, y + 0.5, node.w - 1, node.h - 1);
+    graphContext.fillStyle = node.color || graphColors.edge;
+    graphContext.fillRect(x, y, 2, node.h);
+    graphContext.fillStyle = node.color || graphColors.soft;
+    graphContext.font = graphFont(compact ? 6.5 : 8, 600);
+    graphContext.textAlign = 'center';
+    graphContext.textBaseline = 'middle';
+    graphContext.fillText(label.toUpperCase(), node.x, node.y - (node.sub && !compact ? 4 : 0));
+    if (node.sub && !compact) {
+      graphContext.fillStyle = graphColors.faint;
+      graphContext.font = graphFont(6.5, 500);
+      graphContext.fillText(node.sub, node.x, node.y + 7);
+    }
+    graphContext.restore();
+  }
+
+  function drawFrame(x, y, height, streams, alpha, fillLevels, labels) {
+    var compact = graphCompact();
+    var width = compact ? 30 : 52;
+    var left = x - width / 2;
+    var top = y - height / 2;
+    var headerHeight = compact ? 17 : 20;
+    var payloadTop = top + headerHeight + 7;
+    var rowGap = streams.length > 4 ? 9 : 11;
+    var labelSpace = compact ? 7 : 14;
+    fillLevels = fillLevels || streams.map(function () { return 3; });
+    labels = labels || streams.map(function (_, index) { return 'P' + (index + 1); });
+    graphContext.save();
+    graphContext.globalAlpha = alpha;
+    graphContext.strokeStyle = graphColors.edge;
+    graphContext.lineWidth = 1;
+    graphContext.fillStyle = 'rgba(145, 242, 188, 0.07)';
+    graphContext.fillRect(left, top, width, headerHeight);
+    graphContext.strokeRect(left + 0.5, top + 0.5, width - 1, height - 1);
+    graphContext.strokeStyle = graphColors.mint;
+    graphContext.strokeRect(left + 0.5, top + 0.5, width - 1, headerHeight);
+    for (var i = 0; i < streams.length; i += 1) {
+      var usable = width - 8 - labelSpace;
+      var blockGap = 2;
+      var blockWidth = (usable - blockGap * 2) / 3;
+      for (var byte = 0; byte < 3; byte += 1) {
+        var byteX = left + 4 + labelSpace + byte * (blockWidth + blockGap);
+        var isFilled = byte < fillLevels[i];
+        graphContext.globalAlpha = alpha;
+        graphContext.strokeStyle = isFilled ? graphColors.soft : graphColors.edge;
+        graphContext.fillStyle = isFilled ? graphColors.soft : 'rgba(195, 204, 215, 0.03)';
+        graphContext.fillRect(byteX, payloadTop + i * rowGap, blockWidth, 5);
+        graphContext.strokeRect(byteX + 0.5, payloadTop + i * rowGap + 0.5, blockWidth - 1, 4);
+      }
+    }
+    graphContext.restore();
+    drawText(compact ? 'HDR' : 'recipe', x, top + headerHeight / 2, graphColors.mint, compact ? 4.8 : 6.5, 'center', alpha, 600);
+    labels.forEach(function (label, index) {
+      drawText(label, left + 4 + labelSpace / 2, payloadTop + index * rowGap + 2.5, graphColors.dim, compact ? 4.4 : 5.2, 'center', alpha, 600);
+    });
+    drawText(compact ? 'bytes' : 'compressed bytes', x, y + height / 2 + 10, graphColors.faint, compact ? 6 : 7, 'center', alpha, 500);
+  }
+
+  function arrivalFill(progress) {
+    return Math.max(0, Math.min(3, Math.round(clamp01((progress - 0.78) / 0.22) * 3)));
+  }
+
+  function drawTile(x, y, kind, alpha) {
+    var compact = graphCompact();
+    var width = compact ? 48 : 68;
+    var height = kind === 'complex' ? (compact ? 52 : 62) : (compact ? 48 : 58);
+    var cols = kind === 'complex' ? 2 : 4;
+    var rows = kind === 'complex' ? 2 : 3;
+    var cellW = width / cols;
+    var cellH = height / rows;
+    var values = kind === 'complex'
+      ? (compact ? ['z0', 'z1', 'NaN', 'z3'] : ['3.2+0.8i', '3.8+0.7i', 'NaN+NaNi', '4.4+0.5i'])
+      : (kind === 'nodata'
+        ? ['20', 'NaN', '22', '23', '21', '22', 'NaN', '24', '22', '23', '24', '25']
+        : ['41', '42', '44', '45', '43', '45', '47', '48', '46', '47', '49', '51']);
+
+    graphContext.save();
+    graphContext.globalAlpha = alpha;
+    for (var row = 0; row < rows; row += 1) {
+      for (var col = 0; col < cols; col += 1) {
+        var index = row * cols + col;
+        var px = x - width / 2 + col * cellW;
+        var py = y - height / 2 + row * cellH;
+        var hole = values[index].indexOf('NaN') >= 0;
+        graphContext.fillStyle = hole ? 'rgba(255, 122, 79, 0.16)' : 'rgba(116, 87, 255,' + (0.05 + index * 0.012) + ')';
+        graphContext.strokeStyle = hole ? graphColors.ember : graphColors.edge;
+        graphContext.lineWidth = 1;
+        graphContext.fillRect(px, py, cellW, cellH);
+        graphContext.strokeRect(px + 0.5, py + 0.5, cellW - 1, cellH - 1);
+        drawText(values[index], px + cellW / 2, py + cellH / 2, hole ? graphColors.ember : graphColors.soft, compact ? 5.2 : (kind === 'complex' ? 5.8 : 6.5), 'center', alpha, 500);
+      }
+    }
+    graphContext.restore();
+    drawText(kind === 'complex' ? 'complex64' : (kind === 'nodata' ? 'float32 + NaN' : 'uint16 tile'), x, y + height / 2 + 10, graphColors.faint, compact ? 6 : 7, 'center', alpha, 500);
+    return { width: width, height: height };
+  }
+
+  function drawToken(points, progress, color, alpha, label) {
+    if (progress <= 0 || progress >= 1 || points.length < 2) return;
+    var lengths = [];
+    var total = 0;
+    for (var i = 0; i < points.length - 1; i += 1) {
+      var dx = points[i + 1].x - points[i].x;
+      var dy = points[i + 1].y - points[i].y;
+      var length = Math.hypot(dx, dy);
+      lengths.push(length);
+      total += length;
+    }
+    var wanted = progress * total;
+    var segment = 0;
+    while (segment < lengths.length - 1 && wanted > lengths[segment]) {
+      wanted -= lengths[segment];
+      segment += 1;
+    }
+    var part = lengths[segment] ? wanted / lengths[segment] : 0;
+    var x = points[segment].x + (points[segment + 1].x - points[segment].x) * part;
+    var y = points[segment].y + (points[segment + 1].y - points[segment].y) * part;
+    graphContext.save();
+    graphContext.globalAlpha = alpha;
+    graphContext.fillStyle = color;
+    graphContext.shadowColor = color;
+    graphContext.shadowBlur = label ? 5 : 9;
+    if (label) {
+      var packetWidth = graphCompact() ? 13 : 16;
+      var packetHeight = graphCompact() ? 8 : 9;
+      graphContext.fillStyle = 'rgba(10, 14, 22, 0.94)';
+      graphContext.fillRect(x - packetWidth / 2, y - packetHeight / 2, packetWidth, packetHeight);
+      graphContext.strokeStyle = color;
+      graphContext.strokeRect(x - packetWidth / 2 + 0.5, y - packetHeight / 2 + 0.5, packetWidth - 1, packetHeight - 1);
+      graphContext.shadowBlur = 0;
+      graphContext.fillStyle = color;
+      graphContext.font = graphFont(graphCompact() ? 4.8 : 5.5, 600);
+      graphContext.textAlign = 'center';
+      graphContext.textBaseline = 'middle';
+      graphContext.fillText(label, x, y + 0.2);
+    } else {
+      graphContext.beginPath();
+      graphContext.arc(x, y, graphCompact() ? 2.6 : 3.2, 0, Math.PI * 2);
+      graphContext.fill();
+    }
+    graphContext.restore();
+  }
+
+  function singleProgress(localTime, delay, launch, travel) {
+    var active = localTime - delay;
+    if (active <= 0) return -1;
+    if (active < launch || active >= launch + travel) return -1;
+    return (active - launch) / travel;
+  }
+
+  function singleFill(localTime, delay, launches, travel) {
+    var active = localTime - delay;
+    if (active <= 0) return 0;
+    return launches.reduce(function (filled, launch) {
+      return filled + (active >= launch + travel ? 1 : 0);
+    }, 0);
+  }
+
+  function drawLegend(scene, alpha) {
+    var items = scene < 2
+      ? [[graphColors.violet, 'raster transform'], [graphColors.gold, 'compression block']]
+      : [[graphColors.violet, 'raster transform'], [graphColors.mint, 'stream split'], [graphColors.ember, 'nodata route'], [graphColors.gold, 'compression block']];
+    var compact = graphCompact();
+    var y = graphHeight - 10;
+    items.forEach(function (item, index) {
+      var x;
+      if (items.length === 2) {
+        x = index === 0 ? 8 : graphWidth * 0.52;
+      } else {
+        x = 8 + index * ((graphWidth - 20) / 4);
+      }
+      graphContext.save();
+      graphContext.globalAlpha = alpha;
+      graphContext.fillStyle = item[0];
+      graphContext.fillRect(x, y - 3, 6, 6);
+      graphContext.restore();
+      var label = item[1];
+      if (compact) {
+        label = ['transform', 'split', 'nodata', 'compress'][items.length === 2 && index === 1 ? 3 : index];
+      }
+      drawText(label, x + 10, y, graphColors.faint, compact ? 5.4 : 6.5, 'left', alpha, 500);
+    });
+  }
+
+  function drawProgress(scene, alpha) {
+    var width = graphCompact() ? 12 : 18;
+    var gap = 5;
+    var start = graphWidth - (width * 4 + gap * 3) - 8;
+    for (var i = 0; i < 4; i += 1) {
+      graphContext.save();
+      graphContext.globalAlpha = alpha;
+      graphContext.fillStyle = i === scene ? graphColors.ink : graphColors.rule;
+      graphContext.fillRect(start + i * (width + gap), 7, width, 3);
+      graphContext.restore();
+    }
+  }
+
+  function drawBaseline(alpha, motion) {
+    var y = graphHeight * 0.48;
+    var tileX = graphWidth * 0.10;
+    var entropy = { x: graphWidth * 0.64, y: y, w: graphCompact() ? 58 : 90, h: 31, label: 'entropy', color: graphColors.gold };
+    var frameX = graphWidth * 0.91;
+    var tile = drawTile(tileX, y, 'plain', alpha);
+    drawLine({x: tileX + tile.width / 2, y:y}, {x:entropy.x - entropy.w / 2, y:y}, graphColors.edge, alpha, false);
+    drawLine({x:entropy.x + entropy.w / 2, y:y}, {x:frameX - (graphCompact() ? 12 : 19), y:y}, graphColors.edge, alpha, false);
+    drawNode(entropy, alpha);
+    drawFrame(frameX, y, 68, [graphColors.soft], alpha, [arrivalFill(motion)], ['P1']);
+    drawToken([{x:tileX + tile.width / 2, y:y}, {x:entropy.x, y:y}, {x:frameX, y:y}], motion, graphColors.soft, alpha);
+  }
+
+  function drawSpatial(alpha, motion) {
+    var y = graphHeight * 0.48;
+    var compact = graphCompact();
+    var tileX = graphWidth * 0.07;
+    var nodes = [
+      { x: graphWidth * 0.31, y:y, w:compact ? 50 : 76, h:31, label:'planar', color:graphColors.violet, sub:'0x72D703' },
+      { x: graphWidth * 0.52, y:y, w:compact ? 48 : 72, h:31, label:'zigzag', color:graphColors.dim },
+      { x: graphWidth * 0.72, y:y, w:compact ? 54 : 82, h:31, label:'entropy', color:graphColors.gold }
+    ];
+    var frameX = graphWidth * 0.93;
+    var tile = drawTile(tileX, y, 'plain', alpha);
+    var points = [{x:tileX + tile.width / 2, y:y}];
+    drawLine(points[0], {x:nodes[0].x - nodes[0].w / 2, y:y}, graphColors.edge, alpha, false);
+    nodes.forEach(function (node, index) {
+      drawNode(node, alpha);
+      points.push({x:node.x, y:node.y});
+      var next = nodes[index + 1];
+      if (next) drawLine({x:node.x + node.w / 2, y:y}, {x:next.x - next.w / 2, y:y}, graphColors.edge, alpha, false);
+    });
+    drawLine({x:nodes[2].x + nodes[2].w / 2, y:y}, {x:frameX - (compact ? 12 : 19), y:y}, graphColors.edge, alpha, false);
+    drawFrame(frameX, y, 78, [graphColors.soft], alpha, [arrivalFill(motion)], ['P1']);
+    points.push({x:frameX, y:y});
+    drawToken(points, motion, graphColors.soft, alpha);
+    drawText('residuals: +1  0  -2  +1', graphWidth * 0.52, y + 38, graphColors.faint, compact ? 5.8 : 7, 'center', alpha, 500);
+  }
+
+  function drawNodata(alpha, motion) {
+    var compact = graphCompact();
+    var tileX = graphWidth * 0.065;
+    var forkX = graphWidth * 0.24;
+    var centerY = graphHeight * 0.46;
+    var upperY = graphHeight * 0.31;
+    var lowerY = graphHeight * 0.70;
+    var frameX = graphWidth * 0.94;
+    var nodata = {x:forkX, y:centerY, w:compact ? 52 : 78, h:34, label:'nodata', color:graphColors.mint, sub:'0x72D70C'};
+    var planar = {x:graphWidth * 0.43, y:upperY, w:compact ? 48 : 70, h:30, label:'planar', color:graphColors.violet};
+    var zigzag = {x:graphWidth * 0.59, y:upperY, w:compact ? 45 : 66, h:30, label:'zigzag', color:graphColors.dim};
+    var entropy = {x:graphWidth * 0.75, y:upperY, w:compact ? 52 : 76, h:30, label:'entropy', color:graphColors.gold};
+    var generic = {x:graphWidth * 0.61, y:lowerY, w:compact ? 55 : 84, h:30, label:'compress generic', short:'generic', color:graphColors.gold};
+    var tile = drawTile(tileX, centerY, 'nodata', alpha);
+
+    drawLine({x:tileX + tile.width / 2,y:centerY},{x:nodata.x - nodata.w / 2,y:centerY},graphColors.edge,alpha,false);
+    drawLine({x:nodata.x + nodata.w / 2,y:centerY - 5},{x:planar.x - planar.w / 2,y:upperY},graphColors.mint,alpha,false);
+    drawLine({x:nodata.x + nodata.w / 2,y:centerY + 5},{x:generic.x - generic.w / 2,y:lowerY},graphColors.ember,alpha,false);
+    drawLine({x:planar.x + planar.w / 2,y:upperY},{x:zigzag.x - zigzag.w / 2,y:upperY},graphColors.edge,alpha,false);
+    drawLine({x:zigzag.x + zigzag.w / 2,y:upperY},{x:entropy.x - entropy.w / 2,y:upperY},graphColors.edge,alpha,false);
+    drawLine({x:entropy.x + entropy.w / 2,y:upperY},{x:frameX - (compact ? 12 : 19),y:centerY - 12},graphColors.edge,alpha,false);
+    drawLine({x:generic.x + generic.w / 2,y:lowerY},{x:frameX - (compact ? 12 : 19),y:centerY + 12},graphColors.edge,alpha,false);
+    [nodata,planar,zigzag,entropy,generic].forEach(function (node) { drawNode(node,alpha); });
+    var maskMotion = clamp01((motion - 0.22) / 0.78);
+    drawFrame(frameX,centerY,94,[graphColors.soft,graphColors.soft],alpha,[arrivalFill(motion),arrivalFill(maskMotion)],['V','M']);
+    drawText('values', graphWidth * 0.34, upperY - 25, graphColors.mint, compact ? 5.8 : 7, 'center', alpha, 600);
+    drawText('mask  255 · 0 · 255 · 0', graphWidth * 0.42, lowerY + 25, graphColors.ember, compact ? 5.4 : 7, 'center', alpha, 500);
+
+    drawToken([{x:tileX + tile.width / 2,y:centerY},{x:nodata.x,y:centerY},{x:planar.x,y:upperY},{x:zigzag.x,y:upperY},{x:entropy.x,y:upperY},{x:frameX,y:centerY - 12}],motion,graphColors.soft,alpha);
+    drawToken([{x:nodata.x,y:centerY},{x:generic.x,y:lowerY},{x:frameX,y:centerY + 12}],maskMotion,graphColors.soft,alpha);
+  }
+
+  function drawComplex(alpha, motion, localTime) {
+    var compact = graphCompact();
+    var centerY = graphHeight * 0.48;
+    var realY = graphHeight * 0.23;
+    var imagY = graphHeight * 0.69;
+    var tileX = graphWidth * 0.055;
+    var split = {x:graphWidth * 0.20,y:centerY,w:compact ? 48 : 76,h:35,label:'deinterleave',short:'deint',color:graphColors.mint,sub:'0x72D704'};
+    var realNd = {x:graphWidth * 0.36,y:realY,w:compact ? 44 : 68,h:30,label:'nodata',color:graphColors.mint};
+    var imagNd = {x:graphWidth * 0.36,y:imagY,w:compact ? 44 : 68,h:30,label:'nodata',color:graphColors.mint};
+    var realQ = {x:graphWidth * 0.53,y:realY,w:compact ? 45 : 72,h:30,label:'quant linear',short:'quant',color:graphColors.violet};
+    var imagQ = {x:graphWidth * 0.53,y:imagY,w:compact ? 45 : 72,h:30,label:'quant linear',short:'quant',color:graphColors.violet};
+    var realP = {x:graphWidth * 0.68,y:realY,w:compact ? 40 : 62,h:30,label:'planar',color:graphColors.violet};
+    var imagP = {x:graphWidth * 0.68,y:imagY,w:compact ? 40 : 62,h:30,label:'planar',color:graphColors.violet};
+    var realE = {x:graphWidth * 0.82,y:realY,w:compact ? 44 : 68,h:30,label:'entropy',color:graphColors.gold};
+    var imagE = {x:graphWidth * 0.82,y:imagY,w:compact ? 44 : 68,h:30,label:'entropy',color:graphColors.gold};
+    var realMask = {x:graphWidth * 0.64,y:graphHeight * 0.43,w:compact ? 43 : 64,h:24,label:'generic',color:graphColors.gold};
+    var imagMask = {x:graphWidth * 0.64,y:graphHeight * 0.55,w:compact ? 43 : 64,h:24,label:'generic',color:graphColors.gold};
+    var frameX = graphWidth * 0.95;
+    var tile = drawTile(tileX,centerY,'complex',alpha);
+
+    drawLine({x:tileX + tile.width / 2,y:centerY},{x:split.x - split.w / 2,y:centerY},graphColors.edge,alpha,false);
+    drawLine({x:split.x + split.w / 2,y:centerY - 5},{x:realNd.x - realNd.w / 2,y:realY},graphColors.mint,alpha,false);
+    drawLine({x:split.x + split.w / 2,y:centerY + 5},{x:imagNd.x - imagNd.w / 2,y:imagY},graphColors.violet,alpha,false);
+
+    [[realNd,realQ,realP,realE,realY],[imagNd,imagQ,imagP,imagE,imagY]].forEach(function (lane) {
+      for (var i = 0; i < 3; i += 1) {
+        drawLine({x:lane[i].x + lane[i].w / 2,y:lane[4]},{x:lane[i + 1].x - lane[i + 1].w / 2,y:lane[4]},graphColors.edge,alpha,false);
+      }
+    });
+    drawLine({x:realNd.x + realNd.w / 2,y:realY + 4},{x:realMask.x - realMask.w / 2,y:realMask.y},graphColors.ember,alpha,false);
+    drawLine({x:imagNd.x + imagNd.w / 2,y:imagY - 4},{x:imagMask.x - imagMask.w / 2,y:imagMask.y},graphColors.ember,alpha,false);
+    drawLine({x:realE.x + realE.w / 2,y:realY},{x:frameX - (compact ? 12 : 19),y:centerY - 31},graphColors.edge,alpha,false);
+    drawLine({x:imagE.x + imagE.w / 2,y:imagY},{x:frameX - (compact ? 12 : 19),y:centerY + 31},graphColors.edge,alpha,false);
+    drawLine({x:realMask.x + realMask.w / 2,y:realMask.y},{x:frameX - (compact ? 12 : 19),y:centerY - 10},graphColors.ember,alpha,false);
+    drawLine({x:imagMask.x + imagMask.w / 2,y:imagMask.y},{x:frameX - (compact ? 12 : 19),y:centerY + 10},graphColors.ember,alpha,false);
+
+    [split,realNd,imagNd,realQ,imagQ,realP,imagP,realE,imagE,realMask,imagMask].forEach(function (node) { drawNode(node,alpha); });
+    var batchDelay = 700;
+    var travel = 5200;
+    var realLaunches = [0,900,1800];
+    var imagLaunches = [400,1300,2200];
+    var realMaskLaunches = [1200,2300,3400];
+    var imagMaskLaunches = [1600,2700,3800];
+    var payloadFill = [
+      singleFill(localTime,batchDelay,realLaunches,travel),
+      singleFill(localTime,batchDelay,realMaskLaunches,travel),
+      singleFill(localTime,batchDelay,imagLaunches,travel),
+      singleFill(localTime,batchDelay,imagMaskLaunches,travel)
+    ];
+    drawFrame(frameX,centerY,116,[graphColors.soft,graphColors.soft,graphColors.soft,graphColors.soft],alpha,payloadFill,['R','RM','I','IM']);
+    drawText('real',graphWidth * 0.28,realY - 23,graphColors.mint,compact ? 6 : 7,'center',alpha,600);
+    drawText('imaginary',graphWidth * 0.28,imagY + 24,graphColors.violet,compact ? 6 : 7,'center',alpha,600);
+
+    var realPath = [{x:tileX + tile.width / 2,y:centerY},{x:split.x,y:centerY},{x:realNd.x,y:realY},{x:realQ.x,y:realY},{x:realP.x,y:realY},{x:realE.x,y:realY},{x:frameX,y:centerY - 31}];
+    var imagPath = [{x:split.x,y:centerY},{x:imagNd.x,y:imagY},{x:imagQ.x,y:imagY},{x:imagP.x,y:imagY},{x:imagE.x,y:imagY},{x:frameX,y:centerY + 31}];
+    var realMaskPath = [{x:realNd.x,y:realY},{x:realMask.x,y:realMask.y},{x:frameX,y:centerY - 10}];
+    var imagMaskPath = [{x:imagNd.x,y:imagY},{x:imagMask.x,y:imagMask.y},{x:frameX,y:centerY + 10}];
+    realLaunches.forEach(function (launch, index) {
+      drawToken(realPath,singleProgress(localTime,batchDelay,launch,travel),graphColors.soft,alpha);
+      drawToken(imagPath,singleProgress(localTime,batchDelay,imagLaunches[index],travel),graphColors.soft,alpha);
+    });
+    realMaskLaunches.forEach(function (launch, index) {
+      drawToken(realMaskPath,singleProgress(localTime,batchDelay,launch,travel),graphColors.soft,alpha);
+      drawToken(imagMaskPath,singleProgress(localTime,batchDelay,imagMaskLaunches[index],travel),graphColors.soft,alpha);
+    });
+  }
+
+  function sceneAt(elapsed) {
+    var cursor = 0;
+    for (var i = 0; i < graphScenes.length; i += 1) {
+      if (elapsed < cursor + graphScenes[i].duration) {
+        return {index:i, local:elapsed - cursor};
+      }
+      cursor += graphScenes[i].duration;
+    }
+    return {index:graphScenes.length - 1,local:graphScenes[graphScenes.length - 1].duration};
+  }
+
+  function setGraphCopy(index) {
+    if (graphSceneShown === index) return;
+    graphSceneShown = index;
+    graphKicker.textContent = graphScenes[index].kicker;
+    graphMeta.textContent = graphScenes[index].meta;
+    graphCaption.textContent = graphScenes[index].caption;
+  }
+
+  function drawGraphScene(index, alpha, motion, localTime) {
+    graphScenes[index].draw(alpha, motion, localTime || 0);
+    drawLegend(index, alpha);
+    drawProgress(index, alpha);
+  }
+
+  function renderGraph(now) {
+    graphContext.clearRect(0, 0, graphWidth, graphHeight);
+    var totalElapsed = now - graphStart;
+    var elapsed = totalElapsed % graphTotal;
+    var state = sceneAt(elapsed);
+    var currentScene = graphScenes[state.index];
+    var transition = 850;
+    var moving = ease((state.local - currentScene.motionDelay) / currentScene.motionDuration);
+    var blend = ease(state.local / transition);
+    var initial = totalElapsed < transition && state.index === 0;
+    var previous = (state.index + graphScenes.length - 1) % graphScenes.length;
+
+    if (!initial && state.local < transition) {
+      drawGraphScene(previous, 1 - blend, 1, graphScenes[previous].duration - transition + state.local);
+      drawGraphScene(state.index, blend, 0, state.local);
+    } else {
+      drawGraphScene(state.index, 1, moving, state.local);
+    }
+    setGraphCopy(!initial && state.local < transition * 0.45 ? previous : state.index);
+    graphRaf = window.requestAnimationFrame(renderGraph);
+  }
+
+  resizeGraph();
+  if (reduceMotion) {
+    drawGraphScene(3, 1, 1, 4200);
+    setGraphCopy(3);
+  } else {
+    graphRaf = window.requestAnimationFrame(renderGraph);
+  }
+
+  var canvas = document.getElementById('backdrop');
+  var context = canvas.getContext('2d');
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var pitch = 64;
+  var trail = 8;
+  var head = 0;
+  var columns = 0;
+  var rows = 0;
+  var raf = 0;
+
+  function resize() {
+    var box = canvas.getBoundingClientRect();
+    canvas.width = Math.round(box.width * dpr);
+    canvas.height = Math.round(box.height * dpr);
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    columns = Math.ceil(box.width / pitch) + 1;
+    rows = Math.ceil(box.height / pitch) + 1;
+  }
+
+  function draw() {
+    var width = canvas.clientWidth;
+    var height = canvas.clientHeight;
+    context.clearRect(0, 0, width, height);
+
+    for (var i = 0; i < trail; i += 1) {
+      var index = (Math.floor(head) - i + columns * rows) % (columns * rows);
+      var x = (index % columns) * pitch;
+      var y = Math.floor(index / columns) * pitch;
+      var alpha = (1 - i / trail) * 0.08;
+      context.fillStyle = 'rgba(116, 87, 255,' + alpha.toFixed(3) + ')';
+      context.fillRect(x + 1, y + 1, pitch - 2, pitch - 2);
+    }
+
+    head = (head + 0.035) % (columns * rows);
+    raf = window.requestAnimationFrame(draw);
+  }
+
+  resize();
+  window.addEventListener('resize', function () {
+    resize();
+    resizeGraph();
+    if (reduceMotion) drawGraphScene(3, 1, 1, 4200);
+  }, { passive: true });
+  if (!reduceMotion) draw();
+  else context.clearRect(0, 0, canvas.width, canvas.height);
+
+  window.addEventListener('pagehide', function () {
+    window.cancelAnimationFrame(raf);
+    window.cancelAnimationFrame(graphRaf);
+  });
+})();
+</script>
 </body>
 </html>

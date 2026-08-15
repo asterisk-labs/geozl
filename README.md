@@ -27,7 +27,8 @@ NoData handling and bounded-error quantizers.
 
 GeoZL is under active development and ready for testing in real raster
 workflows. Frames using its codecs need GeoZL registered in the reader; standard
-OpenZL frames continue to work unchanged.
+OpenZL frames continue to work unchanged. See the
+[compatibility policy](docs/compatibility.md).
 
 ## Install
 

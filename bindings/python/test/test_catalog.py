@@ -7,7 +7,7 @@ the cards in docs/docs.html, the CODECS array in docs/assets/js/main.js and the
 individual codec pages. The four public copies have to match. ctids.h is checked
 one way only, since a codec can exist in C before it is documented.
 
-The version lives in VERSION and in the landing badge, which had already
+The version lives in VERSION and in the landing status, which had already
 drifted a release behind.
 """
 
@@ -179,29 +179,29 @@ def test_catalog_legend_counts_the_cards():
     assert int(total.group(1)) == len(catalog_cards())
 
 
-def landing_badge() -> str:
-    """The status badge on the landing page, as written."""
-    found = re.search(r'<span class="mono status">(.*?)</span>\s*</header>',
+def landing_status() -> str:
+    """The visible project status on the landing page."""
+    found = re.search(r"<[^>]+data-project-status[^>]*>(.*?)</[^>]+>",
                       _read(LANDING), re.S)
-    assert found is not None, "no status badge on the landing page"
+    assert found is not None, "no project status on the landing page"
     return re.sub(r"<[^>]+>", "", found.group(1)).strip()
 
 
-def test_landing_badge_carries_the_current_version():
-    """The badge is the one copy of the version that is not derived from
+def test_landing_status_carries_the_current_version():
+    """The status is the one copy of the version that is not derived from
     VERSION, since the site has no build step to derive it."""
     want = _read(VERSION).strip()
-    found = re.match(r"v(\S+)", landing_badge())
-    assert found is not None, f"badge {landing_badge()!r} opens with no version"
+    found = re.match(r"v(\S+)", landing_status())
+    assert found is not None, f"status {landing_status()!r} opens with no version"
     assert found.group(1) == want, (
         f"landing page says v{found.group(1)}, VERSION says {want}"
     )
 
 
-def test_landing_badge_does_not_claim_more_than_the_readme():
+def test_landing_status_matches_readme():
     """The site and README should describe the project at the same level."""
     status = "active development"
-    assert status in landing_badge().lower()
+    assert status in landing_status().lower()
     assert status in _read(README).lower()
 
 
