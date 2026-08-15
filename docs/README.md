@@ -21,6 +21,7 @@ docs/
 ├── api-high.html       graph(), compress(), profile() and the lossy recipes
 ├── benchmark.html      ratio against throughput
 ├── links.html          GitHub, Hugging Face, source.coop
+├── c-api.md            C source compatibility policy
 ├── adding-a-codec.md   how to write one, for contributors
 ├── notebooks/          high-level-api.ipynb, the runnable version of api-high
 └── assets/

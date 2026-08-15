@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Frame compatibility policy for releases beginning with 0.13.0.
 
+- Stable C source API policy and a check for the 0.13 public signatures.
+
 - Low-level Python predictor nodes accept `planes`, matching their C nodes.
 
 - `fuzz/binding_fuzzer.c` builds valid frames around fuzzed codec headers and
