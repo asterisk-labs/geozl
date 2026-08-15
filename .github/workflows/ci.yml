@@ -14,11 +14,11 @@ jobs:
     permissions:
       contents: write          # commit the coverage badge on a push to main
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: true
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -58,7 +58,7 @@ jobs:
 
       - name: Commit the coverage badge
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: 'ci: coverage badge [skip ci]'
           file_pattern: coverage.svg
@@ -67,11 +67,11 @@ jobs:
     name: Sanitizers
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: true
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -89,11 +89,11 @@ jobs:
     name: Sanitizers, full library
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: true
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -111,7 +111,7 @@ jobs:
     name: Strict build
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: true
 
@@ -135,11 +135,11 @@ jobs:
           - { name: release, runner: ubuntu-24.04, cflags: "-march=x86-64-v2", cap: "" }
           - { name: neon,    runner: macos-15,     cflags: "",                 cap: "" }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: true
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
