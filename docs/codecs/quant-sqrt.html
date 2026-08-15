@@ -40,7 +40,8 @@
         level q reconstructs as <b>(q &middot; step)&#178; &minus; offset</b>, two multiplies and a
         subtract. The recipe either carries <b>a</b> and <b>b</b> or fits them from the raster. Fit the
         curve <b>once over the whole product</b> with <code>geozl.lossy.fit_noise</code>, since two tiles
-        fitted separately land on different grids.</p>
+        fitted separately land on different grids. The bound applies where <b>a + b&middot;x &gt; 0</b>;
+        non-finite samples belong in <b>nodata</b>.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D783</dd>
           <dt>header</dt><dd>dtype + flags + step + offset &middot; 18 bytes</dd>

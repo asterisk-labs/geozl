@@ -38,7 +38,9 @@
         <p class="desc">A relative bound. A value of 8000 gets the <b>same one per cent of slack</b> as a
         value of 8, which puts the levels at powers of a fixed ratio, a <b>uniform grid in log2</b>.
         Zero takes index zero and comes back exact. The grid is <b>fixed by the recipe alone</b>, never
-        by the tile, so a scene cut at one chunk size and again at another gives the same indices.</p>
+        by the tile, so a scene cut at one chunk size and again at another gives the same indices. For
+        floating-point data, the relative guarantee starts at the smallest normal value; NaNs belong in
+        <b>nodata</b>.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D782</dd>
           <dt>header</dt><dd>dtype + flags + step &middot; 10 bytes</dd>
