@@ -77,9 +77,14 @@ bindings/python/geozl/__pycache__/
 
 demo.py
 
-# Fuzzer corpus and libFuzzer artifacts, all generated
+# Machine-local fuzz corpora and output.
 fuzz/corpus/
+fuzz/seeds/
 fuzz/out/
+
+# Compressed files are ignored except for released compatibility fixtures.
+*.zl
+!bindings/python/test/golden/frames/*.zl
 crash-*
 leak-*
 timeout-*

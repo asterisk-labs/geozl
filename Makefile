@@ -6,9 +6,9 @@
 # make test-san   run both suites against an ASan and UBSan build
 # make fuzz       build and run the fuzzers, report in fuzz/out (needs clang)
 # make fuzz-check same, but exits non-zero on any finding, for CI
-# make fuzz-replay run saved corpora once and exit
+# make fuzz-replay replay the saved inputs once and exit
 # make fuzz-build build the fuzzers without running them
-# make clean-fuzz remove fuzz output, every corpus and the build tree
+# make clean-fuzz remove fuzz output, the working corpus and the build tree
 # make install    cmake --install into PREFIX (/usr/local)
 # make clean      remove all build output, caches and generated files
 # make submodules fetch or update OpenZL (zstd + lz4)
@@ -31,6 +31,8 @@ FUZZ_JOBS ?= 0
 CORE       := core
 FUZZ_OUT   := fuzz/out
 FUZZ_CORPUS := fuzz/corpus
+# Small inputs kept in git. The cached corpus adds depth when available.
+FUZZ_SEEDS := fuzz/replay
 FUZZ_TARGETS := roundtrip lossy_recipe quant_linear quant_log quant_sqrt decode binding
 OPENZL     := extern/openzl
 PY_DIR     := bindings/python
@@ -117,7 +119,8 @@ else
 endif
 
 .PHONY: all build configure lib python test test-c test-san fuzz fuzz-build \
-        fuzz-seed fuzz-report fuzz-check fuzz-replay clean-fuzz exhaustive \
+        fuzz-seed fuzz-report fuzz-check fuzz-replay clean-fuzz \
+        exhaustive \
         install submodules clean help
 
 all: python
@@ -209,6 +212,10 @@ fuzz-build: $(OPENZL)/CMakeLists.txt
 fuzz-seed: python
 	@$(PYTHON) fuzz/gen_corpus.py $(FUZZ_CORPUS)/decode
 	@$(PYTHON) fuzz/gen_quant_log_seeds.py $(FUZZ_CORPUS)/quant_log
+	@for t in $(FUZZ_TARGETS); do \
+	  mkdir -p $(FUZZ_CORPUS)/$$t; \
+	  [ -d $(FUZZ_SEEDS)/$$t ] && cp -a $(FUZZ_SEEDS)/$$t/. $(FUZZ_CORPUS)/$$t/ || true; \
+	done
 
 # libFuzzer writes its per job logs to the working directory and its findings to
 # artifact_prefix, so the runs happen from inside fuzz/out and nothing lands in
@@ -261,20 +268,26 @@ fuzz-check: fuzz fuzz-report
 	fi; \
 	echo "no findings in $(FUZZ_TIME)s per target"
 
+# Replay the versioned inputs and include the cached corpus when present.
 fuzz-replay: fuzz-build
 	@mkdir -p $(FUZZ_OUT)
 	@failed=""; \
 	for t in $(FUZZ_TARGETS); do \
-	  d=$(abspath $(FUZZ_CORPUS))/$$t; mkdir -p $$d; \
-	  echo "$$t corpus replay"; \
+	  s=$(abspath $(FUZZ_SEEDS))/$$t; c=$(abspath $(FUZZ_CORPUS))/$$t; \
+	  if [ -z "$$(ls -A $$s 2>/dev/null)" ]; then \
+	    echo "missing replay input for $$t"; exit 1; \
+	  fi; \
+	  dirs=$$s; \
+	  test -n "$$(ls -A $$c 2>/dev/null)" && dirs="$$dirs $$c"; \
+	  echo "$$t replay"; \
 	  (cd $(FUZZ_OUT) && ASAN_OPTIONS=allocator_may_return_null=1 \
-	    $(abspath core/build-fuzz)/geozl_$${t}_fuzzer $$d \
+	    $(abspath core/build-fuzz)/geozl_$${t}_fuzzer $$dirs \
 	    -runs=0 -max_len=4096 \
 	    -artifact_prefix=$(abspath $(FUZZ_OUT))/ > $$t.log 2>&1) \
 	    || { failed="$$failed $$t"; tail -30 $(FUZZ_OUT)/$$t.log; }; \
 	done; \
 	if [ -n "$$failed" ]; then echo "failed:$$failed"; exit 1; fi; \
-	echo "all corpora passed"
+	echo "all replay inputs passed"
 
 clean-fuzz:
 	rm -rf $(FUZZ_OUT) $(FUZZ_CORPUS) core/build-fuzz
