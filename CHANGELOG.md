@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-08-15
+
+### Fixed
+
+- Wheels include the required third-party licence notices.
+- Linux wheels use the x86-64 baseline advertised by their platform tag.
+
+### Added
+
+- `max_output_size` for limiting Python decompression allocations.
+- Compatibility fixtures for frames written by 0.13.0.
+
+### Changed
+
+- CI covers Python 3.11 through 3.14.
+- Fuzz replay starts from versioned inputs when its cache is empty.
+- Python depends on OpenZL 0.2.x.
+- The package classifier moves from Alpha to Beta.
+
 ## [0.13.0] - 2026-08-15
 
 ### Fixed
@@ -290,7 +309,8 @@ First release.
   `register_decoders` for reading frames back.
 - A libFuzzer harness over the decode path.
 
-[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.13.1...HEAD
+[0.13.1]: https://github.com/asterisk-labs/geozl/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/asterisk-labs/geozl/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/asterisk-labs/geozl/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/asterisk-labs/geozl/compare/v0.10.0...v0.11.0

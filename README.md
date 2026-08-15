@@ -25,10 +25,11 @@ NoData handling and bounded-error quantizers.
 
 ## Status
 
-GeoZL is under active development and ready for testing in real raster
-workflows. Frames using its codecs need GeoZL registered in the reader; standard
-OpenZL frames continue to work unchanged. See the
-[compatibility policy](docs/compatibility.md).
+GeoZL codecs and frames are ready for production use. Frames written since
+0.13.0 remain readable. The C source API is stable; the Python API and C ABI
+may evolve before 1.0. See [compatibility](docs/compatibility.md).
+
+Wheels are available for Linux x86-64 and macOS arm64.
 
 ## Install
 

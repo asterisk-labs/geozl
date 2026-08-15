@@ -18,11 +18,11 @@ authors = [
 dependencies = [
     "numpy>=1.24",
     "cffi>=1.17",
-    "openzl>=0.2",
+    "openzl>=0.2,<0.3",
 ]
 
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: BSD License",
@@ -33,6 +33,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: GIS",
     "Typing :: Typed",
 ]
@@ -83,4 +84,3 @@ exclude = [
 [tool.pytest.ini_options]
 testpaths = ["test"]
 addopts   = "-ra --strict-markers"
-
