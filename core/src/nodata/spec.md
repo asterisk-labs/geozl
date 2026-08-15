@@ -1,41 +1,26 @@
-## Nodata Decoder Specification
+# nodata Decoder Specification
 
-### Inputs
-Two numeric streams, both `nbElts` elements long.
+Lossless numeric codec, CTID `0x72D70C`.
 
-- `values`, the raster with every missing sample replaced by a fill. Element
-  width 1, 2, 4 or 8.
-- `mask`, one byte per sample. Following GDAL, `0` marks a sample that was never
-  measured and any nonzero byte marks a valid one.
+## Inputs
 
-`nbElts` is the length of `values`, and a reader must reject a frame where
-`mask` is a different length or where either is empty.
+Two nonempty streams with the same element count:
 
-### Codec Header
-`eltWidth` bytes, little endian, the bit pattern to restore at the width of a
-sample. There is nothing else in it.
+- `values`, with elements 1, 2, 4, or 8 bytes wide.
+- `mask`, with one-byte elements. Zero marks nodata; nonzero marks valid data.
 
-No code, since there is one shape, and no count, since `values` carries it.
-Nothing the frame declares reaches an allocation.
+## Codec header
 
-An encoder must refuse an empty tile, which has no mask to carry.
+Exactly `eltWidth` little-endian bytes containing the nodata bit pattern.
 
-### Decoding
-The output is `values` with the stored pattern written wherever `mask` is zero.
+## Decoding
 
     out[i] = mask[i] == 0 ? pattern : values[i]
 
-The pattern is stored as bits rather than as a number, so a NaN comes back with
-the payload it went in with, and a sentinel such as -9999 comes back unchanged.
-The fill under the mask is discarded, so what the encoder chose to write there
-never reaches a reader.
+The comparison and restoration use bit patterns. This distinguishes `-0.0`
+from `0.0` and preserves a NaN payload. Because the header stores one pattern,
+all masked NaNs are restored with the first stored payload.
 
-The transform is bit exact on every tile that carries at most one NaN payload,
-which is the only case the encoder can restore. Only one pattern is stored, so a
-tile carrying a second payload comes back with the first one in its place. Every
-NaN is marked either way, which is what lets a near lossless codec downstream
-assume it never sees one.
+## Output
 
-The encoder marks a sentinel by comparing bit patterns, while GDAL compares
-numerically. The two agree everywhere except on `-0.0`, which GDAL counts as
-equal to `0.0` and this codec does not.
+One numeric stream with the width and element count of `values`.

@@ -1,27 +1,32 @@
-## Float-Mult Decoder Specification
+# floatmult Decoder Specification
 
-### Inputs
-Two numeric streams with the same element count `nbElts` and element width, 4
-(f32) or 8 (f64).
+Lossless floating-point codec, CTID `0x72D70B`.
 
-- `primary`, `mult` stored via the integer-float latent, the nearest multiple
-  count of the base.
-- `secondary`, the centered ULP adjustment between the value and `mult * base`.
+## Inputs
 
-### Codec Header
-The `base` as an IEEE f64, 8 bytes little endian, used directly for f64 and
-narrowed to f32 for the width-4 path. `base` must be nonzero and finite.
+Two streams with the same count and element width, either 4 or 8 bytes:
 
-### Decoding
-Let `ord` be the total order key of the width and `MID` its sign bit. For each
-element, decoding the integer-float latent `primary` to the float `mult`,
+- `primary`, a multiplier stored through the integer-float latent.
+- `secondary`, a centered ULP adjustment from `mult * base`.
+
+## Codec header
+
+Exactly 8 little-endian bytes containing `base` as an IEEE binary64 value.
+`base` must be finite and nonzero. The 4-byte path narrows it to binary32.
+
+## Decoding
+
+Let `ord` be the total-order key for the input width and `MID` its sign bit.
+After decoding `primary` to the floating-point value `mult`:
 
     prod = mult * base
-    key  = ord(prod) + (secondary - MID)     (wrapping)
-    x    = ord_inverse(key)
+    key  = ord(prod) + (secondary - MID)    modulo the element width
+    x    = inverse_ord(key)
 
-`mult * base` must be computed in the stream's own precision (f32 for width 4)
-so it matches the encoder bit for bit. The transform is bit exact for every
-float including NaN and infinities, which the encoder maps through a `mult` of
-zero. There is no per element validity check; corruption is caught by the frame
-checksum.
+The multiplication uses the stream's own precision. The transform preserves
+the bit pattern of finite values, infinities, and NaNs. The frame checksum is
+responsible for detecting per-element corruption.
+
+## Output
+
+One floating-point stream with the input width and element count.

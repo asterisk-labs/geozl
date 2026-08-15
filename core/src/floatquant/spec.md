@@ -1,26 +1,32 @@
-## Float-Quant Decoder Specification
+# floatquant Decoder Specification
 
-### Inputs
-Two numeric streams with the same number of elements, `nbElts`, and the same
-element width, which is 4 (f32) or 8 (f64).
+Lossless floating-point codec, CTID `0x72D70A`.
 
-- `primary`, the order preserving key of the float with its low `k` bits removed.
-- `secondary`, the low `k` mantissa bits, flipped for negative floats.
+## Inputs
 
-### Codec Header
-A single byte `k`, the number of quantized mantissa bits, in
-`1..=PRECISION_BITS` (23 for f32, 52 for f64).
+Two streams with the same count and element width, either 4 or 8 bytes:
 
-### Decoding
-Let `SIGN` be the sign bit of the width (`0x80000000` for f32,
-`0x8000000000000000` for f64) and `maxlow = (1 << k) - 1`. For each element,
-with `is_pos = primary >= (SIGN >> k)`,
+- `primary`, the float order key without its low `k` bits.
+- `secondary`, the low bits, reversed for negative values.
 
-    low = is_pos ? secondary : maxlow - secondary
-    key = (primary << k) + low
-    bits = (key & SIGN) ? key ^ SIGN : ~key
+## Codec header
 
-and the output float is the reinterpretation of `bits`. The pair is valid only
-when `secondary <= maxlow`. The decoder must reject a frame with an invalid
-pair as corrupt. The transform is bit exact for every float including NaN and
-infinities.
+Exactly one byte containing `k`. It must be in `1..23` for binary32 and
+`1..52` for binary64.
+
+## Decoding
+
+Let `SIGN` be the sign bit and `maxlow = (1 << k) - 1`. For each pair:
+
+    is_pos = primary >= (SIGN >> k)
+    low    = is_pos ? secondary : maxlow - secondary
+    key    = (primary << k) + low
+    bits   = (key & SIGN) ? key ^ SIGN : ~key
+
+`secondary` must not exceed `maxlow`; otherwise the frame is corrupt. The
+output is the floating-point reinterpretation of `bits`, preserving all bit
+patterns including infinities and NaNs.
+
+## Output
+
+One floating-point stream with the input width and element count.

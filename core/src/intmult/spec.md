@@ -1,28 +1,29 @@
-## Int-Mult Decoder Specification
+# intmult Decoder Specification
 
-### Inputs
-The decoder for the 'intmult' codec takes two numeric streams with the same
-number of elements, `nbElts`, and the same element width.
+Lossless integer codec, CTID `0x72D709`.
 
-- `mults`, `mults[k]` is the quotient of the original value by the base.
-- `adjs`, `adjs[k]` is the remainder of the original value by the base.
+## Inputs
 
-### Codec Header
-Little endian, the `base` as `eltWidth` bytes, where `eltWidth` is the element
-width of the streams. `base` must be at least 2. The header size must be
-exactly `eltWidth`.
+Two numeric streams with the same count and element width of 1, 2, 4, or 8
+bytes:
 
-### Decoding
-Reading each element as an unsigned integer of the stream's width, the `nth`
-output element is
+- `mults`, the unsigned quotient by `base`.
+- `adjs`, the unsigned remainder.
 
-    u = mults[n] * base + adjs[n]      (wrapping, modulo 2^(8*eltWidth))
+## Codec header
 
-The pair is valid only when `adjs[n] < base`. The decoder must reject a frame
-containing an invalid pair as corrupt. The multiply wraps for any `mults[n]`,
-which is deterministic and memory safe, the frame checksum catches a corrupt
-quotient.
+Exactly `eltWidth` little-endian bytes containing `base`. The base must be at
+least 2.
 
-The encoder guarantees `mults[n] = u / base` and `adjs[n] = u % base` for the
-original `u`, so `mults[n] * base` never overflows for genuine data and the
-round trip is exact.
+## Decoding
+
+For each pair:
+
+    u = mults[n] * base + adjs[n]    modulo 2^(8*eltWidth)
+
+`adjs[n]` must be less than `base`; otherwise the frame is corrupt. For valid
+encoder output, quotient and remainder reconstruct the original bit pattern.
+
+## Output
+
+One numeric stream with the input width and element count.

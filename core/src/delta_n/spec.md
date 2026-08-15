@@ -1,14 +1,32 @@
-## delta_n Decoder Specification
-### Inputs
-A single numeric stream of 8, 16, 32 or 64-bit integers holding the vertical residual plane in row major order.
+# delta_n Decoder Specification
 
-### Codec Header
-A single uint32, little endian, the row width in samples. The number of rows is the element count divided by the width.
+Lossless numeric codec, CTID `0x72D702`.
 
-The header is four bytes for one plane and eight for more, the extra uint32 being the plane count, so a four byte header still means one plane. Each plane is predicted on its own, its first row taking N and NW as zero rather than reaching into the plane before it. A count that does not split the elements into whole-row planes is corruption.
+## Inputs
 
-### Decoding
-The first row of each plane is copied through as absolute values. Every later row is reconstructed by adding the reconstructed row above to the residual, sample by sample, using native width modular addition. Columns are independent, there is no horizontal carry.
+One numeric stream of 8-, 16-, 32- or 64-bit vertical residuals in row-major
+order.
 
-### Outputs
-A single numeric stream of the same element width and the same length as the input.
+## Codec header
+
+Little endian:
+
+- bytes 0-3: row width in samples, as `uint32`;
+- bytes 4-7: optional plane count, as `uint32`.
+
+A four-byte header means one plane. The encoder writes eight bytes only when
+the plane count is greater than one. Width and plane count must be nonzero, and
+each plane must contain whole rows.
+
+## Decoding
+
+Planes are decoded independently. The first row of each plane is absolute.
+Later rows are reconstructed with
+
+    output[y, x] = residual[y, x] + output[y - 1, x]
+
+Addition wraps at the element width. Columns are independent.
+
+## Output
+
+One numeric stream with the input length and element width.

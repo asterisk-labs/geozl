@@ -1,14 +1,26 @@
-## delta_w Decoder Specification
-### Inputs
-A single numeric stream of 8, 16, 32 or 64-bit integers holding the horizontal residual plane in row major order.
+# delta_w Decoder Specification
 
-### Codec Header
-A single uint32, little endian, the row width in samples. The number of rows is the element count divided by the width.
+Lossless numeric codec, CTID `0x72D701`.
 
-### Decoding
-Each row is reconstructed on its own. The first sample of a row is its absolute value. Every later sample is the previous reconstructed sample plus the residual, using native width modular addition. The carry reseeds at every row edge, so rows do not affect each other.
+## Inputs
 
-Take a row of width 4 with residuals {5, 1, 1, 2}. The reconstructed row is {5, 6, 7, 9}.
+One numeric stream of 8-, 16-, 32- or 64-bit horizontal residuals in row-major
+order.
 
-### Outputs
-A single numeric stream of the same element width and the same length as the input.
+## Codec header
+
+Exactly four bytes: the row width in samples as a little-endian `uint32`.
+Width must be nonzero and divide the element count.
+
+## Decoding
+
+Each row is decoded independently. Its first sample is absolute; later samples
+use
+
+    output[y, x] = residual[y, x] + output[y, x - 1]
+
+Addition wraps at the element width.
+
+## Output
+
+One numeric stream with the input length and element width.

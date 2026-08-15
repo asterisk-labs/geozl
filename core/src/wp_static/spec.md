@@ -1,21 +1,40 @@
-## wp_static Decoder Specification
+# wp_static Decoder Specification
 
-wp_static is a frozen adaptation of the JPEG XL self-correcting weighted predictor (ISO/IEC 18181-1, Annex E.3). The original blends sub-predictors with weights that adapt per sample from recent prediction errors. Freezing those weights removes the adaptation and leaves a fixed linear function of the causal neighbours, constrained so the left sample W enters with unit weight, which lets each row decode as a prefix sum as in planar.
+Lossless numeric codec, CTID `0x72D707`. The predictor is a fixed-weight form
+of the JPEG XL self-correcting predictor (ISO/IEC 18181-1, Annex E.3).
 
-### Inputs
-A single numeric stream of 8, 16, 32 or 64-bit integers holding the residual plane in row major order.
+## Inputs
 
-### Codec Header
-Little endian, in order: a uint32 row width in samples, a uint8 right shift, then four int16 coefficients cN, cNW, cNE, cNN. The number of rows is the element count divided by the width.
+One numeric stream of 8-, 16-, 32- or 64-bit residuals in row-major order.
 
-The plane count is an optional trailing uint32, so the header is thirteen bytes for one plane and seventeen for more. Each plane is predicted on its own, its first row taking its northern neighbours as zero. The coefficients are fit once over the whole stream and shared by every plane. A count that does not split the elements into whole-row planes is corruption.
+## Codec header
 
-### Decoding
-The prediction is W + K, with W the left reconstructed sample and K a linear kernel over the row above,
+Little endian:
 
-  K = (cN*N + cNW*NW + cNE*NE + cNN*NN + round) >> shift,
+- bytes 0-3: row width, as `uint32`;
+- byte 4: right shift;
+- bytes 5-12: `cN`, `cNW`, `cNE`, `cNN`, as four `int16` values;
+- bytes 13-16: optional plane count, as `uint32`.
 
-where N is the sample above, NW above left, NE above right, NN two above, round = shift ? 1 << (shift - 1) : 0, and any neighbour outside the plane is zero. The sum is accumulated in signed 32-bit for 8 and 16-bit samples and signed 64-bit for 32 and 64-bit, then normalized by an arithmetic right shift, so coefficients are small fixed point that keep the sum within that width. Zero edge neighbours make the first row of each plane the horizontal predictor and column zero the vertical part of the kernel. Each sample is reconstructed as res + W + K in native width modular arithmetic. K carries no left dependency, so a row folds K into the residual and resolves the W chain as a prefix sum, as in planar. The defaults cN=1, cNW=-1, cNE=0, cNN=0, shift=0 reproduce planar.
+A 13-byte header means one plane. The encoder writes 17 bytes only when the
+plane count is greater than one. Width and plane count must be nonzero, each
+plane must contain whole rows, and the shift must be below 64. Coefficients are
+shared by all planes.
 
-### Outputs
-A single numeric stream of the same element width and the same length as the input.
+## Decoding
+
+Planes are decoded independently. Missing neighbors are zero. Define
+
+    round = shift ? 1 << (shift - 1) : 0
+    K = (cN*N + cNW*NW + cNE*NE + cNN*NN + round) >> shift
+    output = residual + W + K
+
+The weighted sum uses a signed 32-bit accumulator for 8- and 16-bit samples and
+a signed 64-bit accumulator for 32- and 64-bit samples. Reconstruction wraps at
+the element width.
+
+The default coefficients `(1, -1, 0, 0)` with shift zero reproduce `planar`.
+
+## Output
+
+One numeric stream with the input length and element width.
