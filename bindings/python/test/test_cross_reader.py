@@ -17,6 +17,7 @@ except OSError:  # pragma: no cover - depends on how the build was configured
                 allow_module_level=True)
 
 _W = 32
+_B = 4
 
 _PREDICTORS = [
     ("planar", geozl.lossless.Planar),
@@ -27,6 +28,9 @@ _PREDICTORS = [
     ("wp_static", geozl.lossless.WpStatic),
 ]
 
+# delta_w only reads to its left, so it carries no plane count on either side.
+_STACKED = [(p, n) for p, n in _PREDICTORS if p != "delta_w"]
+
 _DTYPES = ["int16", "uint16", "int32", "uint32", "int8", "uint8"]
 
 
@@ -34,6 +38,10 @@ def _tile(dtype="int16", shape=(_W, _W)):
     rng = np.random.default_rng(0)
     y, x = np.indices(shape)
     return ((x * 3 + y * 5) % 100 + rng.integers(0, 4, shape)).astype(dtype)
+
+
+def _cube(dtype="int16"):
+    return np.stack([_tile(dtype) + b for b in range(_B)]).astype(dtype)
 
 
 def _method(predictor, dtype):
@@ -81,6 +89,37 @@ def test_a_python_frame_reads_in_the_c_decoders(predictor, node, dtype):
     frame = _frame_from_python_node(node(_W), arr)
     out = geozl.decompress(frame).view(dtype).reshape(-1, _W)
     assert np.array_equal(out, arr)
+
+
+@pytest.mark.parametrize("predictor,node", _STACKED,
+                         ids=[p for p, _ in _STACKED])
+def test_a_stacked_c_frame_reads_in_the_python_decoders(predictor, node):
+    arr = _cube()
+    frame = _frame_from_c(arr, _method(predictor, "int16"))
+    out = _read_with_python_decoders(frame).view(arr.dtype)
+    assert np.array_equal(out.reshape(arr.shape), arr)
+
+
+@pytest.mark.parametrize("predictor,node", _STACKED,
+                         ids=[p for p, _ in _STACKED])
+def test_a_stacked_python_frame_reads_in_the_c_decoders(predictor, node):
+    arr = _cube()
+    frame = _frame_from_python_node(node(_W, planes=_B), arr)
+    out = geozl.decompress(frame).view(arr.dtype)
+    assert np.array_equal(out.reshape(arr.shape), arr)
+
+
+@pytest.mark.parametrize("predictor,node", _STACKED,
+                         ids=[p for p, _ in _STACKED])
+def test_planes_change_the_python_frame(predictor, node):
+    arr = _cube()
+    assert (_frame_from_python_node(node(_W, planes=_B), arr)
+            != _frame_from_python_node(node(_W), arr))
+
+
+def test_delta_w_takes_no_plane_count():
+    with pytest.raises(ValueError, match="does not support planes"):
+        geozl.lossless.DeltaW(_W, planes=_B)
 
 
 @pytest.mark.parametrize("error", [
