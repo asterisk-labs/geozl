@@ -39,11 +39,10 @@
       <div class="col-text">
         <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> predictor <span class="sep">/</span> lossless</p>
         <h1 class="name">delta_w</h1>
-        <p class="subtitle">Each value, minus its <span class="u">west neighbour</span>.</p>
-        <p class="desc">The simplest spatial predictor. Every sample is stored as the difference from the
-        one to its left; the first sample of a row is kept whole as a seed. The carry <b>reseeds at every
-        row edge</b>, so rows never affect each other. On smooth horizontal gradients the residuals collapse
-        toward zero, which is exactly what the downstream entropy stage compresses best.</p>
+        <p class="subtitle">Store how values change <span class="u">across each row</span>.</p>
+        <p class="desc"><b>delta_w</b> compares every sample with the one on its left. Each row begins with
+        one complete value, so rows never depend on one another. Choose it for rasters that change smoothly
+        from west to east: the remaining differences are small and easier to compress.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D701</dd>
           <dt>header</dt><dd>uint32 &middot; row width in samples</dd>

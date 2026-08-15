@@ -39,12 +39,11 @@
       <div class="col-text">
         <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> near-lossless <span class="sep">/</span> lossy</p>
         <h1 class="name">quant_linear</h1>
-        <p class="subtitle">A uniform grid, <span class="u">anchored at zero</span>.</p>
-        <p class="desc">An absolute bound. <b>|x &minus; x&#770;| &le; V</b> puts the levels on a uniform
-        grid anchored at zero. The target step is <b>2V</b>; integer grids round it down, while floating-point
-        index grids reserve room for encoding and reconstruction rounding. Integers store the
-        <b>reconstruction</b>. Floats store the <b>index</b> by default, or whole reconstructed values when
-        <code>STORE=VALUES</code> is requested and exact.</p>
+        <p class="subtitle">Allow the same <span class="u">absolute error everywhere</span>.</p>
+        <p class="desc"><b>quant_linear</b> snaps values to evenly spaced levels around zero. If
+        <code>MAX_ERROR=2</code>, every reconstructed value stays within two units of the original, whether
+        that value is 10 or 10,000. Use it when a fixed error in the data's own units is easy to explain
+        and accept.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D781</dd>
           <dt>header</dt><dd>dtype + flags + step &middot; 10 bytes</dd>

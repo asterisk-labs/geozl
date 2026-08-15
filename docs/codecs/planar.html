@@ -39,12 +39,11 @@
       <div class="col-text">
         <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> predictor &middot; 2D <span class="sep">/</span> lossless</p>
         <h1 class="name">planar</h1>
-        <p class="subtitle">The plane through <span class="u">W, N and NW</span>.</p>
-        <p class="desc">A true two-dimensional predictor. Each pixel is predicted by the plane passing
-        through three neighbours the decoder already holds, <b>W + N − NW</b>. Row zero falls back to the
-        horizontal predictor, column zero to the vertical one. The prediction carries no left-dependency
-        beyond W, so a row still <b>decodes as a fast prefix sum</b>. On any locally planar gradient the
-        residuals collapse to zero.</p>
+        <p class="subtitle">Predict the local surface, <span class="u">not just one direction</span>.</p>
+        <p class="desc"><b>planar</b> uses the west, north and north-west neighbours to continue the local
+        slope: <b>W + N − NW</b>. It works especially well on smooth two-dimensional gradients, where a
+        perfect plane becomes a stream of zeros. Along the top and left edges it falls back to a simple
+        one-direction predictor.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D703</dd>
           <dt>header</dt><dd>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</dd>

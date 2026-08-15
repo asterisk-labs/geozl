@@ -39,12 +39,11 @@
       <div class="col-text">
         <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> predictor &middot; 2D <span class="sep">/</span> lossless</p>
         <h1 class="name">med</h1>
-        <p class="subtitle">The <span class="u">median edge detector</span>.</p>
-        <p class="desc">The predictor from JPEG-LS. It takes the <b>median</b> of W, N and the
-        planar gradient W+N&minus;NW, which is the same as <b>clamping that gradient between W and N</b>.
-        On smooth ground the gradient passes through untouched. At an edge it overshoots and the clamp
-        catches it, landing on N for a vertical edge or W for a horizontal one. The choice depends on W
-        nonlinearly, so samples decode one at a time.</p>
+        <p class="subtitle">Follow smooth areas <span class="u">without crossing sharp edges</span>.</p>
+        <p class="desc"><b>med</b> is the edge-aware predictor used by JPEG-LS. On smooth areas it behaves
+        like planar. At a strong horizontal or vertical boundary, it clamps the prediction to the nearer
+        neighbour instead of guessing across the edge. This often produces cleaner differences on rasters
+        with abrupt boundaries, although samples must decode in order.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D705</dd>
           <dt>header</dt><dd>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</dd>

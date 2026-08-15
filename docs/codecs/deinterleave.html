@@ -39,12 +39,11 @@
       <div class="col-text">
         <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> split &middot; 1&#8594;2 <span class="sep">/</span> lossless</p>
         <h1 class="name">deinterleave</h1>
-        <p class="subtitle">One stream, split into <span class="u">two lanes</span>.</p>
-        <p class="desc">Not a predictor, a split. deinterleave cuts one interleaved stream into two lanes
-        <b>by position</b>. Even indices go to lane 0, odd to lane 1. It is dtype-agnostic, moving elements
-        without ever reading them, so the caller carries any lane meaning itself. The classic use is
-        <b>complex data</b>, keeping the real and imaginary components apart so a spatial predictor
-        downstream never crosses the boundary. It is the inverse of OpenZL's built-in interleave.</p>
+        <p class="subtitle">Give alternating values <span class="u">their own lane</span>.</p>
+        <p class="desc">Use <b>deinterleave</b> when one stream really contains two interwoven sequences.
+        Even positions go to one lane and odd positions to the other, without changing or interpreting the
+        values. Complex rasters are the common case: real and imaginary components can then follow separate
+        predictor paths. Decoding simply weaves the two lanes back together.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D704</dd>
           <dt>header</dt><dd>none &middot; rebuilt from the two lane counts</dd>

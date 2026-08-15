@@ -39,12 +39,11 @@
       <div class="col-text">
         <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> split &middot; 1&#8594;2 <span class="sep">/</span> lossless</p>
         <h1 class="name">nodata</h1>
-        <p class="subtitle">Split the nodata out <span class="u">before anything predicts across it</span>.</p>
-        <p class="desc">Splits the raster into filled values and a <b>validity mask</b>. A hole takes the
-        previous valid sample on its row, or the sample above at a row start, so predictors do not cross
-        a jump. Mask byte 0 marks nodata; nonzero keeps the value. The header stores one nodata bit
-        pattern. NaN mode uses the first payload for every masked NaN. Use this codec ahead of a
-        quantizer, and only on tiles that contain nodata.</p>
+        <p class="subtitle">Keep missing samples <span class="u">out of the predictor</span>.</p>
+        <p class="desc"><b>nodata</b> separates a raster into filled values and a validity mask. Missing
+        positions borrow a nearby valid value, so later predictors see a continuous surface instead of a
+        sudden jump. During decoding, the declared nodata value or NaN is restored wherever the mask marks
+        a hole. Put this codec before quantization, and use it only on tiles that contain nodata.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D70C</dd>
           <dt>header</dt><dd>the nodata pattern at the sample width</dd>

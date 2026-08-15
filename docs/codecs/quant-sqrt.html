@@ -39,14 +39,11 @@
       <div class="col-text">
         <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> near-lossless <span class="sep">/</span> lossy</p>
         <h1 class="name">quant_sqrt</h1>
-        <p class="subtitle">Wider slack where <span class="u">the noise is wider</span>.</p>
-        <p class="desc">A noise-proportional bound. <b>MAX_ERROR counts sigmas</b> of the sensor noise
-        <b>&#963;&#178; = a + b&middot;x</b>. The levels are uniform in <b>u = &#8730;(x + offset)</b>, so
-        level q reconstructs as <b>(q &middot; step)&#178; &minus; offset</b>, two multiplies and a
-        subtract. The recipe either carries <b>a</b> and <b>b</b> or fits them from the raster. Fit the
-        curve <b>once over the whole product</b> with <code>geozl.lossy.fit_noise</code>, since two tiles
-        fitted separately land on different grids. The bound applies where <b>a + b&middot;x &gt; 0</b>;
-        non-finite samples belong in <b>nodata</b>.</p>
+        <p class="subtitle">Match the error budget <span class="u">to sensor noise</span>.</p>
+        <p class="desc"><b>quant_sqrt</b> is designed for data whose noise grows with signal, such as shot
+        noise described by <b>&#963;&#178; = a + b&middot;x</b>. Clean, low values get tighter spacing while noisier,
+        high values get wider spacing. Fit <b>a</b> and <b>b</b> once for the whole product so every tile uses
+        the same grid, and send non-finite values through <b>nodata</b>.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D783</dd>
           <dt>header</dt><dd>dtype + flags + step + offset &middot; 18 bytes</dd>
