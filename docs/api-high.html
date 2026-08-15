@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
-<meta content="geozl Python API: load a raster tile, profile candidate OpenZL graphs, build one graph from the winning recipe, compress every tile through it, and decompress the array." name="description"/>
+<meta content="Python API for profiling, building and running geozl compression graphs." name="description"/>
 <meta content="#F1EDE4" name="theme-color"/>
 <title>geozl — Python API</title>
 <link href="assets/svg/favicon.svg" rel="icon" type="image/svg+xml"/>
@@ -36,11 +36,11 @@
 <p class="sec-h"><span class="sq"></span> Python API</p>
 <h1>Measure, pick, <span class="u">run</span>.</h1>
 <div class="lead">
-<p class="l-top">Four functions, and nothing implicit.</p>
-<p><code>profile</code> ranks the recipes on your own tile.</p>
-<p><code>graph</code> builds the one you pick, once, exactly as named.</p>
-<p><code>compress</code> runs a tile through it and returns a frame.</p>
-<p><code>decompress</code> hands back flat bytes. The dtype and the shape are yours.</p>
+<p class="l-top">The high-level API has four calls.</p>
+<p><code>profile</code> ranks recipes for a tile.</p>
+<p><code>graph</code> builds a reusable graph.</p>
+<p><code>compress</code> returns a frame.</p>
+<p><code>decompress</code> returns flat bytes.</p>
 </div>
 <div class="runrow">
 <a href="https://colab.research.google.com/github/asterisk-labs/geozl/blob/main/docs/notebooks/high-level-api.ipynb" rel="noopener noreferrer" target="_blank">
@@ -70,37 +70,37 @@
 </div><div aria-label="Python API functions" class="fnpick" role="tablist">
 <button aria-controls="pan-profile" aria-selected="true" id="tab-profile" role="tab" tabindex="0">
 <span class="pk-index">01</span><span class="pk-top"><span class="pk-sq"></span><span class="pk-n">profile</span><span class="pk-r">→ list[dict]</span></span>
-<span class="pk-d">Ranks every recipe that applies, on one representative tile.</span>
+<span class="pk-d">Ranks candidate recipes for one tile.</span>
 </button>
 <button aria-controls="pan-graph" aria-selected="false" id="tab-graph" role="tab" tabindex="-1">
 <span class="pk-index">02</span><span class="pk-top"><span class="pk-sq"></span><span class="pk-n">graph</span><span class="pk-r">→ Graph</span></span>
-<span class="pk-d">Builds one recipe, to run many tiles through.</span>
+<span class="pk-d">Builds a reusable graph.</span>
 </button>
 <button aria-controls="pan-compress" aria-selected="false" id="tab-compress" role="tab" tabindex="-1">
 <span class="pk-index">03</span><span class="pk-top"><span class="pk-sq"></span><span class="pk-n">compress</span><span class="pk-r">→ bytes</span></span>
-<span class="pk-d">Runs one tile through a built graph, and returns a frame.</span>
+<span class="pk-d">Compresses one tile and returns a frame.</span>
 </button>
 <button aria-controls="pan-decompress" aria-selected="false" id="tab-decompress" role="tab" tabindex="-1">
 <span class="pk-index">04</span><span class="pk-top"><span class="pk-sq"></span><span class="pk-n">decompress</span><span class="pk-r">→ ndarray</span></span>
-<span class="pk-d">Reads a frame back into a flat array of bytes.</span>
+<span class="pk-d">Decompresses a frame to flat bytes.</span>
 </button>
 </div>
 <div class="fnbody">
 <div aria-labelledby="tab-profile" class="fnpanel" id="pan-profile" role="tabpanel">
 <p class="sig">signature <b>profile(tile, *, prior="planar", width=None, planes=None, error=None, reps=5, nodata=None, verify=False) → list[dict]</b></p>
-<div class="spec2"><div class="row"><span class="nm">prior</span><span class="ty">str · None</span><span class="ds">One predictor plus the id pass. None sweeps them all, "none" sweeps the no-predictor branch alone.</span></div><div class="row"><span class="nm">width</span><span class="ty">int · None</span><span class="ds">The row length used by 2‑D predictors, read from <code>tile.shape[-1]</code> when left unset.</span></div><div class="row"><span class="nm">planes</span><span class="ty">int · None</span><span class="ds">The number of stacked images. A <code>(B, Y, X)</code> cube defaults to <code>B</code>, so predictors that read the row above restart at each band boundary.</span></div><div class="row"><span class="nm">reps</span><span class="ty">int</span><span class="ds">Times each recipe this many times and keeps the fastest run.</span></div><div class="row"><span class="nm">error</span><span class="ty">str · None</span><span class="ds">Means what it does in <code>graph</code>, so the ranking describes the configuration that will be built.</span></div><div class="row"><span class="nm">nodata</span><span class="ty">float · None</span><span class="ds">Means what it does in <code>graph</code>, so profiling includes the validity mask.</span></div><div class="row"><span class="nm">→ row</span><span class="ty">dict</span><span class="ds">graph, bytes, ratio, encode_mbps, decode_mbps, shannon_pct. Sorted by ratio.</span></div></div>
+<div class="spec2"><div class="row"><span class="nm">prior</span><span class="ty">str · None</span><span class="ds">One predictor plus identity. Use <code>None</code> for all or <code>"none"</code> for no predictor.</span></div><div class="row"><span class="nm">width</span><span class="ty">int · None</span><span class="ds">Row length. Defaults to <code>tile.shape[-1]</code>.</span></div><div class="row"><span class="nm">planes</span><span class="ty">int · None</span><span class="ds">Stacked image count. Defaults to <code>B</code> for a <code>(B, Y, X)</code> array.</span></div><div class="row"><span class="nm">reps</span><span class="ty">int</span><span class="ds">Timed runs per recipe.</span></div><div class="row"><span class="nm">error</span><span class="ty">str · None</span><span class="ds">Same as <code>graph</code>.</span></div><div class="row"><span class="nm">nodata</span><span class="ty">float · None</span><span class="ds">Same as <code>graph</code>.</span></div><div class="row"><span class="nm">→ row</span><span class="ty">dict</span><span class="ds">graph, bytes, ratio, encode_mbps, decode_mbps and shannon_pct. Sorted by ratio.</span></div></div>
 </div>
 <div aria-labelledby="tab-graph" class="fnpanel" hidden="" id="pan-graph" role="tabpanel">
 <p class="sig">signature <b>graph(raster, method, *, width=None, planes=None, error=None, nodata=None) → Graph</b></p>
-<div class="spec2"><div class="row"><span class="nm">raster</span><span class="ty">ndarray</span><span class="ds">A 2‑D array, a <code>(B, Y, X)</code> cube, or 1‑D with <code>width</code> given. Native byte order, 1, 2, 4 or 8 bytes per element. Lossy recipes are fitted against this raster, so it must cover the product's range. A float raster is also scanned for NaN when <code>nodata</code> is unset.</span></div><div class="row"><span class="nm">method</span><span class="ty">str</span><span class="ds">A full recipe string, straight from the <code>profile</code> table. The transposed terminals need 2 to 8 bytes per element, <code>categorical</code> needs 1 or 2.</span></div><div class="row"><span class="nm">width</span><span class="ty">int · None</span><span class="ds">The row length used by 2‑D predictors, read from <code>raster.shape[-1]</code> when left unset.</span></div><div class="row"><span class="nm">planes</span><span class="ty">int · None</span><span class="ds">The number of stacked images, read from the first axis of a <code>(B, Y, X)</code> cube and otherwise 1. Predictors that use N or NW restart at each plane boundary; <code>delta_w</code> is unaffected. Set <code>width=Y*X</code> and <code>planes=1</code> for the pre‑v0.12 behaviour in which each band is one row and can be predicted from the preceding band.</span></div><div class="row"><span class="nm">error</span><span class="ty">str · None</span><span class="ds"><code>None</code> is lossless. Otherwise a recipe naming one of <code>LINEAR:</code>, <code>LOG:</code> or <code>SQRT:</code>, prepended to the graph, holding every sample inside the bound it declares.</span></div><div class="row"><span class="nm">nodata</span><span class="ty">float · None</span><span class="ds">The value that marks a sample as never measured, as GDAL means it. Left off, a float raster holding NaN takes NaN as its own.</span></div></div>
+<div class="spec2"><div class="row"><span class="nm">raster</span><span class="ty">ndarray</span><span class="ds">Native-order array with 1, 2, 4 or 8 bytes per element. Give <code>width</code> for 1-D input.</span></div><div class="row"><span class="nm">method</span><span class="ty">str</span><span class="ds">Recipe string, usually taken from <code>profile</code>.</span></div><div class="row"><span class="nm">width</span><span class="ty">int · None</span><span class="ds">Row length. Defaults to <code>raster.shape[-1]</code>.</span></div><div class="row"><span class="nm">planes</span><span class="ty">int · None</span><span class="ds">Stacked image count. Row-based predictors reset between planes. Use <code>width=Y*X, planes=1</code> to predict between bands.</span></div><div class="row"><span class="nm">error</span><span class="ty">str · None</span><span class="ds"><code>None</code> for lossless compression, or a <code>LINEAR</code>, <code>LOG</code> or <code>SQRT</code> recipe.</span></div><div class="row"><span class="nm">nodata</span><span class="ty">float · None</span><span class="ds">Missing-value sentinel. NaNs are detected automatically when omitted.</span></div></div>
 </div>
 <div aria-labelledby="tab-compress" class="fnpanel" hidden="" id="pan-compress" role="tabpanel">
 <p class="sig">signature <b>compress(tile, *, graph) → bytes</b></p>
-<div class="spec2"><div class="row"><span class="nm">tile</span><span class="ty">ndarray</span><span class="ds">One tile with exactly the dtype used to build the graph. A tile whose rows do not match the graph's row length still compresses, and predicts across a boundary that is not there.</span></div><div class="row"><span class="nm">graph</span><span class="ty">Graph</span><span class="ds">The handle <code>geozl.graph</code> returned, bound to its method, row length, plane count, dtype, error and nodata settings. Not thread safe, so one per thread.</span></div><div class="row"><span class="nm">→ frame</span><span class="ty">bytes</span><span class="ds">One self-describing frame, independent of every other frame the graph wrote.</span></div></div>
+<div class="spec2"><div class="row"><span class="nm">tile</span><span class="ty">ndarray</span><span class="ds">Tile with the graph's exact dtype. Geometry is not checked.</span></div><div class="row"><span class="nm">graph</span><span class="ty">Graph</span><span class="ds">Graph returned by <code>geozl.graph</code>. Not thread-safe.</span></div><div class="row"><span class="nm">→ frame</span><span class="ty">bytes</span><span class="ds">Self-describing OpenZL frame.</span></div></div>
 </div>
 <div aria-labelledby="tab-decompress" class="fnpanel" hidden="" id="pan-decompress" role="tabpanel">
 <p class="sig">signature <b>decompress(frame, *, verify=True) → ndarray</b></p>
-<div class="spec2"><div class="row"><span class="nm">frame</span><span class="ty">bytes</span><span class="ds">The frame names its own codecs but not your dtype or shape, so what comes back is flat <code>uint8</code>. Finish with <code>.view(dtype).reshape(shape)</code>.</span></div><div class="row"><span class="nm">verify</span><span class="ty">bool</span><span class="ds">Checks the checksums the frame carries, which is what tells a frame that rotted in storage from one that did not. Off buys 1 to 30 per cent of decode and gives up the only warning you get.</span></div></div>
+<div class="spec2"><div class="row"><span class="nm">frame</span><span class="ty">bytes</span><span class="ds">Returns flat <code>uint8</code>. Restore dtype and shape with <code>.view(dtype).reshape(shape)</code>.</span></div><div class="row"><span class="nm">verify</span><span class="ty">bool</span><span class="ds">Verify checksums present in the frame.</span></div></div>
 </div>
 </div>
 </section>

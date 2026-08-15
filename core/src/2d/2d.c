@@ -31,33 +31,14 @@
 #include <string.h>
 #include <time.h>
 
-// The 2d entry points. A method name and a raster in, a geozl frame out.
-//
-// A method names a predictor and a terminal, "planar>zigzag>entropy". The graph
-// is built inward from that terminal, so a sample runs
+// A method combines an optional predictor with a terminal, for example
+// "planar>zigzag>entropy". The full graph is:
 //
 //   [nodata] -> [quantizer] -> [predictor -> zigzag] -> terminal
 //
-// Only the terminal is always there. The predictor and its zigzag come as a
-// pair, and the id and delta_1d methods carry neither. The quantizer appears
-// when error names one. nodata appears when a mode is set, and it is the one
-// stage that does not hand a single stream on: it splits the raster from a
-// validity mask and sends the mask down a generic graph of its own.
-//
-// Two of those positions are not free. nodata is outermost because a quantizer
-// has no answer for a sample that was never measured. The quantizer sits ahead
-// of the predictor so the residual is taken over the values the frame will
-// actually carry. Past the terminal everything belongs to OpenZL.
-//
-// Decompression needs none of it, since a frame names its own codecs.
-//
-// The file runs in that order: the palette of method names, the graph built
-// from one, the error plumbing OpenZL forces, and then the five entry points,
-// compress, frame size, decompress, bench and grid. Each direction is an open,
-// a run and a close, so the bench can time reps of the run against one open.
+// nodata runs before quantization. Frames are self-describing on decode.
 
-// GEOZL_PRED_ID is the no-predictor branch: raw stream straight to a backend,
-// no zigzag. delta_1d is OpenZL's ZL_NODE_DELTA_INT and carries no zigzag either.
+// ID and DELTA_1D do not use zigzag.
 typedef enum {
   GEOZL_PRED_DELTA_W = 0,
   GEOZL_PRED_DELTA_N,
@@ -70,13 +51,7 @@ typedef enum {
   GEOZL_PRED_COUNT
 } geozl_predictor;
 
-// A terminal fixes the layout (interleaved or transposed to byte lanes) and the
-// backend. The transposed ones send every lane to one backend; store_lo
-// transposes but routes each lane on its own.
-//
-// categorical sits ahead of the transposed group on purpose: geozl_2d_grid_c
-// drops everything from GEOZL_TERM_T_ENTROPY on for a 1-byte element, and a
-// 1-byte element is what a class raster is.
+// A terminal selects the layout and backend.
 typedef enum {
   GEOZL_TERM_ENTROPY = 0, // adaptive FSE/Huffman
   GEOZL_TERM_FIELD_LZ,    // field-wise LZ over the numeric residual
@@ -88,11 +63,7 @@ typedef enum {
   GEOZL_TERM_COUNT
 } geozl_terminal;
 
-// Share of the stream the dominant symbol has to hold before LZ beats an
-// entropy backend. Measured on synthetic categorical fields, where the
-// crossover tracks this share and barely moves with the class count. Real land
-// cover has straight parcel edges those fields do not reproduce, so this is the
-// number to re-measure against WorldCover or CORINE.
+// Dominant-symbol threshold measured on synthetic categorical fields.
 #define GEOZL_CATEGORICAL_LZ 0.95
 
 static const char *pred_name(geozl_predictor p) {
@@ -122,8 +93,7 @@ static const char *term_name(geozl_terminal t) {
   }
 }
 
-// Recipe string of a candidate, e.g. "planar>zigzag>entropy". This is the only
-// place the spelling lives; parse_candidate below reads it back.
+// Format a candidate recipe.
 static void candidate_name(geozl_predictor p, geozl_terminal t, char *out,
                            size_t cap) {
   if (p == GEOZL_PRED_ID)
@@ -134,9 +104,7 @@ static void candidate_name(geozl_predictor p, geozl_terminal t, char *out,
     snprintf(out, cap, "%s>zigzag>%s", pred_name(p), term_name(t));
 }
 
-// Inverse of candidate_name. It generates and compares instead of splitting on
-// ">", so the two can never drift apart. 48 snprintf on a call that is about to
-// compress a whole tile is not worth optimizing.
+// Match against candidate_name so parsing and formatting share one spelling.
 static int parse_candidate(const char *name, geozl_predictor *outP,
                            geozl_terminal *outT) {
   if (name == NULL || name[0] == '\0')
@@ -179,10 +147,7 @@ static ZL_GraphID chain(ZL_Compressor *c, const ZL_NodeID *nodes, size_t n,
                                                                final);
 }
 
-// store_lo splits the struct into byte lanes at run time (TRANSPOSE_SPLIT has a
-// variable output count, so it cannot be wired statically) and routes lane 0,
-// the residual noise, to a raw store while the near-constant higher lanes go to
-// entropy.
+// Store the low byte lane and entropy-code the rest.
 static ZL_Report geozl_storelo_fg(ZL_Graph *g, ZL_Edge *inputs[],
                                   size_t nbInputs) {
   (void)nbInputs;
@@ -199,10 +164,7 @@ static ZL_Report geozl_storelo_fg(ZL_Graph *g, ZL_Edge *inputs[],
   return ZL_returnSuccess();
 }
 
-// Boyer-Moore majority vote, then an exact count of the candidate. A histogram
-// would want a table the element width does not bound, and both thresholds sit
-// above one half, which is the regime the vote resolves exactly. Under one half
-// the candidate fails its count, and the answer there is entropy either way.
+// Count the dominant value with Boyer-Moore followed by an exact pass.
 static size_t dominant_count(const void *src, size_t n, size_t eltWidth) {
   const unsigned char *p = (const unsigned char *)src;
   uint64_t cand = 0;
@@ -228,12 +190,7 @@ static size_t dominant_count(const void *src, size_t n, size_t eltWidth) {
   return hits;
 }
 
-// A class raster splits by how much of the stream the dominant symbol takes,
-// not by how many classes it holds. All of it is ZL_GRAPH_CONSTANT, most of it
-// means runs and LZ collapses them, otherwise the texture dominates and the
-// skew is the signal. One pass answers both questions. The branch is data
-// dependent, but OpenZL records which graph each stream took, so the frame
-// carries it and there is no decoder to register.
+// Select constant, field-LZ or entropy by the dominant symbol's share.
 static ZL_Report geozl_categorical_fg(ZL_Graph *g, ZL_Edge *inputs[],
                                       size_t nbInputs) {
   (void)g;
@@ -339,8 +296,7 @@ static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
   }
 }
 
-// build_candidate gives the predictor and terminal, this wraps the quantizer
-// and then nodata around it, outermost last.
+// Add optional quantizer and nodata stages around a candidate.
 static ZL_GraphID build_graph(ZL_Compressor *c, geozl_predictor p,
                                  geozl_terminal t, uint32_t width,
                                  uint32_t planes, size_t eltWidth,
@@ -380,9 +336,7 @@ static ZL_GraphID build_graph(ZL_Compressor *c, geozl_predictor p,
       c, nd, ZL_GRAPHLIST(sel, ZL_GRAPH_COMPRESS_GENERIC));
 }
 
-// An OpenZL error string lives inside the object that raised it and only for
-// that object's lifetime, so it has to be copied out before the free below. It
-// is also rejected by any other object, hence err_owner.
+// OpenZL error strings must be copied before their owner is freed.
 typedef enum { ERR_NONE, ERR_COMPRESSOR, ERR_CCTX, ERR_DCTX } err_owner;
 
 static void copy_err(char *dst, size_t cap, const char *src) {
@@ -399,11 +353,7 @@ static void copy_err(char *dst, size_t cap, const char *src) {
   dst[n] = '\0';
 }
 
-// A compressor, the context bound to it, and the two numbers every compression
-// through it has to agree on. Registering the nodes and the graph is fixed
-// cost, so a caller with N tiles opens this once and runs each tile against it.
-// eltWidth and dtype live here rather than travelling per call because the
-// quantizer tables are indexed by them and a mismatch is silent.
+// Reusable compressor and its fixed sample metadata.
 struct geozl_2d_graph_s {
   ZL_Compressor *c;
   ZL_CCtx *cctx;
@@ -421,13 +371,8 @@ GEOZL_API void geozl_2d_graph_close_c(geozl_2d_graph *g) {
   free(g);
 }
 
-// Validates, resolves the error recipe, builds the graph and binds a context.
-// On failure *out is NULL and there is nothing to close. checksum == 0 drops
-// both frame checksums; a lossy plan drops the content one anyway, since the
-// frame does not rebuild what that checksum was taken over.
-//
-// src is read here and not in the run, since the error recipe is cut against
-// it, so the plan every later tile carries is the one measured on this one.
+// Build a graph and bind its context. src resolves lossy parameters. On failure,
+// *out is NULL. checksum == 0 disables both frame checksums.
 static ZL_Report graph_open(geozl_2d_graph **out, const char *method,
                             uint32_t width, uint32_t planes,
                             const char *error, int dtype,
@@ -457,8 +402,7 @@ static ZL_Report graph_open(geozl_2d_graph **out, const char *method,
     return ZL_returnError(ZL_ErrorCode_parameter_invalid);
   }
 
-  // A bad name is a caller mistake, a name that does not apply at this width is
-  // a graph problem. Keeping them apart makes the message actionable.
+  // Report unknown names separately from recipes unsupported at this width.
   geozl_predictor pred;
   geozl_terminal term;
   if (parse_candidate(method, &pred, &term) != 0) {
@@ -468,8 +412,7 @@ static ZL_Report graph_open(geozl_2d_graph **out, const char *method,
     return ZL_returnError(ZL_ErrorCode_parameter_invalid);
   }
 
-  // Cut here and not in the node, so compress, bench and profile all report the
-  // same numbers.
+  // Resolve once so compress and benchmark use the same parameters.
   geozl_lossy_recipe recipe;
   geozl_lossy_plan plan;
   {
@@ -568,7 +511,7 @@ fail:
   return r;
 }
 
-// One compression through a prepared graph, frame size in *outSize.
+// Compress once with a prepared graph.
 static ZL_Report graph_run(const geozl_2d_graph *e, const void *src,
                            size_t numElts, void *dst, size_t dstCapacity,
                            size_t *outSize, char *errCtx, size_t errCtxSize) {
@@ -587,8 +530,6 @@ static ZL_Report graph_run(const geozl_2d_graph *e, const void *src,
   return r;
 }
 
-// The same two halves as the bindings see them, ZL_Report folded to 0 or the
-// ZL_ErrorCode.
 GEOZL_API int geozl_2d_graph_open_c(geozl_2d_graph **out, const char *method,
                                     uint32_t width, uint32_t planes,
                                     const char *error,
@@ -615,8 +556,6 @@ GEOZL_API int geozl_2d_compress_graph_c(geozl_2d_graph *g, const void *src,
   return ZL_isError(r) ? (int)ZL_errorCode(r) : 0;
 }
 
-// The one compression entry. Returns 0 or the ZL_ErrorCode, keeping ZL_Report
-// out of the bindings, with the reason in errCtx and the frame size in *outSize.
 GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
                                   uint32_t planes,
                                   const char *error, int dtype, int nodataMode,
@@ -639,15 +578,11 @@ GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
   return ZL_isError(r) ? (int)ZL_errorCode(r) : 0;
 }
 
-// Decompressed byte size of a frame, or 0 if the frame cannot be read. Callers
-// size their output buffer with this before geozl_2d_decompress_c.
 GEOZL_API size_t geozl_2d_frame_dsize_c(const void *frame, size_t frameSize) {
   ZL_Report r = ZL_getDecompressedSize(frame, frameSize);
   return ZL_isError(r) ? 0 : ZL_validResult(r);
 }
 
-// Same split on the decode side, where registering the decoders is the fixed
-// cost.
 typedef struct {
   ZL_DCtx *dctx;
 } geozl_decoder;
@@ -658,8 +593,7 @@ static void decoder_close(geozl_decoder *d) {
   d->dctx = NULL;
 }
 
-// verify == 0 skips both checksum verifications. They are the only warning a
-// reader gets that a frame rotted, so nothing but a benchmark should pass 0.
+// verify == 0 skips checksum verification.
 static ZL_Report decoder_open(geozl_decoder *d, int verify, char *errCtx,
                               size_t errCtxSize) {
   d->dctx = ZL_DCtx_create();
@@ -707,9 +641,6 @@ static ZL_Report decoder_run(const geozl_decoder *d, const void *frame,
   return r;
 }
 
-// Decompress a geozl frame into dst. Returns 0 on success or the ZL_ErrorCode,
-// with the reason in errCtx. The frame is self-describing, so no method,
-// predictor or width is needed here. verify is decoder_open's.
 GEOZL_API int geozl_2d_decompress_c(const void *frame, size_t frameSize,
                                     void *dst, size_t dstCapacity,
                                     size_t *outSize, int verify, char *errCtx,
@@ -733,22 +664,11 @@ static double now_sec(void) {
   return (double)t.tv_sec + (double)t.tv_nsec * 1e-9;
 }
 
-// Best of the reps, or the whole run over reps when the best reads zero. A rep
-// over a small tile can finish inside a clock tick, and macOS ticks at a
-// microsecond. The mean is coarser but the run outlasts a tick.
+// Fall back to the run mean when one repetition is below clock resolution.
 static double best_or_mean(double best, double run, size_t reps) {
   return best > 0.0 ? best : run / (double)reps;
 }
 
-// Time one graph: reps compressions and reps decompressions, all in C so
-// the FFI is crossed once, not once per rep. Returns 0, or the ZL_ErrorCode of
-// the first failing round trip. compSize gets the frame size, encSec/decSec the
-// per-rep time, which is 0 only if the clock could not resolve the whole run.
-//
-// checksum belongs to the frame, so a bench that drops it no longer measures
-// what compress writes and compSize stops being a size the caller will see.
-// verify belongs to the reader and costs no bytes. Both cost the same for every
-// graph in the grid, so neither moves a ranking.
 GEOZL_API int geozl_2d_bench_c(const char *method, uint32_t width,
                                uint32_t planes,
                                const char *error, int dtype, int nodataMode,
@@ -848,10 +768,7 @@ done:
   return rc;
 }
 
-// Expands a method string into the predictor list geozl_2d_grid_c enumerates
-// for the Python profiler. A predictor name gives that predictor plus the id
-// pass; "none" or "id" gives the id pass alone; NULL or "" gives every
-// predictor. This does not drive compression, parse_candidate does.
+// Resolve a profiler prior into predictors. A named predictor includes ID.
 static int resolve_prior(const char *method, geozl_predictor *out,
                          size_t *outN) {
   if (method == NULL || method[0] == '\0') {
@@ -866,8 +783,7 @@ static int resolve_prior(const char *method, geozl_predictor *out,
     *outN = 1;
     return 0;
   }
-  // Matched against pred_name rather than a second table, so the two spellings
-  // cannot drift. Same reason parse_candidate generates instead of splitting.
+  // Match pred_name so the spelling has one source.
   for (int p = 0; p < GEOZL_PRED_COUNT; ++p) {
     if (p == GEOZL_PRED_ID)
       continue; // handled above, and it takes no second pass
@@ -881,8 +797,6 @@ static int resolve_prior(const char *method, geozl_predictor *out,
   return -1;
 }
 
-// Recipe names of the grid a method expands to, one per stride-byte slot. Lets
-// profile learn the palette without compressing. -1 on an unknown method.
 GEOZL_API int geozl_2d_grid_c(const char *method, size_t eltWidth, char *names,
                               size_t stride, size_t maxNames, size_t *outCount) {
   geozl_predictor preds[GEOZL_PRED_COUNT];

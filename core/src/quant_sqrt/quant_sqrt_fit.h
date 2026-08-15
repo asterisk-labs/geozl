@@ -5,27 +5,12 @@
 
 #include <stddef.h>
 
-// sigma^2 = a + b*x, fitted blind from the raster itself, for a recipe that
-// carries no A and B.
-//
-// The method is the scatterplot of local mean against local variance with a low
-// quantile per intensity bin, after Abramova and others, SPIE 10004, 2016. The
-// same model is Foi, Trimeche, Katkovnik and Egiazarian, IEEE TIP 17(10), 2008.
-//
-// The fit reads the raster, so it moves the grid. That is fine as long as it runs
-// once per product rather than once per tile, and this file does not enforce that
-// because it cannot see how the caller cuts the data. What it does instead is
-// report how much the fit should be believed, in bins, range, colin and resid, so
-// the caller can pool several rasters through the accumulator and decide.
-
-// One raster in one call. width * height has to equal the element count.
+// Fit variance = a + b*x from local mean/variance samples. The estimator follows
+// Abramova et al., SPIE 10004 (2016). Fit once per product, not once per tile.
 int quant_sqrt_fit(const void *src, int dtype, size_t width, size_t height,
                    quant_sqrt_noise *out, char *err, size_t errSize);
 
-// The same thing over several rasters. The block statistics are pooled before
-// anything is fitted, which is not the same as averaging separate fits: a tile
-// that covers one end of the intensity range and a tile that covers the other
-// give a usable curve together and neither gives one alone.
+// Accumulator for fitting one model across several rasters.
 typedef struct {
   double *mu;      // local means
   double *s2;      // local variances, already corrected for the quantile bias
@@ -36,6 +21,7 @@ typedef struct {
   int failed;      // allocation gave out
 } quant_sqrt_accum;
 
+// Initialize, extend and solve an accumulator. free releases its buffers.
 void quant_sqrt_accum_init(quant_sqrt_accum *acc);
 void quant_sqrt_accum_free(quant_sqrt_accum *acc);
 int quant_sqrt_accum_push(quant_sqrt_accum *acc, const void *src, int dtype,

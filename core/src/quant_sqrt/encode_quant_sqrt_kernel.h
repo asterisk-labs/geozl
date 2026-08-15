@@ -5,17 +5,12 @@
 
 #include <stddef.h>
 
-// Samples into the stream. dst is a separate buffer of nbElts elements at the
-// width of dtype, and carries the index unless QUANT_SQRT_FLAG_STORE_VALUES asks
-// for the reconstruction. Returns nonzero on parameters the resolver cannot have
-// produced.
+// Quantize into dst, which holds nbElts elements at dtype's width. Returns
+// nonzero for invalid parameters.
 int quant_sqrt_encode(void *restrict dst, const void *restrict src,
                       const quant_sqrt_params *p, int dtype, size_t nbElts);
 
-// One pass over the raster, for the refusals and the floor flag. A sample that is
-// not finite is counted and skipped; it has no place on the grid and the nodata
-// codec in front of a lossy graph is what puts it back.
-// Returns 0 when the raster holds a finite sample, 1 otherwise.
+// Scan finite samples for grid resolution. Returns 1 if none are finite.
 int quant_sqrt_scan(const void *src, int dtype, size_t nbElts,
                     quant_sqrt_stats *out);
 

@@ -21,9 +21,7 @@ _NODATA_NONE, _NODATA_NAN, _NODATA_VALUE = 0, 1, 2
 
 
 def _nodata_args(arr: np.ndarray, nodata: Any) -> tuple[int, int]:
-    """Mode and sentinel bits for the C side. A declared sentinel wins,
-    otherwise a float raster holding NaN takes the automatic path and everything
-    else gets nothing, so a raster with no missing samples pays for no mask."""
+    """Return the C nodata mode and sentinel bits."""
     if nodata is None:
         if arr.dtype.kind == "f" and np.isnan(arr).any():
             return _NODATA_NAN, 0
@@ -37,11 +35,7 @@ def _nodata_args(arr: np.ndarray, nodata: Any) -> tuple[int, int]:
 
 
 def _error_arg(error: str | None) -> Any:
-    """The error recipe as C wants it. A recipe rather than a number so it
-    crosses graph, profile and bench unchanged, and so the string names which
-    quantizer runs. A bare float is refused rather than read as an absolute
-    bound, since there are three curves and a number says nothing about which
-    one was meant."""
+    """Convert an error recipe to the C argument."""
     if error is None:
         return ffi.NULL
     if not isinstance(error, str):
@@ -90,8 +84,7 @@ def _prepare(tile: ArrayLike, width: int | None,
 
 
 def _dtype_arg(arr: np.ndarray, error: str | None) -> int:
-    """The dtype code goes through even when lossless, the nodata codec needs it
-    to read a sentinel at the right width and signedness."""
+    """Return the dtype code required by the C API."""
     code = dtype_code(arr.dtype)
     if error is None:
         return 0 if code is None else code
@@ -101,10 +94,9 @@ def _dtype_arg(arr: np.ndarray, error: str | None) -> int:
 
 
 class Graph:
-    """A built graph, reusable across tiles. Freed when it is collected.
+    """A reusable compression graph.
 
-    Not thread safe: the compression context is bound to the graph, so one
-    Graph per thread.
+    A graph owns its compression context and is not thread-safe.
     """
 
     __slots__ = ("_h", "_dtype", "method", "width", "planes", "itemsize",
@@ -130,26 +122,15 @@ class Graph:
 def graph(raster: ArrayLike, method: str, *, width: int | None = None,
           planes: int | None = None, error: str | None = None,
           nodata: Any = None) -> Graph:
-    """Build one graph, to compress many tiles through.
+    """Build a reusable graph for ``method``.
 
-    method is a recipe, the same string profile puts in its "graph" column.
+    ``width`` defaults to the last axis. ``planes`` defaults to the first axis
+    for a ``(B, Y, X)`` array and to 1 otherwise. Row-based predictors reset at
+    each plane; use ``width=Y*X, planes=1`` to predict between bands.
 
-    width is the row length, taken from the last axis when left unset.
-
-    planes is how many stacked images the stream holds, taken from the first
-    axis of a (B, Y, X) cube and 1 otherwise. Predictors that read N or NW
-    restart at each plane boundary, so a cube is predicted band by band while
-    the rest of the graph still sees one stream. delta_w is unaffected. Pass
-    width=Y*X and planes=1 to get the old behaviour, with each band treated as
-    a row and predicted from the one before it.
-
-    error is a recipe. None is lossless. "LINEAR:MAX_ERROR=V" bounds the
-    absolute error, "LOG:MAX_ERROR=P%" the relative one, and
-    "SQRT:MAX_ERROR=VN" holds V times the noise of a sensor whose variance is
-    a + b*x.
-
-    nodata is the value that marks a sample as never measured. Left unset, a
-    float raster holding NaN takes NaN as its own.
+    ``error=None`` is lossless. Otherwise pass a ``LINEAR``, ``LOG`` or
+    ``SQRT`` recipe. ``nodata`` sets a sentinel; NaNs are detected when it is
+    omitted for floating-point rasters.
     """
     if not isinstance(method, str) or not method:
         raise ValueError(f"method must be a recipe name, got {method!r}")
@@ -177,11 +158,9 @@ def graph(raster: ArrayLike, method: str, *, width: int | None = None,
 
 
 def compress(tile: ArrayLike, *, graph: Graph) -> bytes:
-    """Compress one tile through a prepared graph. Returns the frame as bytes.
+    """Compress ``tile`` with a prepared graph and return the frame bytes.
 
-    The tile dtype must be the dtype used to build the graph. A tile whose rows
-    do not match the graph's row length still compresses, and predicts across a
-    boundary that is not there.
+    The dtype must match exactly. Geometry is not checked against the graph.
     """
     if not isinstance(graph, Graph):
         raise TypeError(f"graph must be a geozl.Graph, got "
@@ -208,14 +187,10 @@ def compress(tile: ArrayLike, *, graph: Graph) -> bytes:
 
 
 def decompress(frame: bytes, *, verify: bool = True) -> np.ndarray:
-    """Decompress a self-describing geozl frame into a flat uint8 array.
+    """Decompress a frame into a flat ``uint8`` array.
 
-    The frame names its own codecs but not the caller's type or shape, so the
-    caller finishes with .view(dtype).reshape(shape).
-
-    verify checks the checksums the frame carries, which is what tells a frame
-    that rotted in storage from one that did not. Off buys 1 to 30 per cent of
-    decode and gives up the only warning you get.
+    Restore the dtype and shape with ``.view(dtype).reshape(shape)``. Set
+    ``verify=False`` to skip checksum verification.
     """
     lib = _load_lib_full()
     buf = np.frombuffer(frame, np.uint8)
@@ -252,8 +227,7 @@ def _grid_names(prior: str | None, elt: int) -> list[str]:
 
 
 def _mbps(nbytes: int, seconds: float) -> float:
-    """inf when the whole run stayed inside a clock tick, which a small tile on
-    a coarse clock does. A number there would be one tick wide."""
+    """Return MB/s, or infinity when the timer reports no elapsed time."""
     return math.inf if seconds <= 0.0 else nbytes / seconds / 1e6
 
 
@@ -269,23 +243,15 @@ def profile(tile: ArrayLike, *, prior: str | None = "planar",
             error: str | None = None,
             reps: int = 5, nodata: Any = None,
             verify: bool = False) -> list[dict[str, Any]]:
-    """Benchmark every candidate graph on one tile, one row each, ranked by
-    ratio. A diagnostic, not on the compress path.
+    """Benchmark candidate graphs on ``tile``, sorted by compression ratio.
 
-    Timing is one compressor and one decoder per graph, so it reports the codec
-    and not the build. "bytes" is the frame compress writes, "graph" is a method
-    geozl.graph takes, and shannon_pct is that frame against the tile's order-0
-    entropy, over 100 where structure was exploited. A throughput is inf when
-    the tile was too small for the clock.
+    ``prior`` selects one predictor plus the identity path. Use ``None`` for all
+    predictors or ``"none"`` for the no-predictor path. Other configuration
+    arguments match ``graph``.
 
-    prior narrows the sweep to one predictor plus the id pass. None sweeps them
-    all, "none" sweeps the no-predictor branch alone.
-
-    width, planes, error and nodata have the same meaning as in graph. Use the
-    same values in both calls so the ranking describes the graph that is built.
-
-    verify defaults off, unlike decompress, so decode timing skips checksum
-    verification. The profiled frames still carry the checksums compress writes.
+    Each row contains ``graph``, ``bytes``, ``ratio``, ``encode_mbps``,
+    ``decode_mbps`` and ``shannon_pct``. ``verify`` controls checksum checks
+    during decode timing; generated frames still include checksums.
     """
     if reps < 1:
         raise ValueError(f"reps must be at least 1, got {reps}")

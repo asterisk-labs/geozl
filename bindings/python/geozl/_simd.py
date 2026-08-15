@@ -20,11 +20,9 @@ def _names(mask: int) -> list[str]:
 
 
 def simd_info() -> SimdInfo:
-    """Vector paths this build carries, this machine can run, and is running.
+    """Return the built, supported and active SIMD paths.
 
-    A path present in cpu and missing from built is a build that lost its fast
-    path, which nothing else reveals since the frames are identical either way.
-    Set GEOZL_SIMD before importing to cap active at scalar, sse2, avx2 or neon.
+    Set ``GEOZL_SIMD`` before importing to limit the active path.
     """
     return {
         "built": _names(lib.geozl_simd_built()),

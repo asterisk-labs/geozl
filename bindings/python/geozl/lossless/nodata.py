@@ -22,8 +22,6 @@ _desc = _ext.MultiInputCodecDescription(
 
 
 def _bad_header(header, vals, mask):
-    """Every check in the decoder means the same thing, that the header and the
-    two stream sizes do not agree, so the sizes are the message."""
     return ValueError(
         f"{_NAME}: bad codec header, {len(header)} bytes, "
         f"{vals.num_elts} values, {mask.num_elts} mask")
@@ -99,12 +97,9 @@ class NodataDecoder(_ext.CustomDecoder):
 
 
 class Nodata:
-    """Pulls the samples that were never measured out into a validity mask and
-    fills the holes, so whatever runs next sees a raster with no cliff at the
-    edge of a hole.
+    """Split missing samples into a validity mask and fill their positions.
 
-    A tile with nothing missing still pays for a mask, so put the node in the
-    graph for the tiles that need it and leave it out of the ones that do not.
+    Omit this node for tiles without missing values.
     """
 
     def __init__(self, width, value=None, dtype=None):

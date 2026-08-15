@@ -13,15 +13,12 @@ _CHECKSUM_DISABLE = 2  # ZL_TernaryParam_disable
 
 
 def row_width_declared(width, nb_elts):
-    """Width the header will carry, zero and anything past the tile meaning a
-    single row. Mirrors geozl_row_width_declared in raster.h."""
+    """Return the row width stored in a predictor header."""
     return nb_elts if width == 0 or width > nb_elts else width
 
 
 def spatial_predictor(ctid, name, encode, decode):
-    """Node and decoder for a lossless spatial predictor, one numeric stream in
-    and one out, parameterized by a row width. encode and decode are the C kernel
-    names. Both take (dst, src, width, nb_elts, elt_width)."""
+    """Create OpenZL bindings for a spatial predictor."""
     enc = getattr(lib, encode)
     dec = getattr(lib, decode)
     short = name.rsplit(".", 1)[-1]
@@ -85,12 +82,7 @@ def spatial_predictor(ctid, name, encode, decode):
 
 
 def quantizer(ctid, name, prefix, doubles, no_grid, extra=()):
-    """Node and decoder for a lossy quantizer, one numeric stream in and one
-    out, parameterized by a recipe and the dtype the samples are read at.
-    doubles names the params fields after flags, and the wire header is uint8
-    dtype, uint8 flags, then those as little endian doubles. no_grid is what the
-    scan means when it refuses, and extra carries the arguments resolve takes
-    between the stats and the params, which today is the sqrt curve."""
+    """Create OpenZL bindings for a lossy quantizer."""
     parse = getattr(lib, f"{prefix}_parse")
     scan = getattr(lib, f"{prefix}_scan")
     resolve = getattr(lib, f"{prefix}_resolve")

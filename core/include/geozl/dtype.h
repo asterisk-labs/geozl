@@ -3,11 +3,7 @@
 
 #include <stddef.h>
 
-// The element type of the original raster. It crosses the C API as an int and
-// every lossy codec writes it into its header, so these numbers are frozen.
-//
-// Each codec folder keeps its own copy of this enum, on the same numbers, so it
-// lifts out of the tree whole. This is the copy a caller sees.
+// Raster element type. These values are part of the wire format.
 typedef enum {
   GEOZL_DT_U8 = 0,
   GEOZL_DT_U16 = 1,
@@ -25,8 +21,7 @@ typedef enum {
 #define GEOZL_DT_LAST_INT GEOZL_DT_I64
 #define GEOZL_DT_OK(d) ((d) >= GEOZL_DT_U8 && (d) <= GEOZL_DT_F64)
 
-// The codes run without gaps, so a code indexes this directly. GEOZL_DT_OK is
-// the caller's job, and everything that calls this has already done it.
+// dtype must satisfy GEOZL_DT_OK.
 static inline size_t geozl_dtype_width(int dtype) {
   static const size_t w[] = {1, 2, 4, 8, 1, 2, 4, 8, 2, 4, 8};
   return w[dtype];

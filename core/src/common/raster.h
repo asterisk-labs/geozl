@@ -4,9 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// Effective row width for a predictor, or 0 when it cannot tile nbElts, empty
-// input included. Strict on both sides: on decode the width comes from the
-// frame header and is not trusted.
+// Return width when it tiles nbElts, otherwise 0.
 static inline size_t geozl_row_width(size_t width, size_t nbElts) {
   if (nbElts == 0)
     return 0;
@@ -15,9 +13,7 @@ static inline size_t geozl_row_width(size_t width, size_t nbElts) {
   return (nbElts % width == 0) ? width : 0;
 }
 
-// A declared width folded to the one the header will carry, zero and anything
-// past the tile meaning a single row. Encode side only, so decode can refuse
-// whatever an encoder would not have written.
+// Normalize 0 or an oversized width to a single row.
 static inline uint32_t geozl_row_width_declared(uint32_t width, size_t nbElts) {
   return (width == 0 || (size_t)width > nbElts) ? (uint32_t)nbElts : width;
 }
@@ -51,8 +47,7 @@ static inline uint32_t geozl_row_width_declared(uint32_t width, size_t nbElts) {
   } while (0)
 
 
-// A count that does not split the stream into whole-row planes is not a plane
-// count, and collapses to one.
+// Return planes when it splits the stream into whole rows, otherwise 1.
 static inline uint32_t geozl_planes_declared(uint32_t planes, uint32_t width,
                                              size_t nbElts) {
   if (planes <= 1 || width == 0 || nbElts == 0)

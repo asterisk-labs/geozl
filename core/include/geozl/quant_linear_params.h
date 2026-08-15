@@ -1,12 +1,10 @@
 #ifndef GEOZL_QUANT_LINEAR_PARAMS_H
 #define GEOZL_QUANT_LINEAR_PARAMS_H
 
-// The encoder found no negative sample, so the decoder floors at zero rather than
-// at the type minimum. Measured, so a tile that does hold negatives keeps them.
+// Clamp reconstruction at zero when the input has no negative samples.
 #define QUANT_LINEAR_FLAG_NONNEGATIVE 1u
 
-// The stream carries the reconstruction, not the index, so the decoder does not
-// multiply.
+// Store reconstructed values instead of quantizer indices.
 #define QUANT_LINEAR_FLAG_STORE_VALUES 2u
 
 #define QUANT_LINEAR_FLAGS_KNOWN                                               \
@@ -22,17 +20,13 @@ typedef enum {
   QUANT_LINEAR_STORE_VALUES = 1
 } quant_linear_store;
 
-// The bound travels alongside the resolved parameters because the encoder measures
-// its own round trip against it, and the parameters stop carrying it once the grid
-// is cut.
+// Parsed recipe before it is resolved for a dtype and raster.
 typedef struct {
   double max_error;
   unsigned char store;
 } quant_linear_spec;
 
-// What a pass over the tile reports. It decides the refusal and the floor flag.
-// Nothing here reaches a level, so two tiles that both resolve get the same
-// grid.
+// Statistics used to resolve a recipe.
 typedef struct {
   double maxAbs; // largest finite magnitude, or 0
   int anyNegative;

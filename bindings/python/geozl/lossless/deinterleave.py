@@ -17,8 +17,7 @@ _COMPONENT = {np.complex64: np.float32, np.complex128: np.float64}
 
 
 def component_dtype(dtype):
-    """The real component dtype a complex array views as, float32 for complex64.
-    deinterleave itself never sees the complex type, it only separates the two lanes."""
+    """Return the real component dtype for a complex dtype."""
     return np.dtype(_COMPONENT[np.dtype(dtype).type])
 
 

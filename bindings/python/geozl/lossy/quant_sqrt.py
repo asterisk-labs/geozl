@@ -11,10 +11,7 @@ _MIN_SIDE = 10  # the block side plus the border its 3x3 mask needs
 
 @dataclass(frozen=True)
 class Noise:
-    """a and b are the curve. The rest says how far to believe it, and the fit
-    reports rather than decides, since what counts as enough depends on how the
-    rasters were chosen. colin is the one that catches a bad fit: large means a
-    and b are collinear and the split between them is arbitrary."""
+    """Fitted ``variance = a + b*x`` model and diagnostics."""
 
     a: float
     b: float
@@ -25,8 +22,7 @@ class Noise:
     resid: float
 
     def recipe(self, max_error, *, store=None):
-        """max_error sigmas of this curve, at full precision so it resolves to
-        the grid the fit produced and not to a nearby one."""
+        """Return a SQRT recipe using this fitted curve."""
         if not max_error > 0:
             raise ValueError(f"max_error must be positive, got {max_error!r}")
         s = f"SQRT:MAX_ERROR={max_error:.17g}N,A={self.a:.17g},B={self.b:.17g}"
@@ -44,8 +40,7 @@ class Noise:
 
 
 def _rasters(data):
-    """A 3d array is a stack over its first axis. Shapes may differ, dtypes may
-    not, since the fit reads raw samples through one code."""
+    """Normalize input to a list of 2-D rasters with one dtype."""
     if isinstance(data, np.ndarray):
         if data.ndim == 2:
             out = [data]
@@ -72,14 +67,10 @@ def _rasters(data):
 
 
 def fit_noise(data):
-    """Fit sigma**2 = a + b*x over a 2d raster, a 3d stack read as (N, H, W), or
-    any sequence of 2d arrays. Everything pools into one curve.
+    """Fit ``variance = a + b*x`` to one or more rasters.
 
-    Scatterplot of local mean against local variance, low quantile per intensity
-    bin, after Abramova and others, SPIE 10004, 2016. Raises RuntimeError when
-    the pool does not support a curve, which is the answer for rasters that are
-    flat or cover too little of their range. Pool more of the product rather
-    than falling back to one tile.
+    Accepts a 2-D array, an ``(N, H, W)`` stack or a sequence of 2-D arrays.
+    Raises ``RuntimeError`` when the data cannot support a fit.
     """
     rasters, dt = _rasters(data)
     code = dtype_code(dt)

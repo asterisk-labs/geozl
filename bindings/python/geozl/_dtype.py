@@ -16,21 +16,17 @@ _WIDTH = tuple(dt.itemsize
 
 
 def dtype_code(dtype: DTypeLike) -> int | None:
-    """The wire code for dtype, or None when geozl has no kernel for it. Keyed
-    on the numpy dtype, so a byte-swapped array is refused rather than read as
-    native."""
+    """Return the wire code for a native NumPy dtype, if supported."""
     return _CODES.get(np.dtype(dtype))
 
 
 def dtype_width(code: int) -> int | None:
-    """Bytes per element, or None when the code names no type."""
+    """Return the element width for a dtype code, if valid."""
     return _WIDTH[code] if 0 <= code < len(_WIDTH) else None
 
 
 def nodata_bits(value: Any, dtype: DTypeLike) -> int:
-    """Bit pattern a nodata value has at its own dtype, which is what a codec
-    header carries. A float keeps its exact bits, so a NaN payload survives.
-    Both readers call this."""
+    """Return a nodata value's bit pattern at ``dtype``."""
     dt = np.dtype(dtype)
     if dtype_code(dt) is None:
         raise ValueError(f"geozl has no code for dtype {dt}")
