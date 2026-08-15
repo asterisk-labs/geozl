@@ -22,7 +22,7 @@
          <dt>decode</dt><dd>${d.d} MB/s</dd>
          <dt>shannon</dt><dd>${d.s}%</dd>
        </dl>`
-    : `<span class="t-g">max_error &plusmn;${d.err} m</span><dl>
+    : `<span class="t-g">max error &plusmn;${d.err} m</span><dl>
          <dt>frame</dt><dd>${d.kb} kB</dd>
          <dt>ratio</dt><dd class="hot">${d.r}&times;</dd>
          <dt>quant step</dt><dd>${d.step}</dd>

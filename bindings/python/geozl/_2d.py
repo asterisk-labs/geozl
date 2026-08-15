@@ -107,7 +107,7 @@ class Graph:
     Graph per thread.
     """
 
-    __slots__ = ("_h", "method", "width", "planes", "dtype", "itemsize",
+    __slots__ = ("_h", "_dtype", "method", "width", "planes", "itemsize",
                  "error", "nodata")
 
     def __init__(self, handle: Any, *, method: str, width: int, planes: int,
@@ -117,10 +117,14 @@ class Graph:
         self.method = method
         self.width = width
         self.planes = planes
-        self.dtype = dtype
+        self._dtype = dtype
         self.itemsize = itemsize
         self.error = error
         self.nodata = nodata
+
+    @property
+    def dtype(self) -> np.dtype:
+        return self._dtype
 
 
 def graph(raster: ArrayLike, method: str, *, width: int | None = None,
@@ -133,11 +137,11 @@ def graph(raster: ArrayLike, method: str, *, width: int | None = None,
     width is the row length, taken from the last axis when left unset.
 
     planes is how many stacked images the stream holds, taken from the first
-    axis of a (B, Y, X) cube and 1 otherwise. Every predictor except delta_w
-    reads the row above and restarts at each plane boundary, so a cube is
-    predicted band by band while the rest of the graph still sees one stream.
-    Pass a width of Y*X instead to get the old behaviour, each band predicted
-    from the one before it.
+    axis of a (B, Y, X) cube and 1 otherwise. Predictors that read N or NW
+    restart at each plane boundary, so a cube is predicted band by band while
+    the rest of the graph still sees one stream. delta_w is unaffected. Pass
+    width=Y*X and planes=1 to get the old behaviour, with each band treated as
+    a row and predicted from the one before it.
 
     error is a recipe. None is lossless. "LINEAR:MAX_ERROR=V" bounds the
     absolute error, "LOG:MAX_ERROR=P%" the relative one, and
@@ -175,17 +179,17 @@ def graph(raster: ArrayLike, method: str, *, width: int | None = None,
 def compress(tile: ArrayLike, *, graph: Graph) -> bytes:
     """Compress one tile through a prepared graph. Returns the frame as bytes.
 
-    Only the element width is checked. A tile whose rows do not match the
-    graph's stride still compresses, and predicts across a boundary that is not
-    there.
+    The tile dtype must be the dtype used to build the graph. A tile whose rows
+    do not match the graph's row length still compresses, and predicts across a
+    boundary that is not there.
     """
     if not isinstance(graph, Graph):
         raise TypeError(f"graph must be a geozl.Graph, got "
                         f"{type(graph).__name__}")
     lib = _load_lib_full()
     arr, elt = _as_raster(tile)
-    if elt != graph.itemsize:
-        raise ValueError(f"this graph streams {graph.itemsize}-byte elements, "
+    if arr.dtype != graph.dtype:
+        raise ValueError(f"this graph was built for dtype {graph.dtype}, "
                          f"got {arr.dtype}")
     n = arr.size
 
@@ -277,11 +281,11 @@ def profile(tile: ArrayLike, *, prior: str | None = "planar",
     prior narrows the sweep to one predictor plus the id pass. None sweeps them
     all, "none" sweeps the no-predictor branch alone.
 
-    width, error and nodata mean what they do in graph, and belong here too, or
-    the ranking is of graphs nobody will build.
+    width, planes, error and nodata have the same meaning as in graph. Use the
+    same values in both calls so the ranking describes the graph that is built.
 
-    verify defaults off, unlike compress, so decode timing skips a constant
-    every graph pays alike.
+    verify defaults off, unlike decompress, so decode timing skips checksum
+    verification. The profiled frames still carry the checksums compress writes.
     """
     if reps < 1:
         raise ValueError(f"reps must be at least 1, got {reps}")

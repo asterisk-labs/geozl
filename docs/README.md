@@ -19,7 +19,6 @@ docs/
 ├── docs.html           codec catalog, one card per codec
 ├── codecs/*.html       11 pages, one per codec, each with an animated diagram
 ├── api-high.html       graph(), compress(), profile() and the lossy recipes
-├── api-low.html        the same graph assembled node by node in OpenZL
 ├── benchmark.html      ratio against throughput
 ├── links.html          GitHub, Hugging Face, source.coop
 ├── adding-a-codec.md   how to write one, for contributors
@@ -27,7 +26,7 @@ docs/
 └── assets/
     ├── css/style.css       everything shared
     ├── css/api-high.css     only api-high.html, which is the heaviest page
-    ├── js/main.js           codec pager, loaded by api-high, api-low and codecs/
+    ├── js/main.js           codec pager, loaded by codecs/*.html
     ├── js/deck.js           deck navigation on api-high
     ├── js/tabs.js           the function picker on api-high
     ├── js/copy.js           copy buttons over the code blocks
@@ -43,15 +42,16 @@ docs/
         └── favicon.svg, heart.svg, check.svg, copy.svg, colab.svg, chevron-*.svg
 ```
 
-## The catalog is written down four times
+## The catalog is written down five times
 
 `core/include/geozl/ctids.h` holds the CTid, the README table lists the codecs, the
 cards in `docs.html` show them, and the `CODECS` array in `main.js` walks them for
-prev and next. Adding a codec means touching all four, and they used to drift
-without anything noticing.
+prev and next. Each codec page repeats its name and CTid. Adding a codec means
+updating all five representations, and they used to drift without anything
+noticing.
 
-`bindings/python/test/test_catalog.py` now cross-checks them, so a codec renamed
-in one place fails `make test`. The CTid header is checked one way only, since a
+`bindings/python/test/test_catalog.py` cross-checks them, so a codec renamed in
+one place fails `make test`. The CTid header is checked one way only, since a
 codec can exist in C before it is documented.
 
 ## Page transitions

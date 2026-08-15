@@ -184,6 +184,30 @@ tile = d.decompress(frame)[0].content.as_nparray()
 | `quant_log`    | `0x72D782` | logarithmic grid with a relative bound: `LOG:MAX_ERROR=P%`         |
 | `quant_sqrt`   | `0x72D783` | square-root grid whose bound grows with noise: `SQRT:MAX_ERROR=VN` |
 
+## Development
+
+Local builds require Python 3.11 or newer, a C11 compiler, Git, Make, CMake and
+Ninja. Install the Python build and test dependencies used by CI, then fetch the
+OpenZL submodule and build the full library with the editable Python package:
+
+```bash
+python -m pip install cmake ninja numpy cffi openzl pytest ruff mypy
+make submodules
+make python FULL=ON
+```
+
+Run the C and Python suites, lint and type checks from the repository root:
+
+```bash
+make test-c
+python -m pytest bindings/python
+ruff check .
+mypy
+```
+
+`make test` performs the build and runs both test suites. `make help` lists the
+other build variants and variables.
+
 ## License
 
 BSD-3-Clause

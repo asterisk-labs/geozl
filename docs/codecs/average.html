@@ -40,7 +40,7 @@
         <b>(W&gt;&gt;1) + (N&gt;&gt;1) + (W &amp; N &amp; 1)</b> so it never overflows the sample width.
         Edge neighbours are zero, so the first row predicts floor(W/2) and the first column floor(N/2).
         It reads the reconstructed W, so each sample is decoded in order. A good fit for smooth, slightly
-        noisy tiles where neither a delta nor a full plane wins.</p>
+        noisy tiles where neither a delta nor a full-plane predictor gives the smaller residuals.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D706</dd>
           <dt>header</dt><dd>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</dd>

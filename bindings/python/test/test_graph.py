@@ -15,6 +15,7 @@ except OSError:  # pragma: no cover - depends on how the build was configured
                 allow_module_level=True)
 
 GRAPH = "planar>zigzag>transpose>entropy"
+GRAPH_1B = "planar>zigzag>entropy"
 W = 32
 
 
@@ -33,6 +34,12 @@ def test_a_graph_carries_what_it_was_built_with():
     g = geozl.graph(arr, GRAPH)
     assert (g.method, g.width, g.dtype, g.itemsize) == (GRAPH, W, arr.dtype, 2)
     assert g.error is None
+
+
+def test_a_graphs_dtype_is_read_only():
+    g = geozl.graph(_tile(), GRAPH)
+    with pytest.raises(AttributeError):
+        g.dtype = np.dtype(np.uint16)
 
 
 def test_one_graph_compresses_many_tiles():
@@ -81,8 +88,47 @@ def test_compress_wants_a_graph_and_not_a_recipe():
 
 def test_compress_refuses_a_tile_of_another_element_width():
     g = geozl.graph(_tile(), GRAPH)
-    with pytest.raises(ValueError, match="2-byte elements"):
+    with pytest.raises(ValueError, match="built for dtype int16, got int32"):
         geozl.compress(_tile().astype(np.int32), graph=g)
+
+
+@pytest.mark.parametrize("dtype", [np.uint8, np.int16, np.uint32, np.float64],
+                         ids=lambda dtype: np.dtype(dtype).name)
+def test_compress_accepts_the_graphs_exact_dtype(dtype):
+    tile = _tile(dtype=dtype)
+    method = GRAPH_1B if tile.dtype.itemsize == 1 else GRAPH
+    g = geozl.graph(tile, method)
+    assert np.array_equal(_back(geozl.compress(tile, graph=g), tile), tile)
+
+
+@pytest.mark.parametrize("expected,received", [
+    (np.uint8, np.int8),
+    (np.int16, np.uint16),
+    (np.uint32, np.int32),
+    (np.int64, np.uint64),
+], ids=lambda dtype: np.dtype(dtype).name)
+def test_compress_refuses_signedness_changes_at_the_same_width(expected, received):
+    tile = _tile(dtype=expected)
+    method = GRAPH_1B if tile.dtype.itemsize == 1 else GRAPH
+    g = geozl.graph(tile, method)
+    other = tile.astype(received)
+    with pytest.raises(
+            ValueError,
+            match=rf"built for dtype {tile.dtype}, got {other.dtype}"):
+        geozl.compress(other, graph=g)
+
+
+@pytest.mark.parametrize("error", [
+    "LINEAR:MAX_ERROR=2",
+    "LOG:MAX_ERROR=1%",
+    "SQRT:MAX_ERROR=0.5N,A=4,B=1",
+])
+def test_lossy_graph_refuses_another_dtype_with_the_same_width(error):
+    tile = _tile(dtype=np.uint16)
+    g = geozl.graph(tile, GRAPH, error=error)
+    assert geozl.compress(tile, graph=g)
+    with pytest.raises(ValueError, match="built for dtype uint16, got int16"):
+        geozl.compress(tile.astype(np.int16), graph=g)
 
 
 def test_a_lossy_graph_quantizes_every_tile_on_one_grid():

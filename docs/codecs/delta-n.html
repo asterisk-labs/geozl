@@ -37,8 +37,8 @@
         <p class="subtitle">Each value, minus its <span class="u">north neighbour</span>.</p>
         <p class="desc">The vertical twin of <b>delta_w</b>. Every sample is stored as the difference from
         the one directly above it, and the first row is kept whole as a seed. <b>Columns are independent</b>,
-        with no horizontal carry, so the transform shines on smooth vertical gradients, where each
-        residual collapses toward zero for the entropy stage.</p>
+        with no horizontal carry. Smooth vertical gradients produce residuals near zero for the
+        entropy stage.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D702</dd>
           <dt>header</dt><dd>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</dd>

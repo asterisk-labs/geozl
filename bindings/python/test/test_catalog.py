@@ -2,10 +2,10 @@
 agree, since a static site with no build step has nothing else that would
 notice when they stop.
 
-The codec catalog lives in four places, the CTid in ctids.h, the README table,
-the cards in docs/docs.html and the CODECS array in docs/assets/js/main.js. The
-three public ones have to match. ctids.h is checked one way only, since a codec
-can exist in C before it is documented.
+The codec catalog lives in five places: the CTid in ctids.h, the README table,
+the cards in docs/docs.html, the CODECS array in docs/assets/js/main.js and the
+individual codec pages. The four public copies have to match. ctids.h is checked
+one way only, since a codec can exist in C before it is documented.
 
 The version lives in VERSION and in the landing badge, which had already
 drifted a release behind.
@@ -81,6 +81,23 @@ def pager_entries() -> list[dict[str, str]]:
     ]
 
 
+def codec_page_identity(path: Path) -> dict[str, str]:
+    """The identifiers a codec page exposes to readers."""
+    body = _read(path)
+    patterns = {
+        "title": r"<title>geozl\s*·\s*(\w+)</title>",
+        "name": r'<h1 class="name">(\w+)</h1>',
+        "ctid": r"<dt>ctid</dt><dd>(0x[0-9A-Fa-f]+)</dd>",
+        "footer_ctid": r'<span class="pg-mid mono">(0x[0-9A-Fa-f]+)</span>',
+    }
+    out = {}
+    for field, pattern in patterns.items():
+        found = re.search(pattern, body)
+        assert found is not None, f"{path.name} has no parseable {field}"
+        out[field] = found.group(1)
+    return out
+
+
 def test_each_source_parses():
     """A rename that breaks the shape above would otherwise pass everything
     below on an empty list."""
@@ -127,6 +144,21 @@ def test_every_codec_page_exists():
     for card in catalog_cards():
         page = CATALOG.parent / "codecs" / card["file"]
         assert page.exists(), f"{card['name']} links to a missing {card['file']}"
+
+
+def test_codec_pages_match_the_catalog():
+    for card in catalog_cards():
+        expected_file = card["name"].replace("_", "-") + ".html"
+        assert card["file"] == expected_file, (
+            f"{card['name']} uses unexpected page name {card['file']}"
+        )
+        page = CATALOG.parent / "codecs" / card["file"]
+        assert page.exists(), f"{card['name']} links to a missing {card['file']}"
+        identity = codec_page_identity(page)
+        assert identity["title"] == card["name"]
+        assert identity["name"] == card["name"]
+        assert int(identity["ctid"], 16) == int(card["ctid"], 16)
+        assert int(identity["footer_ctid"], 16) == int(card["ctid"], 16)
 
 
 def test_catalog_legend_counts_the_cards():

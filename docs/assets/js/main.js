@@ -1,8 +1,8 @@
 /* Codec pager, the only thing this file does. The active nav link is marked in
    the HTML of each page, which is why there is no runtime pass for it here.
 
-   CODECS is the catalog order and has to match the cards in docs.html and the
-   table in the README. test_catalog.py fails the build when the three drift. */
+   CODECS is the catalog order and has to match the cards in docs.html, the
+   table in the README and the codec pages. test_catalog.py checks the copies. */
 (() => {
   "use strict";
 
