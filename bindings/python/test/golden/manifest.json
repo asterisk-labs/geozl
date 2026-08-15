@@ -1,0 +1,432 @@
+{
+  "written_by": "geozl 0.13.0",
+  "note": "Frozen on purpose. See docs/compatibility.md before touching.",
+  "frames": [
+    {
+      "name": "planar-uint16-1p",
+      "file": "planar-uint16-1p.zl",
+      "graph": "planar>zigzag>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "c7a28aa28fe5ee91ab89cb211e179f87447dd810308a2ac7cdb7234f05bcc942",
+      "sha256_frame": "67f6ce42e11852a626ab9b546a3d407bd2ccd06e78a473a6c1b5c7a5d59b4fb5",
+      "frame_bytes": 2257
+    },
+    {
+      "name": "planar-int32-1p",
+      "file": "planar-int32-1p.zl",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "int32",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "fae8ae1ac7ec6e17dead62f88d39305d24b599de32ac71735d36f101f05b686c",
+      "sha256_frame": "e28bfe4177411fd381d0e46c1435879c83d07cc6c9fd6653bffba1a31305c192",
+      "frame_bytes": 2245
+    },
+    {
+      "name": "planar-uint16-3p",
+      "file": "planar-uint16-3p.zl",
+      "graph": "planar>zigzag>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        3,
+        64,
+        64
+      ],
+      "sha256_decoded": "bc728e63ccf7df9595a3d3471fbddb8902b5ee2faba5032c4e099dea0e7e7bb4",
+      "sha256_frame": "2290ee072bbde69a1ba7978770a6f96017435f91a014b9f62d8a966ab888000f",
+      "frame_bytes": 6527
+    },
+    {
+      "name": "delta_w-uint16-1p",
+      "file": "delta_w-uint16-1p.zl",
+      "graph": "delta_w>zigzag>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "2965c64f63826199756d9fac2d97b13af6a32a49660e487af0f7e0f5ae0fac61",
+      "sha256_frame": "dd19759926c25c44980ff05142c1828e861ebe011255c409a28cf7ac88f66094",
+      "frame_bytes": 2116
+    },
+    {
+      "name": "delta_w-int32-1p",
+      "file": "delta_w-int32-1p.zl",
+      "graph": "delta_w>zigzag>transpose>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "int32",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "9931bc90470ae838f0148a12fea3bf990ca6a2a1cfbfd5cb43366da9d1a1d813",
+      "sha256_frame": "c56b53c69e0bd0bed8712da7dd040cd96d453227a2755d4848a7c9c3a3ca6719",
+      "frame_bytes": 2125
+    },
+    {
+      "name": "delta_w-uint16-3p",
+      "file": "delta_w-uint16-3p.zl",
+      "graph": "delta_w>zigzag>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        3,
+        64,
+        64
+      ],
+      "sha256_decoded": "3a37b8dce702be81451a52cfcab4c32baf6ef8dcaef7442c6b4aaf6f75421b65",
+      "sha256_frame": "b9a7226fb91cbd68db7d360a67abd40e921b8e3d989b3fa1a0defb08223c3924",
+      "frame_bytes": 6268
+    },
+    {
+      "name": "delta_n-uint16-1p",
+      "file": "delta_n-uint16-1p.zl",
+      "graph": "delta_n>zigzag>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "4b9258235971191789e0151391ea05537a1faec21bfb51e82bb31540eb8e1236",
+      "sha256_frame": "147c8e84e5e10f5967fa0cc4a00456fb89f95a79718ac68c83d1d8f24fc60567",
+      "frame_bytes": 2161
+    },
+    {
+      "name": "delta_n-int32-1p",
+      "file": "delta_n-int32-1p.zl",
+      "graph": "delta_n>zigzag>transpose>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "int32",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "9f9d819d8ecefd1966587bcf1b00d34e9025198ad5a2f0940818ac69d26b1763",
+      "sha256_frame": "47f73cf8e501849aadfdd64450dc6dc78973ffb9be7c5dc062a31e9ff4360c5d",
+      "frame_bytes": 2095
+    },
+    {
+      "name": "delta_n-uint16-3p",
+      "file": "delta_n-uint16-3p.zl",
+      "graph": "delta_n>zigzag>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        3,
+        64,
+        64
+      ],
+      "sha256_decoded": "2fd42ed989eed6712c7a9dc70ddfc58cb5591576982df9fa0ee52d606717f049",
+      "sha256_frame": "81b6695d38d898c3de9c981969f0490e9179eeac0559c42271e29a99baf420ee",
+      "frame_bytes": 6214
+    },
+    {
+      "name": "med-uint16-1p",
+      "file": "med-uint16-1p.zl",
+      "graph": "med>zigzag>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "960990bc4360587d4ca59bd907069450b2c9bc0f2eaf14c1fe73facaf934b269",
+      "sha256_frame": "59582e2f9c2c7825b5cbcdace7e0ec1885c8a7115d70e5bcf41e37c06c453a76",
+      "frame_bytes": 1907
+    },
+    {
+      "name": "med-int32-1p",
+      "file": "med-int32-1p.zl",
+      "graph": "med>zigzag>transpose>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "int32",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "c8adafa298f5dce1ea74fc6e1271a9df35f8fc6e5b7c52a04abc040c7a3c6293",
+      "sha256_frame": "5faae191155ffc99486c9c87e27886a27e0bfbf53c71ada91fe01dcdbc6bc9e6",
+      "frame_bytes": 1929
+    },
+    {
+      "name": "med-uint16-3p",
+      "file": "med-uint16-3p.zl",
+      "graph": "med>zigzag>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        3,
+        64,
+        64
+      ],
+      "sha256_decoded": "fe8cdf3e39851242bfd4b8637f5b1f211e003350e3bfdce082c9a0e467b1bfd0",
+      "sha256_frame": "eaf6007b493cf449ecc3202485e72357a4e07b169531921cf170be042057d7df",
+      "frame_bytes": 5518
+    },
+    {
+      "name": "average-uint16-1p",
+      "file": "average-uint16-1p.zl",
+      "graph": "average>zigzag>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "5618adb48b8408fc3212b8fd202a59165358ab57e8f052dd15a2e23b969cc9aa",
+      "sha256_frame": "78612f817a918c9aeecec09a3be044cb020819179d550a8efb173ad311d6eac0",
+      "frame_bytes": 2154
+    },
+    {
+      "name": "average-int32-1p",
+      "file": "average-int32-1p.zl",
+      "graph": "average>zigzag>transpose>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "int32",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "31c059b7d5f15fc971309cca73ca67fa2d71f27bd9e0ec36adf7a18111504d98",
+      "sha256_frame": "f850183495a18618e756b006dc5e5eaf52db6424cb5796c8f000e758d7e1b086",
+      "frame_bytes": 2141
+    },
+    {
+      "name": "average-uint16-3p",
+      "file": "average-uint16-3p.zl",
+      "graph": "average>zigzag>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        3,
+        64,
+        64
+      ],
+      "sha256_decoded": "a465862742714420bd2c5a8f85f370650db98409c0a036285ca2fcf175e097ca",
+      "sha256_frame": "148c8d4d88e67735d6567ea8f47bd2830f9c3b5f468d1d1ba690d4db1189bde9",
+      "frame_bytes": 6001
+    },
+    {
+      "name": "wp_static-uint16-1p",
+      "file": "wp_static-uint16-1p.zl",
+      "graph": "wp_static>zigzag>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "7a8e5b2d58a9b4214395c37bf39fc83a37f167e9ff63c29e655d3aa6c02bc27e",
+      "sha256_frame": "fcf2ceba5b292c27e07143ab06e20371db5ac760785c10592a84aa3b88615e22",
+      "frame_bytes": 2128
+    },
+    {
+      "name": "wp_static-int32-1p",
+      "file": "wp_static-int32-1p.zl",
+      "graph": "wp_static>zigzag>transpose>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "int32",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "2a8731439666a433f4188e4b2e40ed11c7729ad1da31709e4d918f5954f2b31d",
+      "sha256_frame": "b54bf2808bc229266b26cfe885f597086c715387d1c2f066322d833b9cab67f1",
+      "frame_bytes": 2132
+    },
+    {
+      "name": "wp_static-uint16-3p",
+      "file": "wp_static-uint16-3p.zl",
+      "graph": "wp_static>zigzag>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        3,
+        64,
+        64
+      ],
+      "sha256_decoded": "a7a15cff79c25e77a48526464eb1b0a210c4c90df703bc3dba64b4401a5f238d",
+      "sha256_frame": "1af838e53a5eaf7f6872cfd4f161be28107b0501fa7304b82d469937974cea02",
+      "frame_bytes": 6232
+    },
+    {
+      "name": "planar-uint16-transpose",
+      "file": "planar-uint16-transpose.zl",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "62318f1d28c2c46aacbd4188cd1e6a42e2aa1713ff965275effa54fb39458c09",
+      "sha256_frame": "22990df67a4ed5b1807e9439b8806202f3f7482a09b95fe0333f1bf46898dd98",
+      "frame_bytes": 2242
+    },
+    {
+      "name": "id-uint8",
+      "file": "id-uint8.zl",
+      "graph": "id>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint8",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "38e1f665de47c6594956c5831a9d01226b9e2f0067ece3aedf347f953a80ca1f",
+      "sha256_frame": "576c60598a5b09d1258f06322488a04d86c97f431a8a7a41108fa750e442e090",
+      "frame_bytes": 4126
+    },
+    {
+      "name": "id-uint16-zstd",
+      "file": "id-uint16-zstd.zl",
+      "graph": "id>zstd",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "c4fb125065c1a85c755902b30c688a8a3df00f8e6d16af19db4ba21898088aed",
+      "sha256_frame": "a51a2ec7790c584f5ef9497ce2d66f6a33a2275b7331af534d6bde0186407466",
+      "frame_bytes": 5235
+    },
+    {
+      "name": "nodata-int32",
+      "file": "nodata-int32.zl",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": null,
+      "nodata": "-9999",
+      "dtype": "int32",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "fdf32720c40b463df440a3f082d5e84a7b0100aa9015c6be3b4e88fab7793a87",
+      "sha256_frame": "c049571484848e20069e5bd44407d4ae3b840575759bdf02b99199d7aecc59dc",
+      "frame_bytes": 2297
+    },
+    {
+      "name": "nodata-nan-float32",
+      "file": "nodata-nan-float32.zl",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "float32",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "f70424d39a739acfa38ba398c5114c72744aeae27c311e429cf2484a239b3482",
+      "sha256_frame": "cb7572ed9a19da4428ce0bdef32c4b9c70d4c5f9c8468e436681044b7a87d27c",
+      "frame_bytes": 4537
+    },
+    {
+      "name": "quant_linear-float32",
+      "file": "quant_linear-float32.zl",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "LINEAR:MAX_ERROR=2",
+      "nodata": null,
+      "dtype": "float32",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "406eb2f201af70e5331b0a20f678b00685ba7e5d3700a2083dddcbe4b42358e9",
+      "sha256_frame": "125bcb2d181fff59a8b2e212d1193056f1a3a02af92be154cf7853964a0fc5dc",
+      "frame_bytes": 896
+    },
+    {
+      "name": "quant_log-float32",
+      "file": "quant_log-float32.zl",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "LOG:MAX_ERROR=1%",
+      "nodata": null,
+      "dtype": "float32",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "edbc1fe6645633d376c6394d077cf28ab4c390a0ff7a10648f2217ce1f2f87d6",
+      "sha256_frame": "4aee212f7cbaed1e0100dbbd88e51ab9cce6fb805818754b47b4d3def6d24b89",
+      "frame_bytes": 804
+    },
+    {
+      "name": "quant_sqrt-float32",
+      "file": "quant_sqrt-float32.zl",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "SQRT:MAX_ERROR=0.5N,A=4,B=1",
+      "nodata": null,
+      "dtype": "float32",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "b5e72d3af71bf595ff4d1b691d72169f132e7d9556f7b9d2397814e8913061ff",
+      "sha256_frame": "ea3fbe99f5d6f192e6d62a3f873fc7c1e09bc328814b1725e6cf0d9bf5c93b2b",
+      "frame_bytes": 1773
+    },
+    {
+      "name": "quant_linear-float64",
+      "file": "quant_linear-float64.zl",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "LINEAR:MAX_ERROR=2",
+      "nodata": null,
+      "dtype": "float64",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "e017e7b5128260ee59a21e15085c0531ee2b5f1d002792c13bb01f0f43079723",
+      "sha256_frame": "18d83d582fff2480ef2b465f5f43c71660c8c2884235ec59044e24773ea51221",
+      "frame_bytes": 917
+    },
+    {
+      "name": "deinterleave-uint16",
+      "file": "deinterleave-uint16.zl",
+      "graph": "deinterleave>delta_w>zigzag (low level)",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "sha256_decoded": "cfdce9224429769cdc2399f496345ce755a28f69d09fa4a6b3bfab8871308d17",
+      "sha256_frame": "1594128a29bc5a6cdbd419baf8ded7266d749986fdfdb0b11284e777f1c09be0",
+      "frame_bytes": 2573
+    }
+  ]
+}
