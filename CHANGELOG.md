@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-08-15
+
 ### Fixed
 
 - Python decoders accept the plane count in stacked predictor frames.
@@ -19,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frame compatibility policy for releases beginning with 0.13.0.
 
 - Stable C source API policy and a check for the 0.13 public signatures.
+
+- Private vulnerability reporting instructions in `SECURITY.md`.
 
 - Low-level Python predictor nodes accept `planes`, matching their C nodes.
 
@@ -286,6 +290,9 @@ First release.
   `register_decoders` for reading frames back.
 - A libFuzzer harness over the decode path.
 
+[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/asterisk-labs/geozl/compare/v0.12.0...v0.13.0
+[0.12.0]: https://github.com/asterisk-labs/geozl/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/asterisk-labs/geozl/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/asterisk-labs/geozl/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/asterisk-labs/geozl/compare/v0.8.1...v0.9.0

@@ -199,9 +199,10 @@ def test_landing_badge_carries_the_current_version():
 
 
 def test_landing_badge_does_not_claim_more_than_the_readme():
-    """The README calls the project experimental and pyproject ships it as
-    Alpha. The badge said stable, which is the first thing a reader sees."""
-    assert "experimental" in landing_badge().lower()
+    """The site and README should describe the project at the same level."""
+    status = "active development"
+    assert status in landing_badge().lower()
+    assert status in _read(README).lower()
 
 
 def test_no_codec_page_ships_a_dead_link():
