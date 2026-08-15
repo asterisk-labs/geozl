@@ -1,6 +1,7 @@
 #include "lossy_recipe.h"
 
 #include "quant_linear/encode_quant_linear_kernel.h"
+#include "quant_linear/quant_linear_half.h"
 #include "quant_linear/quant_linear_spec.h"
 #include "quant_log/encode_quant_log_kernel.h"
 #include "quant_log/quant_log_spec.h"
@@ -9,8 +10,11 @@
 #include "quant_sqrt/quant_sqrt_spec.h"
 
 #include "common/recipe_parse.h"
+#include "geozl/dtype.h"
 
+#include <math.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -81,34 +85,230 @@ int geozl_lossy_resolve(const geozl_lossy_recipe *r, const void *src, int dtype,
     return 0;
 
   case GEOZL_LOSSY_LINEAR: {
-    quant_linear_stats sc;
-    if (quant_linear_scan(src, dtype, nbElts, &sc) != 0)
+    if (quant_linear_scan(src, dtype, nbElts, &out->domain.linear) != 0)
       return geozl_recipe_fail(err, errSize,
                   "the raster holds no finite non-zero sample to cut a grid "
                   "against");
-    return quant_linear_resolve(&r->as.linear, dtype, &sc, &out->as.linear, err,
-                                errSize);
+    return quant_linear_resolve(&r->as.linear, dtype, &out->domain.linear,
+                                &out->as.linear, err, errSize);
   }
 
   case GEOZL_LOSSY_LOG: {
-    quant_log_stats sc;
-    if (quant_log_scan(src, dtype, nbElts, &sc) != 0)
+    if (quant_log_scan(src, dtype, nbElts, &out->domain.log) != 0)
       return geozl_recipe_fail(err, errSize, "dtype %d is not a type quant_log knows", dtype);
-    return quant_log_resolve(&r->as.log, dtype, &sc, &out->as.log, err,
-                             errSize);
+    return quant_log_resolve(&r->as.log, dtype, &out->domain.log, &out->as.log,
+                             err, errSize);
   }
 
   case GEOZL_LOSSY_SQRT: {
-    quant_sqrt_stats sc;
-    if (quant_sqrt_scan(src, dtype, nbElts, &sc) != 0)
+    if (quant_sqrt_scan(src, dtype, nbElts, &out->domain.sqrt) != 0)
       return geozl_recipe_fail(err, errSize, "the raster holds no finite sample");
     // NULL curve: geozl_lossy_fit has already written one into the recipe, or
     // the recipe came with A and B, or quant_sqrt refuses and says so.
-    return quant_sqrt_resolve(&r->as.sqrt, dtype, &sc, NULL, &out->as.sqrt, err,
-                              errSize);
+    return quant_sqrt_resolve(&r->as.sqrt, dtype, &out->domain.sqrt, NULL,
+                              &out->as.sqrt, err, errSize);
   }
   }
 
   return geozl_recipe_fail(err, errSize, "recipe family %d is not one this build knows",
               (int)r->family);
+}
+
+static int rejects_negative(unsigned char flags, unsigned char nonnegative,
+                            int anyNegative, char *err, size_t errSize) {
+  if ((flags & nonnegative) == 0 || !anyNegative)
+    return 0;
+  return geozl_recipe_fail(
+      err, errSize,
+      "the lossy graph was built without negative samples, but this tile "
+      "contains them; build the graph from the full product");
+}
+
+typedef struct {
+  double lo;
+  double hi;
+  double minAbs;
+  double maxAbs;
+  int anyNegative;
+  int haveFinite;
+} geozl_domain_stats;
+
+#define DOMAIN_SCAN(T, U, RD)                                                  \
+  do {                                                                         \
+    const T *s = (const T *)src;                                               \
+    for (size_t i = 0; i < nbElts; ++i) {                                     \
+      U raw;                                                                   \
+      memcpy(&raw, &s[i], sizeof(raw));                                        \
+      if (raw == (U)ignoredBits)                                               \
+        continue;                                                              \
+      const double v = (double)(RD);                                           \
+      if (!isfinite(v))                                                        \
+        continue;                                                              \
+      out->haveFinite = 1;                                                     \
+      if (v < out->lo)                                                         \
+        out->lo = v;                                                           \
+      if (v > out->hi)                                                         \
+        out->hi = v;                                                           \
+      if (v < 0.0)                                                            \
+        out->anyNegative = 1;                                                  \
+      const double a = fabs(v);                                                \
+      if (a > out->maxAbs)                                                     \
+        out->maxAbs = a;                                                       \
+      if (a > 0.0 && a < out->minAbs)                                          \
+        out->minAbs = a;                                                       \
+    }                                                                          \
+  } while (0)
+
+// The nodata node removes a declared sentinel before the quantizer sees it. A
+// regular scan would mistake an outlying sentinel for an outlying sample.
+static int scan_ignoring_value(const void *src, int dtype, size_t nbElts,
+                               uint64_t ignoredBits,
+                               geozl_domain_stats *out) {
+  if (src == NULL || out == NULL || !GEOZL_DT_OK(dtype))
+    return 1;
+  out->lo = INFINITY;
+  out->hi = -INFINITY;
+  out->minAbs = INFINITY;
+  out->maxAbs = 0.0;
+  out->anyNegative = 0;
+  out->haveFinite = 0;
+
+  switch ((geozl_dtype)dtype) {
+  case GEOZL_DT_U8:
+    DOMAIN_SCAN(uint8_t, uint8_t, s[i]);
+    break;
+  case GEOZL_DT_U16:
+    DOMAIN_SCAN(uint16_t, uint16_t, s[i]);
+    break;
+  case GEOZL_DT_U32:
+    DOMAIN_SCAN(uint32_t, uint32_t, s[i]);
+    break;
+  case GEOZL_DT_U64:
+    DOMAIN_SCAN(uint64_t, uint64_t, s[i]);
+    break;
+  case GEOZL_DT_I8:
+    DOMAIN_SCAN(int8_t, uint8_t, s[i]);
+    break;
+  case GEOZL_DT_I16:
+    DOMAIN_SCAN(int16_t, uint16_t, s[i]);
+    break;
+  case GEOZL_DT_I32:
+    DOMAIN_SCAN(int32_t, uint32_t, s[i]);
+    break;
+  case GEOZL_DT_I64:
+    DOMAIN_SCAN(int64_t, uint64_t, s[i]);
+    break;
+  case GEOZL_DT_F16:
+    DOMAIN_SCAN(uint16_t, uint16_t, quant_linear_half_to_float(s[i]));
+    break;
+  case GEOZL_DT_F32:
+    DOMAIN_SCAN(float, uint32_t, s[i]);
+    break;
+  case GEOZL_DT_F64:
+    DOMAIN_SCAN(double, uint64_t, s[i]);
+    break;
+  }
+  return 0;
+}
+
+#undef DOMAIN_SCAN
+
+int geozl_lossy_check_domain(const geozl_lossy_plan *plan, const void *src,
+                             int dtype, size_t nbElts, int ignoreValue,
+                             uint64_t ignoredBits, char *err, size_t errSize) {
+  if (plan == NULL || !GEOZL_DT_OK(dtype) || (src == NULL && nbElts != 0))
+    return geozl_recipe_fail(err, errSize, "invalid lossy domain check");
+  if (plan->family == GEOZL_LOSSY_NONE || nbElts == 0)
+    return 0;
+
+  switch (plan->family) {
+  case GEOZL_LOSSY_LINEAR: {
+    quant_linear_stats now = {0};
+    if (ignoreValue) {
+      geozl_domain_stats sc;
+      if (scan_ignoring_value(src, dtype, nbElts, ignoredBits, &sc) != 0)
+        return geozl_recipe_fail(err, errSize, "could not scan the lossy tile");
+      now.maxAbs = sc.maxAbs;
+      now.anyNegative = sc.anyNegative;
+    } else {
+      // An all-zero tile is valid even though the resolver cannot cut a new
+      // grid from one. The scan still returns its zeroed statistics.
+      (void)quant_linear_scan(src, dtype, nbElts, &now);
+    }
+    if (rejects_negative(plan->as.linear.flags,
+                         QUANT_LINEAR_FLAG_NONNEGATIVE, now.anyNegative, err,
+                         errSize) != 0)
+      return 1;
+    if (dtype > GEOZL_DT_LAST_INT &&
+        now.maxAbs > plan->domain.linear.maxAbs)
+      return geozl_recipe_fail(
+          err, errSize,
+          "the lossy graph was built for magnitudes up to %g, but this tile "
+          "reaches %g; build the graph from the full product",
+          plan->domain.linear.maxAbs, now.maxAbs);
+    return 0;
+  }
+
+  case GEOZL_LOSSY_LOG: {
+    quant_log_stats now;
+    if (ignoreValue) {
+      geozl_domain_stats sc;
+      if (scan_ignoring_value(src, dtype, nbElts, ignoredBits, &sc) != 0)
+        return geozl_recipe_fail(err, errSize, "could not scan the lossy tile");
+      now.minAbs = sc.minAbs;
+      now.maxAbs = sc.maxAbs;
+      now.anyNegative = sc.anyNegative;
+      now.anySubnormal = 0;
+    } else if (quant_log_scan(src, dtype, nbElts, &now) != 0) {
+      return geozl_recipe_fail(err, errSize, "could not scan the lossy tile");
+    }
+    if (rejects_negative(plan->as.log.flags, QUANT_LOG_FLAG_NONNEGATIVE,
+                         now.anyNegative, err, errSize) != 0)
+      return 1;
+    // Integer value grids and floating-point index grids span their whole dtype.
+    // A floating-point value grid is the one LOG plan tied to the opening data.
+    if (dtype > GEOZL_DT_LAST_INT &&
+        (plan->as.log.flags & QUANT_LOG_FLAG_STORE_VALUES) != 0 &&
+        (now.minAbs < plan->domain.log.minAbs ||
+         now.maxAbs > plan->domain.log.maxAbs))
+      return geozl_recipe_fail(
+          err, errSize,
+          "the lossy graph was built for non-zero magnitudes from %g to %g, "
+          "but this tile reaches %g to %g; build the graph from the full product",
+          plan->domain.log.minAbs, plan->domain.log.maxAbs, now.minAbs,
+          now.maxAbs);
+    return 0;
+  }
+
+  case GEOZL_LOSSY_SQRT: {
+    quant_sqrt_stats now;
+    if (ignoreValue) {
+      geozl_domain_stats sc;
+      if (scan_ignoring_value(src, dtype, nbElts, ignoredBits, &sc) != 0)
+        return geozl_recipe_fail(err, errSize, "could not scan the lossy tile");
+      if (!sc.haveFinite)
+        return 0;
+      now.lo = sc.lo;
+      now.hi = sc.hi;
+      now.anyNegative = sc.anyNegative;
+      now.anyNonFinite = 0;
+    } else if (quant_sqrt_scan(src, dtype, nbElts, &now) != 0) {
+      return 0; // no finite sample lies outside the finite fitted domain
+    }
+    if (now.lo < plan->domain.sqrt.lo || now.hi > plan->domain.sqrt.hi)
+      return geozl_recipe_fail(
+          err, errSize,
+          "the lossy graph was built for values from %g to %g, but this tile "
+          "reaches %g to %g; build the graph from the full product",
+          plan->domain.sqrt.lo, plan->domain.sqrt.hi, now.lo, now.hi);
+    return 0;
+  }
+
+  case GEOZL_LOSSY_NONE:
+    return 0;
+  }
+
+  return geozl_recipe_fail(err, errSize,
+                           "lossy family %d is not one this build knows",
+                           (int)plan->family);
 }

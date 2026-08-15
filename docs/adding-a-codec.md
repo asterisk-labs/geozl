@@ -7,11 +7,12 @@ The names are load bearing, `core/CMakeLists.txt` globs for
 
 ## The CTid
 
-The CTid is the codec's only identity on the wire, names never travel. A reader
-decodes a frame only if it has a decoder registered for every CTid the frame
-uses. A published CTid is frozen, its decode never changes, and new behaviour
-takes a new CTid rather than altering an old one. A reader that meets a newer
-CTid fails with a missing decoder, it never decodes wrong.
+The CTid is the codec's only identity on the wire; names never travel. Beginning
+with 0.13.0, later releases continue to decode every released GeoZL frame.
+Existing CTids are never reassigned, and an incompatible layout takes a new
+one. Encoder output may change, and older readers need not support newer codecs
+or compatible extensions. This guarantee covers GeoZL codec data; OpenZL
+container compatibility follows OpenZL.
 
 Every id lives in `core/include/geozl/ctids.h`, lossless in `0x72D700` to
 `0x72D77F`, near lossless in `0x72D780` to `0x72D7FF`. The band is not a

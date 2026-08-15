@@ -92,8 +92,8 @@ GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
                                   size_t dstCapacity, size_t *outSize,
                                   char *errCtx, size_t errCtxSize);
 
-// Reusable graph for tiles with the same configuration. src is used to resolve
-// lossy parameters when the graph is opened.
+// Reusable graph for tiles with the same configuration. src fixes the lossy
+// domain; later tiles outside it are refused before compression.
 typedef struct geozl_2d_graph_s geozl_2d_graph;
 
 GEOZL_API int geozl_2d_graph_open_c(geozl_2d_graph **out, const char *method,
@@ -105,6 +105,7 @@ GEOZL_API int geozl_2d_graph_open_c(geozl_2d_graph **out, const char *method,
                                     char *errCtx, size_t errCtxSize);
 
 // Compress one tile with an open graph. The element width comes from the graph.
+// A declared nodata value is excluded from the lossy domain check.
 GEOZL_API int geozl_2d_compress_graph_c(geozl_2d_graph *g, const void *src,
                                         size_t numElts, void *dst,
                                         size_t dstCapacity, size_t *outSize,

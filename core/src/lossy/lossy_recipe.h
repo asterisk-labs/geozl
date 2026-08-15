@@ -6,6 +6,7 @@
 #include "geozl/quant_sqrt_params.h"
 
 #include <stddef.h>
+#include <stdint.h>
 
 typedef enum {
   GEOZL_LOSSY_NONE = 0,
@@ -30,6 +31,11 @@ typedef struct {
     quant_log_params log;
     quant_sqrt_params sqrt;
   } as;
+  union {
+    quant_linear_stats linear;
+    quant_log_stats log;
+    quant_sqrt_stats sqrt;
+  } domain;
 } geozl_lossy_plan;
 
 // Parse a LINEAR, LOG or SQRT recipe. NULL and "" select lossless mode.
@@ -44,5 +50,11 @@ int geozl_lossy_fit(geozl_lossy_recipe *r, const void *src, int dtype,
 int geozl_lossy_resolve(const geozl_lossy_recipe *r, const void *src, int dtype,
                         size_t nbElts, geozl_lossy_plan *out, char *err,
                         size_t errSize);
+
+// Refuse samples outside the domain used to resolve plan. This is a no-op for a
+// lossless plan and does not rebuild the quantizer parameters.
+int geozl_lossy_check_domain(const geozl_lossy_plan *plan, const void *src,
+                             int dtype, size_t nbElts, int ignoreValue,
+                             uint64_t ignoredBits, char *err, size_t errSize);
 
 #endif // GEOZL_LOSSY_RECIPE_H

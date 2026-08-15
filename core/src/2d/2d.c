@@ -357,8 +357,11 @@ static void copy_err(char *dst, size_t cap, const char *src) {
 struct geozl_2d_graph_s {
   ZL_Compressor *c;
   ZL_CCtx *cctx;
+  geozl_lossy_plan plan;
   size_t eltWidth;
   int dtype;
+  int nodataMode;
+  uint64_t nodataBits;
 };
 
 GEOZL_API void geozl_2d_graph_close_c(geozl_2d_graph *g) {
@@ -431,7 +434,11 @@ static ZL_Report graph_open(geozl_2d_graph **out, const char *method,
   e = calloc(1, sizeof(*e));
   if (e == NULL)
     return ZL_returnError(ZL_ErrorCode_allocation);
+  e->plan = plan;
   e->eltWidth = eltWidth;
+  e->dtype = dtype;
+  e->nodataMode = nodataMode;
+  e->nodataBits = nodataBits;
 
   e->c = ZL_Compressor_create();
   if (e->c == NULL) {
@@ -515,6 +522,16 @@ fail:
 static ZL_Report graph_run(const geozl_2d_graph *e, const void *src,
                            size_t numElts, void *dst, size_t dstCapacity,
                            size_t *outSize, char *errCtx, size_t errCtxSize) {
+  if (e->plan.family != GEOZL_LOSSY_NONE) {
+    char why[192] = {0};
+    const int ignoreValue = e->nodataMode == GEOZL_NODATA_VALUE;
+    if (geozl_lossy_check_domain(&e->plan, src, e->dtype, numElts,
+                                 ignoreValue, e->nodataBits, why,
+                                 sizeof(why)) != 0) {
+      copy_err(errCtx, errCtxSize, why);
+      return ZL_returnError(ZL_ErrorCode_parameter_invalid);
+    }
+  }
   ZL_TypedRef *in = ZL_TypedRef_createNumeric(src, e->eltWidth, numElts);
   if (in == NULL) {
     if (errCtx != NULL && errCtxSize != 0)

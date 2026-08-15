@@ -2,6 +2,7 @@
 #include "lossy/lossy_recipe.h"
 
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -138,12 +139,78 @@ static void test_resolve(void) {
                             sizeof(err)) != 0);
 }
 
+static int plan_for(const char *text, const void *src, int dtype, size_t n,
+                    geozl_lossy_plan *plan, char *err, size_t errSize) {
+  geozl_lossy_recipe recipe;
+  return geozl_lossy_parse(text, &recipe, err, errSize) ||
+         geozl_lossy_resolve(&recipe, src, dtype, n, plan, err, errSize);
+}
+
+static void test_reuse_domain(void) {
+  char err[256] = {0};
+  geozl_lossy_plan plan;
+
+  const float base[] = {1.0f, 25.0f, 100.0f};
+  const float inside[] = {2.0f, 50.0f, 90.0f};
+  const float negative[] = {-1.0f, 25.0f};
+  const float wider[] = {1.0f, 120.0f};
+
+  CHECK(plan_for("LINEAR:MAX_ERROR=1", base, GEOZL_DT_F32, 3, &plan,
+                 err, sizeof(err)) == 0);
+  CHECK(geozl_lossy_check_domain(&plan, inside, GEOZL_DT_F32, 3, 0, 0,
+                                 err, sizeof(err)) == 0);
+  CHECK(geozl_lossy_check_domain(&plan, negative, GEOZL_DT_F32, 2, 0, 0,
+                                 err, sizeof(err)) != 0);
+  CHECK(strstr(err, "negative samples") != NULL);
+  CHECK(geozl_lossy_check_domain(&plan, wider, GEOZL_DT_F32, 2, 0, 0,
+                                 err, sizeof(err)) != 0);
+  CHECK(strstr(err, "magnitudes up to") != NULL);
+
+  const float sentinel = -9999.0f;
+  const float withHole[] = {sentinel, 50.0f};
+  const float withHoleAndOutlier[] = {sentinel, 120.0f};
+  uint32_t sentinelBits;
+  memcpy(&sentinelBits, &sentinel, sizeof(sentinelBits));
+  CHECK(geozl_lossy_check_domain(&plan, withHole, GEOZL_DT_F32, 2, 1,
+                                 sentinelBits, err, sizeof(err)) == 0);
+  CHECK(geozl_lossy_check_domain(&plan, withHoleAndOutlier, GEOZL_DT_F32,
+                                 2, 1, sentinelBits, err,
+                                 sizeof(err)) != 0);
+
+  // LOG's index grid spans the floating-point dtype, but its non-negative flag
+  // still makes a later negative tile unsafe.
+  CHECK(plan_for("LOG:MAX_ERROR=1%", base, GEOZL_DT_F32, 3, &plan, err,
+                 sizeof(err)) == 0);
+  CHECK(geozl_lossy_check_domain(&plan, wider, GEOZL_DT_F32, 2, 0, 0,
+                                 err, sizeof(err)) == 0);
+  CHECK(geozl_lossy_check_domain(&plan, negative, GEOZL_DT_F32, 2, 0, 0,
+                                 err, sizeof(err)) != 0);
+
+  CHECK(plan_for("SQRT:MAX_ERROR=0.5N,A=100,B=1", base, GEOZL_DT_F32,
+                 3, &plan, err, sizeof(err)) == 0);
+  CHECK(geozl_lossy_check_domain(&plan, inside, GEOZL_DT_F32, 3, 0, 0,
+                                 err, sizeof(err)) == 0);
+  CHECK(geozl_lossy_check_domain(&plan, wider, GEOZL_DT_F32, 2, 0, 0,
+                                 err, sizeof(err)) != 0);
+  CHECK(strstr(err, "values from") != NULL);
+
+  // Integer LINEAR stores reconstructed values and spans the dtype. Only a
+  // signedness change relative to the opening raster needs a guard.
+  const int16_t ibase[] = {1, 2, 3};
+  const int16_t ibig[] = {30000};
+  CHECK(plan_for("LINEAR:MAX_ERROR=2", ibase, GEOZL_DT_I16, 3, &plan,
+                 err, sizeof(err)) == 0);
+  CHECK(geozl_lossy_check_domain(&plan, ibig, GEOZL_DT_I16, 1, 0, 0,
+                                 err, sizeof(err)) == 0);
+}
+
 int main(void) {
   build_raster();
   test_routing();
   test_fit_geometry();
   test_blind_fit();
   test_resolve();
+  test_reuse_domain();
 
   if (failures) {
     printf("test_lossy_recipe: %d failed\n", failures);

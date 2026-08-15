@@ -129,8 +129,9 @@ def graph(raster: ArrayLike, method: str, *, width: int | None = None,
     each plane; use ``width=Y*X, planes=1`` to predict between bands.
 
     ``error=None`` is lossless. Otherwise pass a ``LINEAR``, ``LOG`` or
-    ``SQRT`` recipe. ``nodata`` sets a sentinel; NaNs are detected when it is
-    omitted for floating-point rasters.
+    ``SQRT`` recipe. The raster fixes the lossy domain checked by ``compress``;
+    use data spanning the product. ``nodata`` sets a sentinel; NaNs are detected
+    when it is omitted for floating-point rasters.
     """
     if not isinstance(method, str) or not method:
         raise ValueError(f"method must be a recipe name, got {method!r}")
@@ -160,7 +161,8 @@ def graph(raster: ArrayLike, method: str, *, width: int | None = None,
 def compress(tile: ArrayLike, *, graph: Graph) -> bytes:
     """Compress ``tile`` with a prepared graph and return the frame bytes.
 
-    The dtype must match exactly. Geometry is not checked against the graph.
+    The dtype must match exactly. Geometry is not checked against the graph. A
+    lossy tile outside the domain used to build the graph is refused.
     """
     if not isinstance(graph, Graph):
         raise TypeError(f"graph must be a geozl.Graph, got "
@@ -177,8 +179,8 @@ def compress(tile: ArrayLike, *, graph: Graph) -> bytes:
     dst = np.empty(cap, np.uint8)
     out_size = ffi.new("size_t*")
     err_ctx = ffi.new("char[]", 256)
-    rc = lib.geozl_2d_compress_graph_c(graph._h, _ptr(arr), n, _ptr(dst), cap,
-                                       out_size, err_ctx, len(err_ctx))
+    rc = lib.geozl_2d_compress_graph_c(
+        graph._h, _ptr(arr), n, _ptr(dst), cap, out_size, err_ctx, len(err_ctx))
     if rc != 0:
         reason = ffi.string(err_ctx).decode("utf-8", "replace")
         raise RuntimeError(f"geozl.compress failed (method={graph.method!r}): "

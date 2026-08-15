@@ -275,6 +275,7 @@ for tile in tiles:
 <p class="sec-h"><span class="sq"></span> error <span class="sig">bounded-error compression</span></p>
 <div class="prose">
 <p>Set <code>error</code> to trade exact reconstruction for a smaller frame under a per-sample bound. <code>None</code> stays lossless. Pick the quantizer by how the measurement error grows, and add <code>,STORE=VALUES</code> to write the reconstruction instead of the index. The resolver budgets for numerical rounding; the encoder does not run a second decode pass over every sample.</p>
+<p>The raster passed to <code>graph</code> fixes the lossy domain. Use data spanning the product: <code>compress</code> refuses a later tile outside that domain instead of silently breaking the bound. Declared NoData values do not count toward the range.</p>
 </div>
 <div class="eq">
 <span><em>linear · elevation</em><span class="expr">|x − x̂| ≤ V</span></span>

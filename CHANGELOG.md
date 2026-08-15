@@ -11,7 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Python decoders accept the plane count in stacked predictor frames.
 
+- Reused lossy graphs reject tiles outside their opening domain instead of
+  silently saturating them. Declared NoData values are excluded from the check.
+
 ### Added
+
+- Frame compatibility policy for releases beginning with 0.13.0.
 
 - Low-level Python predictor nodes accept `planes`, matching their C nodes.
 

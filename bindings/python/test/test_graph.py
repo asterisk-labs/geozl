@@ -141,3 +141,54 @@ def test_a_lossy_graph_quantizes_every_tile_on_one_grid():
     g = geozl.graph(product, GRAPH, error="LINEAR:MAX_ERROR=2")
     assert _back(geozl.compress(a, graph=g), a)[0, 0] == \
            _back(geozl.compress(b, graph=g), b)[0, 0]
+
+
+@pytest.mark.parametrize("error", [
+    "LINEAR:MAX_ERROR=1",
+    "LOG:MAX_ERROR=1%",
+])
+def test_a_lossy_graph_refuses_negatives_outside_its_opening_domain(error):
+    base = np.linspace(1, 100, W * W, dtype=np.float32).reshape(W, W)
+    tile = np.linspace(-20, 20, W * W, dtype=np.float32).reshape(W, W)
+    g = geozl.graph(base, "id>transpose>entropy", error=error)
+    with pytest.raises(RuntimeError, match="without negative samples"):
+        geozl.compress(tile, graph=g)
+
+
+def test_a_linear_graph_refuses_a_wider_float_domain():
+    base = np.linspace(-100, 100, W * W, dtype=np.float32).reshape(W, W)
+    tile = np.linspace(-120, 120, W * W, dtype=np.float32).reshape(W, W)
+    g = geozl.graph(base, "id>transpose>entropy",
+                    error="LINEAR:MAX_ERROR=1")
+    with pytest.raises(RuntimeError, match="magnitudes up to 100"):
+        geozl.compress(tile, graph=g)
+
+
+def test_a_sqrt_graph_refuses_values_outside_its_opening_domain():
+    base = np.linspace(1, 100, W * W, dtype=np.float32).reshape(W, W)
+    tile = np.linspace(20, 120, W * W, dtype=np.float32).reshape(W, W)
+    g = geozl.graph(base, "id>transpose>entropy",
+                    error="SQRT:MAX_ERROR=0.5N,A=100,B=1")
+    with pytest.raises(RuntimeError, match="values from 1 to 100"):
+        geozl.compress(tile, graph=g)
+
+
+def test_a_lossy_graph_accepts_a_subset_of_its_opening_domain():
+    product = np.linspace(-100, 100, 2 * W * W,
+                          dtype=np.float32).reshape(2 * W, W)
+    tile = product[W // 2:W].copy()
+    g = geozl.graph(product, "id>transpose>entropy",
+                    error="LINEAR:MAX_ERROR=1")
+    out = _back(geozl.compress(tile, graph=g), tile)
+    assert np.abs(out - tile).max() <= 1
+
+
+def test_a_declared_nodata_value_is_not_part_of_the_lossy_domain():
+    base = np.linspace(1, 100, W * W, dtype=np.float32).reshape(W, W)
+    tile = base.copy()
+    tile[::5, ::7] = -9999
+    g = geozl.graph(base, "id>transpose>entropy",
+                    error="LINEAR:MAX_ERROR=1", nodata=-9999)
+    out = _back(geozl.compress(tile, graph=g), tile)
+    assert (out[tile == -9999] == -9999).all()
+    assert np.abs(out[tile != -9999] - tile[tile != -9999]).max() <= 1
