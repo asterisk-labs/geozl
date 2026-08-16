@@ -300,8 +300,8 @@ main {
   margin-bottom: 19px;
   color: var(--mint);
   font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 600;
+  font-size: clamp(12px, 1vw, 14px);
+  font-weight: 650;
   letter-spacing: 0.09em;
   line-height: 1;
   text-transform: uppercase;
@@ -318,57 +318,85 @@ main {
 
 .hero h1 {
   max-width: 10.5ch;
-  font-size: clamp(48px, 5.3vw, 70px);
+  font-size: clamp(54px, 5.9vw, 80px);
   font-weight: 650;
   letter-spacing: -0.065em;
   line-height: 0.96;
 }
 
-.hero h1 span {
+.hero h1 .hero-line {
   display: block;
-  color: var(--dim);
-  font-weight: 500;
+}
+
+.hero h1 .hero-highlight {
+  position: relative;
+  isolation: isolate;
+  display: inline-block;
+}
+
+.hero h1 .hero-highlight::before {
+  position: absolute;
+  inset: 0.56em -0.06em 0.02em -0.04em;
+  z-index: -1;
+  border-radius: 0.12em;
+  content: "";
+  background: linear-gradient(90deg, rgba(116, 87, 255, 0.94), rgba(139, 107, 255, 0.62));
+  transform: rotate(-0.8deg);
 }
 
 .hero-summary {
-  max-width: 52ch;
-  margin-top: 22px;
+  max-width: 46ch;
+  margin-top: 28px;
   color: var(--ink-soft);
-  font-size: clamp(15px, 1.1vw, 17px);
-  line-height: 1.65;
+  font-size: clamp(19px, 1.5vw, 22px);
+  letter-spacing: -0.018em;
+  line-height: 1.42;
+}
+
+.hero-summary strong {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.hero-summary-highlight {
+  position: relative;
+  isolation: isolate;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.hero-summary-highlight::before {
+  position: absolute;
+  inset: 0.76em -0.08em 0.06em -0.06em;
+  z-index: -1;
+  border-radius: 0.14em;
+  content: "";
+  background: linear-gradient(90deg, rgba(255, 122, 79, 0.72), rgba(255, 122, 79, 0.36));
+  transform: rotate(0.6deg);
 }
 
 .install {
   position: relative;
-  width: min(100%, 510px);
-  min-height: 52px;
+  width: max-content;
+  max-width: 100%;
   margin-top: 28px;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: stretch;
-  border-block: 1px solid var(--edge);
-}
-
-.install-label {
-  padding-right: 16px;
-  display: flex;
-  align-items: center;
-  color: var(--faint);
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .install-command {
   min-width: 0;
-  min-height: 52px;
-  padding-left: 14px;
+  min-height: 44px;
+  padding: 0 6px 0 15px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 9px;
-  border-left: 1px solid var(--rule);
+  gap: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.055);
+  transition: background-color 180ms ease;
+}
+
+.install-command:hover {
+  background: rgba(255, 255, 255, 0.075);
 }
 
 .prompt {
@@ -382,20 +410,22 @@ main {
   min-width: 0;
   overflow: hidden;
   color: var(--ink-soft);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .copy-command {
-  align-self: stretch;
-  padding: 0 13px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 7px;
   border: 0;
-  border-left: 1px solid var(--rule);
+  border-radius: 50%;
   background: transparent;
   color: var(--dim);
   cursor: pointer;
@@ -407,8 +437,10 @@ main {
 .copy-command:hover,
 .copy-command:focus-visible {
   color: var(--ink);
-  background: var(--panel-soft);
+  background: rgba(255, 255, 255, 0.07);
 }
+
+.copy-command:focus-visible { outline: 0; color: var(--mint); }
 
 .copy-command.is-copied {
   color: var(--mint);
@@ -420,6 +452,14 @@ main {
   fill: none;
   stroke: currentColor;
   stroke-width: 1.7;
+}
+
+.copy-command span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 
 .copy-feedback {
@@ -462,6 +502,86 @@ main {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+.graph-carousel {
+  width: max-content;
+  margin: 1px auto 0;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--dim);
+  font-family: var(--mono);
+}
+
+.graph-carousel__button {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 18px;
+  line-height: 1;
+  transition: color 180ms ease, background-color 180ms ease;
+}
+
+.graph-carousel__button:hover,
+.graph-carousel__button:focus-visible {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.graph-carousel__button:focus-visible,
+.graph-carousel__dot:focus-visible { outline: 0; }
+
+.graph-carousel__steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.graph-carousel__dot {
+  position: relative;
+  width: 20px;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.graph-carousel__dot::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  content: "";
+  background: var(--faint);
+  transform: translate(-50%, -50%);
+  transition: width 180ms ease, border-radius 180ms ease, background-color 180ms ease;
+}
+
+.graph-carousel__dot:hover::before,
+.graph-carousel__dot:focus-visible::before { background: var(--ink-soft); }
+
+.graph-carousel__dot.is-active::before {
+  width: 14px;
+  border-radius: 2px;
+  background: var(--mint);
+}
+
+.graph-carousel__announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 
 @media (min-width: 861px) and (hover: hover) and (pointer: fine) {
@@ -536,7 +656,7 @@ main {
     gap: 36px;
   }
 
-  .hero h1 { font-size: clamp(44px, 5.8vw, 60px); }
+  .hero h1 { font-size: clamp(48px, 6.1vw, 64px); }
 }
 
 @media (max-width: 860px) {
@@ -559,6 +679,7 @@ main {
 
   .geozl-flow { width: 100%; }
   .recipe-stage { height: 390px; }
+  .graph-carousel { margin-top: 0; }
 }
 
 @media (max-width: 760px) {
@@ -585,13 +706,12 @@ main {
 
 @media (max-width: 560px) {
   .hero::after { right: -35%; width: 130%; }
-  .hero h1 { font-size: clamp(44px, 13vw, 58px); }
-  .hero-summary { margin-top: 20px; font-size: 15px; }
+  .hero h1 { font-size: clamp(48px, 13.5vw, 62px); }
+  .hero-summary { margin-top: 20px; font-size: 19px; }
   .install { margin-top: 25px; }
-  .install-label { padding-right: 12px; font-size: 9px; }
-  .copy-command { padding-inline: 14px; }
-  .copy-command span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .copy-command { padding: 0; }
   .recipe-stage { height: 350px; }
+  .graph-carousel { margin-top: 0; }
 }
 
 @media (max-width: 420px) {
@@ -607,8 +727,8 @@ main {
     min-height: 500px;
     padding-block: 8px;
   }
-  .hero h1 { font-size: clamp(46px, 5.4vw, 66px); }
-  .hero-summary { margin-top: 18px; font-size: 15px; }
+  .hero h1 { font-size: clamp(52px, 5.9vw, 76px); }
+  .hero-summary { margin-top: 20px; }
   .install { margin-top: 22px; }
   .recipe-stage { height: 410px; }
 }
@@ -662,11 +782,10 @@ main {
     <section class="hero" aria-labelledby="hero-title">
       <div class="hero-copy">
         <p class="eyebrow">Raster-aware codecs for OpenZL</p>
-        <h1 id="hero-title">Built for <span>raster data.</span></h1>
-        <p class="hero-summary">Compress raster tiles as rasters, not generic bytes. Build flexible OpenZL graphs that grow with your workflow.</p>
+        <h1 id="hero-title">Built for<span class="hero-line"><span class="hero-highlight">raster data</span>.</span></h1>
+        <p class="hero-summary">Compress raster tiles as rasters, not generic bytes. Build flexible <strong class="hero-summary-highlight">OpenZL graphs</strong> that grow with your workflow.</p>
 
         <div class="install" data-copy-root>
-          <span class="install-label">Install</span>
           <div class="install-command">
             <span class="prompt" aria-hidden="true">$</span>
             <code>pip install geozl</code>
@@ -682,8 +801,19 @@ main {
       <figure class="geozl-flow">
         <div class="recipe-stage">
           <div class="recipe-window">
-            <canvas class="graph-canvas" id="graph-evolution" role="img" aria-label="An evolving GeoZL graph. It begins with a simple entropy path, adds spatial prediction, branches missing data into values and masks, then separates complex values into real and imaginary lanes with independent nodata branches before writing a self-describing OpenZL frame."></canvas>
+            <canvas class="graph-canvas" id="graph-evolution" role="img" aria-label="Four selectable GeoZL graphs for land cover, elevation, climate grids and Sentinel-1 SLC data."></canvas>
           </div>
+        </div>
+        <div class="graph-carousel" role="group" aria-label="Real-data graph carousel">
+          <button class="graph-carousel__button" type="button" data-graph-prev aria-label="Previous graph">&#8592;</button>
+          <div class="graph-carousel__steps">
+            <button class="graph-carousel__dot is-active" type="button" data-graph-scene="0" aria-label="Show Sentinel-1 SLC graph" aria-current="true"></button>
+            <button class="graph-carousel__dot" type="button" data-graph-scene="1" aria-label="Show climate-grid graph"></button>
+            <button class="graph-carousel__dot" type="button" data-graph-scene="2" aria-label="Show elevation graph"></button>
+            <button class="graph-carousel__dot" type="button" data-graph-scene="3" aria-label="Show land-cover graph"></button>
+          </div>
+          <button class="graph-carousel__button" type="button" data-graph-next aria-label="Next graph">&#8594;</button>
+          <span class="graph-carousel__announcement" data-graph-announcement aria-live="polite">Graph 1 of 4: Sentinel-1 SLC.</span>
         </div>
         <figcaption>
           <span data-graph-caption>One stream, one backend</span>
@@ -731,13 +861,18 @@ main {
   var graphCanvas = document.getElementById('graph-evolution');
   var graphContext = graphCanvas.getContext('2d');
   var graphCaption = document.querySelector('[data-graph-caption]');
+  var graphPrevious = document.querySelector('[data-graph-prev]');
+  var graphNext = document.querySelector('[data-graph-next]');
+  var graphAnnouncement = document.querySelector('[data-graph-announcement]');
+  var graphSteps = Array.prototype.slice.call(document.querySelectorAll('.graph-carousel__dot'));
   var graphDpr = Math.min(window.devicePixelRatio || 1, 2);
   var graphWidth = 0;
   var graphHeight = 0;
-  var graphStart = performance.now();
-  var graphRaf = 0;
   var graphSceneShown = -1;
   var activeGraphScene = 0;
+  var graphSceneStart = 0;
+  var graphSceneElapsed = 0;
+  var graphRaf = 0;
 
   var graphColors = {
     ink: '#f1f5f9',
@@ -755,46 +890,41 @@ main {
 
   var graphScenes = [
     {
-      duration: 7000,
-      motionDelay: 700,
-      motionDuration: 3000,
-      caption: 'One stream, one backend',
-      draw: drawBaseline
+      animationDuration: 6700,
+      legendIndex: 3,
+      dataset: 'SENTINEL-1 SLC',
+      datatype: 'complex radar · complex64',
+      caption: 'Sentinel-1 SLC separates real and imaginary radar components.',
+      draw: drawComplex
     },
     {
-      duration: 7000,
-      motionDelay: 700,
-      motionDuration: 3000,
-      caption: 'Spatial structure becomes small residuals',
-      draw: drawSpatial
-    },
-    {
-      duration: 7000,
-      motionDelay: 700,
-      motionDuration: 3000,
-      caption: 'Missing samples leave as a validity mask',
+      animationDuration: 6100,
+      legendIndex: 2,
+      dataset: 'CLIMATE GRID',
+      datatype: 'missing values · float32',
+      caption: 'A climate grid sends NaNs to a validity mask.',
       draw: drawNodata
     },
     {
-      duration: 7000,
-      motionDelay: 700,
-      motionDuration: 3000,
-      caption: 'Real, imaginary, values and masks travel independently',
-      draw: drawComplex
+      animationDuration: 5800,
+      legendIndex: 1,
+      dataset: 'ELEVATION / DEM',
+      datatype: 'smooth surface · int16',
+      caption: 'A DEM becomes small spatial residuals.',
+      draw: drawSpatial
+    },
+    {
+      animationDuration: 5800,
+      legendIndex: 0,
+      dataset: 'LAND COVER',
+      datatype: 'categorical classes · uint8',
+      caption: 'Land-cover classes often need only entropy compression.',
+      draw: drawBaseline
     }
   ];
 
-  var graphTotal = graphScenes.reduce(function (sum, scene) {
-    return sum + scene.duration;
-  }, 0);
-
   function clamp01(value) {
     return Math.max(0, Math.min(1, value));
-  }
-
-  function ease(value) {
-    value = clamp01(value);
-    return 1 - Math.pow(1 - value, 3);
   }
 
   function graphCompact() {
@@ -841,8 +971,8 @@ main {
 
   function drawEndpointLabel(label, x, y, color, alpha) {
     var compact = graphCompact();
-    var width = compact ? 38 : 46;
-    var height = compact ? 14 : 16;
+    var width = compact ? 42 : 50;
+    var height = compact ? 16 : 18;
     graphContext.save();
     graphContext.globalAlpha = alpha;
     graphContext.fillStyle = 'rgba(8, 11, 16, 0.9)';
@@ -852,7 +982,7 @@ main {
     graphContext.fill();
     graphContext.stroke();
     graphContext.fillStyle = color;
-    graphContext.font = graphFont(compact ? 5.6 : 6.5, 700);
+    graphContext.font = graphFont(compact ? 6.5 : 7.5, 700);
     graphContext.textAlign = 'center';
     graphContext.textBaseline = 'middle';
     graphContext.fillText(label, x, y + 0.2);
@@ -928,7 +1058,7 @@ main {
     roundedRect(x + 0.5, y + 0.5, node.w - 1, node.h - 1, 3.5);
     graphContext.stroke();
     graphContext.fillStyle = node.color || graphColors.soft;
-    graphContext.font = graphFont(compact ? 6.5 : 8, 600);
+    graphContext.font = graphFont(compact ? 7.3 : 9.4, 600);
     graphContext.textAlign = 'center';
     graphContext.textBaseline = 'middle';
     graphContext.fillText(label.toUpperCase(), point.x, point.y);
@@ -979,14 +1109,10 @@ main {
       }
     }
     graphContext.restore();
-    drawScreenText('OUTPUT', x, top + (compact ? 10 : 13), graphColors.soft, compact ? 5.6 : 6.5, 'center', alpha, 700);
+    drawScreenText('OUTPUT', x, top + (compact ? 10 : 13), graphColors.soft, compact ? 6.4 : 7.4, 'center', alpha, 700);
     labels.forEach(function (label, index) {
-      drawScreenText(label, left + 4 + labelSpace / 2, payloadTop + index * rowGap + 2.5, graphColors.dim, compact ? 4.4 : 5.2, 'center', alpha, 600);
+      drawScreenText(label, left + 4 + labelSpace / 2, payloadTop + index * rowGap + 2.5, graphColors.dim, compact ? 5 : 6, 'center', alpha, 600);
     });
-  }
-
-  function arrivalFill(progress) {
-    return Math.max(0, Math.min(3, Math.round(clamp01((progress - 0.78) / 0.22) * 3)));
   }
 
   function drawTile(x, y, kind, alpha) {
@@ -1003,8 +1129,10 @@ main {
     var values = kind === 'complex'
       ? (compact ? ['z0', 'z1', 'NaN', 'z3'] : ['3.2+0.8i', '3.8+0.7i', 'NaN+NaNi', '4.4+0.5i'])
       : (kind === 'nodata'
-        ? ['20', 'NaN', '22', '23', '21', '22', 'NaN', '24', '22', '23', '24', '25']
-        : ['41', '42', '44', '45', '43', '45', '47', '48', '46', '47', '49', '51']);
+        ? ['18', 'NaN', '19', '20', '18', '19', 'NaN', '21', '19', '20', '21', '22']
+        : (kind === 'classes'
+          ? ['2', '2', '2', '3', '2', '2', '3', '3', '4', '4', '4', '3']
+          : ['410', '412', '414', '416', '411', '413', '415', '417', '412', '414', '416', '418']));
 
     graphContext.save();
     graphContext.globalAlpha = alpha;
@@ -1019,7 +1147,7 @@ main {
         graphContext.lineWidth = 1;
         graphContext.fillRect(px, py, cellW, cellH);
         graphContext.strokeRect(px + 0.5, py + 0.5, cellW - 1, cellH - 1);
-        drawScreenText(values[index], px + cellW / 2, py + cellH / 2, hole ? graphColors.ember : graphColors.soft, compact ? 5.2 : (kind === 'complex' ? 5.8 : 6.5), 'center', alpha, 500);
+        drawScreenText(values[index], px + cellW / 2, py + cellH / 2, hole ? graphColors.ember : graphColors.soft, compact ? 6 : (kind === 'complex' ? 6.8 : 7.5), 'center', alpha, 500);
       }
     }
     graphContext.restore();
@@ -1027,7 +1155,7 @@ main {
     return { width: width, height: height };
   }
 
-  function drawToken(points, progress, color, alpha, label) {
+  function drawToken(points, progress, color, alpha) {
     if (progress <= 0 || progress >= 1 || points.length < 2) return;
     points = points.map(function (point) { return graphPoint(point.x, point.y); });
     var curves = [];
@@ -1048,38 +1176,20 @@ main {
     }
     var part = lengths[segment] ? wanted / lengths[segment] : 0;
     var position = cubicPoint(points[segment], curves[segment].first, curves[segment].second, points[segment + 1], part);
-    var x = position.x;
-    var y = position.y;
     graphContext.save();
     graphContext.globalAlpha = alpha;
     graphContext.fillStyle = color;
     graphContext.shadowColor = color;
-    graphContext.shadowBlur = label ? 5 : 9;
-    if (label) {
-      var packetWidth = graphCompact() ? 13 : 16;
-      var packetHeight = graphCompact() ? 8 : 9;
-      graphContext.fillStyle = 'rgba(10, 14, 22, 0.94)';
-      graphContext.fillRect(x - packetWidth / 2, y - packetHeight / 2, packetWidth, packetHeight);
-      graphContext.strokeStyle = color;
-      graphContext.strokeRect(x - packetWidth / 2 + 0.5, y - packetHeight / 2 + 0.5, packetWidth - 1, packetHeight - 1);
-      graphContext.shadowBlur = 0;
-      graphContext.fillStyle = color;
-      graphContext.font = graphFont(graphCompact() ? 4.8 : 5.5, 600);
-      graphContext.textAlign = 'center';
-      graphContext.textBaseline = 'middle';
-      graphContext.fillText(label, x, y + 0.2);
-    } else {
-      graphContext.beginPath();
-      graphContext.arc(x, y, graphCompact() ? 2.6 : 3.2, 0, Math.PI * 2);
-      graphContext.fill();
-    }
+    graphContext.shadowBlur = 9;
+    graphContext.beginPath();
+    graphContext.arc(position.x, position.y, graphCompact() ? 2.6 : 3.2, 0, Math.PI * 2);
+    graphContext.fill();
     graphContext.restore();
   }
 
   function singleProgress(localTime, delay, launch, travel) {
     var active = localTime - delay;
-    if (active <= 0) return -1;
-    if (active < launch || active >= launch + travel) return -1;
+    if (active <= 0 || active < launch || active >= launch + travel) return -1;
     return (active - launch) / travel;
   }
 
@@ -1098,40 +1208,49 @@ main {
       [[graphColors.violet, 'raster transform', 'transform'], [graphColors.mint, 'stream split', 'split'], [graphColors.ember, 'nodata route', 'nodata'], [graphColors.gold, 'compression block', 'compress']],
       [[graphColors.violet, 'raster transform', 'transform'], [graphColors.mint, 'stream split', 'split'], [graphColors.ember, 'nodata route', 'nodata'], [graphColors.gold, 'compression block', 'compress']]
     ];
-    var items = legends[scene];
+    var items = legends[graphScenes[scene].legendIndex];
     var compact = graphCompact();
     items.forEach(function (item, index) {
       var x = 8;
-      var y = 48 + index * (compact ? 16 : 18);
+      var y = (compact ? 58 : 48) + index * (compact ? 16 : 18);
       graphContext.save();
       graphContext.globalAlpha = alpha;
       graphContext.fillStyle = item[0];
       graphContext.fillRect(x, y - 4, 8, 8);
       graphContext.restore();
       var label = compact ? item[2] : item[1];
-      drawScreenText(label, x + 13, y, graphColors.dim, compact ? 6.5 : 8, 'left', alpha, 500);
+      drawScreenText(label, x + 13, y, graphColors.dim, compact ? 7.3 : 9.2, 'left', alpha, 500);
     });
   }
 
-  function drawBaseline(alpha, motion, localTime) {
+  function drawDataset(scene, alpha) {
+    var compact = graphCompact();
+    var item = graphScenes[scene];
+    var x = compact ? 8 : graphWidth - 8;
+    var align = compact ? 'left' : 'right';
+    drawScreenText(item.dataset, x, compact ? 18 : 22, graphColors.ink, compact ? 11 : 16, align, alpha, 650);
+    drawScreenText(item.datatype, x, compact ? 35 : 43, graphColors.dim, compact ? 8 : 10.5, align, alpha, 500);
+  }
+
+  function drawBaseline(alpha, localTime) {
     var compact = graphCompact();
     var input = {x:graphWidth * (compact ? 0.70 : 0.33),y:graphHeight * (compact ? 0.18 : 0.28)};
     var entropy = {x:graphWidth * (compact ? 0.38 : 0.59),y:graphHeight * 0.52,w:compact ? 58 : 90,h:31,label:'entropy',color:graphColors.gold};
     var output = {x:graphWidth * (compact ? 0.68 : 0.84),y:graphHeight * (compact ? 0.82 : 0.74)};
     var launches = [0,450,900];
-    var delay = 1500;
+    var delay = 900;
     var travel = 3000;
     drawLine(input,entropy,graphColors.edge,alpha,false);
     drawLine(entropy,output,graphColors.edge,alpha,false);
     launches.forEach(function (launch) {
       drawToken([input,entropy,output],singleProgress(localTime,delay,launch,travel),graphColors.soft,alpha);
     });
-    drawTile(input.x,input.y,'plain',alpha);
+    drawTile(input.x,input.y,'classes',alpha);
     drawNode(entropy, alpha);
     drawFrame(output.x,output.y,68,[graphColors.soft],alpha,[singleFill(localTime,delay,launches,travel)],['P1']);
   }
 
-  function drawSpatial(alpha, motion, localTime) {
+  function drawSpatial(alpha, localTime) {
     var compact = graphCompact();
     var input = {x:graphWidth * (compact ? 0.68 : 0.33),y:graphHeight * (compact ? 0.18 : 0.23)};
     var nodes = [
@@ -1141,7 +1260,7 @@ main {
     ];
     var output = {x:graphWidth * (compact ? 0.65 : 0.84),y:graphHeight * 0.83};
     var launches = [0,450,900];
-    var delay = 1500;
+    var delay = 900;
     var travel = 3000;
     var points = [input];
     drawLine(input,nodes[0],graphColors.edge,alpha,false);
@@ -1155,28 +1274,27 @@ main {
     launches.forEach(function (launch) {
       drawToken(points,singleProgress(localTime,delay,launch,travel),graphColors.soft,alpha);
     });
-    drawTile(input.x,input.y,'plain',alpha);
+    drawTile(input.x,input.y,'dem',alpha);
     nodes.forEach(function (node) { drawNode(node,alpha); });
     drawFrame(output.x,output.y,78,[graphColors.soft],alpha,[singleFill(localTime,delay,launches,travel)],['P1']);
   }
 
-  function drawNodata(alpha, motion, localTime) {
+  function drawNodata(alpha, localTime) {
     var compact = graphCompact();
-    var input = {x:graphWidth * 0.72,y:graphHeight * 0.18};
-    var nodata = {x:graphWidth * 0.70,y:graphHeight * 0.37,w:compact ? 52 : 78,h:34,label:'nodata',color:graphColors.mint};
-    var planar = {x:graphWidth * 0.43,y:graphHeight * 0.50,w:compact ? 48 : 70,h:30,label:'planar',color:graphColors.violet};
+    var input = {x:graphWidth * 0.60,y:graphHeight * 0.18};
+    var nodata = {x:graphWidth * 0.64,y:graphHeight * 0.37,w:compact ? 52 : 78,h:34,label:'nodata',color:graphColors.mint};
+    var planar = {x:graphWidth * 0.41,y:graphHeight * 0.50,w:compact ? 48 : 70,h:30,label:'planar',color:graphColors.violet};
     var zigzag = {x:graphWidth * 0.30,y:graphHeight * 0.66,w:compact ? 45 : 66,h:30,label:'zigzag',color:graphColors.dim};
     var entropy = {x:graphWidth * 0.26,y:graphHeight * 0.83,w:compact ? 52 : 76,h:30,label:'entropy',color:graphColors.gold};
-    var generic = {x:graphWidth * 0.78,y:graphHeight * 0.65,w:compact ? 55 : 84,h:30,label:'compress generic',short:'generic',color:graphColors.gold};
-    var output = {x:graphWidth * 0.58,y:graphHeight * 0.86};
+    var generic = {x:graphWidth * 0.80,y:graphHeight * 0.65,w:compact ? 55 : 112,h:30,label:'compress generic',short:'generic',color:graphColors.gold};
+    var output = {x:graphWidth * 0.56,y:graphHeight * 0.86};
     var outputOffset = compact ? 15 : 26;
     var valueOutput = {x:output.x - outputOffset,y:output.y + 12};
     var maskOutput = {x:output.x + outputOffset,y:output.y - 12};
     var valueLaunches = [0,450,900];
     var maskLaunches = [300,750,1200];
-    var delay = 1500;
+    var delay = 900;
     var travel = 3000;
-
     drawLine(input,nodata,graphColors.edge,alpha,false);
     drawLine(nodata,planar,graphColors.mint,alpha,false);
     drawLine(nodata,generic,graphColors.ember,alpha,false);
@@ -1195,7 +1313,7 @@ main {
     drawFrame(output.x,output.y,94,[graphColors.soft,graphColors.soft],alpha,[singleFill(localTime,delay,valueLaunches,travel),singleFill(localTime,delay,maskLaunches,travel)],['V','M']);
   }
 
-  function drawComplex(alpha, motion, localTime) {
+  function drawComplex(alpha, localTime) {
     var compact = graphCompact();
     var input = {x:graphWidth * 0.60,y:graphHeight * 0.18};
     var split = {x:graphWidth * 0.60,y:graphHeight * 0.34,w:compact ? 48 : 76,h:35,label:'deinterleave',short:'deint',color:graphColors.mint};
@@ -1229,7 +1347,7 @@ main {
     drawLine(realMask,realMaskOutput,graphColors.ember,alpha,false);
     drawLine(imagMask,imagMaskOutput,graphColors.ember,alpha,false);
 
-    var batchDelay = 1500;
+    var batchDelay = 900;
     var travel = 3000;
     var realLaunches = [0,450,900];
     var imagLaunches = [225,675,1125];
@@ -1258,66 +1376,81 @@ main {
     drawFrame(output.x,output.y,96,[graphColors.soft,graphColors.soft,graphColors.soft,graphColors.soft],alpha,payloadFill,['R','RM','I','IM']);
   }
 
-  function sceneAt(elapsed) {
-    var cursor = 0;
-    for (var i = 0; i < graphScenes.length; i += 1) {
-      if (elapsed < cursor + graphScenes[i].duration) {
-        return {index:i, local:elapsed - cursor};
-      }
-      cursor += graphScenes[i].duration;
-    }
-    return {index:graphScenes.length - 1,local:graphScenes[graphScenes.length - 1].duration};
-  }
-
   function setGraphCopy(index) {
     if (graphSceneShown === index) return;
     graphSceneShown = index;
     graphCaption.textContent = graphScenes[index].caption;
   }
 
-  function drawGraphScene(index, alpha, motion, localTime) {
+  function drawGraphScene(index, alpha, localTime) {
     activeGraphScene = index;
-    graphScenes[index].draw(alpha, motion, localTime || 0);
+    graphScenes[index].draw(alpha, localTime || 0);
     drawLegend(index, alpha);
+    drawDataset(index, alpha);
+  }
+
+  function renderGraphFrame(elapsed) {
+    graphContext.clearRect(0, 0, graphWidth, graphHeight);
+    var duration = graphScenes[activeGraphScene].animationDuration;
+    var entrance = clamp01(elapsed / 320);
+    var exit = 1 - clamp01((elapsed - (duration - 450)) / 450);
+    drawGraphScene(activeGraphScene, Math.min(entrance, exit), elapsed);
   }
 
   function renderGraph(now) {
-    graphContext.clearRect(0, 0, graphWidth, graphHeight);
-    var totalElapsed = now - graphStart;
-    var elapsed = totalElapsed % graphTotal;
-    var state = sceneAt(elapsed);
-    var currentScene = graphScenes[state.index];
-    var transition = 1500;
-    var exitDuration = 650;
-    var entryDelay = 800;
-    var moving = ease((state.local - currentScene.motionDelay) / currentScene.motionDuration);
-    var initial = totalElapsed < transition && state.index === 0;
-    var previous = (state.index + graphScenes.length - 1) % graphScenes.length;
-
-    if (!initial && state.local < transition) {
-      if (state.local < exitDuration) {
-        drawGraphScene(previous, 1 - ease(state.local / exitDuration), 1, graphScenes[previous].duration - exitDuration + state.local);
-      } else if (state.local > entryDelay) {
-        drawGraphScene(state.index, ease((state.local - entryDelay) / (transition - entryDelay)), 0, state.local);
-      }
-    } else {
-      drawGraphScene(state.index, 1, moving, state.local);
+    var duration = graphScenes[activeGraphScene].animationDuration;
+    graphSceneElapsed = now - graphSceneStart;
+    if (graphSceneElapsed >= duration) {
+      graphSceneElapsed %= duration;
+      graphSceneStart = now - graphSceneElapsed;
     }
-    setGraphCopy(!initial && state.local < entryDelay ? previous : state.index);
+    renderGraphFrame(graphSceneElapsed);
     graphRaf = window.requestAnimationFrame(renderGraph);
+  }
+
+  function selectGraph(index) {
+    index = ((Number(index) || 0) % graphScenes.length + graphScenes.length) % graphScenes.length;
+    activeGraphScene = index;
+    var item = graphScenes[index];
+    graphAnnouncement.textContent = 'Graph ' + (index + 1) + ' of ' + graphScenes.length + ': ' + item.dataset + ', ' + item.datatype + '.';
+    graphSteps.forEach(function (step, stepIndex) {
+      step.classList.toggle('is-active', stepIndex === index);
+      if (stepIndex === index) step.setAttribute('aria-current', 'true');
+      else step.removeAttribute('aria-current');
+    });
+    setGraphCopy(index);
+    window.cancelAnimationFrame(graphRaf);
+    graphRaf = 0;
+    graphSceneElapsed = reduceMotion ? item.animationDuration - 650 : 0;
+    if (reduceMotion) {
+      renderGraphFrame(graphSceneElapsed);
+    } else {
+      graphSceneStart = performance.now();
+      renderGraphFrame(0);
+      graphRaf = window.requestAnimationFrame(renderGraph);
+    }
   }
 
   resizeGraph();
-  if (reduceMotion) {
-    drawGraphScene(3, 1, 1, 4200);
-    setGraphCopy(3);
-  } else {
-    graphRaf = window.requestAnimationFrame(renderGraph);
-  }
+  selectGraph(0);
+
+  graphPrevious.addEventListener('click', function () {
+    selectGraph(activeGraphScene - 1);
+  });
+
+  graphNext.addEventListener('click', function () {
+    selectGraph(activeGraphScene + 1);
+  });
+
+  graphSteps.forEach(function (step) {
+    step.addEventListener('click', function () {
+      selectGraph(step.getAttribute('data-graph-scene'));
+    });
+  });
 
   window.addEventListener('resize', function () {
     resizeGraph();
-    if (reduceMotion) drawGraphScene(3, 1, 1, 4200);
+    renderGraphFrame(graphSceneElapsed);
   }, { passive: true });
 
   window.addEventListener('pagehide', function () {
