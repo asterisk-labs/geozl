@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220" width="360" height="220" role="img" aria-label="pfor packs a block of 256 values at one bit width b. Each value needs a different number of bits; b is chosen so that almost every value fits under it. The few that rise above b keep their low b bits in the body and carry the bits above b in a per-block exception list, which the decoder ORs back into place">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+    svg{
+      --paper:#111721; --ink:#E6EDF3; --ink-2:#8F9AAA; --purple:#7457FF; --green:#91F2BC;
+      --fit:color-mix(in srgb,var(--green) 42%,var(--paper));
+      --over:color-mix(in srgb,var(--purple) 55%,var(--paper));
+      --ease:cubic-bezier(.22,.7,.2,1);
+      background:transparent;
+      font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+
+    .lab{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; letter-spacing:.05em; }
+    .fx{ fill:var(--ink); font:600 12px/1 "IBM Plex Mono",monospace; }
+    .fx2{ fill:var(--ink-2); font:500 11px/1 "IBM Plex Mono",monospace; }
+    .bar{ fill:var(--fit); stroke:var(--ink); stroke-width:.9; }
+    .tip{ fill:var(--fit); stroke:var(--ink); stroke-width:.9; }
+    .hole{ fill:none; stroke:var(--purple); stroke-width:.9; stroke-dasharray:2 2; opacity:.6; }
+    .axis{ stroke:var(--ink-2); stroke-width:1; opacity:.5; }
+    .water{ stroke:var(--purple); stroke-width:1.6; stroke-dasharray:5 3; }
+    .boxr{ fill:none; stroke:var(--ink-2); stroke-width:1; stroke-dasharray:3 2.5; opacity:.75; }
+    .bmark{ fill:var(--purple); font:700 11px/1 "IBM Plex Mono",monospace; }
+
+    /* 7s loop, four beats that enter and then HOLD, so each one can be read.
+       1 the bars   2 the waterline b   3 the tips leave   4 the uniform body */
+    #pf-line   { animation:pfStep2 7s var(--ease) infinite; }
+    #pf-tip1   { animation:pfFill 7s var(--ease) infinite, pfFly1 7s var(--ease) infinite; }
+    #pf-tip2   { animation:pfFill 7s var(--ease) infinite, pfFly2 7s var(--ease) infinite; }
+    #pf-excbox { animation:pfStep3 7s var(--ease) infinite; }
+    #pf-body   { animation:pfStep4 7s var(--ease) infinite; }
+    #pf-tail   { animation:pfStep4 7s var(--ease) infinite; }
+
+    @keyframes pfStep2{ 0%,22%{opacity:0} 27%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes pfStep3{ 0%,46%{opacity:0} 58%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes pfStep4{ 0%,70%{opacity:0} 75%,92%{opacity:1} 97%,100%{opacity:0} }
+    @keyframes pfFill { 0%,44%{fill:var(--fit)} 49%,92%{fill:var(--over)} 97%,100%{fill:var(--fit)} }
+    @keyframes pfFly1 { 0%,50%{transform:translate(0,0)} 62%,92%{transform:translate(224px,0)} 97%,100%{transform:translate(0,0)} }
+    @keyframes pfFly2 { 0%,50%{transform:translate(0,0)} 62%,92%{transform:translate(142px,0)} 97%,100%{transform:translate(0,0)} }
+
+    @media (prefers-reduced-motion:reduce){
+      *{ animation:none !important; }
+      #pf-tip1{ fill:var(--over); transform:translate(224px,0); }
+      #pf-tip2{ fill:var(--over); transform:translate(142px,0); }
+      #pf-line,#pf-excbox,#pf-body,#pf-tail{ opacity:1; }
+    }
+  ]]></style>
+
+  <text x="16" y="16" class="lab">one block &#183; bits each value needs</text>
+
+  <!-- the body fill: everything under b, one uniform width (beat 4) -->
+  <rect id="pf-body" x="18" y="90" width="212" height="42"
+        fill="var(--green)" fill-opacity=".2" stroke="var(--green)"
+        stroke-width=".8" stroke-opacity=".45" opacity="0"/>
+
+  <!-- 26 bars standing in for the 256 values of a block -->
+  <g>
+    <rect class="bar" x="20"  y="97"  width="6" height="35"/>
+    <rect class="bar" x="28"  y="104" width="6" height="28"/>
+    <rect class="bar" x="36"  y="90"  width="6" height="42"/>
+    <rect class="bar" x="44"  y="97"  width="6" height="35"/>
+    <rect class="bar" x="52"  y="111" width="6" height="21"/>
+    <rect class="bar" x="60"  y="104" width="6" height="28"/>
+    <rect class="bar" x="68"  y="90"  width="6" height="42"/>
+    <rect class="bar" x="76"  y="97"  width="6" height="35"/>
+    <rect class="bar" x="84"  y="90"  width="6" height="42"/>
+    <rect class="bar" x="92"  y="104" width="6" height="28"/>
+    <rect class="bar" x="100" y="97"  width="6" height="35"/>
+    <rect class="bar" x="108" y="111" width="6" height="21"/>
+    <rect class="bar" x="116" y="90"  width="6" height="42"/>
+    <rect class="bar" x="124" y="97"  width="6" height="35"/>
+    <rect class="bar" x="132" y="104" width="6" height="28"/>
+    <rect class="bar" x="140" y="90"  width="6" height="42"/>
+    <rect class="bar" x="148" y="97"  width="6" height="35"/>
+    <rect class="bar" x="156" y="111" width="6" height="21"/>
+    <rect class="bar" x="164" y="90"  width="6" height="42"/>
+    <rect class="bar" x="172" y="104" width="6" height="28"/>
+    <rect class="bar" x="180" y="90"  width="6" height="42"/>
+    <rect class="bar" x="188" y="97"  width="6" height="35"/>
+    <rect class="bar" x="196" y="104" width="6" height="28"/>
+    <rect class="bar" x="204" y="90"  width="6" height="42"/>
+    <rect class="bar" x="212" y="111" width="6" height="21"/>
+    <rect class="bar" x="220" y="97"  width="6" height="35"/>
+  </g>
+
+  <!-- beat 3: the gap the tips leave behind, and where they go -->
+  <g id="pf-excbox" opacity="0">
+    <rect class="hole" x="68"  y="48" width="6" height="42"/>
+    <rect class="hole" x="164" y="48" width="6" height="42"/>
+    <path d="M180,54 C212,44 234,44 254,58" fill="none" stroke="var(--purple)"
+          stroke-width="1.3" opacity=".85" marker-end="url(#pf-arrow)"/>
+    <rect class="boxr" x="262" y="42" width="82" height="60" rx="2"/>
+    <text class="lab" x="262" y="35">exceptions</text>
+    <text class="fx2" x="303" y="118" text-anchor="middle">bits above b</text>
+    <text class="fx2" x="303" y="132" text-anchor="middle">+ position</text>
+  </g>
+
+  <!-- the two values that do not fit: the part above b is a separate piece -->
+  <rect id="pf-tip1" class="tip" x="68"  y="48" width="6" height="42"/>
+  <rect id="pf-tip2" class="tip" x="164" y="48" width="6" height="42"/>
+
+  <line class="axis" x1="16" y1="132" x2="234" y2="132"/>
+  <text class="fx2" x="229" y="126">&#8230;</text>
+
+  <!-- beat 2: the waterline -->
+  <g id="pf-line" opacity="0">
+    <line class="water" x1="16" y1="90" x2="234" y2="90"/>
+    <text class="bmark" x="16" y="85">b</text>
+  </g>
+
+  <!-- beat 4: what the body became -->
+  <g id="pf-tail" opacity="0">
+    <text class="fx"  x="16" y="162">body &#183; 256 values, b bits each</text>
+    <text class="fx2" x="16" y="184">decode: unpack at b, then value |= high &#171; b</text>
+  </g>
+
+  <defs>
+    <marker id="pf-arrow" markerWidth="7" markerHeight="6" refX="5.5" refY="2.6" orient="auto">
+      <path d="M0,0 L5.5,2.6 L0,5.2 z" fill="var(--purple)"/>
+    </marker>
+  </defs>
+</svg>

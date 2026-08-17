@@ -94,6 +94,7 @@ OpenZL decoder.
 | `average`      | `0x72D706` | floor average of the west and north neighbours                     |
 | `wp_static`    | `0x72D707` | fits a weighted predictor and stores its weights in the frame      |
 | `nodata`       | `0x72D70C` | moves missing samples into a validity mask and fills the holes     |
+| `pfor`         | `0x72D70D` | bit packs each block of 256 and patches the values that overflow   |
 | `quant_linear` | `0x72D781` | uniform grid with a fixed absolute bound: `LINEAR:MAX_ERROR=V`     |
 | `quant_log`    | `0x72D782` | logarithmic grid with a relative bound: `LOG:MAX_ERROR=P%`         |
 | `quant_sqrt`   | `0x72D783` | square-root grid whose bound grows with noise: `SQRT:MAX_ERROR=VN` |

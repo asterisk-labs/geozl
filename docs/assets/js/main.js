@@ -15,9 +15,10 @@
     { no: "06", name: "wp_static",    file: "wp-static.html",    fam: "purple" },
     { no: "07", name: "deinterleave", file: "deinterleave.html", fam: "green"  },
     { no: "08", name: "nodata",       file: "nodata.html",       fam: "green"  },
-    { no: "09", name: "quant_linear", file: "quant-linear.html", fam: "orange" },
-    { no: "10", name: "quant_log",    file: "quant-log.html",    fam: "orange" },
-    { no: "11", name: "quant_sqrt",   file: "quant-sqrt.html",   fam: "orange" }
+    { no: "09", name: "pfor",         file: "pfor.html",         fam: "green"  },
+    { no: "10", name: "quant_linear", file: "quant-linear.html", fam: "orange" },
+    { no: "11", name: "quant_log",    file: "quant-log.html",    fam: "orange" },
+    { no: "12", name: "quant_sqrt",   file: "quant-sqrt.html",   fam: "orange" }
   ];
 
   const pager = document.querySelector(".pager");

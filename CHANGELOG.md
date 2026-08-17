@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `pfor`, a lossless terminal for fixed-width integer streams.
+
+### Removed
+
+- `store_lo` from the high-level 2D recipe grid.
+
 ## [0.13.1] - 2026-08-15
 
 ### Fixed
