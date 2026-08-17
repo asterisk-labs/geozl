@@ -23,6 +23,10 @@ int wp_static_train(int16_t coeffs[4], uint8_t* shift, const void* src, size_t w
 int wp_static_encode(void* dst, const void* src, size_t width, size_t nb_elts, size_t elt_width, const int16_t coeffs[4], uint8_t shift);
 int wp_static_decode(void* dst, const void* src, size_t width, size_t nb_elts, size_t elt_width, const int16_t coeffs[4], uint8_t shift);
 
+size_t pfor_bound(size_t nb_elts, size_t elt_width);
+int pfor_encode(void* dst, size_t dst_capacity, size_t* out_size, const void* src, size_t nb_elts, size_t elt_width);
+int pfor_decode(void* dst, size_t nb_elts, size_t elt_width, const void* src, size_t src_size);
+
 void deinterleave_split(void* out0, void* out1, const void* src, size_t nb_elts, size_t elt_width);
 void deinterleave_join(void* dst, const void* in0, const void* in1, size_t nb_elts, size_t elt_width);
 

@@ -43,6 +43,7 @@ GEOZL_API ZL_NodeID geozl_node_average(ZL_Compressor *c, uint32_t width,
 GEOZL_API ZL_NodeID geozl_node_wp_static(ZL_Compressor *c, uint32_t width,
                                          uint32_t planes);
 GEOZL_API ZL_NodeID geozl_node_deinterleave(ZL_Compressor *c);
+GEOZL_API ZL_NodeID geozl_node_pfor(ZL_Compressor *c);
 GEOZL_API ZL_NodeID geozl_node_binoffset(ZL_Compressor *c);
 GEOZL_API ZL_NodeID geozl_node_intmult(ZL_Compressor *c, uint64_t base);
 GEOZL_API ZL_NodeID geozl_node_floatquant(ZL_Compressor *c, unsigned k);

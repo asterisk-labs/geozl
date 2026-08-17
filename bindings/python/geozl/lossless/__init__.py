@@ -4,17 +4,18 @@ from .delta_n import DeltaN, DeltaNDecoder
 from .delta_w import DeltaW, DeltaWDecoder
 from .med import Med, MedDecoder
 from .nodata import Nodata, NodataDecoder, nodata_bits
+from .pfor import Pfor, PforDecoder
 from .planar import Planar, PlanarDecoder
 from .wp_static import WpStatic, WpStaticDecoder
 
 _DECODERS = (DeltaWDecoder, DeltaNDecoder, PlanarDecoder, MedDecoder,
              AverageDecoder, WpStaticDecoder, DeinterleaveDecoder,
-             NodataDecoder)
+             NodataDecoder, PforDecoder)
 
 
 __all__ = [
     "Average", "AverageDecoder", "DeltaN", "DeltaNDecoder", "DeltaW",
     "DeltaWDecoder", "Deinterleave", "DeinterleaveDecoder", "Med", "MedDecoder",
-    "Nodata", "NodataDecoder", "Planar", "PlanarDecoder", "WpStatic",
-    "WpStaticDecoder", "component_dtype", "nodata_bits",
+    "Nodata", "NodataDecoder", "Pfor", "PforDecoder", "Planar", "PlanarDecoder",
+    "WpStatic", "WpStaticDecoder", "component_dtype", "nodata_bits",
 ]

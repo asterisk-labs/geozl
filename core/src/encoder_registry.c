@@ -10,6 +10,7 @@
 #include "intmult/encode_intmult_binding.h"
 #include "med/encode_med_binding.h"
 #include "nodata/encode_nodata_binding.h"
+#include "pfor/encode_pfor_binding.h"
 #include "planar/encode_planar_binding.h"
 #include "quant_linear/encode_quant_linear_binding.h"
 #include "quant_log/encode_quant_log_binding.h"
@@ -85,6 +86,11 @@ ZL_NodeID geozl_node_wp_static(ZL_Compressor *c, uint32_t width,
 
 ZL_NodeID geozl_node_deinterleave(ZL_Compressor *c) {
   const ZL_TypedEncoderDesc desc = EI_DEINTERLEAVE(GEOZL_CTID_DEINTERLEAVE);
+  return ZL_Compressor_registerTypedEncoder(c, &desc);
+}
+
+ZL_NodeID geozl_node_pfor(ZL_Compressor *c) {
+  const ZL_TypedEncoderDesc desc = EI_PFOR(GEOZL_CTID_PFOR);
   return ZL_Compressor_registerTypedEncoder(c, &desc);
 }
 

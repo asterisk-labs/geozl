@@ -176,7 +176,7 @@ if(GEOZL_BUILD_FULL)
         # decode fuzzer spends its budget in the OpenZL frame reader and rarely
         # reaches a quantizer at all. These drive the codecs directly and assert
         # the bound on the way back out. Kernels only, no OpenZL.
-        foreach(fz roundtrip lossy_recipe quant_linear quant_log quant_sqrt)
+        foreach(fz roundtrip lossy_recipe quant_linear quant_log quant_sqrt pfor)
             add_executable(geozl_${fz}_fuzzer
                 ${CMAKE_CURRENT_SOURCE_DIR}/../fuzz/${fz}_fuzzer.c
                 ${GEOZL_KERNELS})

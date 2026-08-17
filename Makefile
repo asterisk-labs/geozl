@@ -33,7 +33,7 @@ FUZZ_OUT   := fuzz/out
 FUZZ_CORPUS := fuzz/corpus
 # Small inputs kept in git. The cached corpus adds depth when available.
 FUZZ_SEEDS := fuzz/replay
-FUZZ_TARGETS := roundtrip lossy_recipe quant_linear quant_log quant_sqrt decode binding
+FUZZ_TARGETS := roundtrip lossy_recipe quant_linear quant_log quant_sqrt pfor decode binding
 OPENZL     := extern/openzl
 PY_DIR     := bindings/python
 PY_LIB_DIR := $(PY_DIR)/geozl/_lib
@@ -207,7 +207,7 @@ fuzz-build: $(OPENZL)/CMakeLists.txt
 	cmake --build core/build-fuzz --target geozl_decode_fuzzer geozl_binding_fuzzer \
 	      geozl_roundtrip_fuzzer geozl_lossy_recipe_fuzzer \
 	      geozl_quant_linear_fuzzer \
-	      geozl_quant_log_fuzzer geozl_quant_sqrt_fuzzer
+	      geozl_quant_log_fuzzer geozl_quant_sqrt_fuzzer geozl_pfor_fuzzer
 
 fuzz-seed: python
 	@$(PYTHON) fuzz/gen_corpus.py $(FUZZ_CORPUS)/decode
