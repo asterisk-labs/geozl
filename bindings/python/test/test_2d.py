@@ -251,18 +251,23 @@ def test_unbiased_prior_is_the_whole_grid():
 
 
 def test_the_grid_at_one_byte_keeps_categorical_and_drops_the_rest():
-    # 8 x 4: the transposed three need 2 bytes, categorical does not, and it is
-    # 1-byte rasters it exists for
+    # 8 x 5: the two transposed terminals need 2 bytes; categorical and pfor do
+    # not.
     rows = geozl.profile(_tile(dtype=np.uint8), prior=None, reps=1)
-    assert len(rows) == 32
+    assert len(rows) == 40
     assert any(r["graph"].endswith("categorical") for r in rows)
+    assert any(r["graph"].endswith("pfor") for r in rows)
 
 
 def test_transpose_terminals_drop_out_on_1_byte_elements():
     rows = geozl.profile(_tile(dtype=np.uint8), prior=None, reps=1)
     assert rows
-    assert not any("transpose" in r["graph"] or "store_lo" in r["graph"]
-                   for r in rows)
+    assert not any("transpose" in r["graph"] for r in rows)
+
+
+def test_store_lo_is_no_longer_a_recipe():
+    with pytest.raises(RuntimeError, match="unknown method"):
+        geozl.graph(_tile(), "planar>zigzag>store_lo")
 
 
 def test_profile_rejects_an_unknown_prior():

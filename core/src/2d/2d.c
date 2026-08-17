@@ -59,7 +59,7 @@ typedef enum {
   GEOZL_TERM_CATEGORICAL, // dispatch on the dominant symbol's share
   GEOZL_TERM_T_ENTROPY,   // transpose to lanes, entropy (shuffle + entropy)
   GEOZL_TERM_T_ZSTD,      // transpose to lanes, zstd (shuffle + zstd)
-  GEOZL_TERM_STORE_LO,    // transpose, low lane stored, high lanes entropy
+  GEOZL_TERM_PFOR,        // bit pack fixed blocks and patch exceptions
   GEOZL_TERM_COUNT
 } geozl_terminal;
 
@@ -88,7 +88,7 @@ static const char *term_name(geozl_terminal t) {
   case GEOZL_TERM_CATEGORICAL: return "categorical";
   case GEOZL_TERM_T_ENTROPY: return "transpose>entropy";
   case GEOZL_TERM_T_ZSTD:    return "transpose>zstd";
-  case GEOZL_TERM_STORE_LO:  return "store_lo";
+  case GEOZL_TERM_PFOR:      return "pfor";
   default:                   return "?";
   }
 }
@@ -145,23 +145,6 @@ static ZL_GraphID chain(ZL_Compressor *c, const ZL_NodeID *nodes, size_t n,
     return ZL_Compressor_registerStaticGraph_fromNode1o(c, nodes[0], final);
   return ZL_Compressor_registerStaticGraph_fromPipelineNodes1o(c, nodes, n,
                                                                final);
-}
-
-// Store the low byte lane and entropy-code the rest.
-static ZL_Report geozl_storelo_fg(ZL_Graph *g, ZL_Edge *inputs[],
-                                  size_t nbInputs) {
-  (void)nbInputs;
-  ZL_RESULT_OF(ZL_EdgeList) lanes = ZL_Edge_runTransposeSplit(inputs[0], g);
-  if (ZL_RES_isError(lanes))
-    return ZL_returnError(ZL_RES_code(lanes));
-  ZL_EdgeList e = ZL_RES_value(lanes);
-  for (size_t i = 0; i < e.nbEdges; ++i) {
-    ZL_Report r = ZL_Edge_setDestination(
-        e.edges[i], i == 0 ? ZL_GRAPH_STORE : ZL_GRAPH_ENTROPY);
-    if (ZL_isError(r))
-      return r;
-  }
-  return ZL_returnSuccess();
 }
 
 // Count the dominant value with Boyer-Moore followed by an exact pass.
@@ -271,25 +254,12 @@ static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
     head[n++] = ZL_NODE_CONVERT_NUM_TO_STRUCT_LE;
     return chain(c, head, n, tg);
   }
-  case GEOZL_TERM_STORE_LO: {
-    // low lane is residual noise, stored raw; higher lanes are near-constant,
-    // so entropy (which collapses a constant lane to almost nothing).
-    if (eltWidth < 2 || eltWidth > 8)
+  case GEOZL_TERM_PFOR: {
+    ZL_NodeID nd = geozl_node_pfor(c);
+    if (!ZL_NodeID_isValid(nd))
       return ZL_GRAPH_ILLEGAL;
-    static const ZL_Type in_mask = ZL_Type_struct;
-    static const ZL_GraphID used[2] = {ZL_GRAPH_STORE, ZL_GRAPH_ENTROPY};
-    ZL_FunctionGraphDesc desc = {0};
-    desc.name = "geozl_store_lo";
-    desc.graph_f = geozl_storelo_fg;
-    desc.inputTypeMasks = &in_mask;
-    desc.nbInputs = 1;
-    desc.customGraphs = used;
-    desc.nbCustomGraphs = 2;
-    ZL_GraphID fg = ZL_Compressor_registerFunctionGraph(c, &desc);
-    if (!ZL_GraphID_isValid(fg))
-      return ZL_GRAPH_ILLEGAL;
-    head[n++] = ZL_NODE_CONVERT_NUM_TO_STRUCT_LE;
-    return chain(c, head, n, fg);
+    head[n++] = nd;
+    return chain(c, head, n, ZL_GRAPH_STORE);
   }
   default:
     return ZL_GRAPH_ILLEGAL;
@@ -455,8 +425,7 @@ static ZL_Report graph_open(geozl_2d_graph **out, const char *method,
     if (has_err)
       snprintf(errCtx, errCtxSize,
                "method \"%s\" does not apply to %zu-byte elements; the "
-               "transpose and store_lo terminals need 2 to 8, categorical "
-               "needs 1 or 2",
+               "transpose terminals need 2 to 8, categorical needs 1 or 2",
                method, eltWidth);
     r = ZL_returnError(ZL_ErrorCode_graph_invalid);
     goto fail;
@@ -824,8 +793,8 @@ GEOZL_API int geozl_2d_grid_c(const char *method, size_t eltWidth, char *names,
   size_t k = 0;
   for (size_t i = 0; i < nbPreds; ++i) {
     for (int t = 0; t < GEOZL_TERM_COUNT; ++t) {
-      // the transpose-based terminals need at least a 2-byte element
-      if ((geozl_terminal)t >= GEOZL_TERM_T_ENTROPY &&
+      if (((geozl_terminal)t == GEOZL_TERM_T_ENTROPY ||
+           (geozl_terminal)t == GEOZL_TERM_T_ZSTD) &&
           (eltWidth < 2 || eltWidth > 8))
         continue;
       // categorical's entropy arm tops out at 2, the same place ZL_GRAPH_ENTROPY

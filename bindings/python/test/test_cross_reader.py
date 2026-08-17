@@ -117,6 +117,54 @@ def test_planes_change_the_python_frame(predictor, node):
             != _frame_from_python_node(node(_W), arr))
 
 
+# pfor is a terminal, so test it separately from the predictors above.
+_PFOR_DTYPES = ["int8", "uint8", "int16", "uint16", "int32", "uint32",
+                "int64", "uint64"]
+
+
+@pytest.mark.parametrize("dtype", _PFOR_DTYPES)
+@pytest.mark.parametrize("shape", [(_W, _W), (1, 129), (13, 17)],
+                         ids=["square", "tail", "ragged"])
+def test_a_c_pfor_frame_reads_in_the_python_decoders(dtype, shape):
+    arr = _tile(dtype, shape)
+    frame = _frame_from_c(arr, "planar>zigzag>pfor", width=shape[1])
+    out = _read_with_python_decoders(frame).view(arr.dtype)
+    assert np.array_equal(out.reshape(arr.shape), arr)
+
+
+def _pfor_frame_from_python(arr):
+    c = zl.Compressor()
+    c.select_starting_graph(geozl.lossless.Pfor()(c, zl.graphs.Store()))
+    cc = zl.CCtx()
+    cc.ref_compressor(c)
+    cc.set_parameter(zl.CParam.FormatVersion, zl.MAX_FORMAT_VERSION)
+    return bytes(cc.compress(
+        [zl.Input(zl.Type.Numeric, np.ascontiguousarray(arr).reshape(-1))]))
+
+
+@pytest.mark.parametrize("dtype", _PFOR_DTYPES)
+def test_a_python_pfor_frame_reads_in_the_c_decoders(dtype):
+    arr = _tile(dtype)
+    out = geozl.decompress(_pfor_frame_from_python(arr))
+    assert np.array_equal(out.view(dtype).reshape(-1, _W), arr)
+
+
+@pytest.mark.parametrize("n", [1, 255, 256, 257, 512, 4096])
+def test_pfor_decodes_a_tile_that_packs_to_the_minimum(n):
+    """The allocation guard accepts the minimum two-byte block encoding."""
+    arr = np.zeros(n, dtype="uint16")
+    frame = geozl.compress(arr, graph=geozl.graph(arr, "id>pfor", width=n))
+    assert geozl.decompress(frame).view("uint16").tobytes() == arr.tobytes()
+
+
+def test_c_and_python_pfor_bindings_write_the_same_bytes():
+    from geozl.lossless import pfor as _pfor
+    for dtype in ("uint8", "uint16", "uint32", "uint64"):
+        arr = _tile(dtype).reshape(-1)
+        frame = _pfor_frame_from_python(arr)
+        assert _pfor.encode(arr) in frame
+
+
 def test_delta_w_takes_no_plane_count():
     with pytest.raises(ValueError, match="does not support planes"):
         geozl.lossless.DeltaW(_W, planes=_B)
