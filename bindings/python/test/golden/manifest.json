@@ -1,6 +1,6 @@
 {
   "written_by": "geozl 0.13.0",
-  "note": "Frozen on purpose. See docs/compatibility.md before touching.",
+  "note": "Frozen on purpose. See docs/compatibility.md before touching. Entries with no written_by came from geozl 0.13.0.",
   "frames": [
     {
       "name": "planar-uint16-1p",
@@ -427,6 +427,96 @@
       "sha256_decoded": "cfdce9224429769cdc2399f496345ce755a28f69d09fa4a6b3bfab8871308d17",
       "sha256_frame": "1594128a29bc5a6cdbd419baf8ded7266d749986fdfdb0b11284e777f1c09be0",
       "frame_bytes": 2573
+    },
+    {
+      "name": "quant-linear-index-uint16",
+      "file": "quant-linear-index-uint16.zl",
+      "graph": "planar>zigzag>pfor",
+      "error": "LINEAR:MAX_ERROR=20",
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.14.0",
+      "sha256_decoded": "119c7642ed9c923d22f57df92e58a9d0e5266f712cec9ab51912e3ed6b481048",
+      "sha256_frame": "a0571afae1a0544a5f9475aee2cab89e004d90d6a673751bf41a246ece783c0f"
+    },
+    {
+      "name": "quant-linear-values-uint16",
+      "file": "quant-linear-values-uint16.zl",
+      "graph": "planar>zigzag>entropy",
+      "error": "LINEAR:MAX_ERROR=20,STORE=VALUES",
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.14.0",
+      "sha256_decoded": "119c7642ed9c923d22f57df92e58a9d0e5266f712cec9ab51912e3ed6b481048",
+      "sha256_frame": "5417706fb23c8d28b0bca14d5a353d098022a072568f69e6a7be753a1d510f0b"
+    },
+    {
+      "name": "quant-linear-index-int16",
+      "file": "quant-linear-index-int16.zl",
+      "graph": "planar>zigzag>pfor",
+      "error": "LINEAR:MAX_ERROR=8",
+      "nodata": null,
+      "dtype": "int16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.14.0",
+      "sha256_decoded": "f8adb5cfc81068bc95f21ee61d3c2fb7b51d4c3f15613138afb6c23341dee145",
+      "sha256_frame": "627f148b416cd04f487ec0b45e89fe06004d1865b21cfa2a0eaef240b91a1821"
+    },
+    {
+      "name": "quant-sqrt-index-uint16",
+      "file": "quant-sqrt-index-uint16.zl",
+      "graph": "planar>zigzag>pfor",
+      "error": "SQRT:MAX_ERROR=2N,A=25,B=2,STORE=INDEX",
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.14.0",
+      "sha256_decoded": "652a63e1de38b59d347c38897b1c3fc637d1fd24ddda2ee6b3c3e4e647ff6b00",
+      "sha256_frame": "dd464190438283f16c7c1997b94bf4bb413b22dfd8c563949081fa261c972c49"
+    },
+    {
+      "name": "quant-sqrt-values-uint16",
+      "file": "quant-sqrt-values-uint16.zl",
+      "graph": "planar>zigzag>entropy",
+      "error": "SQRT:MAX_ERROR=2N,A=25,B=2",
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.14.0",
+      "sha256_decoded": "652a63e1de38b59d347c38897b1c3fc637d1fd24ddda2ee6b3c3e4e647ff6b00",
+      "sha256_frame": "dcb6778aa24edb50e843b958914e52d4ed77ba17d616bc0316969e21d4afee9e"
+    },
+    {
+      "name": "quant-log-values-uint16",
+      "file": "quant-log-values-uint16.zl",
+      "graph": "planar>zigzag>entropy",
+      "error": "LOG:MAX_ERROR=1%",
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.14.0",
+      "sha256_decoded": "5874c371c72388aff6c5b4797ccac62e3e84575cfade7c2fbb89557346d0adaf",
+      "sha256_frame": "b001c8da2bf9f3220e12d3aef419b956fe434d569bf73ae4383d0e282ca04fb7"
     }
   ]
 }
