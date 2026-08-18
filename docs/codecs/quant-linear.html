@@ -43,11 +43,12 @@
         <p class="desc"><b>quant_linear</b> snaps values to evenly spaced levels around zero. If
         <code>MAX_ERROR=2</code>, every reconstructed value stays within two units of the original, whether
         that value is 10 or 10,000. Use it when a fixed error in the data's own units is easy to explain
-        and accept.</p>
+        and accept. The stream holds grid indices by default; <code>STORE=VALUES</code> keeps the
+        reconstructed values instead.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D781</dd>
           <dt>header</dt><dd>dtype + flags + step &middot; 10 bytes</dd>
-          <dt>recipe</dt><dd>LINEAR:MAX_ERROR=V &middot; ,STORE=VALUES</dd>
+          <dt>recipe</dt><dd>LINEAR:MAX_ERROR=V &middot; ,STORE=INDEX | VALUES</dd>
           <dt>types</dt><dd>integers 8 to 64-bit &middot; floats 16 to 64-bit</dd>
           <dt>decode</dt><dd>x = q &middot; step, or a copy when the stream holds the reconstruction</dd>
         </dl>

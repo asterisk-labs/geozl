@@ -43,11 +43,12 @@
         <p class="desc"><b>quant_log</b> uses a relative error bound. With <code>MAX_ERROR=1%</code>, a
         value near 8 and one near 8,000 both keep the same proportional accuracy. Zero remains exact, and
         the grid depends only on the recipe, so changing chunk boundaries does not change the result. Send
-        NaNs through <b>nodata</b>.</p>
+        NaNs through <b>nodata</b>. Integer streams hold reconstructed values; <code>STORE=INDEX</code>
+        is available only for floating-point input.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D782</dd>
           <dt>header</dt><dd>dtype + flags + step &middot; 10 bytes</dd>
-          <dt>recipe</dt><dd>LOG:MAX_ERROR=P% &middot; ,STORE=VALUES</dd>
+          <dt>recipe</dt><dd>LOG:MAX_ERROR=P% &middot; ,STORE=INDEX | VALUES</dd>
           <dt>types</dt><dd>integers 8 to 64-bit &middot; floats 16 to 64-bit</dd>
           <dt>decode</dt><dd>one table lookup, or a copy when the stream holds the reconstruction</dd>
         </dl>

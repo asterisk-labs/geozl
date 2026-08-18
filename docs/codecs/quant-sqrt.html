@@ -43,11 +43,12 @@
         <p class="desc"><b>quant_sqrt</b> is designed for data whose noise grows with signal, such as shot
         noise described by <b>&#963;&#178; = a + b&middot;x</b>. Clean, low values get tighter spacing while noisier,
         high values get wider spacing. Fit <b>a</b> and <b>b</b> once for the whole product so every tile uses
-        the same grid, and send non-finite values through <b>nodata</b>.</p>
+        the same grid, and send non-finite values through <b>nodata</b>. Integer input stores reconstructed
+        values by default; <code>STORE=INDEX</code> is accepted when the indices fit the input width.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D783</dd>
           <dt>header</dt><dd>dtype + flags + step + offset &middot; 18 bytes</dd>
-          <dt>recipe</dt><dd>SQRT:MAX_ERROR=VN &middot; ,A=&hellip;,B=&hellip; &middot; ,STORE=VALUES</dd>
+          <dt>recipe</dt><dd>SQRT:MAX_ERROR=VN &middot; ,A=&hellip;,B=&hellip; &middot; ,STORE=INDEX | VALUES</dd>
           <dt>types</dt><dd>integers 8 to 64-bit &middot; floats 16 to 64-bit</dd>
           <dt>decode</dt><dd>x = (q &middot; step)&#178; &minus; offset, or a copy when the stream holds the reconstruction</dd>
         </dl>

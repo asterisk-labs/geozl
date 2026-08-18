@@ -177,7 +177,7 @@ def test_catalog_legend_counts_the_cards():
 
 def test_no_codec_page_ships_a_dead_link():
     """Every codec page carried a Code button pointing at href="#", with the
-    TODO to fix it still in the markup. Shipped, on all eleven."""
+    TODO to fix it still in the markup. Shipped, on all twelve."""
     for page in sorted((CATALOG.parent / "codecs").glob("*.html")):
         body = _read(page)
         assert 'href="#"' not in body, f"{page.name} still has a placeholder link"

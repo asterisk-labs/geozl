@@ -25,9 +25,9 @@ NoData handling and bounded-error quantizers.
 
 ## Status
 
-GeoZL codecs and frames are ready for production use. Frames written since
-0.13.0 remain readable. The C source API is stable; the Python API and C ABI
-may evolve before 1.0. See [compatibility](docs/compatibility.md).
+GeoZL codecs and frames are ready for production use. Frames written by 0.14.0
+are the compatibility baseline. The C source API is stable; the Python API and
+C ABI may evolve before 1.0. See [compatibility](docs/compatibility.md).
 
 Wheels are available for Linux x86-64 and macOS arm64.
 
@@ -50,6 +50,7 @@ y, x = np.mgrid[0:1024, 0:1024]
 tile = (2000 + 8 * y + 5 * x).astype(np.uint16)      # a raster, not noise
 
 rows = geozl.profile(tile)
+print(rows)
 best = rows[0]["graph"]
 
 g = geozl.graph(tile, best)

@@ -7,11 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Wire format.** An integer `quant_linear` frame now carries the grid index by
+  default rather than the reconstructed value. The two describe the same grid,
+  the same levels and the same bound; only the stream contents move. The index
+  is `step` times smaller, which every terminal that charges for magnitude was
+  paying for: on real Sentinel-2 at `MAX_ERROR=100`, `planar>zigzag>pfor` goes
+  from 4.08x to 9.37x and decodes faster because there is less to unpack. An
+  entropy terminal is unaffected, since its cost is the distribution and
+  scaling every value by a constant does not change it. `STORE=VALUES` keeps
+  the old contents and a decode that is a copy.
+- **0.14.0 is the compatibility baseline.** A 0.13.x reader refuses a 0.14.0
+  integer lossy frame rather than misreading it. See
+  [compatibility](docs/compatibility.md), which also gains a checklist for
+  changing the wire format of a codec that already ships.
+- An integer frame now needs a whole step under either storage mode, which is
+  the positive rule replacing "an integer frame storing indices is corrupt".
+  Without it a forged header could declare a fractional step and leave the two
+  ends on different grids in silence.
+- This spends the one bit of redundancy an integer frame had. Flag bit 1 used to
+  be implied by the dtype, so a flip in it was caught; now both values are legal
+  and the frame checksum is what remains. `verify=False` skips that checksum.
+- `STORE=INDEX` on integer input for `quant_log` is now **refused** instead of
+  silently ignored. Rebuilding a level and then rounding it to a whole number
+  spends both the index arithmetic budget and the rounding budget, and the grid
+  charges for only one, so serving the request would overrun the declared bound.
+
+### Fixed
+
+- `quant_linear` refuses an error whose grid step overflows its frame header,
+  instead of returning parameters its own kernels reject.
+
 ### Added
 
 - `pfor`, a lossless terminal for fixed-width integer streams.
+- `STORE=INDEX` for integer input on `quant_sqrt`, where it is requested rather
+  than inherited: a sqrt index grows as the bound tightens instead of being held
+  down by the sample, so a tight recipe on a narrow element is refused rather
+  than made the default. The grid does not move with the choice.
+- Golden frames for integer lossy output in both storage modes, across all three
+  quantiser families. There were none before, so the wire form this release
+  changes was the one form CI did not pin.
 - Short Python error forms: a number selects `LINEAR`, a percentage string
   selects `LOG`, and zero selects lossless compression.
+- `profile` returns list-like `ProfileResults`; printing it includes the input,
+  benchmark settings and ranked graph table.
 
 ### Removed
 
