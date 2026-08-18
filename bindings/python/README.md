@@ -23,7 +23,16 @@ absolute = geozl.graph(tile, "planar>zigzag>entropy", error=2)
 relative = geozl.graph(tile, "planar>zigzag>entropy", error="1%")
 ```
 
-Eleven codecs, lossless and lossy, reachable two ways. `geozl.graph` takes a
+`profile` returns a list-like result. Print it to see the input geometry,
+benchmark settings and ranked graphs together.
+
+```python
+rows = geozl.profile(tile, prior=None)
+print(rows)
+best = rows[0]["graph"]
+```
+
+Twelve codecs, lossless and lossy, reachable two ways. `geozl.graph` takes a
 recipe string and builds the graph for you, and `geozl.compress` runs one tile
 through it. `geozl.lossless` and `geozl.lossy` hand you the individual nodes to
 place in an OpenZL graph yourself, and `geozl.register_decoders` teaches a

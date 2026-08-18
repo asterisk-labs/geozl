@@ -2,7 +2,7 @@ from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
 from . import lossless, lossy
-from ._2d import Graph, compress, decompress, graph, profile
+from ._2d import Graph, ProfileResults, compress, decompress, graph, profile
 from ._simd import simd_info
 
 try:
@@ -17,6 +17,6 @@ def register_decoders(dctx: Any) -> None:
         dctx.register_custom_decoder(decoder())
 
 
-__all__ = ["Graph", "lossless", "lossy", "compress", "decompress",
-           "graph", "profile", "register_decoders", "simd_info",
-           "__version__"]
+__all__ = ["Graph", "ProfileResults", "lossless", "lossy", "compress",
+           "decompress", "graph", "profile", "register_decoders",
+           "simd_info", "__version__"]

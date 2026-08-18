@@ -159,6 +159,64 @@ def _dtype_arg(arr: np.ndarray, error: str | None) -> int:
     return code
 
 
+class ProfileResults(list[dict[str, Any]]):
+    """Profile rows with the input and benchmark settings used to make them."""
+
+    def __init__(self, *, shape: tuple[int, ...], dtype: np.dtype,
+                 raw_bytes: int, width: int, planes: int, prior: str | None,
+                 reps: int, error: str | None) -> None:
+        super().__init__()
+        self.shape = shape
+        self.dtype = dtype
+        self.raw_bytes = raw_bytes
+        self.width = width
+        self.planes = planes
+        self.prior = prior
+        self.reps = reps
+        self.error = error
+
+    def __str__(self) -> str:
+        axes = {
+            0: "scalar",
+            1: "samples",
+            2: "rows, columns",
+            3: "planes, rows, columns",
+        }.get(len(self.shape), "planes, ..., rows, columns")
+        plane_word = "plane" if self.planes == 1 else "planes"
+        rep_word = "rep" if self.reps == 1 else "reps"
+        if self.prior is None:
+            predictors = "all predictors"
+        elif self.prior == "none":
+            predictors = "no predictor"
+        else:
+            predictors = f"{self.prior} + id"
+        mode = self.error or "lossless"
+
+        lines = [
+            "input",
+            f"  shape    {self.shape}  [{axes}]",
+            f"  dtype    {self.dtype}  [{self.dtype.itemsize} bytes/sample]",
+            f"  raw      {self.raw_bytes / 1e6:.2f} MB",
+            f"  profile  {self.planes} {plane_word} · row width {self.width} · "
+            f"{predictors} · {self.reps} {rep_word} · {mode}",
+            "",
+        ]
+        if not self:
+            lines.append("no compatible graphs")
+            return "\n".join(lines)
+
+        graph_width = 32
+        lines.append(
+            f"{'graph':{graph_width}} {'ratio':>6} {'enc MB/s':>9} "
+            f"{'dec MB/s':>9} {'shan%':>6}")
+        for row in self:
+            lines.append(
+                f"{row['graph']:{graph_width}} {row['ratio']:6.2f} "
+                f"{row['encode_mbps']:9.1f} {row['decode_mbps']:9.1f} "
+                f"{row['shannon_pct']:6.0f}")
+        return "\n".join(lines)
+
+
 class Graph:
     """A reusable compression graph.
 
@@ -321,7 +379,7 @@ def profile(tile: ArrayLike, *, prior: str | None = "planar",
             width: int | None = None, planes: int | None = None,
             error: Error = None,
             reps: int = 5, nodata: Any = None,
-            verify: bool = False) -> list[dict[str, Any]]:
+            verify: bool = False) -> ProfileResults:
     """Benchmark candidate graphs on ``tile``, sorted by compression ratio.
 
     ``prior`` selects one predictor plus the identity path. Use ``None`` for all
@@ -343,7 +401,9 @@ def profile(tile: ArrayLike, *, prior: str | None = "planar",
     code = _dtype_arg(arr, error_recipe)
     nd_mode, nd_bits = _nodata_args(arr, nodata)
 
-    rows: list[dict[str, Any]] = []
+    rows = ProfileResults(
+        shape=arr.shape, dtype=arr.dtype, raw_bytes=raw, width=width,
+        planes=planes, prior=prior, reps=reps, error=error_recipe)
     for name in _grid_names(prior, elt):
         comp = ffi.new("size_t*")
         enc = ffi.new("double*")

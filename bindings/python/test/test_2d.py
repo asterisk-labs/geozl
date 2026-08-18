@@ -252,10 +252,30 @@ def test_lossy_beats_lossless_on_size():
 def test_profile_returns_one_row_per_graph_sorted_by_ratio():
     rows = geozl.profile(_tile(), reps=1)
     keys = {"graph", "ratio", "encode_mbps", "decode_mbps", "shannon_pct"}
+    assert isinstance(rows, list)
+    assert isinstance(rows, geozl.ProfileResults)
     assert rows and all(keys <= set(r) for r in rows)
     ratios = [r["ratio"] for r in rows]
     assert ratios == sorted(ratios, reverse=True)
     assert len({r["graph"] for r in rows}) == len(rows)
+
+
+def test_print_profile_includes_the_input_and_table(capsys):
+    tile = np.stack([_tile(shape=(8, 8))] * 3)
+    rows = geozl.profile(tile, prior=None, reps=1, error=0)
+    print(rows)
+    out = capsys.readouterr().out
+    assert "shape    (3, 8, 8)  [planes, rows, columns]" in out
+    assert "dtype    int16  [2 bytes/sample]" in out
+    assert "raw      0.00 MB" in out
+    assert ("profile  3 planes · row width 8 · all predictors · 1 rep · "
+            "lossless") in out
+    assert "graph" in out and "ratio" in out and "enc MB/s" in out
+
+
+def test_print_profile_shows_the_normalized_error():
+    rows = geozl.profile(_tile(), reps=1, error=2)
+    assert "planar + id · 1 rep · LINEAR:MAX_ERROR=2" in str(rows)
 
 
 def test_profile_names_graphs_compress_accepts():
