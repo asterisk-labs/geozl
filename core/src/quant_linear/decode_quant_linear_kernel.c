@@ -19,6 +19,37 @@ static double ql_lo(const quant_linear_params *p, int dtype) {
              : quant_linear_value_lo(dtype);
 }
 
+// Saturate before multiplying; a forged wide index can overflow 128 bits.
+#define QL_DEC_IDX_U(T)                                                        \
+  do {                                                                         \
+    const T *s = (const T *)src;                                               \
+    T *d = (T *)dst;                                                           \
+    const unsigned __int128 cap = (unsigned __int128)(T)(~(T)0);               \
+    const unsigned __int128 lim = cap / isc;                                   \
+    for (size_t i = 0; i < nbElts; ++i) {                                      \
+      const unsigned __int128 m = (unsigned __int128)s[i];                     \
+      d[i] = (T)(uint64_t)(m > lim ? cap : m * isc);                           \
+    }                                                                          \
+  } while (0)
+
+// TYPE_MIN has magnitude HI+1, so signed saturation uses that upper bound.
+#define QL_DEC_IDX_I(T, LO, HI)                                                \
+  do {                                                                         \
+    const T *s = (const T *)src;                                               \
+    T *d = (T *)dst;                                                           \
+    const T lo = floorZero ? (T)0 : (T)(LO);                                   \
+    const unsigned __int128 top = (unsigned __int128)(HI) + 1u;                \
+    const unsigned __int128 lim = top / isc;                                   \
+    for (size_t i = 0; i < nbElts; ++i) {                                      \
+      const __int128 q = (__int128)s[i];                                       \
+      const unsigned __int128 m =                                              \
+          q < 0 ? (unsigned __int128)(-q) : (unsigned __int128)q;              \
+      const unsigned __int128 mr = m > lim ? top : m * isc;                    \
+      const __int128 r = q < 0 ? -(__int128)mr : (__int128)mr;                 \
+      d[i] = r < (__int128)lo ? lo : (r > (__int128)(HI) ? (HI) : (T)r);       \
+    }                                                                          \
+  } while (0)
+
 #define QL_DEC_MUL(WT, IT, CAST)                                               \
   do {                                                                         \
     const IT *s = (const IT *)src;                                             \
@@ -57,6 +88,37 @@ int quant_linear_decode(void *restrict dst, const void *restrict src,
   const int floorZero = (p->flags & QUANT_LINEAR_FLAG_NONNEGATIVE) != 0;
 
   if (dtype <= QL_LAST_INT) {
+    // Rebuild integer indices with the encoder's whole step.
+    if (!values) {
+      const uint64_t isc = quant_linear_step_u64(step);
+      switch ((ql_dtype)dtype) {
+      case QL_U8:
+        QL_DEC_IDX_U(uint8_t);
+        break;
+      case QL_U16:
+        QL_DEC_IDX_U(uint16_t);
+        break;
+      case QL_U32:
+        QL_DEC_IDX_U(uint32_t);
+        break;
+      case QL_U64:
+        QL_DEC_IDX_U(uint64_t);
+        break;
+      case QL_I8:
+        QL_DEC_IDX_I(int8_t, INT8_MIN, INT8_MAX);
+        break;
+      case QL_I16:
+        QL_DEC_IDX_I(int16_t, INT16_MIN, INT16_MAX);
+        break;
+      case QL_I32:
+        QL_DEC_IDX_I(int32_t, INT32_MIN, INT32_MAX);
+        break;
+      default:
+        QL_DEC_IDX_I(int64_t, INT64_MIN, INT64_MAX);
+        break;
+      }
+      return 0;
+    }
     // An unsigned type cannot hold a negative, so the floor is already true of
     // the stream and the copy stands. A signed one has to have it applied, the
     // same way the float STORE=VALUES paths below do. Without this the flag

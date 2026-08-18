@@ -7,29 +7,23 @@
 #include <math.h>
 #include <stdint.h>
 
-static uint64_t ql_step_u64(double step) {
-  const double s = floor(step);
-  return s < 1.0 ? 1u : (s > 18446744073709549568.0 ? UINT64_MAX : (uint64_t)s);
-}
-
 static double ql_fit(double q, double lo, double hi) {
   if (q != q)
     return 0.0;
   return q < lo ? lo : (q > hi ? hi : q);
 }
 
-// The quotient and the product are taken in 128 bits because a u64 value plus half
-// a step overflows 64 on the way.
+// 128 bits keeps value + half-step in range for u64.
 #define QL_ENC_UV(T)                                                           \
   do {                                                                         \
     const T *s = (const T *)src;                                               \
     T *d = (T *)dst;                                                           \
-    const uint64_t isc = ql_step_u64(step);                                    \
+    const uint64_t isc = quant_linear_step_u64(step);                          \
     const uint64_t half = isc >> 1;                                            \
     const uint64_t cap = (uint64_t)(T)(~(T)0);                                 \
     for (size_t i = 0; i < nbElts; ++i) {                                      \
-      const unsigned __int128 r =                                              \
-          ((unsigned __int128)s[i] + half) / isc * isc;                        \
+      const unsigned __int128 q = ((unsigned __int128)s[i] + half) / isc;      \
+      const unsigned __int128 r = values ? q * isc : q;                        \
       d[i] = (T)(r < cap ? (uint64_t)r : cap);                                 \
     }                                                                          \
   } while (0)
@@ -40,13 +34,14 @@ static double ql_fit(double q, double lo, double hi) {
   do {                                                                         \
     const T *s = (const T *)src;                                               \
     T *d = (T *)dst;                                                           \
-    const uint64_t isc = ql_step_u64(step);                                    \
+    const uint64_t isc = quant_linear_step_u64(step);                          \
     const uint64_t half = isc >> 1;                                            \
     for (size_t i = 0; i < nbElts; ++i) {                                      \
       const __int128 v = (__int128)s[i];                                       \
       const unsigned __int128 m =                                              \
           v < 0 ? (unsigned __int128)(-v) : (unsigned __int128)v;              \
-      __int128 r = (__int128)((m + half) / isc * isc);                         \
+      const unsigned __int128 qm = (m + half) / isc;                           \
+      __int128 r = (__int128)(values ? qm * isc : qm);                         \
       if (v < 0)                                                              \
         r = -r;                                                                \
       d[i] = r < (__int128)(LO) ? (LO) : (r > (__int128)(HI) ? (HI) : (T)r);   \
@@ -68,8 +63,7 @@ static double ql_fit(double q, double lo, double hi) {
 int quant_linear_encode(void *restrict dst, const void *restrict src,
                         const quant_linear_params *p, int dtype,
                         size_t nbElts) {
-  // Same predicate the decoder reads. This list used to be shorter, so an
-  // infinite step wrote a frame the decoder then called corrupt.
+  // Same predicate as the decoder.
   if (!quant_linear_params_ok(p, dtype))
     return 1;
   const double step = p->step;

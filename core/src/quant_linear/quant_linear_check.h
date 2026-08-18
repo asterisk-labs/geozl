@@ -10,6 +10,13 @@
 
 #include <float.h>
 #include <math.h>
+#include <stdint.h>
+
+// Shared so integer INDEX encode and decode use the same step.
+static inline uint64_t quant_linear_step_u64(double step) {
+  const double s = floor(step);
+  return s < 1.0 ? 1u : (s > 18446744073709549568.0 ? UINT64_MAX : (uint64_t)s);
+}
 
 // A normal step, not merely finite and positive. A subnormal one passes both
 // ends and then saturates every index at the type maximum, in silence.
@@ -23,10 +30,10 @@ static inline int quant_linear_params_ok(const quant_linear_params *p,
     return 0;
 
   const int values = (p->flags & QUANT_LINEAR_FLAG_STORE_VALUES) != 0;
-  if (dtype <= QL_LAST_INT)
-    return values;
-  // A float frame carries a reconstruction only at a whole step.
-  return !values || floor(p->step) == p->step;
+  // Integer grids and floating-point value grids require a whole step.
+  if (dtype <= QL_LAST_INT || values)
+    return floor(p->step) == p->step;
+  return 1;
 }
 
 #endif // GEOZL_CODECS_QUANT_LINEAR_CHECK_H

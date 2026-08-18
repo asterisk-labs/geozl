@@ -15,9 +15,13 @@ typedef struct {
   double step;
 } quant_linear_params;
 
+// What the caller asked for. DEFAULT is not a third layout: it resolves to
+// INDEX or VALUES per input type, because the two are not equally available
+// everywhere and the resolver is the only place that knows the dtype.
 typedef enum {
   QUANT_LINEAR_STORE_INDEX = 0,
-  QUANT_LINEAR_STORE_VALUES = 1
+  QUANT_LINEAR_STORE_VALUES = 1,
+  QUANT_LINEAR_STORE_DEFAULT = 2
 } quant_linear_store;
 
 // Parsed recipe before it is resolved for a dtype and raster.

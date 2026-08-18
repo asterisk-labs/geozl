@@ -323,7 +323,8 @@ static void the_parser_is_strict(void) {
   quant_log_spec sp;
   char err[256];
   CHECK(quant_log_parse("LOG:MAX_ERROR=1%", &sp, err, sizeof err) == 0);
-  CHECK(sp.rel_err == 0.01 && sp.store == QUANT_LOG_STORE_INDEX);
+  // The resolver chooses the dtype-specific default.
+  CHECK(sp.rel_err == 0.01 && sp.store == QUANT_LOG_STORE_DEFAULT);
   CHECK(quant_log_parse("LOG:MAX_ERROR=0.5%,STORE=VALUES", &sp, err,
                         sizeof err) == 0);
   CHECK(sp.rel_err == 0.005 && sp.store == QUANT_LOG_STORE_VALUES);

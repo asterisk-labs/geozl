@@ -34,7 +34,7 @@
 int quant_sqrt_parse(const char *s, quant_sqrt_spec *out, char *err,
                      size_t errSize) {
   memset(out, 0, sizeof(*out));
-  out->store = QUANT_SQRT_STORE_INDEX;
+  out->store = QUANT_SQRT_STORE_DEFAULT;
 
   if (s == NULL || strncmp(s, "SQRT:", 5) != 0)
     return geozl_recipe_fail(err, errSize,
@@ -188,18 +188,22 @@ int quant_sqrt_resolve(const quant_sqrt_spec *sp, int dtype,
     out->flags |= QUANT_SQRT_FLAG_NONNEGATIVE;
 
   const int isInt = dtype <= QSQ_LAST_INT;
-  const int values = isInt || sp->store == QUANT_SQRT_STORE_VALUES;
+  // Tight sqrt grids may outgrow an integer stream, so VALUES stays the default.
+  const int values = sp->store == QUANT_SQRT_STORE_VALUES ||
+                     (isInt && sp->store == QUANT_SQRT_STORE_DEFAULT);
   const double maxAbs = fmax(fabs(sc->lo), fabs(sc->hi));
   const double u = sqrt(maxAbs + offset);
 
-  if (values) {
+  // Integer INDEX and VALUES use the same tile-independent grid.
+  if (isInt || values) {
     // Half the budget to the grid and half to rounding the level to a whole
     // number, which meet exactly at sqrt(x+offset) = 1/(2*step).
     //
     // Nothing here reads the raster, on purpose. Two tiles of one product have to
     // land on the same grid or the same value encodes differently in each.
     out->step = 0.5 * c;
-    out->flags |= QUANT_SQRT_FLAG_STORE_VALUES;
+    if (values)
+      out->flags |= QUANT_SQRT_FLAG_STORE_VALUES;
 
     // The index never leaves the encoder here, so the element width does not
     // limit it and QSQ_INDEX_TERMS does. Taken as a ceiling rather than a charge
@@ -211,6 +215,14 @@ int quant_sqrt_resolve(const quant_sqrt_spec *sp, int dtype,
                   "this bound needs %g levels over this raster, past the %g the "
                   "arithmetic that finds one resolves",
                   u / out->step, levels);
+
+    // Tile statistics limit INDEX width but do not change the step.
+    if (isInt && !values && !(u / out->step < quant_sqrt_stream_max(dtype)))
+      return geozl_recipe_fail(err, errSize,
+                  "STORE=INDEX needs %g levels over this raster, more than a "
+                  "%zu-byte element carries; drop it and the reconstruction is "
+                  "stored instead",
+                  u / out->step, quant_sqrt_width(dtype));
 
     if (!isInt) {
       // An integer sample is already whole. A float one is not, so the whole

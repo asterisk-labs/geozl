@@ -24,6 +24,16 @@ static int failures = 0;
     }                                                                          \
   } while (0)
 
+#define CHECKF(c, ...)                                                         \
+  do {                                                                         \
+    if (!(c)) {                                                                \
+      printf("  FAIL %s:%d  %s  ", __FILE__, __LINE__, #c);                    \
+      printf(__VA_ARGS__);                                                     \
+      printf("\n");                                                            \
+      ++failures;                                                              \
+    }                                                                          \
+  } while (0)
+
 // One trip the way the encode binding does it, so the step this measures is the
 // step a frame would be written with.
 static int trip(const char *recipe, int dtype, const void *src, void *dec,
@@ -66,9 +76,20 @@ static void an_integer_grid_never_reads_the_tile(void) {
     CHECK(a.step == b.step);
     CHECK(a.step == c.step);
     CHECK(a.step == 10.0);
-    CHECK((a.flags & QUANT_LINEAR_FLAG_STORE_VALUES) != 0);
+    // Integer storage defaults to INDEX.
+    CHECK((a.flags & QUANT_LINEAR_FLAG_STORE_VALUES) == 0);
     CHECK((a.flags & QUANT_LINEAR_FLAG_NONNEGATIVE) != 0);
     CHECK((c.flags & QUANT_LINEAR_FLAG_NONNEGATIVE) == 0);
+
+    // Storage changes, the grid does not.
+    quant_linear_spec spv;
+    quant_linear_params v;
+    CHECK(quant_linear_parse("LINEAR:MAX_ERROR=5,STORE=VALUES", &spv, err,
+                             sizeof(err)) == 0);
+    CHECK(quant_linear_resolve(&spv, dts[d], &(quant_linear_stats){3.0, 0}, &v,
+                               err, sizeof(err)) == 0);
+    CHECK((v.flags & QUANT_LINEAR_FLAG_STORE_VALUES) != 0);
+    CHECK(v.step == a.step);
   }
 
   // The step never rounds up past the bound.
@@ -93,7 +114,8 @@ static void the_float_index_path_reads_the_tile(void) {
   quant_linear_spec sp;
   quant_linear_params a, b;
   CHECK(quant_linear_parse("LINEAR:MAX_ERROR=0.05", &sp, err, sizeof(err)) == 0);
-  CHECK(sp.store == QUANT_LINEAR_STORE_INDEX);
+  // The resolver chooses the dtype-specific default.
+  CHECK(sp.store == QUANT_LINEAR_STORE_DEFAULT);
   CHECK(quant_linear_resolve(&sp, QL_F32, &(quant_linear_stats){100.0, 0}, &a,
                              err, sizeof(err)) == 0);
   CHECK(quant_linear_resolve(&sp, QL_F32, &(quant_linear_stats){300.0, 0}, &b,
@@ -141,6 +163,23 @@ static void the_float_value_path_does_not(void) {
   CHECK(quant_linear_resolve(&sp, QL_U16, &(quant_linear_stats){60000.0, 0}, &a,
                              err, sizeof(err)) == 0);
   CHECK(a.step == 1.0);
+}
+
+static void an_unrepresentable_step_is_refused(void) {
+  puts("a grid step has to fit in its header");
+  char err[256];
+  quant_linear_spec sp;
+  quant_linear_params p;
+  const quant_linear_stats sc = {100.0, 0};
+
+  CHECK(quant_linear_parse("LINEAR:MAX_ERROR=1e308", &sp, err, sizeof(err)) ==
+        0);
+  CHECK(quant_linear_resolve(&sp, QL_U16, &sc, &p, err, sizeof(err)) != 0);
+  CHECK(quant_linear_resolve(&sp, QL_F32, &sc, &p, err, sizeof(err)) != 0);
+
+  CHECK(quant_linear_parse("LINEAR:MAX_ERROR=1e308,STORE=VALUES", &sp, err,
+                           sizeof(err)) == 0);
+  CHECK(quant_linear_resolve(&sp, QL_F32, &sc, &p, err, sizeof(err)) != 0);
 }
 
 // What STORE=VALUES is for. A DEM read through a masked reader arrives as float32
@@ -259,9 +298,16 @@ static void a_forged_header_is_refused(void) {
   p.step = 0.5;
   CHECK(quant_linear_decode(df, f, &p, QL_F32, N) != 0);
 
-  // An integer frame without the flag is one this codec never writes.
+  // Both integer storage modes require a whole step.
   p.step = 1.0;
   p.flags = 0;
+  CHECK(quant_linear_decode(du, u, &p, QL_U16, N) == 0);
+  p.step = 10.0;
+  CHECK(quant_linear_decode(du, u, &p, QL_U16, N) == 0);
+  p.step = 0.5;
+  CHECK(quant_linear_decode(du, u, &p, QL_U16, N) != 0);
+  CHECK(quant_linear_encode(du, u, &p, QL_U16, N) != 0);
+  p.flags = QUANT_LINEAR_FLAG_STORE_VALUES;
   CHECK(quant_linear_decode(du, u, &p, QL_U16, N) != 0);
 
   p.flags = QUANT_LINEAR_FLAG_STORE_VALUES;
@@ -554,10 +600,86 @@ static void every_value_holds_the_bound(void) {
   }
 }
 
+// Exhaustive walks stop at 16 bits; cover the wide limits explicitly.
+static void the_wide_integers_hold_at_the_corners(void) {
+  printf("the wide integer types hold at their corners\n");
+  static const double steps[] = {1.0, 2.0, 7.0, 1000.0, 4294967296.0};
+
+  for (size_t k = 0; k < sizeof(steps) / sizeof(*steps); ++k) {
+    quant_linear_params p = {0, steps[k]};
+
+    {
+      const uint64_t in[6] = {0u, 1u, 1000u, UINT64_MAX - 1u, UINT64_MAX,
+                              UINT32_MAX};
+      uint64_t st[6], back[6];
+      CHECK(quant_linear_encode(st, in, &p, QL_U64, 6) == 0);
+      CHECK(quant_linear_decode(back, st, &p, QL_U64, 6) == 0);
+      for (size_t i = 0; i < 6; ++i) {
+        CHECKF(st[i] <= in[i], "u64 index %llu above its sample %llu",
+               (unsigned long long)st[i], (unsigned long long)in[i]);
+        // Avoid unsigned underflow in the difference.
+        const uint64_t diff =
+            back[i] > in[i] ? back[i] - in[i] : in[i] - back[i];
+        CHECKF(diff <= (uint64_t)steps[k] || back[i] == UINT64_MAX,
+               "u64 %llu rebuilt as %llu at step %g",
+               (unsigned long long)in[i], (unsigned long long)back[i],
+               steps[k]);
+      }
+    }
+    {
+      const int64_t in[7] = {0, 1, -1, 1000, INT64_MIN, INT64_MAX, INT32_MIN};
+      int64_t st[7], back[7];
+      CHECK(quant_linear_encode(st, in, &p, QL_I64, 7) == 0);
+      CHECK(quant_linear_decode(back, st, &p, QL_I64, 7) == 0);
+      for (size_t i = 0; i < 7; ++i) {
+        CHECKF((in[i] < 0) == (back[i] < 0) || back[i] == 0,
+               "i64 %lld came back as %lld with the sign moved",
+               (long long)in[i], (long long)back[i]);
+        CHECKF(back[i] >= INT64_MIN && back[i] <= INT64_MAX,
+               "i64 %lld left its type", (long long)back[i]);
+      }
+    }
+    {
+      const uint32_t in[4] = {0u, 1u, UINT32_MAX - 1u, UINT32_MAX};
+      uint32_t st[4], back[4];
+      CHECK(quant_linear_encode(st, in, &p, QL_U32, 4) == 0);
+      CHECK(quant_linear_decode(back, st, &p, QL_U32, 4) == 0);
+      for (size_t i = 0; i < 4; ++i)
+        CHECKF(st[i] <= in[i], "u32 index %u above its sample %u", st[i], in[i]);
+    }
+    {
+      const int32_t in[5] = {0, -1, 1, INT32_MIN, INT32_MAX};
+      int32_t st[5], back[5];
+      CHECK(quant_linear_encode(st, in, &p, QL_I32, 5) == 0);
+      CHECK(quant_linear_decode(back, st, &p, QL_I32, 5) == 0);
+      for (size_t i = 0; i < 5; ++i)
+        CHECKF((in[i] < 0) == (back[i] < 0) || back[i] == 0,
+               "i32 %d came back as %d with the sign moved", in[i], back[i]);
+    }
+  }
+
+  // Saturation must precede a product that would overflow 128 bits.
+  {
+    quant_linear_params p = {0, 18446744073709549568.0};
+    const uint64_t in[2] = {UINT64_MAX, UINT64_MAX / 2u};
+    uint64_t back[2];
+    CHECK(quant_linear_decode(back, in, &p, QL_U64, 2) == 0);
+    CHECK(back[0] == UINT64_MAX && back[1] == UINT64_MAX);
+  }
+  {
+    quant_linear_params p = {0, 9223372036854775808.0};
+    const int64_t in[2] = {INT64_MAX, INT64_MIN};
+    int64_t back[2];
+    CHECK(quant_linear_decode(back, in, &p, QL_I64, 2) == 0);
+    CHECK(back[0] == INT64_MAX && back[1] == INT64_MIN);
+  }
+}
+
 int main(void) {
   an_integer_grid_never_reads_the_tile();
   the_float_index_path_reads_the_tile();
   the_float_value_path_does_not();
+  an_unrepresentable_step_is_refused();
   a_float_array_of_integers_round_trips_exactly();
   non_negative_stays_non_negative();
   the_parser_is_strict();
@@ -568,6 +690,7 @@ int main(void) {
   verify_sees_the_bound_break();
   the_edges();
   the_half_conversions_match_the_reference();
+  the_wide_integers_hold_at_the_corners();
   every_value_holds_the_bound();
   if (failures != 0) {
     printf("%d failed\n", failures);

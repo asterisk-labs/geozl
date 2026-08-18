@@ -64,7 +64,9 @@ static void mode_parse(const uint8_t *d, size_t n) {
   // A parse that succeeded has to leave something the resolver can read.
   if (!(sp.k > 0.0) || !isfinite(sp.k))
     abort();
-  if (sp.store != QUANT_SQRT_STORE_INDEX && sp.store != QUANT_SQRT_STORE_VALUES)
+  if (sp.store != QUANT_SQRT_STORE_DEFAULT &&
+      sp.store != QUANT_SQRT_STORE_INDEX &&
+      sp.store != QUANT_SQRT_STORE_VALUES)
     abort();
   if (sp.have_ab && (!(sp.b > 0.0) || !(sp.a >= 0.0) || !isfinite(sp.a) ||
                      !isfinite(sp.b)))
@@ -83,7 +85,7 @@ static void mode_parse(const uint8_t *d, size_t n) {
   for (int dt = QSQ_U8; dt <= QSQ_F64; ++dt) {
     if (quant_sqrt_resolve(&sp, dt, &sc, NULL, &p, err, sizeof(err)) != 0)
       continue;
-    // A resolver that cuts a grid its own kernels refuse is the failure here.
+    // Both kernels must accept resolved parameters.
     if (quant_sqrt_encode(idx, src, &p, dt, 8) != 0)
       abort();
     if (quant_sqrt_decode(back, idx, &p, dt, 8) != 0)

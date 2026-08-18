@@ -157,4 +157,9 @@ static inline double quant_sqrt_index_top(double step, double offset, int dtype,
   return c > lim ? lim : c;
 }
 
+// Integer INDEX encode and decode share half-away-from-zero rounding.
+static inline double quant_sqrt_round(double v) {
+  return v < 0.0 ? -floor(0.5 - v) : floor(v + 0.5);
+}
+
 #endif // GEOZL_CODECS_QUANT_SQRT_DTYPE_H

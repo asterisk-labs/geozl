@@ -58,7 +58,9 @@ static void mode_parse(const uint8_t *d, size_t n) {
   // resolver runs on data the parser let through.
   if (!(sp.rel_err > 0.0) || !isfinite(sp.rel_err))
     abort();
-  if (sp.store != QUANT_LOG_STORE_INDEX && sp.store != QUANT_LOG_STORE_VALUES)
+  if (sp.store != QUANT_LOG_STORE_DEFAULT &&
+      sp.store != QUANT_LOG_STORE_INDEX &&
+      sp.store != QUANT_LOG_STORE_VALUES)
     abort();
 
   const quant_log_stats sc = {1.0e4, 1.0e4, 0, 0};
@@ -66,8 +68,7 @@ static void mode_parse(const uint8_t *d, size_t n) {
   for (int dt = QLOG_U8; dt <= QLOG_F64; ++dt) {
     if (quant_log_resolve(&sp, dt, &sc, &p, err, sizeof(err)) != 0)
       continue;
-    // Whatever it produced, both kernels have to take it. A resolver that can
-    // cut a grid its own kernels refuse is the failure this catches.
+    // Both kernels must accept resolved parameters.
     if (quant_log_encode(idx, src, &p, dt, 8) != 0)
       abort();
     if (quant_log_decode(back, idx, &p, dt, 8) != 0)

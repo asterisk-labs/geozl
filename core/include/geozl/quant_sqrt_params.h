@@ -21,9 +21,13 @@ typedef struct {
   double offset;
 } quant_sqrt_params;
 
+// What the caller asked for. DEFAULT is not a third layout: it resolves to
+// INDEX or VALUES per input type, because the two are not equally available
+// everywhere and the resolver is the only place that knows the dtype.
 typedef enum {
   QUANT_SQRT_STORE_INDEX = 0,
-  QUANT_SQRT_STORE_VALUES = 1
+  QUANT_SQRT_STORE_VALUES = 1,
+  QUANT_SQRT_STORE_DEFAULT = 2
 } quant_sqrt_store;
 
 // Parsed recipe. A and B may be supplied by quant_sqrt_fit.

@@ -10,7 +10,10 @@ Lossy numeric codec, CTID `0x72D782`.
 
 `MAX_ERROR` is required, must include `%`, and must be in `(0, 100)`. `STORE`
 defaults to `INDEX`. Unknown or repeated keys and trailing commas are rejected.
-Integer input always stores reconstructed values.
+Integer input always stores reconstructed values. `STORE=INDEX` on integer input
+is refused rather than ignored: rebuilding a level and then rounding it to a
+whole number spends both the index arithmetic budget and the rounding budget,
+and the grid resolved here charges for only one of them.
 
 ## Inputs
 

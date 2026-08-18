@@ -59,20 +59,23 @@ static void mode_parse(const uint8_t *d, size_t n) {
   if (!(sp.max_error > 0.0) || !isfinite(sp.max_error))
     abort();
   if (sp.store != QUANT_LINEAR_STORE_INDEX &&
-      sp.store != QUANT_LINEAR_STORE_VALUES)
+      sp.store != QUANT_LINEAR_STORE_VALUES &&
+      sp.store != QUANT_LINEAR_STORE_DEFAULT)
     abort();
 
   quant_linear_params p;
-  for (int dt = QL_U8; dt <= QL_F64; ++dt) {
-    if (quant_linear_resolve(&sp, dt, &(quant_linear_stats){1e6, 0}, &p, err,
-                             sizeof(err)) != 0)
-      continue;
-    // Whatever it produced, both kernels have to take it. A resolver that can
-    // cut a grid its own kernels refuse is the failure this catches.
-    if (quant_linear_encode(idx, src, &p, dt, 8) != 0)
-      abort();
-    if (quant_linear_decode(back, idx, &p, dt, 8) != 0)
-      abort();
+  // Exercise signed decode with and without the nonnegative flag.
+  for (int neg = 0; neg < 2; ++neg) {
+    for (int dt = QL_U8; dt <= QL_F64; ++dt) {
+      if (quant_linear_resolve(&sp, dt, &(quant_linear_stats){1e6, neg}, &p, err,
+                               sizeof(err)) != 0)
+        continue;
+      // Both kernels must accept resolved parameters.
+      if (quant_linear_encode(idx, src, &p, dt, 8) != 0)
+        abort();
+      if (quant_linear_decode(back, idx, &p, dt, 8) != 0)
+        abort();
+    }
   }
 }
 

@@ -6,6 +6,7 @@ Lossy numeric codec, CTID `0x72D783`.
 
     SQRT:MAX_ERROR=KN
     SQRT:MAX_ERROR=KN,A=a,B=b
+    SQRT:MAX_ERROR=KN,STORE=INDEX
     SQRT:MAX_ERROR=KN,STORE=VALUES
 
 `MAX_ERROR` is required, must be positive, and must end in `N`. The declared
@@ -14,8 +15,17 @@ bound is:
     |x - reconstructed(x)| <= K * sqrt(a + b*x)
 
 `A` must be nonnegative and `B` positive. They must be supplied together or
-fitted before resolution. `STORE` defaults to `INDEX`; integer input always
-stores reconstructed values.
+fitted before resolution. `STORE` defaults to `INDEX` on floating-point input
+and to `VALUES` on integer input. A sqrt index is not held down by the sample it
+came from the way a linear one is: `sqrt(x + offset) / step` climbs as the bound
+tightens, so a tight recipe on a narrow element asks for more levels than that
+element carries. `STORE=INDEX` on integer input is therefore something a recipe
+asks for, and the resolver either honours it or refuses it; it is never a default
+that could turn a working recipe into an error.
+
+The grid does not move with the choice. Integer input resolves the same
+`step = c / 2` either way, so the levels and the bound are the same and `STORE`
+selects only what the stream carries.
 
 ## Inputs
 
@@ -35,8 +45,8 @@ Exactly 18 little-endian bytes:
 
 A frame is corrupt if the type or flags are unknown, `step` is not positive and
 finite, `step * step` is smaller than `DBL_MIN`, `offset` is negative or not
-finite, an integer frame stores indices, or bit 2 is set for a type other than
-f32.
+finite, or bit 2 is set for a type other than f32. An integer frame carries
+either the index or the reconstruction; both are legal.
 
 ## Grid and decoding
 
@@ -53,6 +63,7 @@ The encoded stream always has an integer representation:
 
 | Input | Storage | Reconstruction |
 | --- | --- | --- |
+| integer | index | evaluate `(q * step)^2 - offset`, then round to an integer |
 | integer | values | copy the stored value |
 | float | values | cast the stored value to the output type |
 | float | index | evaluate `(q * step)^2 - offset` |

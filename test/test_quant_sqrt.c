@@ -641,6 +641,72 @@ static void every_value_holds_the_bound(void) {
   }
 }
 
+static void an_integer_raster_can_carry_the_index(void) {
+  printf("an integer raster carries the index when asked\n");
+  enum { N = 4096 };
+  static uint16_t src[N], back[N], stream[N];
+  for (size_t i = 0; i < N; ++i)
+    src[i] = (uint16_t)(i * 15u);
+
+  char err[256];
+  quant_sqrt_spec si, sv;
+  quant_sqrt_stats sc;
+  quant_sqrt_params pi, pv;
+  CHECK(quant_sqrt_parse("SQRT:MAX_ERROR=2N,A=25,B=2,STORE=INDEX", &si, err,
+                         sizeof(err)) == 0);
+  CHECK(quant_sqrt_parse("SQRT:MAX_ERROR=2N,A=25,B=2", &sv, err,
+                         sizeof(err)) == 0);
+  CHECK(quant_sqrt_scan(src, QSQ_U16, N, &sc) == 0);
+  CHECK(quant_sqrt_resolve(&si, QSQ_U16, &sc, NULL, &pi, err, sizeof(err)) == 0);
+  CHECK(quant_sqrt_resolve(&sv, QSQ_U16, &sc, NULL, &pv, err, sizeof(err)) == 0);
+
+  // Storage changes, the grid does not.
+  CHECK(pi.step == pv.step);
+  CHECK(pi.offset == pv.offset);
+  CHECK((pi.flags & QUANT_SQRT_FLAG_STORE_VALUES) == 0);
+  CHECK((pv.flags & QUANT_SQRT_FLAG_STORE_VALUES) != 0);
+
+  CHECK(quant_sqrt_encode(stream, src, &pi, QSQ_U16, N) == 0);
+  CHECK(quant_sqrt_decode(back, stream, &pi, QSQ_U16, N) == 0);
+
+  uint16_t top = 0;
+  for (size_t i = 0; i < N; ++i)
+    if (stream[i] > top)
+      top = stream[i];
+  CHECKF(top < 4096, "the index reached %u, no smaller than the samples", top);
+
+  double worst = 0.0;
+  for (size_t i = 0; i < N; ++i) {
+    const double bound = quant_sqrt_bound(&si, NULL, (double)src[i]);
+    const double e = fabs((double)back[i] - (double)src[i]);
+    if (bound > 0.0 && e / bound > worst)
+      worst = e / bound;
+  }
+  CHECKF(worst <= 1.0, "u16 index worst %f of the bound", worst);
+
+  static uint16_t vback[N], vstream[N];
+  CHECK(quant_sqrt_encode(vstream, src, &pv, QSQ_U16, N) == 0);
+  CHECK(quant_sqrt_decode(vback, vstream, &pv, QSQ_U16, N) == 0);
+  for (size_t i = 0; i < N; ++i)
+    CHECKF(back[i] == vback[i], "index gave %u where values gave %u",
+           back[i], vback[i]);
+
+  // Tight integer indices may not fit the element width.
+  static uint8_t small[256];
+  for (size_t i = 0; i < 256; ++i)
+    small[i] = (uint8_t)i;
+  quant_sqrt_spec tight;
+  quant_sqrt_params tp;
+  CHECK(quant_sqrt_parse("SQRT:MAX_ERROR=0.1N,A=0,B=1,STORE=INDEX", &tight, err,
+                         sizeof(err)) == 0);
+  CHECK(quant_sqrt_scan(small, QSQ_U8, 256, &sc) == 0);
+  CHECK(quant_sqrt_resolve(&tight, QSQ_U8, &sc, NULL, &tp, err, sizeof(err)) != 0);
+  // Default VALUES still resolves.
+  CHECK(quant_sqrt_parse("SQRT:MAX_ERROR=0.1N,A=0,B=1", &tight, err,
+                         sizeof(err)) == 0);
+  CHECK(quant_sqrt_resolve(&tight, QSQ_U8, &sc, NULL, &tp, err, sizeof(err)) == 0);
+}
+
 int main(void) {
   the_parser_takes_only_valid_recipes();
   a_comma_locale_reads_the_same_recipe();
@@ -654,6 +720,7 @@ int main(void) {
   the_value_grid_does_not_move_with_the_tile();
   the_charge_is_read_at_the_worst_end();
   an_empty_raster_is_not_a_crash();
+  an_integer_raster_can_carry_the_index();
   every_value_holds_the_bound();
 
   if (failures != 0) {

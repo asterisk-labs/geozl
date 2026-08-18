@@ -17,7 +17,7 @@
 int quant_log_parse(const char *s, quant_log_spec *out, char *err,
                     size_t errSize) {
   memset(out, 0, sizeof(*out));
-  out->store = QUANT_LOG_STORE_INDEX;
+  out->store = QUANT_LOG_STORE_DEFAULT;
 
   if (s == NULL || strncmp(s, "LOG:", 4) != 0)
     return geozl_recipe_fail(err, errSize, "quant_log takes \"LOG:MAX_ERROR=V%%\", got \"%s\"",
@@ -81,6 +81,12 @@ int quant_log_resolve(const quant_log_spec *sp, int dtype,
 
   const double b = sp->rel_err;
   const int isInt = dtype <= QLOG_LAST_INT;
+  // Integer INDEX needs a second rounding budget that this grid does not have.
+  if (isInt && sp->store == QUANT_LOG_STORE_INDEX)
+    return geozl_recipe_fail(err, errSize,
+                "STORE=INDEX is not available for integer input on this family, "
+                "because rebuilding a level and then rounding it to a whole "
+                "number spends more than the bound allows");
   const int values = isInt || sp->store == QUANT_LOG_STORE_VALUES;
 
   if (!sc->anyNegative)

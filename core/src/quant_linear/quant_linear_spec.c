@@ -17,7 +17,7 @@
 int quant_linear_parse(const char *s, quant_linear_spec *out, char *err,
                        size_t errSize) {
   memset(out, 0, sizeof(*out));
-  out->store = QUANT_LINEAR_STORE_INDEX;
+  out->store = QUANT_LINEAR_STORE_DEFAULT;
 
   if (s == NULL || strncmp(s, "LINEAR:", 7) != 0)
     return geozl_recipe_fail(err, errSize,
@@ -70,26 +70,41 @@ int quant_linear_resolve(const quant_linear_spec *sp, int dtype,
     out->flags |= QUANT_LINEAR_FLAG_NONNEGATIVE;
 
   const int isInt = dtype <= QL_LAST_INT;
-  const int wantValues = isInt || sp->store == QUANT_LINEAR_STORE_VALUES;
+  const int wantValues = sp->store == QUANT_LINEAR_STORE_VALUES;
+
+  // Integer INDEX and VALUES share one whole-step grid.
+  if (isInt) {
+    out->step = floor(2.0 * sp->max_error);
+    if (!isfinite(out->step))
+      return geozl_recipe_fail(err, errSize,
+                  "a MAX_ERROR of %g makes the grid step too large",
+                  sp->max_error);
+    if (!(out->step >= 1.0))
+      out->step = 1.0; // a step of one is lossless, which is the floor
+    if (wantValues)
+      out->flags |= QUANT_LINEAR_FLAG_STORE_VALUES;
+    // Integer division keeps |index| <= |sample|, including past 2^53.
+    return 0;
+  }
 
   if (wantValues) {
     // Truncated, never rounded. A grid of levels every 2V holds the bound, but
     // this one steps by a whole unit, and rounding 2V up would widen it past what
     // was declared: 0.94 asks for 1.88 and a step of 2 misses by 1.
     out->step = floor(2.0 * sp->max_error);
+    if (!isfinite(out->step))
+      return geozl_recipe_fail(err, errSize,
+                  "a MAX_ERROR of %g makes the grid step too large",
+                  sp->max_error);
     if (!(out->step >= 1.0)) {
-      if (isInt) {
-        out->step = 1.0; // a step of one is lossless, which is the floor
-      } else {
-        return geozl_recipe_fail(err, errSize,
-                    "STORE=VALUES needs a whole step, and a MAX_ERROR of %g "
-                    "gives %g",
-                    sp->max_error, 2.0 * sp->max_error);
-      }
+      return geozl_recipe_fail(err, errSize,
+                  "STORE=VALUES needs a whole step, and a MAX_ERROR of %g "
+                  "gives %g",
+                  sp->max_error, 2.0 * sp->max_error);
     }
     out->flags |= QUANT_LINEAR_FLAG_STORE_VALUES;
 
-    if (!isInt) {
+    {
       // Past this a cast back would round and the bound would stop holding.
       const double top = ceil(maxAbs / out->step) * out->step;
       if (top > quant_linear_exact_int(dtype))
@@ -112,6 +127,10 @@ int quant_linear_resolve(const quant_linear_spec *sp, int dtype,
   // spec.md. This is also the only thing on this path that reads the tile, and
   // STORE=VALUES is the way out.
   out->step = 2.0 * (sp->max_error - 2.0 * quant_linear_eps(dtype) * maxAbs);
+  if (!isfinite(out->step))
+    return geozl_recipe_fail(err, errSize,
+                "a MAX_ERROR of %g makes the grid step too large",
+                sp->max_error);
   if (!(out->step > 0.0))
     return geozl_recipe_fail(err, errSize,
                 "a MAX_ERROR of %g is at or below the rounding of the output "

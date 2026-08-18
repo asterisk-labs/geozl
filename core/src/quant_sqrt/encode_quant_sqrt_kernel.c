@@ -28,9 +28,7 @@
       d[i] = (IT)QSQ_INDEX(RD);                                                \
   } while (0)
 
-static inline double qsq_round(double v) {
-  return v < 0.0 ? -floor(0.5 - v) : floor(v + 0.5);
-}
+#define qsq_round quant_sqrt_round
 
 // The fold happens in double and before the conversion. Converting a value past
 // what the integer holds is undefined and the answer differs by machine, so a
@@ -128,7 +126,32 @@ int quant_sqrt_encode(void *restrict dst, const void *restrict src,
     return 0;
   }
 
+  // Indices are nonnegative and already checked against the stream width.
   switch ((qsq_dtype)dtype) {
+  case QSQ_U8:
+    QSQ_ENC_I(uint8_t, uint8_t, s[i]);
+    break;
+  case QSQ_U16:
+    QSQ_ENC_I(uint16_t, uint16_t, s[i]);
+    break;
+  case QSQ_U32:
+    QSQ_ENC_I(uint32_t, uint32_t, s[i]);
+    break;
+  case QSQ_U64:
+    QSQ_ENC_I(uint64_t, uint64_t, s[i]);
+    break;
+  case QSQ_I8:
+    QSQ_ENC_I(int8_t, int8_t, s[i]);
+    break;
+  case QSQ_I16:
+    QSQ_ENC_I(int16_t, int16_t, s[i]);
+    break;
+  case QSQ_I32:
+    QSQ_ENC_I(int32_t, int32_t, s[i]);
+    break;
+  case QSQ_I64:
+    QSQ_ENC_I(int64_t, int64_t, s[i]);
+    break;
   case QSQ_F16:
     QSQ_ENC_I(uint16_t, int16_t, quant_sqrt_half_to_float(s[i]));
     break;
@@ -138,8 +161,6 @@ int quant_sqrt_encode(void *restrict dst, const void *restrict src,
   case QSQ_F64:
     QSQ_ENC_I(double, int64_t, s[i]);
     break;
-  default:
-    return 1;
   }
   return 0;
 }

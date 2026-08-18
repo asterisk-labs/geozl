@@ -62,8 +62,8 @@ int quant_sqrt_decode(void *restrict dst, const void *restrict src,
   const int nonneg = (p->flags & QUANT_SQRT_FLAG_NONNEGATIVE) != 0;
   const int narrow = (p->flags & QUANT_SQRT_FLAG_DECODE_F32) != 0;
 
-  // An integer type carries the reconstruction in its own width.
-  if (dtype <= QSQ_LAST_INT) {
+  // Integer VALUES already holds the reconstruction.
+  if (dtype <= QSQ_LAST_INT && values) {
     memcpy(dst, src, nbElts * quant_sqrt_width(dtype));
     return 0;
   }
@@ -94,8 +94,48 @@ int quant_sqrt_decode(void *restrict dst, const void *restrict src,
   const double vlo = nonneg ? 0.0 : quant_sqrt_value_lo(dtype);
   const double dtop = quant_sqrt_index_top(step, offset, dtype, 0);
 
-  // index_top capped dtop at what the element holds, so the cast is direct.
+  // Integer INDEX rounds with the budget reserved by the resolver.
   switch ((qsq_dtype)dtype) {
+  case QSQ_U8: {
+    const uint8_t utop = (uint8_t)dtop;
+    QSQ_DEC(uint8_t, uint8_t, uint8_t, double, quant_sqrt_round);
+    break;
+  }
+  case QSQ_U16: {
+    const uint16_t utop = (uint16_t)dtop;
+    QSQ_DEC(uint16_t, uint16_t, uint16_t, double, quant_sqrt_round);
+    break;
+  }
+  case QSQ_U32: {
+    const uint32_t utop = (uint32_t)dtop;
+    QSQ_DEC(uint32_t, uint32_t, uint32_t, double, quant_sqrt_round);
+    break;
+  }
+  case QSQ_U64: {
+    const uint64_t utop = (uint64_t)dtop;
+    QSQ_DEC(uint64_t, uint64_t, uint64_t, double, quant_sqrt_round);
+    break;
+  }
+  case QSQ_I8: {
+    const uint8_t utop = (uint8_t)dtop;
+    QSQ_DEC(int8_t, int8_t, uint8_t, double, quant_sqrt_round);
+    break;
+  }
+  case QSQ_I16: {
+    const uint16_t utop = (uint16_t)dtop;
+    QSQ_DEC(int16_t, int16_t, uint16_t, double, quant_sqrt_round);
+    break;
+  }
+  case QSQ_I32: {
+    const uint32_t utop = (uint32_t)dtop;
+    QSQ_DEC(int32_t, int32_t, uint32_t, double, quant_sqrt_round);
+    break;
+  }
+  case QSQ_I64: {
+    const uint64_t utop = (uint64_t)dtop;
+    QSQ_DEC(int64_t, int64_t, uint64_t, double, quant_sqrt_round);
+    break;
+  }
   case QSQ_F16: {
     const uint16_t utop = (uint16_t)dtop;
     QSQ_DEC(uint16_t, int16_t, uint16_t, float, QSQ_TOF16);
