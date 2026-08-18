@@ -1,4 +1,6 @@
 import math
+import re
+from decimal import Decimal
 from typing import Any
 
 import numpy as np
@@ -19,6 +21,10 @@ _ELT_WIDTHS = frozenset((1, 2, 4, 8))
 # geozl_nodata_mode
 _NODATA_NONE, _NODATA_NAN, _NODATA_VALUE = 0, 1, 2
 
+Error = int | float | str | None
+
+_NUMBER = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
+
 
 def _nodata_args(arr: np.ndarray, nodata: Any) -> tuple[int, int]:
     """Return the C nodata mode and sentinel bits."""
@@ -34,15 +40,75 @@ def _nodata_args(arr: np.ndarray, nodata: Any) -> tuple[int, int]:
     return _NODATA_VALUE, nodata_bits(nodata, arr.dtype)
 
 
-def _error_arg(error: str | None) -> Any:
-    """Convert an error recipe to the C argument."""
+def _zero_recipe(error: str) -> bool:
+    """Return whether a simple or canonical recipe declares zero error."""
+    forms = (
+        ("LINEAR:MAX_ERROR=", ""),
+        ("LOG:MAX_ERROR=", "%"),
+        ("SQRT:MAX_ERROR=", "N"),
+    )
+    for prefix, suffix in forms:
+        if not error.startswith(prefix) or not error.endswith(suffix):
+            continue
+        end = len(error) - len(suffix) if suffix else len(error)
+        value = error[len(prefix):end]
+        if _NUMBER.fullmatch(value):
+            return Decimal(value).is_zero()
+    return False
+
+
+def _normalize_error(error: Error) -> str | None:
+    """Expand the short Python error syntax to a codec recipe."""
     if error is None:
-        return ffi.NULL
+        return None
+
+    if isinstance(error, (bool, np.bool_)):
+        raise ValueError("error must not be a boolean")
+
+    if isinstance(error, (int, np.integer)):
+        if error < 0:
+            raise ValueError(f"error must not be negative, got {error!r}")
+        if error == 0:
+            return None
+        return f"LINEAR:MAX_ERROR={int(error)}"
+
+    if isinstance(error, (float, np.floating)):
+        if not math.isfinite(error):
+            raise ValueError(f"error must be finite, got {error!r}")
+        if error < 0:
+            raise ValueError(f"error must not be negative, got {error!r}")
+        if error == 0:
+            return None
+        return "LINEAR:MAX_ERROR=" + str(error)
+
     if not isinstance(error, str):
-        raise ValueError(f"error must be a recipe string, one of "
-                         f"\"LINEAR:MAX_ERROR=V\", \"LOG:MAX_ERROR=P%\" or "
-                         f"\"SQRT:MAX_ERROR=VN\", got {error!r}")
-    return error.encode("utf-8")
+        raise ValueError(f"error must be a number, percentage or recipe, got "
+                         f"{error!r}")
+    if _zero_recipe(error):
+        return None
+    if ":" in error:
+        return error
+
+    if error.endswith("%"):
+        value = error[:-1]
+        if not _NUMBER.fullmatch(value):
+            raise ValueError(f"relative error must look like \"10%\", got "
+                             f"{error!r}")
+        amount = Decimal(value)
+        if amount.is_zero():
+            return None
+        if amount < 0 or amount >= 100:
+            raise ValueError(f"relative error must be between 0% and 100%, "
+                             f"got {error!r}")
+        return f"LOG:MAX_ERROR={value}%"
+
+    raise ValueError(f"error must be a number, a percentage such as \"10%\", "
+                     f"or a LINEAR, LOG or SQRT recipe, got {error!r}")
+
+
+def _error_arg(error: str | None) -> Any:
+    """Convert a normalized error recipe to the C argument."""
+    return ffi.NULL if error is None else error.encode("utf-8")
 
 
 def _is_native(dt: np.dtype) -> bool:
@@ -120,7 +186,7 @@ class Graph:
 
 
 def graph(raster: ArrayLike, method: str, *, width: int | None = None,
-          planes: int | None = None, error: str | None = None,
+          planes: int | None = None, error: Error = None,
           nodata: Any = None) -> Graph:
     """Build a reusable graph for ``method``.
 
@@ -128,18 +194,21 @@ def graph(raster: ArrayLike, method: str, *, width: int | None = None,
     for a ``(B, Y, X)`` array and to 1 otherwise. Row-based predictors reset at
     each plane; use ``width=Y*X, planes=1`` to predict between bands.
 
-    ``error=None`` is lossless. Otherwise pass a ``LINEAR``, ``LOG`` or
-    ``SQRT`` recipe. The raster fixes the lossy domain checked by ``compress``;
-    use data spanning the product. ``nodata`` sets a sentinel; NaNs are detected
-    when it is omitted for floating-point rasters.
+    ``error=None`` or zero is lossless. A positive number selects ``LINEAR``;
+    a percentage string such as ``"1%"`` selects ``LOG``. Full ``LINEAR``,
+    ``LOG`` and ``SQRT`` recipes are also accepted. The raster fixes the lossy
+    domain checked by ``compress``; use data spanning the product. ``nodata``
+    sets a sentinel; NaNs are detected when it is omitted for floating-point
+    rasters.
     """
     if not isinstance(method, str) or not method:
         raise ValueError(f"method must be a recipe name, got {method!r}")
-    err = _error_arg(error)
+    error_recipe = _normalize_error(error)
+    err = _error_arg(error_recipe)
 
     lib = _load_lib_full()
     arr, width, planes, elt = _prepare(raster, width, planes)
-    code = _dtype_arg(arr, error)
+    code = _dtype_arg(arr, error_recipe)
     nd_mode, nd_bits = _nodata_args(arr, nodata)
 
     out = ffi.new("geozl_2d_graph**")
@@ -155,7 +224,7 @@ def graph(raster: ArrayLike, method: str, *, width: int | None = None,
     return Graph(ffi.gc(out[0], lib.geozl_2d_graph_close_c),
                  method=method, width=width, planes=planes,
                  dtype=arr.dtype, itemsize=elt,
-                 error=error, nodata=nodata)
+                 error=error_recipe, nodata=nodata)
 
 
 def compress(tile: ArrayLike, *, graph: Graph) -> bytes:
@@ -250,7 +319,7 @@ def _order0_bits(arr: np.ndarray) -> float:
 
 def profile(tile: ArrayLike, *, prior: str | None = "planar",
             width: int | None = None, planes: int | None = None,
-            error: str | None = None,
+            error: Error = None,
             reps: int = 5, nodata: Any = None,
             verify: bool = False) -> list[dict[str, Any]]:
     """Benchmark candidate graphs on ``tile``, sorted by compression ratio.
@@ -265,12 +334,13 @@ def profile(tile: ArrayLike, *, prior: str | None = "planar",
     """
     if reps < 1:
         raise ValueError(f"reps must be at least 1, got {reps}")
-    err = _error_arg(error)
+    error_recipe = _normalize_error(error)
+    err = _error_arg(error_recipe)
     lib = _load_lib_full()
     arr, width, planes, elt = _prepare(tile, width, planes)
     raw = arr.nbytes
     ideal = raw * _order0_bits(arr) / 8.0
-    code = _dtype_arg(arr, error)
+    code = _dtype_arg(arr, error_recipe)
     nd_mode, nd_bits = _nodata_args(arr, nodata)
 
     rows: list[dict[str, Any]] = []

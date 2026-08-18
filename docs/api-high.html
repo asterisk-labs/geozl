@@ -93,11 +93,11 @@
 <div class="fnbody">
 <div aria-labelledby="tab-profile" class="fnpanel" id="pan-profile" role="tabpanel">
 <p class="sig">signature <b>profile(tile, *, prior="planar", width=None, planes=None, error=None, reps=5, nodata=None, verify=False) → list[dict]</b></p>
-<div class="spec2"><div class="row"><span class="nm">prior</span><span class="ty">str · None</span><span class="ds">Predictor filter. <code>None</code> tries all; <code>"none"</code> disables prediction.</span></div><div class="row"><span class="nm">width</span><span class="ty">int · None</span><span class="ds">Row length; defaults to <code>tile.shape[-1]</code>.</span></div><div class="row"><span class="nm">planes</span><span class="ty">int · None</span><span class="ds">Stack count; defaults to <code>B</code> for <code>(B, Y, X)</code>.</span></div><div class="row"><span class="nm">reps</span><span class="ty">int</span><span class="ds">Timed runs per recipe.</span></div><div class="row"><span class="nm">error</span><span class="ty">str · None</span><span class="ds">Lossy recipe passed to <code>graph</code>.</span></div><div class="row"><span class="nm">nodata</span><span class="ty">scalar · None</span><span class="ds">Missing-value sentinel.</span></div><div class="row"><span class="nm">→ row</span><span class="ty">dict</span><span class="ds">Recipe, size, ratio and throughput; sorted by ratio.</span></div></div>
+<div class="spec2"><div class="row"><span class="nm">prior</span><span class="ty">str · None</span><span class="ds">Predictor filter. <code>None</code> tries all; <code>"none"</code> disables prediction.</span></div><div class="row"><span class="nm">width</span><span class="ty">int · None</span><span class="ds">Row length; defaults to <code>tile.shape[-1]</code>.</span></div><div class="row"><span class="nm">planes</span><span class="ty">int · None</span><span class="ds">Stack count; defaults to <code>B</code> for <code>(B, Y, X)</code>.</span></div><div class="row"><span class="nm">reps</span><span class="ty">int</span><span class="ds">Timed runs per recipe.</span></div><div class="row"><span class="nm">error</span><span class="ty">number · str · None</span><span class="ds">Absolute number, relative percentage or full recipe; zero is lossless.</span></div><div class="row"><span class="nm">nodata</span><span class="ty">scalar · None</span><span class="ds">Missing-value sentinel.</span></div><div class="row"><span class="nm">→ row</span><span class="ty">dict</span><span class="ds">Recipe, size, ratio and throughput; sorted by ratio.</span></div></div>
 </div>
 <div aria-labelledby="tab-graph" class="fnpanel" hidden="" id="pan-graph" role="tabpanel">
 <p class="sig">signature <b>graph(raster, method, *, width=None, planes=None, error=None, nodata=None) → Graph</b></p>
-<div class="spec2"><div class="row"><span class="nm">raster</span><span class="ty">ndarray</span><span class="ds">Native-order array; 1, 2, 4 or 8 bytes per sample.</span></div><div class="row"><span class="nm">method</span><span class="ty">str</span><span class="ds">Recipe returned by <code>profile</code>.</span></div><div class="row"><span class="nm">width</span><span class="ty">int · None</span><span class="ds">Row length; defaults to <code>raster.shape[-1]</code>.</span></div><div class="row"><span class="nm">planes</span><span class="ty">int · None</span><span class="ds">Stack count; row predictors reset between planes.</span></div><div class="row"><span class="nm">error</span><span class="ty">str · None</span><span class="ds"><code>None</code>, <code>LINEAR</code>, <code>LOG</code> or <code>SQRT</code>.</span></div><div class="row"><span class="nm">nodata</span><span class="ty">scalar · None</span><span class="ds">Sentinel; omitted NaNs are detected automatically.</span></div></div>
+<div class="spec2"><div class="row"><span class="nm">raster</span><span class="ty">ndarray</span><span class="ds">Native-order array; 1, 2, 4 or 8 bytes per sample.</span></div><div class="row"><span class="nm">method</span><span class="ty">str</span><span class="ds">Recipe returned by <code>profile</code>.</span></div><div class="row"><span class="nm">width</span><span class="ty">int · None</span><span class="ds">Row length; defaults to <code>raster.shape[-1]</code>.</span></div><div class="row"><span class="nm">planes</span><span class="ty">int · None</span><span class="ds">Stack count; row predictors reset between planes.</span></div><div class="row"><span class="nm">error</span><span class="ty">number · str · None</span><span class="ds"><code>2</code> is absolute, <code>"1%"</code> is relative, and zero is lossless.</span></div><div class="row"><span class="nm">nodata</span><span class="ty">scalar · None</span><span class="ds">Sentinel; omitted NaNs are detected automatically.</span></div></div>
 </div>
 <div aria-labelledby="tab-compress" class="fnpanel" hidden="" id="pan-compress" role="tabpanel">
 <p class="sig">signature <b>compress(tile, *, graph) → bytes</b></p>
@@ -306,7 +306,8 @@ for tile in tiles:
 <section class="lossy-slide" data-slide="error" id="maxerror">
 <p class="sec-h"><span class="sq"></span> error <span class="sig">bounded-error compression</span></p>
 <div class="prose">
-<p><code>error</code> trades exact values for a smaller frame under an explicit per-sample bound. <code>None</code> stays lossless.</p>
+<p><code>error</code> trades exact values for a smaller frame under an explicit per-sample bound. Pass <code>2</code> for a linear absolute bound or <code>"1%"</code> for a logarithmic relative bound. <code>None</code> and zero stay lossless.</p>
+<p>Full <code>LINEAR</code>, <code>LOG</code> and <code>SQRT</code> recipes remain available when you need their advanced options.</p>
 <p>Build from data spanning the product; later tiles outside that domain are rejected.</p>
 </div>
 <div class="eq">
@@ -409,7 +410,7 @@ back = back.view("int16").reshape(512, 512)</pre></div>
 <div class="code"><pre>rows = geozl.<span class="fn">profile</span>(tile, prior=None)
 best = rows[0]["graph"]
 
-g = geozl.<span class="fn">graph</span>(tile, best, error="LINEAR:MAX_ERROR=4")
+g = geozl.<span class="fn">graph</span>(tile, best, error=4)
 frame = geozl.<span class="fn">compress</span>(tile, graph=g)
 back = geozl.<span class="fn">decompress</span>(frame).view("int16").reshape(512, 512)</pre></div>
 <div class="out">9.93×   0.05 MB   max error 4 m</div>

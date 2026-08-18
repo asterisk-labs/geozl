@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `pfor`, a lossless terminal for fixed-width integer streams.
+- Short Python error forms: a number selects `LINEAR`, a percentage string
+  selects `LOG`, and zero selects lossless compression.
 
 ### Removed
 

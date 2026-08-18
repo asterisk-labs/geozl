@@ -66,7 +66,8 @@ and checksum control.
 ### Lossy and NoData
 
 ```python
-lossy = geozl.graph(tile, best, error="LINEAR:MAX_ERROR=2")
+absolute = geozl.graph(tile, best, error=2)
+relative = geozl.graph(tile, best, error="1%")
 
 holed = tile.astype(np.float32)
 holed[::7, ::5] = -9999
@@ -74,7 +75,9 @@ masked = geozl.graph(holed, best, nodata=-9999)
 ```
 
 Build lossy graphs from representative data; tiles outside that range are
-rejected. A NoData sentinel must fit the array dtype.
+rejected. `error=None` and `error=0` are lossless. Full `LINEAR`, `LOG`
+and `SQRT` recipes remain available for advanced use. A NoData sentinel must
+fit the array dtype.
 
 ## Low-level API
 

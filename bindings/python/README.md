@@ -14,6 +14,15 @@ frame = geozl.compress(tile, graph=g)
 back = geozl.decompress(frame).view(np.uint16).reshape(1024, 1024)
 ```
 
+Pass a positive number as `error` for a fixed absolute bound, or a percentage
+string for a relative bound. `None` and zero are lossless. Full `LINEAR`, `LOG`
+and `SQRT` recipes remain available.
+
+```python
+absolute = geozl.graph(tile, "planar>zigzag>entropy", error=2)
+relative = geozl.graph(tile, "planar>zigzag>entropy", error="1%")
+```
+
 Eleven codecs, lossless and lossy, reachable two ways. `geozl.graph` takes a
 recipe string and builds the graph for you, and `geozl.compress` runs one tile
 through it. `geozl.lossless` and `geozl.lossy` hand you the individual nodes to

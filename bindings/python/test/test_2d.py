@@ -102,11 +102,49 @@ def test_no_error_is_lossless():
     assert np.array_equal(_roundtrip(arr, method=GRAPH, error=None), arr)
 
 
-# A number used to mean an absolute bound, and 0 or less meant lossless. Both
-# readings are gone: the bound picks the curve, so it has to say which one.
-@pytest.mark.parametrize("error", [0, -1, 1, 2.0])
-def test_a_bare_number_is_not_an_error_recipe(error):
-    with pytest.raises(ValueError, match="recipe string"):
+@pytest.mark.parametrize("error", [
+    0, 0.0, -0.0, np.int64(0), np.float32(0), "0%",
+    "LINEAR:MAX_ERROR=0", "LOG:MAX_ERROR=0%", "SQRT:MAX_ERROR=0N",
+])
+def test_zero_error_is_lossless(error):
+    arr = _tile()
+    g = geozl.graph(arr, method=GRAPH, error=error)
+    assert g.error is None
+    assert geozl.compress(arr, graph=g) == _frame(arr, method=GRAPH)
+
+
+@pytest.mark.parametrize("error,recipe", [
+    (10, "LINEAR:MAX_ERROR=10"),
+    (0.4, "LINEAR:MAX_ERROR=0.4"),
+    (np.int64(10), "LINEAR:MAX_ERROR=10"),
+    (np.float32(0.4), "LINEAR:MAX_ERROR=0.4"),
+])
+def test_a_number_is_linear_shorthand(error, recipe):
+    arr = _tile()
+    short = geozl.graph(arr, method=GRAPH, error=error)
+    assert short.error == recipe
+    assert geozl.compress(arr, graph=short) == _frame(
+        arr, method=GRAPH, error=recipe)
+
+
+@pytest.mark.parametrize("error,recipe", [
+    ("10%", "LOG:MAX_ERROR=10%"),
+    ("0.4%", "LOG:MAX_ERROR=0.4%"),
+])
+def test_a_percentage_is_log_shorthand(error, recipe):
+    arr = _ftile()
+    short = geozl.graph(arr, method=GRAPH, error=error)
+    assert short.error == recipe
+    assert geozl.compress(arr, graph=short) == _frame(
+        arr, method=GRAPH, error=recipe)
+
+
+@pytest.mark.parametrize("error", [
+    -1, -0.4, np.float32(-1), float("nan"), float("inf"),
+    float("-inf"), True, np.bool_(False), "", "10", "-1%", "100%",
+])
+def test_invalid_short_error_is_rejected(error):
+    with pytest.raises(ValueError):
         geozl.graph(_tile(), method=GRAPH, error=error)
 
 
@@ -198,19 +236,16 @@ def test_verification_is_what_reads_the_checksums():
     assert intact and quiet
 
 
-@pytest.mark.parametrize("recipe,bound",
-                         [("LINEAR:MAX_ERROR=1", 1),
-                          ("LINEAR:MAX_ERROR=2.0", 2.0),
-                          ("LINEAR:MAX_ERROR=7", 7)])
-def test_error_bound_holds(recipe, bound):
+@pytest.mark.parametrize("error,bound", [(1, 1), (2.0, 2.0), (7, 7)])
+def test_error_bound_holds(error, bound):
     arr = _tile()
-    out = _roundtrip(arr, method=GRAPH, error=recipe)
+    out = _roundtrip(arr, method=GRAPH, error=error)
     assert np.abs(out.astype(np.int64) - arr.astype(np.int64)).max() <= bound
 
 
 def test_lossy_beats_lossless_on_size():
     arr = _tile()
-    assert len(_frame(arr, method=GRAPH, error="LINEAR:MAX_ERROR=8")) < \
+    assert len(_frame(arr, method=GRAPH, error=8)) < \
            len(_frame(arr, method=GRAPH))
 
 
@@ -306,8 +341,17 @@ def test_a_tile_too_small_to_time_still_profiles():
 
 def test_profile_lossy_beats_profile_lossless():
     arr = _tile()
-    assert geozl.profile(arr, reps=1, error="LINEAR:MAX_ERROR=8")[0]["ratio"] > \
+    assert geozl.profile(arr, reps=1, error=8)[0]["ratio"] > \
            geozl.profile(arr, reps=1)[0]["ratio"]
+
+
+def test_profile_zero_error_is_lossless():
+    arr = _tile()
+    lossless = geozl.profile(arr, prior=None, reps=1)
+    zero = geozl.profile(
+        arr, prior=None, reps=1, error="LINEAR:MAX_ERROR=0")
+    assert {r["graph"]: r["bytes"] for r in zero} == \
+           {r["graph"]: r["bytes"] for r in lossless}
 
 
 def test_profile_rejects_a_dtype_no_quantizer_has_a_kernel_for():
