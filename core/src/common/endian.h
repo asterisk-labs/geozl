@@ -56,6 +56,15 @@ static inline int16_t geozl_ld_le_i16(const uint8_t *p) {
   return (u < 0x8000u) ? (int16_t)u : (int16_t)((int32_t)u - 65536);
 }
 
+static inline void geozl_st_le_i32(uint8_t *p, int32_t v) {
+  geozl_st_le32(p, (uint32_t)v);
+}
+
+static inline int32_t geozl_ld_le_i32(const uint8_t *p) {
+  const uint32_t u = geozl_ld_le32(p);
+  return (u < 0x80000000u) ? (int32_t)u : (int32_t)((int64_t)u - 4294967296);
+}
+
 // Low @n bytes of @v, for the codecs whose header field is as wide as the
 // sample. n must be 1, 2, 4 or 8.
 static inline void geozl_st_le(uint8_t *p, uint64_t v, size_t n) {

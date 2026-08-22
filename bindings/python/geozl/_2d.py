@@ -6,6 +6,7 @@ from typing import Any
 import numpy as np
 from numpy.typing import ArrayLike
 
+from ._coeffs import CoeffVectors, _pack_coeffs
 from ._dtype import dtype_code
 from ._ffi import _load_lib_full, _ptr, ffi
 from .lossless.nodata import nodata_bits
@@ -285,16 +286,21 @@ def graph(raster: ArrayLike, method: str, *, width: int | None = None,
                  error=error_recipe, nodata=nodata)
 
 
-def compress(tile: ArrayLike, *, graph: Graph) -> bytes:
+def compress(tile: ArrayLike, *, graph: Graph,
+             coeffs: CoeffVectors | None = None) -> bytes:
     """Compress ``tile`` with a prepared graph and return the frame bytes.
 
     The dtype must match exactly. Geometry is not checked against the graph. A
     lossy tile outside the domain used to build the graph is refused.
+
+    ``coeffs`` attaches numeric vectors to this frame. Read them back with
+    ``geozl.coeffs``; geozl does not assign meaning to them.
     """
     if not isinstance(graph, Graph):
         raise TypeError(f"graph must be a geozl.Graph, got "
                         f"{type(graph).__name__}")
-    lib = _load_lib_full()
+    blob = None if coeffs is None else _pack_coeffs(coeffs)
+    full = _load_lib_full()
     arr, elt = _as_raster(tile)
     if arr.dtype != graph.dtype:
         raise ValueError(f"this graph was built for dtype {graph.dtype}, "
@@ -303,11 +309,19 @@ def compress(tile: ArrayLike, *, graph: Graph) -> bytes:
 
     # Sized past the worst case; an incompressible tile still fits in 1.5x.
     cap = 1024 + n * elt + n * elt // 2
+    if blob is not None:
+        cap += len(blob)
     dst = np.empty(cap, np.uint8)
     out_size = ffi.new("size_t*")
     err_ctx = ffi.new("char[]", 256)
-    rc = lib.geozl_2d_compress_graph_c(
-        graph._h, _ptr(arr), n, _ptr(dst), cap, out_size, err_ctx, len(err_ctx))
+    if blob is None:
+        rc = full.geozl_2d_compress_graph_c(
+            graph._h, _ptr(arr), n, _ptr(dst), cap, out_size, err_ctx,
+            len(err_ctx))
+    else:
+        rc = full.geozl_2d_compress_coeffs_c(
+            graph._h, _ptr(arr), n, blob, len(blob), _ptr(dst), cap, out_size,
+            err_ctx, len(err_ctx))
     if rc != 0:
         reason = ffi.string(err_ctx).decode("utf-8", "replace")
         raise RuntimeError(f"geozl.compress failed (method={graph.method!r}): "

@@ -14,18 +14,20 @@ option(GEOZL_BUILD_FUZZERS        "Build the libFuzzer harnesses, needs clang an
 set(GEOZL_OPENZL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../extern/openzl"
     CACHE PATH "Path to the OpenZL submodule source")
 
-# Decide geozl's own linkage from BUILD_SHARED_LIBS as OUR caller set it, and do
-# it HERE, before add_subdirectory(openzl). OpenZL's vendored deps (googletest,
-# zstd) run option(BUILD_SHARED_LIBS ... OFF), which lands in the cache; reading
-# the var after that subdirectory would wrongly flip us to STATIC. Captured up
-# front: a standalone build (var undefined) gets a shared geozl for the wheel, a
-# vendoring parent (rumi) that sets BUILD_SHARED_LIBS OFF gets it folded in
-# static. OpenZL itself stays static regardless via OPENZL_BUILD_SHARED_LIBS OFF.
-if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
-    set(GEOZL_LIB_TYPE STATIC)
-else()
-    set(GEOZL_LIB_TYPE SHARED)
+# Freeze geozl's linkage before OpenZL touches BUILD_SHARED_LIBS. A standalone
+# build is shared; a parent that explicitly sets OFF gets a static library.
+# OpenZL may restore an initially undefined value as an empty cache entry, so
+# empty still means the standalone default. Use a fresh build tree to change it.
+if(NOT DEFINED GEOZL_LIB_TYPE)
+    if(DEFINED BUILD_SHARED_LIBS
+       AND NOT BUILD_SHARED_LIBS STREQUAL ""
+       AND NOT BUILD_SHARED_LIBS)
+        set(GEOZL_LIB_TYPE STATIC CACHE INTERNAL "geozl library type")
+    else()
+        set(GEOZL_LIB_TYPE SHARED CACHE INTERNAL "geozl library type")
+    endif()
 endif()
+message(STATUS "geozl linkage: ${GEOZL_LIB_TYPE}")
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
@@ -103,10 +105,11 @@ foreach(name IN LISTS GEOZL_CODECS)
 endforeach()
 # The rest of the kernels library, which the glob above cannot find because none
 # of it is a codec. It is here so a Python caller reaches it without OpenZL: the
-# wp_static trainer, the recipe parsers that turn an error string into a bound,
-# the noise fit the sqrt quantizer needs, and the report of which vector paths
-# this build carries.
+# coefficient blob's serializer, the wp_static trainer, the recipe parsers that
+# turn an error string into a bound, the noise fit the sqrt quantizer needs, and
+# the report of which vector paths this build carries.
 list(APPEND GEOZL_KERNELS
+    src/coeffs/coeffs.c
     src/wp_static/train_wp_static.c
     src/lossy/lossy_recipe.c
     src/quant_linear/quant_linear_spec.c
@@ -176,7 +179,7 @@ if(GEOZL_BUILD_FULL)
         # decode fuzzer spends its budget in the OpenZL frame reader and rarely
         # reaches a quantizer at all. These drive the codecs directly and assert
         # the bound on the way back out. Kernels only, no OpenZL.
-        foreach(fz roundtrip lossy_recipe quant_linear quant_log quant_sqrt pfor)
+        foreach(fz roundtrip lossy_recipe quant_linear quant_log quant_sqrt pfor coeffs)
             add_executable(geozl_${fz}_fuzzer
                 ${CMAKE_CURRENT_SOURCE_DIR}/../fuzz/${fz}_fuzzer.c
                 ${GEOZL_KERNELS})
@@ -197,6 +200,7 @@ endif()
 if(GEOZL_BUILD_KERNELS_SHARED)
     add_library(geozl_kernels SHARED ${GEOZL_KERNELS})
     set_target_properties(geozl_kernels PROPERTIES C_VISIBILITY_PRESET default)
+    target_compile_definitions(geozl_kernels PRIVATE GEOZL_BUILD)
     # include/ too: the kernels take their parameter blocks from geozl/, which is
     # public because the node builders over them are.
     target_include_directories(geozl_kernels PRIVATE

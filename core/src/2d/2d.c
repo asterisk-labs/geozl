@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L // clock_gettime
 
+#include "geozl/coeffs.h"
 #include "geozl/geozl.h"
 
 #include "openzl/zl_compress.h"
@@ -30,6 +31,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#define OPENZL_COMMENT_VERSION_MIN 22
 
 // A method combines an optional predictor with a terminal, for example
 // "planar>zigzag>entropy". The full graph is:
@@ -489,7 +492,8 @@ fail:
 
 // Compress once with a prepared graph.
 static ZL_Report graph_run(const geozl_2d_graph *e, const void *src,
-                           size_t numElts, void *dst, size_t dstCapacity,
+                           size_t numElts, const void *coeffs,
+                           size_t coeffsSize, void *dst, size_t dstCapacity,
                            size_t *outSize, char *errCtx, size_t errCtxSize) {
   if (e->plan.family != GEOZL_LOSSY_NONE) {
     char why[192] = {0};
@@ -501,11 +505,28 @@ static ZL_Report graph_run(const geozl_2d_graph *e, const void *src,
       return ZL_returnError(ZL_ErrorCode_parameter_invalid);
     }
   }
+  if ((coeffs == NULL) != (coeffsSize == 0) ||
+      (coeffs != NULL &&
+       geozl_coeffs_parse(coeffs, coeffsSize, NULL, 0, NULL, 0, NULL, NULL) !=
+           0)) {
+    copy_err(errCtx, errCtxSize, "coefficients are not a valid blob");
+    return ZL_returnError(ZL_ErrorCode_parameter_invalid);
+  }
   ZL_TypedRef *in = ZL_TypedRef_createNumeric(src, e->eltWidth, numElts);
   if (in == NULL) {
     if (errCtx != NULL && errCtxSize != 0)
       snprintf(errCtx, errCtxSize, "could not wrap src as a numeric stream");
     return ZL_returnError(ZL_ErrorCode_allocation);
+  }
+  // OpenZL clears the comment when compression finishes. Keep the add and
+  // compress calls adjacent so an early return cannot retain it.
+  if (coeffs != NULL) {
+    ZL_Report cr = ZL_CCtx_addHeaderComment(e->cctx, coeffs, coeffsSize);
+    if (ZL_isError(cr)) {
+      copy_err(errCtx, errCtxSize, ZL_CCtx_getErrorContextString(e->cctx, cr));
+      ZL_TypedRef_free(in);
+      return cr;
+    }
   }
   ZL_Report r = ZL_CCtx_compressTypedRef(e->cctx, dst, dstCapacity, in);
   ZL_TypedRef_free(in);
@@ -537,9 +558,64 @@ GEOZL_API int geozl_2d_compress_graph_c(geozl_2d_graph *g, const void *src,
                                         char *errCtx, size_t errCtxSize) {
   if (errCtx != NULL && errCtxSize != 0)
     errCtx[0] = '\0';
-  ZL_Report r = graph_run(g, src, numElts, dst, dstCapacity, outSize, errCtx,
-                          errCtxSize);
+  ZL_Report r = graph_run(g, src, numElts, NULL, 0, dst, dstCapacity, outSize,
+                          errCtx, errCtxSize);
   return ZL_isError(r) ? (int)ZL_errorCode(r) : 0;
+}
+
+GEOZL_API int geozl_2d_compress_coeffs_c(geozl_2d_graph *g, const void *src,
+                                         size_t numElts, const void *coeffs,
+                                         size_t coeffsSize, void *dst,
+                                         size_t dstCapacity, size_t *outSize,
+                                         char *errCtx, size_t errCtxSize) {
+  if (errCtx != NULL && errCtxSize != 0)
+    errCtx[0] = '\0';
+  ZL_Report r = graph_run(g, src, numElts, coeffs, coeffsSize, dst, dstCapacity,
+                          outSize, errCtx, errCtxSize);
+  return ZL_isError(r) ? (int)ZL_errorCode(r) : 0;
+}
+
+GEOZL_API int geozl_2d_frame_coeffs_c(const void *frame, size_t frameSize,
+                                      void *dst, size_t dstCapacity,
+                                      size_t *outSize) {
+  if (outSize != NULL)
+    *outSize = 0;
+  ZL_FrameInfo *fi = ZL_FrameInfo_create(frame, frameSize);
+  if (fi == NULL)
+    return (int)ZL_ErrorCode_corruption;
+
+  ZL_RESULT_OF(ZL_Comment) cr = ZL_FrameInfo_getComment(fi);
+  int rc;
+  if (ZL_RES_isError(cr)) {
+    ZL_Report v = ZL_FrameInfo_getFormatVersion(fi);
+    rc = (!ZL_isError(v) &&
+          ZL_validResult(v) < OPENZL_COMMENT_VERSION_MIN)
+             ? -1
+             : (int)ZL_RES_code(cr);
+  } else {
+    ZL_Comment cm = ZL_RES_value(cr);
+    int parsed = cm.size == 0
+                     ? 1
+                     : geozl_coeffs_parse(cm.data, cm.size, NULL, 0, NULL, 0,
+                                          NULL, NULL);
+    if (parsed == 1) {
+      rc = -1;
+    } else if (parsed != 0) {
+      rc = (int)ZL_ErrorCode_corruption;
+    } else if (outSize != NULL && dst == NULL) {
+      *outSize = cm.size;
+      rc = 0;
+    } else if (dst == NULL || dstCapacity < cm.size) {
+      rc = (int)ZL_ErrorCode_dstCapacity_tooSmall;
+    } else {
+      memcpy(dst, cm.data, cm.size);
+      if (outSize != NULL)
+        *outSize = cm.size;
+      rc = 0;
+    }
+  }
+  ZL_FrameInfo_free(fi);
+  return rc;
 }
 
 GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
@@ -557,7 +633,7 @@ GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
                            nodataBits, src, numElts, eltWidth, 1, errCtx,
                            errCtxSize);
   if (!ZL_isError(r)) {
-    r = graph_run(e, src, numElts, dst, dstCapacity, outSize, errCtx,
+    r = graph_run(e, src, numElts, NULL, 0, dst, dstCapacity, outSize, errCtx,
                   errCtxSize);
     geozl_2d_graph_close_c(e);
   }
@@ -707,7 +783,8 @@ GEOZL_API int geozl_2d_bench_c(const char *method, uint32_t width,
   mark = now_sec();
   for (size_t i = 0; i < reps; ++i) {
     double t0 = now_sec();
-    r = graph_run(enc, src, numElts, cbuf, cap, &sz, errCtx, errCtxSize);
+    r = graph_run(enc, src, numElts, NULL, 0, cbuf, cap, &sz, errCtx,
+                  errCtxSize);
     double dt = now_sec() - t0;
     if (ZL_isError(r)) {
       rc = (int)ZL_errorCode(r);

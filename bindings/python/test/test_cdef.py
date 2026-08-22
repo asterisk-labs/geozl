@@ -10,6 +10,8 @@ import pytest
 
 _ROOT = Path(__file__).resolve().parents[3]
 _HEADERS = [_ROOT / "core" / "include" / "geozl" / "geozl.h"]
+_HEADERS += sorted(p for p in (_ROOT / "core" / "include" / "geozl").glob("*.h")
+                   if p.name != "geozl.h")
 _HEADERS += sorted((_ROOT / "core" / "src").rglob("*.h"))
 
 if not _HEADERS[0].exists():

@@ -71,6 +71,10 @@ void quant_sqrt_accum_free(quant_sqrt_accum* acc);
 int quant_sqrt_accum_push(quant_sqrt_accum* acc, const void* src, int dtype, size_t width, size_t height);
 int quant_sqrt_accum_solve(const quant_sqrt_accum* acc, quant_sqrt_noise* out, char* err, size_t err_size);
 
+size_t geozl_coeffs_size(const uint32_t* counts, size_t nb_vecs);
+size_t geozl_coeffs_pack(void* dst, size_t dst_capacity, const int32_t* const* vecs, const uint32_t* counts, size_t nb_vecs, char* err, size_t err_size);
+int geozl_coeffs_parse(const void* src, size_t src_size, int32_t* dst, size_t dst_values, uint32_t* counts, size_t max_vecs, size_t* out_vecs, size_t* out_values);
+
 int geozl_2d_compress_c(const char* method, uint32_t width, uint32_t planes, const char* error, int dtype, int nodata_mode, uint64_t nodata_bits, const void* src, size_t num_elts, size_t elt_width, void* dst, size_t dst_capacity, size_t* out_size, char* err_ctx, size_t err_ctx_size);
 size_t geozl_2d_frame_dsize_c(const void* frame, size_t frame_size);
 int geozl_2d_decompress_c(const void* frame, size_t frame_size, void* dst, size_t dst_capacity, size_t* out_size, int verify, char* err_ctx, size_t err_ctx_size);
@@ -78,6 +82,8 @@ int geozl_2d_bench_c(const char* method, uint32_t width, uint32_t planes, const 
 typedef struct geozl_2d_graph_s geozl_2d_graph;
 int geozl_2d_graph_open_c(geozl_2d_graph** out, const char* method, uint32_t width, uint32_t planes, const char* error, int dtype, int nodata_mode, uint64_t nodata_bits, const void* src, size_t num_elts, size_t elt_width, char* err_ctx, size_t err_ctx_size);
 int geozl_2d_compress_graph_c(geozl_2d_graph* g, const void* src, size_t num_elts, void* dst, size_t dst_capacity, size_t* out_size, char* err_ctx, size_t err_ctx_size);
+int geozl_2d_compress_coeffs_c(geozl_2d_graph* g, const void* src, size_t num_elts, const void* coeffs, size_t coeffs_size, void* dst, size_t dst_capacity, size_t* out_size, char* err_ctx, size_t err_ctx_size);
+int geozl_2d_frame_coeffs_c(const void* frame, size_t frame_size, void* dst, size_t dst_capacity, size_t* out_size);
 void geozl_2d_graph_close_c(geozl_2d_graph* g);
 int geozl_2d_grid_c(const char* method, size_t elt_width, char* names, size_t stride, size_t max_names, size_t* out_count);
 

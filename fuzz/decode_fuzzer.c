@@ -11,6 +11,14 @@
 static const size_t kMaxOut = 64u << 20; // a forged size field must not OOM
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+  // Exercise coefficient extraction in both copy and size-query modes.
+  {
+    static uint8_t blob[16384];
+    size_t got = 0;
+    (void)geozl_2d_frame_coeffs_c(data, size, blob, sizeof blob, &got);
+    (void)geozl_2d_frame_coeffs_c(data, size, NULL, 0, &got);
+  }
+
   ZL_DCtx *dctx = ZL_DCtx_create();
   if (dctx == NULL)
     return 0;

@@ -1,6 +1,7 @@
 #ifndef GEOZL_H
 #define GEOZL_H
 
+#include "geozl/coeffs.h"
 #include "geozl/ctids.h"
 #include "geozl/dtype.h"
 #include "geozl/export.h"
@@ -135,6 +136,22 @@ GEOZL_API int geozl_2d_bench_c(const char *method, uint32_t width,
                                int checksum, int verify, size_t *compSize,
                                double *encSec, double *decSec, char *errCtx,
                                size_t errCtxSize);
+
+// Compress one tile and attach a blob produced by geozl_coeffs_pack. Passing
+// NULL and zero writes an unannotated frame. Coefficients apply to one call and
+// do not become part of the graph.
+GEOZL_API int geozl_2d_compress_coeffs_c(geozl_2d_graph *g, const void *src,
+                                         size_t numElts, const void *coeffs,
+                                         size_t coeffsSize, void *dst,
+                                         size_t dstCapacity, size_t *outSize,
+                                         char *errCtx, size_t errCtxSize);
+
+// Copy a frame's coefficient blob without decompressing the payload. Return 0
+// on success, -1 when absent, or a positive ZL_ErrorCode on failure. Call with
+// dst NULL to query the size.
+GEOZL_API int geozl_2d_frame_coeffs_c(const void *frame, size_t frameSize,
+                                      void *dst, size_t dstCapacity,
+                                      size_t *outSize);
 
 // Expand method into recipe names, one per stride-byte slot. Returns -1 for an
 // unknown method and writes the number of names to outCount.

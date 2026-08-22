@@ -41,11 +41,12 @@
 <p class="sec-h"><span class="sq"></span> Python API</p>
 <h1>Measure, pick, <span class="u">run</span>.</h1>
 <div class="lead">
-<p class="l-top">The high-level API has four calls.</p>
+<p class="l-top">The high-level API has five calls.</p>
 <p><code>profile</code> ranks recipes for a tile.</p>
 <p><code>graph</code> builds a reusable graph.</p>
 <p><code>compress</code> returns a frame.</p>
 <p><code>decompress</code> returns flat bytes.</p>
+<p><code>coeffs</code> reads what a frame carries.</p>
 </div>
 <div class="runrow">
 <a href="https://colab.research.google.com/github/asterisk-labs/geozl/blob/main/docs/notebooks/high-level-api.ipynb" rel="noopener noreferrer" target="_blank">
@@ -67,7 +68,7 @@
 <span class="xh xh-v"></span><span class="xh xh-h"></span><span class="xh xh-d"></span>
 </figure>
 </section>
-<section class="api-overview" data-slide="the four calls" id="api">
+<section class="api-overview" data-slide="the five calls" id="api">
 <p class="sec-h"><span class="sq"></span> the Python API</p>
 <div class="api-intro">
 <span class="api-intro-k">one workflow</span>
@@ -89,6 +90,10 @@
 <span class="pk-index">04</span><span class="pk-top"><span class="pk-sq"></span><span class="pk-n">decompress</span><span class="pk-r">→ ndarray</span></span>
 <span class="pk-d">Decompresses a frame to flat bytes.</span>
 </button>
+<button aria-controls="pan-coeffs" aria-selected="false" id="tab-coeffs" role="tab" tabindex="-1">
+<span class="pk-index">05</span><span class="pk-top"><span class="pk-sq"></span><span class="pk-n">coeffs</span><span class="pk-r">→ tuple · None</span></span>
+<span class="pk-d">Reads the numbers a frame carries, without decompressing it.</span>
+</button>
 </div>
 <div class="fnbody">
 <div aria-labelledby="tab-profile" class="fnpanel" id="pan-profile" role="tabpanel">
@@ -100,12 +105,21 @@
 <div class="spec2"><div class="row"><span class="nm">raster</span><span class="ty">ndarray</span><span class="ds">Native-order array; 1, 2, 4 or 8 bytes per sample.</span></div><div class="row"><span class="nm">method</span><span class="ty">str</span><span class="ds">Recipe returned by <code>profile</code>.</span></div><div class="row"><span class="nm">width</span><span class="ty">int · None</span><span class="ds">Row length; defaults to <code>raster.shape[-1]</code>.</span></div><div class="row"><span class="nm">planes</span><span class="ty">int · None</span><span class="ds">Stack count; row predictors reset between planes.</span></div><div class="row"><span class="nm">error</span><span class="ty">number · str · None</span><span class="ds"><code>2</code> is absolute, <code>"1%"</code> is relative, and zero is lossless.</span></div><div class="row"><span class="nm">nodata</span><span class="ty">scalar · None</span><span class="ds">Sentinel; omitted NaNs are detected automatically.</span></div></div>
 </div>
 <div aria-labelledby="tab-compress" class="fnpanel" hidden="" id="pan-compress" role="tabpanel">
-<p class="sig">signature <b>compress(tile, *, graph) → bytes</b></p>
-<div class="spec2"><div class="row"><span class="nm">tile</span><span class="ty">ndarray</span><span class="ds">Matching dtype; geometry is not checked.</span></div><div class="row"><span class="nm">graph</span><span class="ty">Graph</span><span class="ds">Reusable graph; not thread-safe.</span></div><div class="row"><span class="nm">→ frame</span><span class="ty">bytes</span><span class="ds">Self-describing OpenZL frame.</span></div></div>
+<p class="sig">signature <b>compress(tile, *, graph, coeffs=None) → bytes</b></p>
+<div class="spec2"><div class="row"><span class="nm">tile</span><span class="ty">ndarray</span><span class="ds">Matching dtype; geometry is not checked.</span></div><div class="row"><span class="nm">graph</span><span class="ty">Graph</span><span class="ds">Reusable graph; not thread-safe.</span></div><div class="row"><span class="nm">coeffs</span><span class="ty">sequence · None</span><span class="ds">Integer vectors stored with this frame and returned by <code>coeffs</code>.</span></div><div class="row"><span class="nm">→ frame</span><span class="ty">bytes</span><span class="ds">Self-describing OpenZL frame.</span></div></div>
 </div>
 <div aria-labelledby="tab-decompress" class="fnpanel" hidden="" id="pan-decompress" role="tabpanel">
 <p class="sig">signature <b>decompress(frame, *, verify=True, max_output_size=None) → ndarray</b></p>
 <div class="spec2"><div class="row"><span class="nm">frame</span><span class="ty">bytes</span><span class="ds">Returns flat <code>uint8</code>.</span></div><div class="row"><span class="nm">verify</span><span class="ty">bool</span><span class="ds">Checks frame checksums.</span></div><div class="row"><span class="nm">max_output_size</span><span class="ty">int | None</span><span class="ds">Ceiling on the bytes allocated. The size is read from the frame, so pass one for untrusted input.</span></div></div>
+</div>
+<div aria-labelledby="tab-coeffs" class="fnpanel" hidden="" id="pan-coeffs" role="tabpanel">
+<p class="sig">signature <b>coeffs(frame) → tuple | None</b></p>
+<div class="spec2"><div class="row"><span class="nm">frame</span><span class="ty">bytes</span><span class="ds">Read from the frame header; the payload is not decompressed.</span></div><div class="row"><span class="nm">→ vectors</span><span class="ty">tuple · None</span><span class="ds">One tuple of <code>int32</code> per vector, or <code>None</code> when absent. Vector meaning is defined by the producer and consumer.</span></div></div>
+<p>Coefficient vectors are application-defined integer metadata. GeoZL preserves their values and ordering without interpreting them.</p>
+<div class="code"><pre>metadata = ((7, -3, 11), (2, 5))
+frame = geozl.compress(tile, graph=g, coeffs=metadata)
+
+assert geozl.coeffs(frame) == metadata</pre></div>
 </div>
 </div>
 </section>

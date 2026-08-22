@@ -48,6 +48,21 @@ static void test_signed_coeffs(void) {
   CHECK(b[0] == 0xFE && b[1] == 0xFF);
 }
 
+// Signed int32 little-endian round trips, including both limits.
+static void test_signed_coeffs32(void) {
+  static const int32_t values[] = { 0,      1,      -1,     2147483647,
+                                    -2147483648, -123456789, 123456789 };
+  uint8_t b[4];
+
+  for (size_t i = 0; i < sizeof(values) / sizeof(values[0]); ++i) {
+    geozl_st_le_i32(b, values[i]);
+    CHECK(geozl_ld_le_i32(b) == values[i]);
+  }
+
+  geozl_st_le_i32(b, -2);
+  CHECK(b[0] == 0xFE && b[1] == 0xFF && b[2] == 0xFF && b[3] == 0xFF);
+}
+
 // intmult stores its base and binoffset its bin lowers at the sample width,
 // so the variable-width pair has to stay exact and must not write past n.
 static void test_variable_width(void) {
@@ -85,6 +100,7 @@ static void test_double_bits(void) {
 int main(void) {
   test_scalar_layout();
   test_signed_coeffs();
+  test_signed_coeffs32();
   test_variable_width();
   test_double_bits();
 

@@ -11,7 +11,10 @@ ROOT = Path(__file__).resolve().parents[3]
 DOCS = ROOT / "docs"
 API_HIGH = DOCS / "api-high.html"
 NOTEBOOK = DOCS / "notebooks" / "high-level-api.ipynb"
-HIGH_LEVEL_SOURCE = ROOT / "bindings" / "python" / "geozl" / "_2d.py"
+HIGH_LEVEL_SOURCES = [
+    ROOT / "bindings" / "python" / "geozl" / "_2d.py",
+    ROOT / "bindings" / "python" / "geozl" / "_coeffs.py",
+]
 
 
 def _maintained_text() -> list[Path]:
@@ -42,24 +45,26 @@ def test_current_docs_do_not_use_the_removed_max_error_argument():
 
 
 def _source_signatures() -> dict[str, str]:
-    tree = ast.parse(HIGH_LEVEL_SOURCE.read_text(encoding="utf-8"))
     out = {}
-    for node in tree.body:
-        if not isinstance(node, ast.FunctionDef) or node.name not in {
-                "profile", "graph", "compress", "decompress"}:
-            continue
-        positional = node.args.posonlyargs + node.args.args
-        defaults = [None] * (len(positional) - len(node.args.defaults)) + node.args.defaults
-        parts = []
-        for arg, default in zip(positional, defaults, strict=True):
-            parts.append(arg.arg if default is None else
-                         f"{arg.arg}={_format_default(default)}")
-        if node.args.kwonlyargs:
-            parts.append("*")
-        for arg, default in zip(node.args.kwonlyargs, node.args.kw_defaults, strict=True):
-            parts.append(arg.arg if default is None else
-                         f"{arg.arg}={_format_default(default)}")
-        out[node.name] = f"{node.name}({', '.join(parts)})"
+    for source in HIGH_LEVEL_SOURCES:
+        tree = ast.parse(source.read_text(encoding="utf-8"))
+        for node in tree.body:
+            if not isinstance(node, ast.FunctionDef) or node.name not in {
+                    "profile", "graph", "compress", "decompress", "coeffs"}:
+                continue
+            positional = node.args.posonlyargs + node.args.args
+            defaults = [None] * (len(positional) - len(node.args.defaults)) + node.args.defaults
+            parts = []
+            for arg, default in zip(positional, defaults, strict=True):
+                parts.append(arg.arg if default is None else
+                             f"{arg.arg}={_format_default(default)}")
+            if node.args.kwonlyargs:
+                parts.append("*")
+            for arg, default in zip(node.args.kwonlyargs, node.args.kw_defaults, strict=True):
+                parts.append(arg.arg if default is None else
+                             f"{arg.arg}={_format_default(default)}")
+            assert node.name not in out, f"duplicate public function: {node.name}"
+            out[node.name] = f"{node.name}({', '.join(parts)})"
     return out
 
 
@@ -72,7 +77,7 @@ def test_api_page_signatures_match_the_public_python_source():
     body = API_HIGH.read_text(encoding="utf-8")
     shown = {
         name: found.group(1)
-        for name in ("profile", "graph", "compress", "decompress")
+        for name in ("profile", "graph", "compress", "decompress", "coeffs")
         if (found := re.search(rf"signature <b>({name}\([^<]+\)) →", body))
     }
     assert shown == _source_signatures()

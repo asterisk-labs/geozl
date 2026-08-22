@@ -33,7 +33,7 @@ FUZZ_OUT   := fuzz/out
 FUZZ_CORPUS := fuzz/corpus
 # Small inputs kept in git. The cached corpus adds depth when available.
 FUZZ_SEEDS := fuzz/replay
-FUZZ_TARGETS := roundtrip lossy_recipe quant_linear quant_log quant_sqrt pfor decode binding
+FUZZ_TARGETS := roundtrip lossy_recipe quant_linear quant_log quant_sqrt pfor decode binding coeffs
 OPENZL     := extern/openzl
 PY_DIR     := bindings/python
 PY_LIB_DIR := $(PY_DIR)/geozl/_lib
@@ -88,6 +88,7 @@ CTEST_BINS    := $(patsubst test/%.c,$(CTEST_DIR)/%,$(CTEST_SRCS))
 # matches the kernel glob.
 CTEST_KERNELS := $(wildcard $(CORE)/src/*/encode_*_kernel.c) \
                  $(wildcard $(CORE)/src/*/decode_*_kernel.c) \
+                 $(CORE)/src/coeffs/coeffs.c \
                  $(CORE)/src/wp_static/train_wp_static.c \
                  $(CORE)/src/lossy/lossy_recipe.c \
                  $(CORE)/src/quant_linear/quant_linear_spec.c \
@@ -95,6 +96,10 @@ CTEST_KERNELS := $(wildcard $(CORE)/src/*/encode_*_kernel.c) \
                  $(CORE)/src/quant_sqrt/quant_sqrt_fit.c \
                  $(CORE)/src/quant_log/quant_log_spec.c \
                  $(CORE)/src/common/simd.c
+# Headers are prerequisites too. Without them a change to endian.h or a codec
+# header leaves every test binary stale, and they pass against the old code.
+CTEST_HEADERS := $(wildcard $(CORE)/include/geozl/*.h) \
+                 $(wildcard $(CORE)/src/*/*.h)
 # include/ too: the quant kernels take their parameter blocks from
 # geozl/quant_*_params.h, public because the node builders over them are.
 # -ffp-contract=off for the same reason core/CMakeLists.txt sets it, the
@@ -141,19 +146,38 @@ configure: $(OPENZL)/CMakeLists.txt
 build: $(BUILD_DIR)/CMakeCache.txt
 	cmake --build $(BUILD_DIR)
 
+# CMake cache booleans may be spelled ON, 1 or TRUE. Normalize them before
+# validating build artifacts.
+cmake_true = case "$$$(1)" in ""|0|[Oo][Ff][Ff]|[Nn][Oo]|[Ff][Aa][Ll][Ss][Ee]|[Nn]|*-NOTFOUND) $(1)=OFF;; *) $(1)=ON;; esac;
+
 # Stage the kernels lib next to the binding, cffi loads it from there.
 lib: build
 	@mkdir -p $(PY_LIB_DIR)
 	@rm -f $(PY_LIB_DIR)/libgeozl_kernels* $(PY_LIB_DIR)/geozl_kernels*.dll
-	@f=$$(find $(BUILD_DIR) \( -name 'libgeozl_kernels*.dylib' \
+	@shared=$$(sed -n 's/^GEOZL_BUILD_KERNELS_SHARED:BOOL=//p' $(BUILD_DIR)/CMakeCache.txt); \
+	  $(call cmake_true,shared) \
+	  [ "$$shared" = ON ] || { \
+	    echo "$(BUILD_DIR) does not build the shared kernels library"; exit 1; }; \
+	  lib=$$(find $(BUILD_DIR) \( -name 'libgeozl_kernels*.dylib' \
 	        -o -name 'libgeozl_kernels*.so*' -o -name 'geozl_kernels*.dll' \) | head -1); \
-	  [ -n "$$f" ] || { echo "no $(KERNELS) under $(BUILD_DIR)"; exit 1; }; \
-	  cp -a "$$f" $(PY_LIB_DIR)/
+	  [ -n "$$lib" ] || { echo "no $(KERNELS) under $(BUILD_DIR)"; exit 1; }; \
+	  cp -a "$$lib" $(PY_LIB_DIR)/
 	@rm -f $(PY_LIB_DIR)/libgeozl.dylib $(PY_LIB_DIR)/libgeozl.so* $(PY_LIB_DIR)/geozl.dll
-	@g=$$(find $(BUILD_DIR) \( -name 'libgeozl.dylib' \
-	        -o -name 'libgeozl.so*' -o -name 'geozl.dll' \) | head -1); \
-	  if [ -n "$$g" ]; then cp -a "$$g" $(PY_LIB_DIR)/; \
-	  else echo "note: no $(FULLLIB) (FULL=OFF), geozl.compress unavailable"; fi
+	@full=$$(sed -n 's/^GEOZL_BUILD_FULL:BOOL=//p' $(BUILD_DIR)/CMakeCache.txt); \
+	  $(call cmake_true,full) \
+	  type=$$(sed -n 's/^GEOZL_LIB_TYPE:INTERNAL=//p' $(BUILD_DIR)/CMakeCache.txt); \
+	  if [ "$$full" != ON ]; then \
+	    echo "note: no $(FULLLIB) (FULL=OFF), geozl.compress unavailable"; \
+	  elif [ -n "$$type" ] && [ "$$type" != "SHARED" ]; then \
+	    echo "$(BUILD_DIR) builds geozl $$type, which the binding cannot load"; \
+	    echo "  any $(FULLLIB) left in there is from an earlier configure, not this build"; \
+	    echo "  rm -rf $(BUILD_DIR) && make lib"; exit 1; \
+	  else \
+	    lib=$$(find $(BUILD_DIR) \( -name 'libgeozl.dylib' \
+	            -o -name 'libgeozl.so*' -o -name 'geozl.dll' \) | head -1); \
+	    [ -n "$$lib" ] || { echo "no $(FULLLIB) under $(BUILD_DIR), but GEOZL_BUILD_FULL is ON"; exit 1; }; \
+	    cp -a "$$lib" $(PY_LIB_DIR)/; \
+	  fi
 
 python: lib
 	@$(PYTHON) -c 'import numpy, cffi, openzl' 2>/dev/null \
@@ -163,9 +187,9 @@ python: lib
 
 # Every test/test_*.c links against all kernels, so a new test can call any of
 # them without touching this file.
-$(CTEST_DIR)/%: test/%.c $(CTEST_KERNELS)
+$(CTEST_DIR)/%: test/%.c $(CTEST_KERNELS) $(CTEST_HEADERS)
 	@mkdir -p $(CTEST_DIR)
-	@$(CC) $(CTEST_CFLAGS) $^ $(CTEST_LIBS) -o $@
+	@$(CC) $(CTEST_CFLAGS) $< $(CTEST_KERNELS) $(CTEST_LIBS) -o $@
 
 test-c: $(CTEST_BINS)
 	@if [ -z "$(CTEST_BINS)" ]; then echo "no C tests under test/"; else \
@@ -207,7 +231,8 @@ fuzz-build: $(OPENZL)/CMakeLists.txt
 	cmake --build core/build-fuzz --target geozl_decode_fuzzer geozl_binding_fuzzer \
 	      geozl_roundtrip_fuzzer geozl_lossy_recipe_fuzzer \
 	      geozl_quant_linear_fuzzer \
-	      geozl_quant_log_fuzzer geozl_quant_sqrt_fuzzer geozl_pfor_fuzzer
+	      geozl_quant_log_fuzzer geozl_quant_sqrt_fuzzer geozl_pfor_fuzzer \
+	      geozl_coeffs_fuzzer
 
 fuzz-seed: python
 	@$(PYTHON) fuzz/gen_corpus.py $(FUZZ_CORPUS)/decode
@@ -300,6 +325,7 @@ clean: clean-fuzz
 	rm -rf core/build core/build-san
 	rm -rf $(PY_DIR)/build $(PY_DIR)/*.egg-info .pytest_cache
 	rm -f $(PY_LIB_DIR)/libgeozl_kernels* $(PY_LIB_DIR)/geozl_kernels*.dll
+	rm -f $(PY_LIB_DIR)/libgeozl.dylib $(PY_LIB_DIR)/libgeozl.so* $(PY_LIB_DIR)/geozl.dll
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 	find . -type f -name '*.pyc' -delete
 

@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default rather than the reconstructed value. The two describe the same grid,
   the same levels and the same bound; only the stream contents move. The index
   is `step` times smaller, which every terminal that charges for magnitude was
-  paying for: on real Sentinel-2 at `MAX_ERROR=100`, `planar>zigzag>pfor` goes
+  paying for: on the benchmark raster at `MAX_ERROR=100`,
+  `planar>zigzag>pfor` goes
   from 4.08x to 9.37x and decodes faster because there is less to unpack. An
   entropy terminal is unaffected, since its cost is the distribution and
   scaling every value by a constant does not change it. `STORE=VALUES` keeps
@@ -41,6 +42,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Frames can carry application-defined `int32` vectors through
+  `compress(..., coeffs=...)` and `geozl.coeffs(frame)`. They are stored in the
+  header comment and can be read without decompressing the payload.
+- C APIs pack, parse, attach and extract coefficient vectors. The blob format
+  does not depend on OpenZL and is limited to its 10000-byte comment field.
 - `pfor`, a lossless terminal for fixed-width integer streams.
 - `STORE=INDEX` for integer input on `quant_sqrt`, where it is requested rather
   than inherited: a sqrt index grows as the bound tightens instead of being held
