@@ -17,8 +17,8 @@ def rng(seed):
         yield (x >> 33) / float(1 << 31)
 
 
-def s2_dn(n):
-    """Sentinel-2 surface reflectance as it ships, uint16 counts with a floor of
+def counts_u16(n):
+    """Unsigned optical counts with a floor of
     zeros where the scene is masked."""
     r = rng(1)
     out = []
@@ -79,7 +79,7 @@ def counts(n):
 
 
 TILES = [
-    ("s2_dn", U16, s2_dn),
+    ("counts_u16", U16, counts_u16),
     ("dem", I16, dem),
     ("reflectance", F32, reflectance),
     ("humidity", F32, humidity),

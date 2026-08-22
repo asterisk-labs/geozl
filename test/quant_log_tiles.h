@@ -128,8 +128,8 @@ static inline qt_tile qt_make(const char *name) {
     f[i] = qt_norm();
   qt_smooth(f, 3);
 
-  if (strcmp(name, "s2_dn") == 0) {
-    // Sentinel-2 surface reflectance as it ships, uint16 DN, with a nodata
+  if (strcmp(name, "counts_u16") == 0) {
+    // Unsigned optical counts with a nodata
     // border of zeros.
     t.dtype = QLOG_U16;
     t.data = malloc(QT_N * 2);
@@ -238,7 +238,7 @@ static inline void qt_free(qt_tile *t) {
   t->data = NULL;
 }
 
-static const char *const qt_int_tiles[] = {"byte", "s2_dn", "dem_i16",
+static const char *const qt_int_tiles[] = {"byte", "counts_u16", "dem_i16",
                                            "counts_u32"};
 static const char *const qt_flt_tiles[] = {"reflectance", "humidity", "kelvin",
                                            "precipitation", "anomaly", "wide",

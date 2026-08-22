@@ -169,7 +169,7 @@ static void the_sign_survives(void) {
 // stream element it had when a value far outside the range is dropped in.
 static void the_grid_never_reads_the_tile(void) {
   printf("one outlier moves nothing else, at every case and width\n");
-  const char *names[] = {"s2_dn", "dem_i16", "humidity", "half", "wide"};
+  const char *names[] = {"counts_u16", "dem_i16", "humidity", "half", "wide"};
   const double outlier[] = {65535.0, -32000.0, 3.0e38, 60000.0, 1.0e300};
 
   for (int k = 0; k < 5; ++k) {
@@ -204,7 +204,7 @@ static void the_grid_never_reads_the_tile(void) {
 // Case 1 hands the stream back unchanged, so the decode is a byte copy.
 static void an_integer_decode_is_a_byte_copy(void) {
   printf("an integer decode hands the stream back unchanged\n");
-  qt_tile t = qt_make("s2_dn");
+  qt_tile t = qt_make("counts_u16");
   const size_t w = quant_log_width(t.dtype);
   void *st = alloc_for(t.dtype, t.n), *dec = alloc_for(t.dtype, t.n);
   CHECK(trip("LOG:MAX_ERROR=1%", t.dtype, t.data, st, dec, t.n, NULL) == 0);
@@ -238,7 +238,7 @@ static void the_table_and_the_long_way_agree(void) {
 // compressed twice would drift.
 static void a_second_pass_moves_nothing(void) {
   printf("a reconstruction fed back in lands on the level it came from\n");
-  const char *names[] = {"humidity", "s2_dn", "kelvin"};
+  const char *names[] = {"humidity", "counts_u16", "kelvin"};
   for (int k = 0; k < 3; ++k) {
     qt_tile t = qt_make(names[k]);
     const size_t w = quant_log_width(t.dtype);
