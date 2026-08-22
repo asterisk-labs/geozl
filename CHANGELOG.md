@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-08-22
+
+### Added
+
+- Frames can carry application-defined `int32` vectors through
+  `compress(..., coeffs=...)` and `geozl.coeffs(frame)`. They are stored in the
+  header comment and can be read without decompressing the payload.
+- C APIs pack, parse, attach and extract coefficient vectors. The blob format
+  does not depend on OpenZL and is limited to its 10000-byte comment field.
+
+## [0.14.0] - 2026-08-17
+
 ### Changed
 
 - **Wire format.** An integer `quant_linear` frame now carries the grid index by
@@ -42,11 +54,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Frames can carry application-defined `int32` vectors through
-  `compress(..., coeffs=...)` and `geozl.coeffs(frame)`. They are stored in the
-  header comment and can be read without decompressing the payload.
-- C APIs pack, parse, attach and extract coefficient vectors. The blob format
-  does not depend on OpenZL and is limited to its 10000-byte comment field.
 - `pfor`, a lossless terminal for fixed-width integer streams.
 - `STORE=INDEX` for integer input on `quant_sqrt`, where it is requested rather
   than inherited: a sqrt index grows as the bound tightens instead of being held
@@ -366,7 +373,9 @@ First release.
   `register_decoders` for reading frames back.
 - A libFuzzer harness over the decode path.
 
-[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.13.1...HEAD
+[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/asterisk-labs/geozl/compare/v0.14.0...v0.15.0
+[0.14.0]: https://github.com/asterisk-labs/geozl/compare/v0.13.1...v0.14.0
 [0.13.1]: https://github.com/asterisk-labs/geozl/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/asterisk-labs/geozl/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/asterisk-labs/geozl/compare/v0.11.0...v0.12.0
