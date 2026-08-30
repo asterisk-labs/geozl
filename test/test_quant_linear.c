@@ -58,6 +58,25 @@ static int trip(const char *recipe, int dtype, const void *src, void *dec,
   return rc;
 }
 
+static void zero_is_a_finite_domain(void) {
+  puts("zero is a finite LINEAR domain");
+  const uint16_t u16[16] = {0};
+  const float f32[16] = {0};
+  const float nonfinite[3] = {NAN, INFINITY, -INFINITY};
+  uint16_t back[16];
+  quant_linear_stats sc;
+
+  CHECK(quant_linear_scan(u16, QL_U16, 16, &sc) == 0);
+  CHECK(sc.maxAbs == 0.0 && sc.anyNegative == 0);
+  CHECK(quant_linear_scan(f32, QL_F32, 16, &sc) == 0);
+  CHECK(sc.maxAbs == 0.0 && sc.anyNegative == 0);
+  CHECK(quant_linear_scan(nonfinite, QL_F32, 3, &sc) != 0);
+  CHECK(quant_linear_scan(u16, QL_U16, 0, &sc) != 0);
+
+  CHECK(trip("LINEAR:MAX_ERROR=10", QL_U16, u16, back, 16, NULL) == 0);
+  CHECK(memcmp(u16, back, sizeof(u16)) == 0);
+}
+
 static void an_integer_grid_never_reads_the_tile(void) {
   printf("an integer grid is the same grid whatever the tile holds\n");
   char err[256];
@@ -676,6 +695,7 @@ static void the_wide_integers_hold_at_the_corners(void) {
 }
 
 int main(void) {
+  zero_is_a_finite_domain();
   an_integer_grid_never_reads_the_tile();
   the_float_index_path_reads_the_tile();
   the_float_value_path_does_not();

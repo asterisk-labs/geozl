@@ -114,6 +114,7 @@ int quant_linear_encode(void *restrict dst, const void *restrict src,
       const double v = (double)(RD);                                           \
       if (!isfinite(v))                                                        \
         continue;                                                              \
+      haveFinite = 1;                                                          \
       if (v < 0.0)                                                             \
         neg = 1;                                                               \
       const double a = fabs(v);                                                \
@@ -126,6 +127,7 @@ int quant_linear_scan(const void *src, int dtype, size_t nbElts,
                       quant_linear_stats *out) {
   double hi = 0.0;
   int neg = 0;
+  int haveFinite = 0;
   if (src == NULL || out == NULL || !QL_DTYPE_OK(dtype))
     return 1;
 
@@ -167,7 +169,7 @@ int quant_linear_scan(const void *src, int dtype, size_t nbElts,
 
   out->maxAbs = hi;
   out->anyNegative = neg;
-  return hi > 0.0 ? 0 : 1;
+  return haveFinite ? 0 : 1;
 }
 
 #undef QL_ENC_UV

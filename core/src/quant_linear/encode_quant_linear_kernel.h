@@ -10,7 +10,7 @@
 int quant_linear_encode(void *restrict dst, const void *restrict src,
                         const quant_linear_params *p, int dtype, size_t nbElts);
 
-// Scan finite samples for grid resolution. Returns 1 if none are nonzero.
+// Scan finite samples for grid resolution. Returns 1 if none are finite.
 int quant_linear_scan(const void *src, int dtype, size_t nbElts,
                       quant_linear_stats *out);
 

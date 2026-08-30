@@ -87,8 +87,7 @@ int geozl_lossy_resolve(const geozl_lossy_recipe *r, const void *src, int dtype,
   case GEOZL_LOSSY_LINEAR: {
     if (quant_linear_scan(src, dtype, nbElts, &out->domain.linear) != 0)
       return geozl_recipe_fail(err, errSize,
-                  "the raster holds no finite non-zero sample to cut a grid "
-                  "against");
+                  "the raster holds no finite sample to cut a grid against");
     return quant_linear_resolve(&r->as.linear, dtype, &out->domain.linear,
                                 &out->as.linear, err, errSize);
   }
