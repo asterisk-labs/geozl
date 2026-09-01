@@ -301,15 +301,15 @@ def test_unbiased_prior_sweeps_more_graphs_than_a_named_one():
 
 
 def test_unbiased_prior_is_the_whole_grid():
-    # 8 predictors x 7 terminals, all buildable at 2 bytes per element
-    assert len(geozl.profile(_tile(), prior=None, reps=1)) == 56
+    # 8 predictors x 8 terminals, all buildable at 2 bytes per element
+    assert len(geozl.profile(_tile(), prior=None, reps=1)) == 64
 
 
 def test_the_grid_at_one_byte_keeps_categorical_and_drops_the_rest():
-    # 8 x 5: the two transposed terminals need 2 bytes; categorical and pfor do
-    # not.
+    # 8 x 6: the two lane-producing transpose terminals need 2 bytes. The fused
+    # blocked terminal, categorical and pfor also work on byte streams.
     rows = geozl.profile(_tile(dtype=np.uint8), prior=None, reps=1)
-    assert len(rows) == 40
+    assert len(rows) == 48
     assert any(r["graph"].endswith("categorical") for r in rows)
     assert any(r["graph"].endswith("pfor") for r in rows)
 
@@ -317,7 +317,8 @@ def test_the_grid_at_one_byte_keeps_categorical_and_drops_the_rest():
 def test_transpose_terminals_drop_out_on_1_byte_elements():
     rows = geozl.profile(_tile(dtype=np.uint8), prior=None, reps=1)
     assert rows
-    assert not any("transpose" in r["graph"] for r in rows)
+    assert not any(">transpose>" in r["graph"] for r in rows)
+    assert any("blocked_transpose_zstd" in r["graph"] for r in rows)
 
 
 def test_store_lo_is_no_longer_a_recipe():

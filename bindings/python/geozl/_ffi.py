@@ -27,6 +27,10 @@ size_t pfor_bound(size_t nb_elts, size_t elt_width);
 int pfor_encode(void* dst, size_t dst_capacity, size_t* out_size, const void* src, size_t nb_elts, size_t elt_width);
 int pfor_decode(void* dst, size_t nb_elts, size_t elt_width, const void* src, size_t src_size);
 
+size_t geozl_blocked_transpose_zstd_bound(size_t nb_elts, size_t elt_width, size_t block_size);
+int geozl_blocked_transpose_zstd_encode(void* dst, size_t dst_capacity, size_t* out_size, const void* src, size_t nb_elts, size_t elt_width, size_t block_size, int compression_level);
+int geozl_blocked_transpose_zstd_decode(void* dst, size_t nb_elts, size_t elt_width, size_t block_size, const void* src, size_t src_size);
+
 void deinterleave_split(void* out0, void* out1, const void* src, size_t nb_elts, size_t elt_width);
 void deinterleave_join(void* dst, const void* in0, const void* in1, size_t nb_elts, size_t elt_width);
 

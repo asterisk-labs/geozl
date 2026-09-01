@@ -8,6 +8,8 @@ geozl = pytest.importorskip("geozl")
 # spatial_predictor, three from quantizer, wp_static and deinterleave by
 # hand.
 _NODES = [
+    ("blocked_transpose_zstd",
+     lambda: geozl.lossless.BlockedTransposeZstd(128)),
     ("planar", lambda: geozl.lossless.Planar(8)),
     ("delta_w", lambda: geozl.lossless.DeltaW(8)),
     ("med", lambda: geozl.lossless.Med(8)),

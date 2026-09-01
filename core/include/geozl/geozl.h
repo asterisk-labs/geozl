@@ -45,6 +45,10 @@ GEOZL_API ZL_NodeID geozl_node_wp_static(ZL_Compressor *c, uint32_t width,
                                          uint32_t planes);
 GEOZL_API ZL_NodeID geozl_node_deinterleave(ZL_Compressor *c);
 GEOZL_API ZL_NodeID geozl_node_pfor(ZL_Compressor *c);
+// Fused byte-transpose plus independently compressed Zstd blocks. blockSize is
+// in uncompressed bytes and is rounded down to a whole number of elements.
+GEOZL_API ZL_NodeID geozl_node_blocked_transpose_zstd(ZL_Compressor *c,
+                                                       uint32_t blockSize);
 GEOZL_API ZL_NodeID geozl_node_binoffset(ZL_Compressor *c);
 GEOZL_API ZL_NodeID geozl_node_intmult(ZL_Compressor *c, uint64_t base);
 GEOZL_API ZL_NodeID geozl_node_floatquant(ZL_Compressor *c, unsigned k);

@@ -22,6 +22,8 @@
 #include "openzl/codecs/zl_zigzag.h"     // ZL_NODE_ZIGZAG
 #include "openzl/codecs/zl_zstd.h"       // ZL_GRAPH_ZSTD
 
+#include "blocked_transpose_zstd/graph_blocked_transpose_zstd.h"
+
 #include "lossy/lossy_node.h"   // geozl_node_lossy
 #include "lossy/lossy_recipe.h" // geozl_lossy_parse and friends
 
@@ -62,6 +64,7 @@ typedef enum {
   GEOZL_TERM_CATEGORICAL, // dispatch on the dominant symbol's share
   GEOZL_TERM_T_ENTROPY,   // transpose to lanes, entropy (shuffle + entropy)
   GEOZL_TERM_T_ZSTD,      // transpose to lanes, zstd (shuffle + zstd)
+  GEOZL_TERM_BLOCKED_T_ZSTD, // fused blocked shuffle + zstd
   GEOZL_TERM_PFOR,        // bit pack fixed blocks and patch exceptions
   GEOZL_TERM_COUNT
 } geozl_terminal;
@@ -91,6 +94,7 @@ static const char *term_name(geozl_terminal t) {
   case GEOZL_TERM_CATEGORICAL: return "categorical";
   case GEOZL_TERM_T_ENTROPY: return "transpose>entropy";
   case GEOZL_TERM_T_ZSTD:    return "transpose>zstd";
+  case GEOZL_TERM_BLOCKED_T_ZSTD: return "blocked_transpose_zstd";
   case GEOZL_TERM_PFOR:      return "pfor";
   default:                   return "?";
   }
@@ -256,6 +260,14 @@ static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
       return ZL_GRAPH_ILLEGAL;
     head[n++] = ZL_NODE_CONVERT_NUM_TO_STRUCT_LE;
     return chain(c, head, n, tg);
+  }
+  case GEOZL_TERM_BLOCKED_T_ZSTD: {
+    ZL_NodeID nd = geozl_node_blocked_transpose_zstd(
+        c, BLOCKED_TRANSPOSE_ZSTD_DEFAULT_BLOCK_SIZE);
+    if (!ZL_NodeID_isValid(nd))
+      return ZL_GRAPH_ILLEGAL;
+    head[n++] = nd;
+    return chain(c, head, n, ZL_GRAPH_STORE);
   }
   case GEOZL_TERM_PFOR: {
     ZL_NodeID nd = geozl_node_pfor(c);
