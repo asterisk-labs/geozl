@@ -105,38 +105,6 @@ OpenZL decoder.
 | `quant_log`     | `0x72D782` | logarithmic grid with a relative bound: `LOG:MAX_ERROR=P%`         |
 | `quant_sqrt`    | `0x72D783` | square-root grid whose bound grows with noise: `SQRT:MAX_ERROR=VN` |
 
-The planar chain is available at three stopping points:
-
-| node | output | what may follow |
-| --- | --- | --- |
-| `planar` | numeric planar residuals | Zigzag, PFOR or another numeric codec |
-| `planar_zigzag` | numeric Zigzag values | PFOR or another numeric codec |
-| `planar_zigzag_pfor` | packed serial bytes | a serial sink |
-
-`planar_zigzag_pfor` processes one PFOR block at a time through a 256-value
-buffer. It does not produce the full `planar_zigzag` stream as a separate
-numeric array.
-
-Its raw PFOR payload is byte-identical to `planar_zigzag` followed by `pfor`,
-so both have the same packed payload size. Their complete OpenZL frames are not
-byte-identical: the fused codec has its own CTID and 17-byte header.
-
-Recipes beginning with `planar>zigzag` select `planar_zigzag` instead of two
-separate nodes. `planar>zigzag>pfor` selects `planar_zigzag_pfor`, which also
-includes the terminal. Decoders retain the individual CTIDs, so frames written
-with the former graphs remain readable. Low-level graphs can reach for any of
-the three directly:
-
-```python
-geozl.lossless.Planar(width, planes=1)
-geozl.lossless.PlanarZigzag(width, planes=1)
-geozl.lossless.PlanarZigzagPfor(width, planes=1)
-```
-
-For an array shaped `(rows, columns)`, use `width=columns, planes=1`. For a
-contiguous `(bands, rows, columns)` cube, use `width=columns, planes=bands`;
-prediction restarts at every plane boundary.
-
 ## Development
 
 Local builds require Python 3.11+, a C11 compiler, Git, Make, CMake and Ninja.

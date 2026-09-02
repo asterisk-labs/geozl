@@ -1,8 +1,4 @@
 from .average import Average, AverageDecoder
-from .blocked_transpose_zstd import (
-    BlockedTransposeZstd,
-    BlockedTransposeZstdDecoder,
-)
 from .deinterleave import Deinterleave, DeinterleaveDecoder, component_dtype
 from .delta_n import DeltaN, DeltaNDecoder
 from .delta_w import DeltaW, DeltaWDecoder
@@ -18,13 +14,12 @@ _DECODERS = (
     DeltaWDecoder, DeltaNDecoder, PlanarDecoder, PlanarZigzagDecoder,
     PlanarZigzagPforDecoder, MedDecoder,
     AverageDecoder, WpStaticDecoder, DeinterleaveDecoder, NodataDecoder,
-    PforDecoder, BlockedTransposeZstdDecoder,
+    PforDecoder,
 )
 
 
 __all__ = [
-    "Average", "AverageDecoder", "BlockedTransposeZstd",
-    "BlockedTransposeZstdDecoder", "DeltaN", "DeltaNDecoder", "DeltaW",
+    "Average", "AverageDecoder", "DeltaN", "DeltaNDecoder", "DeltaW",
     "DeltaWDecoder", "Deinterleave", "DeinterleaveDecoder", "Med", "MedDecoder",
     "Nodata", "NodataDecoder", "Pfor", "PforDecoder", "Planar", "PlanarDecoder",
     "PlanarZigzag", "PlanarZigzagDecoder", "PlanarZigzagPfor",
