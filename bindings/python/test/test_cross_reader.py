@@ -109,6 +109,23 @@ def test_a_stacked_python_frame_reads_in_the_c_decoders(predictor, node):
     assert np.array_equal(out.reshape(arr.shape), arr)
 
 
+def test_the_high_level_planar_entropy_recipe_uses_fused_zigzag():
+    fired = []
+
+    class Spy(geozl.lossless.PlanarZigzagDecoder):
+        def decode(self, state):
+            fired.append(1)
+            super().decode(state)
+
+    arr = _tile("uint16")
+    frame = _frame_from_c(arr, "planar>zigzag>entropy")
+    d = zl.DCtx()
+    d.register_custom_decoder(Spy())
+    out = d.decompress(frame)[0].content.as_nparray().view(arr.dtype)
+    assert fired
+    assert np.array_equal(out.reshape(arr.shape), arr)
+
+
 @pytest.mark.parametrize("predictor,node", _STACKED,
                          ids=[p for p, _ in _STACKED])
 def test_planes_change_the_python_frame(predictor, node):
@@ -132,9 +149,38 @@ def test_a_c_pfor_frame_reads_in_the_python_decoders(dtype, shape):
     assert np.array_equal(out.reshape(arr.shape), arr)
 
 
+def test_the_high_level_planar_pfor_recipe_uses_the_fused_codec():
+    fired = []
+
+    class Spy(geozl.lossless.PlanarZigzagPforDecoder):
+        def decode(self, state):
+            fired.append(1)
+            super().decode(state)
+
+    arr = _tile("uint16")
+    frame = _frame_from_c(arr, "planar>zigzag>pfor")
+    d = zl.DCtx()
+    d.register_custom_decoder(Spy())
+    out = d.decompress(frame)[0].content.as_nparray().view(arr.dtype)
+    assert fired
+    assert np.array_equal(out.reshape(arr.shape), arr)
+
+
 def _pfor_frame_from_python(arr):
     c = zl.Compressor()
     c.select_starting_graph(geozl.lossless.Pfor()(c, zl.graphs.Store()))
+    cc = zl.CCtx()
+    cc.ref_compressor(c)
+    cc.set_parameter(zl.CParam.FormatVersion, zl.MAX_FORMAT_VERSION)
+    return bytes(cc.compress(
+        [zl.Input(zl.Type.Numeric, np.ascontiguousarray(arr).reshape(-1))]))
+
+
+def _planar_zigzag_then_pfor_frame_from_python(arr, width, planes=1):
+    c = zl.Compressor()
+    tail = geozl.lossless.Pfor()(c, zl.graphs.Store())
+    graph = geozl.lossless.PlanarZigzag(width, planes=planes)(c, tail)
+    c.select_starting_graph(graph)
     cc = zl.CCtx()
     cc.ref_compressor(c)
     cc.set_parameter(zl.CParam.FormatVersion, zl.MAX_FORMAT_VERSION)
@@ -147,6 +193,25 @@ def test_a_python_pfor_frame_reads_in_the_c_decoders(dtype):
     arr = _tile(dtype)
     out = geozl.decompress(_pfor_frame_from_python(arr))
     assert np.array_equal(out.view(dtype).reshape(-1, _W), arr)
+
+
+@pytest.mark.parametrize("dtype", _PFOR_DTYPES)
+@pytest.mark.parametrize("shape", [(_W, _W), (1, 129), (13, 17)],
+                         ids=["square", "tail", "ragged"])
+def test_an_old_python_planar_zigzag_then_pfor_frame_reads_in_c(dtype, shape):
+    arr = _tile(dtype, shape)
+    frame = _planar_zigzag_then_pfor_frame_from_python(arr, shape[1])
+    out = geozl.decompress(frame).view(dtype)
+    assert np.array_equal(out.reshape(arr.shape), arr)
+
+
+def test_an_old_stacked_planar_zigzag_then_pfor_frame_reads_in_c():
+    arr = _cube()
+    frame = _planar_zigzag_then_pfor_frame_from_python(
+        arr, _W, planes=_B
+    )
+    out = geozl.decompress(frame).view(arr.dtype)
+    assert np.array_equal(out.reshape(arr.shape), arr)
 
 
 @pytest.mark.parametrize("n", [1, 255, 256, 257, 512, 4096])

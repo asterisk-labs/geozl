@@ -13,6 +13,8 @@
 #include "nodata/encode_nodata_binding.h"
 #include "pfor/encode_pfor_binding.h"
 #include "planar/encode_planar_binding.h"
+#include "planar_zigzag/encode_planar_zigzag_binding.h"
+#include "planar_zigzag_pfor/encode_planar_zigzag_pfor_binding.h"
 #include "quant_linear/encode_quant_linear_binding.h"
 #include "quant_log/encode_quant_log_binding.h"
 #include "quant_sqrt/encode_quant_sqrt_binding.h"
@@ -67,6 +69,18 @@ ZL_NodeID geozl_node_delta_n(ZL_Compressor *c, uint32_t width,
 ZL_NodeID geozl_node_planar(ZL_Compressor *c, uint32_t width,
                             uint32_t planes) {
   const ZL_TypedEncoderDesc desc = EI_PLANAR(GEOZL_CTID_PLANAR);
+  return geometry_node(c, &desc, width, planes);
+}
+ZL_NodeID geozl_node_planar_zigzag(ZL_Compressor *c, uint32_t width,
+                                   uint32_t planes) {
+  const ZL_TypedEncoderDesc desc =
+      EI_PLANAR_ZIGZAG(GEOZL_CTID_PLANAR_ZIGZAG);
+  return geometry_node(c, &desc, width, planes);
+}
+ZL_NodeID geozl_node_planar_zigzag_pfor(ZL_Compressor *c, uint32_t width,
+                                        uint32_t planes) {
+  const ZL_TypedEncoderDesc desc =
+      EI_PLANAR_ZIGZAG_PFOR(GEOZL_CTID_PLANAR_ZIGZAG_PFOR);
   return geometry_node(c, &desc, width, planes);
 }
 ZL_NodeID geozl_node_med(ZL_Compressor *c, uint32_t width,

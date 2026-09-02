@@ -11,6 +11,8 @@ _NODES = [
     ("blocked_transpose_zstd",
      lambda: geozl.lossless.BlockedTransposeZstd(128)),
     ("planar", lambda: geozl.lossless.Planar(8)),
+    ("planar_zigzag", lambda: geozl.lossless.PlanarZigzag(8)),
+    ("planar_zigzag_pfor", lambda: geozl.lossless.PlanarZigzagPfor(8)),
     ("delta_w", lambda: geozl.lossless.DeltaW(8)),
     ("med", lambda: geozl.lossless.Med(8)),
     ("wp_static", lambda: geozl.lossless.WpStatic(8)),

@@ -14,6 +14,11 @@ int delta_n_encode(void* dst, const void* src, size_t width, size_t nb_elts, siz
 int delta_n_decode(void* dst, const void* src, size_t width, size_t nb_elts, size_t elt_width);
 int planar_encode(void* dst, const void* src, size_t width, size_t nb_elts, size_t elt_width);
 int planar_decode(void* dst, const void* src, size_t width, size_t nb_elts, size_t elt_width);
+int planar_zigzag_encode(void* dst, const void* src, size_t width, size_t nb_elts, size_t elt_width);
+int planar_zigzag_decode(void* dst, const void* src, size_t width, size_t nb_elts, size_t elt_width);
+size_t planar_zigzag_pfor_bound(size_t nb_elts, size_t elt_width);
+int planar_zigzag_pfor_encode(void* dst, size_t dst_capacity, size_t* out_size, const void* src, size_t width, size_t nb_elts, size_t elt_width, uint32_t planes);
+int planar_zigzag_pfor_decode(void* dst, size_t width, size_t nb_elts, size_t elt_width, uint32_t planes, const void* src, size_t src_size);
 int med_encode(void* dst, const void* src, size_t width, size_t nb_elts, size_t elt_width);
 int med_decode(void* dst, const void* src, size_t width, size_t nb_elts, size_t elt_width);
 int average_encode(void* dst, const void* src, size_t width, size_t nb_elts, size_t elt_width);

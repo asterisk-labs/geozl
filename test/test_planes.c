@@ -11,6 +11,8 @@
 #include "med/encode_med_kernel.h"
 #include "planar/decode_planar_kernel.h"
 #include "planar/encode_planar_kernel.h"
+#include "planar_zigzag/decode_planar_zigzag_kernel.h"
+#include "planar_zigzag/encode_planar_zigzag_kernel.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -87,6 +89,7 @@ int main(void) {
   fill();
   printf("test_planes\n");
   one_codec("planar", planar_encode, planar_decode);
+  one_codec("planar_zz", planar_zigzag_encode, planar_zigzag_decode);
   one_codec("delta_n", delta_n_encode, delta_n_decode);
   one_codec("average", average_encode, average_decode);
   one_codec("med", med_encode, med_decode);

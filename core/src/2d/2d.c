@@ -206,12 +206,25 @@ static ZL_Report geozl_categorical_fg(ZL_Graph *g, ZL_Edge *inputs[],
 static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
                                   geozl_terminal t, uint32_t width,
                                   uint32_t planes, size_t eltWidth) {
+  if (p == GEOZL_PRED_PLANAR && t == GEOZL_TERM_PFOR) {
+    ZL_NodeID fused = geozl_node_planar_zigzag_pfor(c, width, planes);
+    if (!ZL_NodeID_isValid(fused))
+      return ZL_GRAPH_ILLEGAL;
+    return ZL_Compressor_registerStaticGraph_fromNode1o(c, fused,
+                                                         ZL_GRAPH_STORE);
+  }
+
   ZL_NodeID head[3];
   size_t n = 0;
   if (p == GEOZL_PRED_ID) {
     // no residual: the raw numeric stream feeds the terminal
   } else if (p == GEOZL_PRED_DELTA_1D) {
     head[n++] = ZL_NODE_DELTA_INT;
+  } else if (p == GEOZL_PRED_PLANAR) {
+    ZL_NodeID fused = geozl_node_planar_zigzag(c, width, planes);
+    if (!ZL_NodeID_isValid(fused))
+      return ZL_GRAPH_ILLEGAL;
+    head[n++] = fused;
   } else {
     ZL_NodeID pred = predictor_node(c, p, width, planes);
     if (!ZL_NodeID_isValid(pred))
