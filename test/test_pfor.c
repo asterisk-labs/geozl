@@ -19,7 +19,6 @@ static int failures = 0;
 
 #define MAXN 5000
 
-// One aligned buffer for every element width.
 static uint64_t src[MAXN], back[MAXN];
 static uint8_t packed[MAXN * 8 + 4096];
 
@@ -54,16 +53,22 @@ static void trip(const char *what, size_t n, size_t w) {
     return;
   }
   CHECK(written <= bound);
-  memset(back, 0xAB, n * w);
-  if (pfor_decode(back, n, w, packed, written) != 0) {
-    printf("  FAIL %s: decode refused, n=%zu w=%zu\n", what, n, w);
+  // Exact allocation lets ASan catch block overruns.
+  uint8_t *out = (uint8_t *)malloc(n * w);
+  if (out == NULL) {
+    printf("  FAIL %s: out of memory, n=%zu w=%zu\n", what, n, w);
     ++failures;
     return;
   }
-  if (memcmp(back, src, n * w) != 0) {
+  memset(out, 0xAB, n * w);
+  if (pfor_decode(out, n, w, packed, written) != 0) {
+    printf("  FAIL %s: decode refused, n=%zu w=%zu\n", what, n, w);
+    ++failures;
+  } else if (memcmp(out, src, n * w) != 0) {
     printf("  FAIL %s: mismatch, n=%zu w=%zu\n", what, n, w);
     ++failures;
   }
+  free(out);
 }
 
 static const size_t kW[4] = {1, 2, 4, 8};
