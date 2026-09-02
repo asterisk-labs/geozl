@@ -11,6 +11,16 @@ _pfor = importlib.import_module("geozl.lossless.pfor")
 _fused = importlib.import_module("geozl.lossless.planar_zigzag_pfor")
 _ptr, lib = _ffi._ptr, _ffi.lib
 
+try:
+    _ffi._load_lib_full()
+    _HAVE_FULL = True
+except OSError:  # pragma: no cover - depends on how the build was configured
+    _HAVE_FULL = False
+
+needs_full = pytest.mark.skipif(
+    not _HAVE_FULL, reason="libgeozl not built, rebuild with FULL=ON"
+)
+
 
 def _frame(array, width, planes=1):
     compressor = zl.Compressor()
@@ -25,28 +35,37 @@ def _frame(array, width, planes=1):
     return bytes(context.compress([zl.Input(zl.Type.Numeric, flat)]))
 
 
+def _python_decompress(frame):
+    dctx = zl.DCtx()
+    geozl.register_decoders(dctx)
+    return dctx.decompress(frame)[0].content.as_nparray()
+
+
+_DECODERS = [
+    pytest.param(_python_decompress, id="python"),
+    pytest.param(geozl.decompress, marks=needs_full, id="c"),
+]
+
+
+@pytest.mark.parametrize("decoder", _DECODERS)
 @pytest.mark.parametrize(
     "dtype", ["uint8", "int16", "uint32", "uint64", "float32", "float64"]
 )
 @pytest.mark.parametrize("shape", [(13, 17), (2, 257), (1024, 1)])
-def test_python_codec_round_trips_through_both_decoder_registries(dtype, shape):
+def test_python_codec_round_trips_through_decoder_registry(decoder, dtype, shape):
     values = np.arange(np.prod(shape), dtype=np.uint64)
     array = (values * values + 17).astype(dtype).reshape(shape)
     frame = _frame(array, shape[-1])
 
-    python_dctx = zl.DCtx()
-    geozl.register_decoders(python_dctx)
-    python_out = python_dctx.decompress(frame)[0].content.as_nparray()
-    assert python_out.view(array.dtype).tobytes() == array.tobytes()
-
-    c_out = geozl.decompress(frame)
-    assert c_out.view(array.dtype).tobytes() == array.tobytes()
+    out = decoder(frame)
+    assert out.view(array.dtype).tobytes() == array.tobytes()
 
 
-def test_stacked_planes_reset_inside_a_pfor_block():
+@pytest.mark.parametrize("decoder", _DECODERS)
+def test_stacked_planes_reset_inside_a_pfor_block(decoder):
     array = np.arange(3 * 13 * 17, dtype=np.int16).reshape(3, 13, 17)
     frame = _frame(array, 17, planes=3)
-    out = geozl.decompress(frame).view(array.dtype).reshape(array.shape)
+    out = decoder(frame).view(array.dtype).reshape(array.shape)
     assert np.array_equal(out, array)
 
 
