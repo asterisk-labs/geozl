@@ -15,25 +15,33 @@ size_t planar_zigzag_pfor_bound(size_t nbElts, size_t eltWidth) {
   do {                                                                         \
     const T *s = (const T *)src;                                               \
     T *z = (T *)scratch;                                                       \
-    for (size_t off = 0; off < nbElts; off += GEOZL_PFOR_BLOCK) {              \
-      const size_t have = nbElts - off;                                        \
-      const size_t n =                                                         \
-          (have < GEOZL_PFOR_BLOCK) ? have : GEOZL_PFOR_BLOCK;                 \
-      for (size_t i = 0; i < n; ++i) {                                        \
-        const size_t pos = off + i;                                            \
-        const size_t inPlane = pos % planeElts;                                \
-        const size_t column = inPlane % width;                                 \
-        const size_t row = inPlane / width;                                    \
-        const T Wv = (column > 0) ? s[pos - 1] : 0;                            \
-        const T Nv = (row > 0) ? s[pos - width] : 0;                           \
-        const T NWv =                                                          \
-            (row > 0 && column > 0) ? s[pos - width - 1] : 0;                  \
-        const T residual = (T)(s[pos] - (T)(Wv + Nv - NWv));                   \
-        const T sign = (T)(0 - (residual >> ((B)-1)));                         \
-        z[i] = (T)((T)(residual << 1) ^ sign);                                 \
+    const size_t rows = planeElts / width;                                     \
+    size_t n = 0;                                                              \
+    for (size_t plane = 0; plane < planes; ++plane) {                          \
+      const size_t planeBase = plane * planeElts;                              \
+      for (size_t row = 0; row < rows; ++row) {                                \
+        const size_t rowBase = planeBase + row * width;                        \
+        for (size_t column = 0; column < width; ++column) {                    \
+          const size_t pos = rowBase + column;                                 \
+          const T Wv = (column > 0) ? s[pos - 1] : 0;                          \
+          const T Nv = (row > 0) ? s[pos - width] : 0;                         \
+          const T NWv =                                                        \
+              (row > 0 && column > 0) ? s[pos - width - 1] : 0;                \
+          const T residual = (T)(s[pos] - (T)(Wv + Nv - NWv));                 \
+          const T sign = (T)(0 - (residual >> ((B)-1)));                       \
+          z[n++] = (T)((T)(residual << 1) ^ sign);                             \
+          if (n == GEOZL_PFOR_BLOCK) {                                         \
+            const size_t used = pfor_encode_block(p, z, eltWidth);             \
+            if (used == 0)                                                     \
+              return 1;                                                        \
+            p += used;                                                         \
+            n = 0;                                                             \
+          }                                                                    \
+        }                                                                      \
       }                                                                        \
-      if (n != GEOZL_PFOR_BLOCK)                                               \
-        memset(z + n, 0, (GEOZL_PFOR_BLOCK - n) * sizeof(T));                  \
+    }                                                                          \
+    if (n != 0) {                                                              \
+      memset(z + n, 0, (GEOZL_PFOR_BLOCK - n) * sizeof(T));                    \
       const size_t used = pfor_encode_block(p, z, eltWidth);                   \
       if (used == 0)                                                           \
         return 1;                                                              \
