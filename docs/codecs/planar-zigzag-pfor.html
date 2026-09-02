@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="GeoZL delta_w stores each value as a difference from its west neighbour.">
+<meta name="description" content="GeoZL planar_zigzag_pfor carries the whole planar, Zigzag and PFOR chain as one numeric-to-serial codec.">
 <meta name="theme-color" content="#F1EDE4">
-<title>GeoZL · delta_w</title>
+<title>GeoZL · planar_zigzag_pfor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="../assets/css/style.css">
 <link rel="stylesheet" href="../assets/css/migration.css">
 </head>
-<body style="--page:var(--purple)">
+<body style="--page:var(--gold)">
   <div class="sheet">
     <span class="reg tl">+</span><span class="reg tr">+</span>
     <span class="reg bl">+</span><span class="reg br">+</span>
@@ -37,39 +37,35 @@
 
     <main class="codoc">
       <div class="col-text">
-        <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> predictor <span class="sep">/</span> lossless</p>
-        <h1 class="name">delta_w</h1>
-        <p class="subtitle">Store how values change <span class="u">across each row</span>.</p>
-        <p class="desc"><b>delta_w</b> compares every sample with the one on its left. Each row begins with
-        one complete value, so rows never depend on one another. Choose it for rasters that change smoothly
-        from west to east: the remaining differences are small and easier to compress.</p>
+        <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> numeric to serial &middot; 2D <span class="sep">/</span> lossless</p>
+        <h1 class="name">planar_zigzag_pfor</h1>
+        <p class="subtitle">The fused version of Planar + Zigzag + PFOR.</p>
         <dl class="spec">
-          <dt>ctid</dt><dd>0x72D701</dd>
-          <dt>header</dt><dd>uint32 &middot; row width in samples</dd>
-          <dt>widths</dt><dd>8 &middot; 16 &middot; 32 &middot; 64-bit integers</dd>
-          <dt>decode</dt><dd>r&#7522; + previous reconstructed, per row (prefix sum)</dd>
+          <dt>ctid</dt><dd>0x72D710</dd>
+          <dt>header</dt><dd>uint64 &middot; element count<br>+ uint8 &middot; element width<br>+ uint32 &middot; row width<br>+ uint32 &middot; plane count</dd>
+          <dt>values</dt><dd>8 &middot; 16 &middot; 32 &middot; 64-bit numeric elements</dd>
+          <dt>geometry</dt><dd>width = columns<br>planes = contiguous independent rasters</dd>
         </dl>
 
         <div class="actions">
-          <a class="btn-code" href="https://github.com/asterisk-labs/geozl/tree/main/core/src/delta_w" target="_blank" rel="noopener noreferrer">
+          <a class="btn-code" href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag_pfor" target="_blank" rel="noopener noreferrer">
             <span>Code</span>
-            <svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+            <svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"></path><path d="M8 7h9v9"></path></svg>
           </a>
-          <span class="usage mono">geozl.lossless.DeltaW(width)</span>
+          <span class="usage mono">geozl.lossless.PlanarZigzagPfor(width, planes=1)</span>
         </div>
       </div>
 
       <div class="panel">
-        <img class="diagram" style="--ar:360/210" src="../assets/svg/codecs/delta-w.svg"
-             alt="delta_w rewrites each value as a difference from its west neighbour; the first value of the row is a seed">
-        <span class="p-cap">rows are independent, each reseeds at its left edge</span>
+        <img class="diagram" src="../assets/svg/codecs/planar-zigzag-pfor.svg"
+             alt="Planar, Zigzag and PFOR fused into one codec">
       </div>
     </main>
 
     <footer class="footer pager">
-      <a class="pg prev" href="quant-sqrt.html" style="--fam:var(--orange)" aria-label="Previous codec, quant_sqrt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg><span class="pg-fam"></span><span class="pg-lab"><span class="pg-k">prev · 14</span><span class="pg-n">quant_sqrt</span></span></a>
-      <span class="pg-mid mono">0x72D701</span>
-      <a class="pg next" href="delta-n.html" style="--fam:var(--purple)" aria-label="Next codec, delta_n"><span class="pg-lab"><span class="pg-k">next · 02</span><span class="pg-n">delta_n</span></span><span class="pg-fam"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+      <a class="pg prev" href="planar-zigzag.html" style="--fam:var(--gold)" aria-label="Previous codec, planar_zigzag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg><span class="pg-fam"></span><span class="pg-lab"><span class="pg-k">prev · 07</span><span class="pg-n">planar_zigzag</span></span></a>
+      <span class="pg-mid mono">0x72D710</span>
+      <a class="pg next" href="deinterleave.html" style="--fam:var(--green)" aria-label="Next codec, deinterleave"><span class="pg-lab"><span class="pg-k">next · 09</span><span class="pg-n">deinterleave</span></span><span class="pg-fam"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></a>
     </footer>
   </div>
 </body>

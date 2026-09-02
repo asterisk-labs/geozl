@@ -88,20 +88,54 @@ OpenZL decoder.
 
 ## Codecs
 
-| codec          |       CTid | what it does                                                       |
-| -------------- | ---------: | ------------------------------------------------------------------ |
-| `delta_w`      | `0x72D701` | residual against the west neighbour                                |
-| `delta_n`      | `0x72D702` | residual against the north neighbour                               |
-| `planar`       | `0x72D703` | predicts each pixel from `W + N - NW`                              |
-| `deinterleave` | `0x72D704` | separates a two-lane interleaved stream                            |
-| `med`          | `0x72D705` | median edge detector predictor                                     |
-| `average`      | `0x72D706` | floor average of the west and north neighbours                     |
-| `wp_static`    | `0x72D707` | fits a weighted predictor and stores its weights in the frame      |
-| `nodata`       | `0x72D70C` | moves missing samples into a validity mask and fills the holes     |
-| `pfor`         | `0x72D70D` | bit packs each block of 256 and patches the values that overflow   |
-| `quant_linear` | `0x72D781` | uniform grid with a fixed absolute bound: `LINEAR:MAX_ERROR=V`     |
-| `quant_log`    | `0x72D782` | logarithmic grid with a relative bound: `LOG:MAX_ERROR=P%`         |
-| `quant_sqrt`   | `0x72D783` | square-root grid whose bound grows with noise: `SQRT:MAX_ERROR=VN` |
+| codec           |       CTid | what it does                                                       |
+| --------------- | ---------: | ------------------------------------------------------------------ |
+| `delta_w`       | `0x72D701` | residual against the west neighbour                                |
+| `delta_n`       | `0x72D702` | residual against the north neighbour                               |
+| `planar`        | `0x72D703` | predicts each pixel from `W + N - NW`                              |
+| `deinterleave`  | `0x72D704` | separates a two-lane interleaved stream                            |
+| `med`           | `0x72D705` | median edge detector predictor                                     |
+| `average`       | `0x72D706` | floor average of the west and north neighbours                     |
+| `wp_static`     | `0x72D707` | fits a weighted predictor and stores its weights in the frame      |
+| `nodata`        | `0x72D70C` | moves missing samples into a validity mask and fills the holes     |
+| `pfor`          | `0x72D70D` | bit packs each block of 256 and patches the values that overflow   |
+| `planar_zigzag` | `0x72D70F` | fuses planar residuals and Zigzag without an intermediate stream   |
+| `planar_zigzag_pfor` | `0x72D710` | the whole planar, Zigzag and PFOR chain as one numeric-to-serial codec |
+| `quant_linear`  | `0x72D781` | uniform grid with a fixed absolute bound: `LINEAR:MAX_ERROR=V`     |
+| `quant_log`     | `0x72D782` | logarithmic grid with a relative bound: `LOG:MAX_ERROR=P%`         |
+| `quant_sqrt`    | `0x72D783` | square-root grid whose bound grows with noise: `SQRT:MAX_ERROR=VN` |
+
+The planar chain is available at three stopping points:
+
+| node | output | what may follow |
+| --- | --- | --- |
+| `planar` | numeric planar residuals | Zigzag, PFOR or another numeric codec |
+| `planar_zigzag` | numeric Zigzag values | PFOR or another numeric codec |
+| `planar_zigzag_pfor` | packed serial bytes | a serial sink |
+
+`planar_zigzag_pfor` processes one PFOR block at a time through a 256-value
+buffer. It does not produce the full `planar_zigzag` stream as a separate
+numeric array.
+
+Its raw PFOR payload is byte-identical to `planar_zigzag` followed by `pfor`,
+so both have the same packed payload size. Their complete OpenZL frames are not
+byte-identical: the fused codec has its own CTID and 17-byte header.
+
+Recipes beginning with `planar>zigzag` select `planar_zigzag` instead of two
+separate nodes. `planar>zigzag>pfor` selects `planar_zigzag_pfor`, which also
+includes the terminal. Decoders retain the individual CTIDs, so frames written
+with the former graphs remain readable. Low-level graphs can reach for any of
+the three directly:
+
+```python
+geozl.lossless.Planar(width, planes=1)
+geozl.lossless.PlanarZigzag(width, planes=1)
+geozl.lossless.PlanarZigzagPfor(width, planes=1)
+```
+
+For an array shaped `(rows, columns)`, use `width=columns, planes=1`. For a
+contiguous `(bands, rows, columns)` cube, use `width=columns, planes=bands`;
+prediction restarts at every plane boundary.
 
 ## Development
 

@@ -32,10 +32,10 @@ print(rows)
 best = rows[0]["graph"]
 ```
 
-Twelve codecs, lossless and lossy, reachable two ways. `geozl.graph` takes a
-recipe string and builds the graph for you, and `geozl.compress` runs one tile
-through it. `geozl.lossless` and `geozl.lossy` hand you the individual nodes to
-place in an OpenZL graph yourself, and `geozl.register_decoders` teaches a
+Fourteen documented codecs, lossless and lossy, reachable two ways. `geozl.graph`
+takes a recipe string and builds the graph for you, and `geozl.compress` runs one
+tile through it. `geozl.lossless` and `geozl.lossy` hand you the individual nodes
+to place in an OpenZL graph yourself, and `geozl.register_decoders` teaches a
 `DCtx` to read what they wrote.
 
 Wheels carry a prebuilt native library. A source install has to build it first,

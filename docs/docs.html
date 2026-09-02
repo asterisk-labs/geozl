@@ -42,9 +42,10 @@
 <div class="catalog">
 <p class="legend">
 <span class="lg" style="--fam:var(--purple)"><span class="lg-sq"></span> predictors <b>6</b></span>
+<span class="lg" style="--fam:var(--gold)"><span class="lg-sq"></span> fused <b>2</b></span>
 <span class="lg" style="--fam:var(--green)"><span class="lg-sq"></span> stream <b>3</b></span>
 <span class="lg" style="--fam:var(--orange)"><span class="lg-sq"></span> near-lossless <b>3</b></span>
-<span class="legend-count">12 codecs</span>
+<span class="legend-count">14 codecs</span>
 </p>
 <div class="cards">
 <a class="card" href="codecs/delta-w.html" style="--fam:var(--purple)">
@@ -83,38 +84,50 @@
 <p class="card-what">Frozen weighted predictor, P = W + K.</p>
 <span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
 </a>
-<a class="card" href="codecs/deinterleave.html" style="--fam:var(--green)">
-<div class="card-top"><span class="card-no">07</span><span class="card-ct">0x72D704</span></div>
+<a class="card" href="codecs/planar-zigzag.html" style="--fam:var(--gold)">
+<div class="card-top"><span class="card-no">07</span><span class="card-ct">0x72D70F</span></div>
+<div class="card-name">planar_zigzag</div>
+<p class="card-what">Planar + Zigzag in one codec.</p>
+<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
+</a>
+<a class="card" href="codecs/planar-zigzag-pfor.html" style="--fam:var(--gold)">
+<div class="card-top"><span class="card-no">08</span><span class="card-ct">0x72D710</span></div>
+<div class="card-name">planar_zigzag_pfor</div>
+<p class="card-what">Planar + Zigzag + PFOR in one codec.</p>
+<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
+</a>
+<a class="card" href="codecs/deinterleave.html" style="grid-column:1;--fam:var(--green)">
+<div class="card-top"><span class="card-no">09</span><span class="card-ct">0x72D704</span></div>
 <div class="card-name">deinterleave</div>
 <p class="card-what">Splits one stream into two lanes by position.</p>
 <span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
 </a>
 <a class="card" href="codecs/nodata.html" style="--fam:var(--green)">
-<div class="card-top"><span class="card-no">08</span><span class="card-ct">0x72D70C</span></div>
+<div class="card-top"><span class="card-no">10</span><span class="card-ct">0x72D70C</span></div>
 <div class="card-name">nodata</div>
 <p class="card-what">Splits the holes out into a validity mask.</p>
 <span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
 </a>
 <a class="card" href="codecs/pfor.html" style="--fam:var(--green)">
-<div class="card-top"><span class="card-no">09</span><span class="card-ct">0x72D70D</span></div>
+<div class="card-top"><span class="card-no">11</span><span class="card-ct">0x72D70D</span></div>
 <div class="card-name">pfor</div>
 <p class="card-what">Packs each block of 256 to the bits it needs.</p>
 <span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
 </a>
 <a class="card" href="codecs/quant-linear.html" style="--fam:var(--orange)">
-<div class="card-top"><span class="card-no">10</span><span class="card-ct">0x72D781</span></div>
+<div class="card-top"><span class="card-no">12</span><span class="card-ct">0x72D781</span></div>
 <div class="card-name">quant_linear</div>
 <p class="card-what">A flat bound on a uniform grid.</p>
 <span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
 </a>
 <a class="card" href="codecs/quant-log.html" style="--fam:var(--orange)">
-<div class="card-top"><span class="card-no">11</span><span class="card-ct">0x72D782</span></div>
+<div class="card-top"><span class="card-no">13</span><span class="card-ct">0x72D782</span></div>
 <div class="card-name">quant_log</div>
 <p class="card-what">A relative bound, the same per cent everywhere.</p>
 <span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
 </a>
 <a class="card" href="codecs/quant-sqrt.html" style="--fam:var(--orange)">
-<div class="card-top"><span class="card-no">12</span><span class="card-ct">0x72D783</span></div>
+<div class="card-top"><span class="card-no">14</span><span class="card-ct">0x72D783</span></div>
 <div class="card-name">quant_sqrt</div>
 <p class="card-what">A shot-noise bound, wider where the noise is.</p>
 <span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220" width="360" height="220" role="img" aria-label="Planar, Zigzag and PFOR fused into one codec">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&display=swap');
+
+    svg {
+      --paper:#111721; --ink:#E6EDF3; --muted:#8F9AAA;
+      --gold:#FFD54A; --green:#91F2BC;
+      background:transparent;
+      font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+    .frame { fill:none; stroke:var(--gold); stroke-width:2; }
+    .box { fill:var(--paper); stroke:var(--ink); stroke-width:1.2; }
+    .box-end { fill:#17251F; stroke:var(--green); stroke-width:1.4; }
+    .title { fill:var(--gold); font:500 11px "IBM Plex Mono",monospace; letter-spacing:.08em; }
+    .name { fill:var(--ink); font:700 13px "IBM Plex Mono",monospace; text-anchor:middle; }
+    .arrow { fill:none; stroke:var(--muted); stroke-width:1.5; marker-end:url(#arrow); }
+  ]]></style>
+
+  <rect x="18" y="42" width="324" height="136" rx="5" class="frame"/>
+  <rect x="34" y="32" width="62" height="20" fill="#080B10"/>
+  <text x="42" y="47" class="title">FUSED</text>
+
+  <rect x="38" y="83" width="78" height="54" rx="3" class="box"/>
+  <text x="77" y="115" class="name">PLANAR</text>
+
+  <path d="M117 110 H139" class="arrow"/>
+
+  <rect x="142" y="83" width="78" height="54" rx="3" class="box"/>
+  <text x="181" y="115" class="name">ZIGZAG</text>
+
+  <path d="M221 110 H243" class="arrow"/>
+
+  <rect x="246" y="83" width="78" height="54" rx="3" class="box-end"/>
+  <text x="285" y="115" class="name">PFOR</text>
+
+  <defs>
+    <marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto">
+      <path d="M0 0 L6 3 L0 6 Z" fill="#8F9AAA"/>
+    </marker>
+  </defs>
+</svg>
