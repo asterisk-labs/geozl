@@ -88,20 +88,22 @@ OpenZL decoder.
 
 ## Codecs
 
-| codec          |       CTid | what it does                                                       |
-| -------------- | ---------: | ------------------------------------------------------------------ |
-| `delta_w`      | `0x72D701` | residual against the west neighbour                                |
-| `delta_n`      | `0x72D702` | residual against the north neighbour                               |
-| `planar`       | `0x72D703` | predicts each pixel from `W + N - NW`                              |
-| `deinterleave` | `0x72D704` | separates a two-lane interleaved stream                            |
-| `med`          | `0x72D705` | median edge detector predictor                                     |
-| `average`      | `0x72D706` | floor average of the west and north neighbours                     |
-| `wp_static`    | `0x72D707` | fits a weighted predictor and stores its weights in the frame      |
-| `nodata`       | `0x72D70C` | moves missing samples into a validity mask and fills the holes     |
-| `pfor`         | `0x72D70D` | bit packs each block of 256 and patches the values that overflow   |
-| `quant_linear` | `0x72D781` | uniform grid with a fixed absolute bound: `LINEAR:MAX_ERROR=V`     |
-| `quant_log`    | `0x72D782` | logarithmic grid with a relative bound: `LOG:MAX_ERROR=P%`         |
-| `quant_sqrt`   | `0x72D783` | square-root grid whose bound grows with noise: `SQRT:MAX_ERROR=VN` |
+| codec           |       CTid | what it does                                                       |
+| --------------- | ---------: | ------------------------------------------------------------------ |
+| `delta_w`       | `0x72D701` | residual against the west neighbour                                |
+| `delta_n`       | `0x72D702` | residual against the north neighbour                               |
+| `planar`        | `0x72D703` | predicts each pixel from `W + N - NW`                              |
+| `deinterleave`  | `0x72D704` | separates a two-lane interleaved stream                            |
+| `med`           | `0x72D705` | median edge detector predictor                                     |
+| `average`       | `0x72D706` | floor average of the west and north neighbours                     |
+| `wp_static`     | `0x72D707` | fits a weighted predictor and stores its weights in the frame      |
+| `nodata`        | `0x72D70C` | moves missing samples into a validity mask and fills the holes     |
+| `pfor`          | `0x72D70D` | bit packs each block of 256 and patches the values that overflow   |
+| `planar_zigzag` | `0x72D70F` | fuses planar residuals and Zigzag without an intermediate stream   |
+| `planar_zigzag_pfor` | `0x72D710` | the whole planar, Zigzag and PFOR chain as one numeric-to-serial codec |
+| `quant_linear`  | `0x72D781` | uniform grid with a fixed absolute bound: `LINEAR:MAX_ERROR=V`     |
+| `quant_log`     | `0x72D782` | logarithmic grid with a relative bound: `LOG:MAX_ERROR=P%`         |
+| `quant_sqrt`    | `0x72D783` | square-root grid whose bound grows with noise: `SQRT:MAX_ERROR=VN` |
 
 ## Development
 

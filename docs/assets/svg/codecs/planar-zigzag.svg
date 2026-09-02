@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220" width="360" height="220" role="img" aria-label="Planar computes a signed residual. Zigzag maps residuals 0, minus 1, 1, minus 2, 2, minus 3, 3 to unsigned values 0 through 6">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+    svg {
+      --paper:#111721; --ink:#E6EDF3; --muted:#8F9AAA;
+      --gold:#FFD54A; --orange:#FF7A4F;
+      background:transparent;
+      font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+    .label { fill:var(--muted); font:500 10.5px "IBM Plex Mono",monospace; letter-spacing:.04em; }
+    .box { fill:var(--paper); stroke:var(--muted); stroke-width:1.1; }
+    .cell { fill:var(--paper); stroke:var(--muted); stroke-width:1; }
+    .hot { fill:#29230F; stroke:var(--gold); stroke-width:1.5; }
+    .name { fill:var(--muted); font:500 9px "IBM Plex Mono",monospace; text-anchor:middle; }
+    .value { fill:var(--ink); font:600 14px "IBM Plex Mono",monospace; text-anchor:middle; }
+    .hot-value { fill:var(--gold); }
+    .row-name { fill:var(--ink); font:600 10px "IBM Plex Mono",monospace; }
+    .arrow { fill:none; stroke:var(--muted); stroke-width:1.2; marker-end:url(#arrow); }
+    .map { stroke:var(--muted); stroke-width:1; opacity:.65; }
+    .map-hot { stroke:var(--gold); stroke-width:1.5; }
+  ]]></style>
+
+  <text x="16" y="17" class="label">planar residual</text>
+
+  <rect x="16" y="29" width="72" height="48" rx="2" class="box"/>
+  <text x="52" y="45" class="name">sample</text>
+  <text x="52" y="67" class="value">45</text>
+
+  <path d="M89 53 H105" class="arrow"/>
+
+  <rect x="108" y="29" width="132" height="48" rx="2" class="box"/>
+  <text x="174" y="45" class="name">P = W + N &#8722; NW</text>
+  <text x="174" y="67" class="value">47</text>
+
+  <path d="M241 53 H257" class="arrow"/>
+
+  <rect x="260" y="29" width="84" height="48" rx="2" class="hot"/>
+  <text x="302" y="45" class="name">r = sample &#8722; P</text>
+  <text x="302" y="67" class="value hot-value">&#8722;2</text>
+
+  <text x="16" y="99" class="label">example &#183; Zigzag mapping</text>
+  <text x="16" y="127" class="row-name">r signed</text>
+  <text x="16" y="177" class="row-name">z unsigned</text>
+
+  <g>
+    <rect x="76"  y="108" width="35" height="30" class="cell"/>
+    <rect x="115" y="108" width="35" height="30" class="cell"/>
+    <rect x="154" y="108" width="35" height="30" class="cell"/>
+    <rect x="193" y="108" width="35" height="30" class="hot"/>
+    <rect x="232" y="108" width="35" height="30" class="cell"/>
+    <rect x="271" y="108" width="35" height="30" class="cell"/>
+    <rect x="310" y="108" width="35" height="30" class="cell"/>
+
+    <text x="93.5"  y="128" class="value">0</text>
+    <text x="132.5" y="128" class="value">&#8722;1</text>
+    <text x="171.5" y="128" class="value">+1</text>
+    <text x="210.5" y="128" class="value hot-value">&#8722;2</text>
+    <text x="249.5" y="128" class="value">+2</text>
+    <text x="288.5" y="128" class="value">&#8722;3</text>
+    <text x="327.5" y="128" class="value">+3</text>
+  </g>
+
+  <g>
+    <line x1="93.5"  y1="139" x2="93.5"  y2="156" class="map"/>
+    <line x1="132.5" y1="139" x2="132.5" y2="156" class="map"/>
+    <line x1="171.5" y1="139" x2="171.5" y2="156" class="map"/>
+    <line x1="210.5" y1="139" x2="210.5" y2="156" class="map-hot"/>
+    <line x1="249.5" y1="139" x2="249.5" y2="156" class="map"/>
+    <line x1="288.5" y1="139" x2="288.5" y2="156" class="map"/>
+    <line x1="327.5" y1="139" x2="327.5" y2="156" class="map"/>
+  </g>
+
+  <g>
+    <rect x="76"  y="157" width="35" height="30" class="cell"/>
+    <rect x="115" y="157" width="35" height="30" class="cell"/>
+    <rect x="154" y="157" width="35" height="30" class="cell"/>
+    <rect x="193" y="157" width="35" height="30" class="hot"/>
+    <rect x="232" y="157" width="35" height="30" class="cell"/>
+    <rect x="271" y="157" width="35" height="30" class="cell"/>
+    <rect x="310" y="157" width="35" height="30" class="cell"/>
+
+    <text x="93.5"  y="177" class="value">0</text>
+    <text x="132.5" y="177" class="value">1</text>
+    <text x="171.5" y="177" class="value">2</text>
+    <text x="210.5" y="177" class="value hot-value">3</text>
+    <text x="249.5" y="177" class="value">4</text>
+    <text x="288.5" y="177" class="value">5</text>
+    <text x="327.5" y="177" class="value">6</text>
+  </g>
+
+  <text x="76" y="207" class="label">decode reads the mapping upward</text>
+
+  <defs>
+    <marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto">
+      <path d="M0 0 L6 3 L0 6 Z" fill="#8F9AAA"/>
+    </marker>
+  </defs>
+</svg>

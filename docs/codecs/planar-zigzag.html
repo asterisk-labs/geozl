@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="GeoZL planar_zigzag fuses the planar residual and Zigzag mapping into one pass.">
+<meta name="theme-color" content="#F1EDE4">
+<title>GeoZL · planar_zigzag</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link rel="icon" href="../assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../assets/css/style.css">
+<link rel="stylesheet" href="../assets/css/migration.css">
+</head>
+<body style="--page:var(--gold)">
+  <div class="sheet">
+    <span class="reg tl">+</span><span class="reg tr">+</span>
+    <span class="reg bl">+</span><span class="reg br">+</span>
+
+    <header class="masthead">
+      <a class="lockup vt-lockup" href="../index.html" aria-label="GeoZL home">
+        <img class="marksvg" src="../assets/svg/mark.svg" alt="">
+        <span class="wm-sm">GeoZL</span>
+      </a>
+      <div class="offsite" aria-label="Project links">
+        <a href="https://github.com/asterisk-labs/geozl" title="GitHub" aria-label="GeoZL on GitHub" rel="noopener noreferrer"><svg class="github" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg></a>
+        <a href="https://pypi.org/project/geozl/" title="PyPI" aria-label="GeoZL on PyPI" rel="noopener noreferrer"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.3 14.3 4.7v6.6L8 14.7l-6.3-3.4V4.7Z"></path><path d="M1.7 4.7 8 8.1l6.3-3.4M8 8.1v6.6"></path></svg></a>
+        <a href="https://asterisk.coop/rumi/" title="Rumi" aria-label="Rumi, the raster format built with GeoZL" rel="noopener noreferrer"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 1h14v14H1zM1 5.5l6 .8 4.2 2.1L15 9.2M7 1l-.5 5.3 4.7 2.1L9.5 15"></path></svg></a>
+      </div>
+      <nav class="nav" aria-label="Sections">
+        <a href="../docs.html" class="here">Docs</a>
+        <a href="../api-high.html">API</a>
+        <a href="../benchmark.html">Benchmark</a>
+      </nav>
+    </header>
+
+    <main class="codoc">
+      <div class="col-text">
+        <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> predictor + mapping &middot; 2D <span class="sep">/</span> lossless</p>
+        <h1 class="name">planar_zigzag</h1>
+        <p class="subtitle">The fused version of Planar + Zigzag.</p>
+        <p class="desc"><b>Planar:</b> r = sample &minus; (W + N &minus; NW)<br>
+        <b>Zigzag:</b> z = (r &lt;&lt; 1) ^ (r &gt;&gt; (bits &minus; 1))<br>
+        <b>Example:</b> r = [0, &minus;1, 1, &minus;2, 2] &rarr; z = [0, 1, 2, 3, 4]</p>
+        <dl class="spec">
+          <dt>ctid</dt><dd>0x72D70F</dd>
+          <dt>header</dt><dd>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</dd>
+          <dt>widths</dt><dd>8 &middot; 16 &middot; 32 &middot; 64-bit integers</dd>
+          <dt>decode</dt><dd>inverse Zigzag, then planar reconstruction</dd>
+          <dt>next</dt><dd>a packer or entropy stage; <a href="planar-zigzag-pfor.html">planar_zigzag_pfor</a> folds that in too</dd>
+        </dl>
+
+        <div class="actions">
+          <a class="btn-code" href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag" target="_blank" rel="noopener noreferrer">
+            <span>Code</span>
+            <svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"></path><path d="M8 7h9v9"></path></svg>
+          </a>
+          <span class="usage mono">geozl.lossless.PlanarZigzag(width, planes=1)</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <img class="diagram" src="../assets/svg/codecs/planar-zigzag.svg"
+             alt="Zigzag maps signed planar residuals 0, minus 1, 1, minus 2, 2 to unsigned values 0, 1, 2, 3, 4">
+      </div>
+    </main>
+
+    <footer class="footer pager">
+      <a class="pg prev" href="wp-static.html" style="--fam:var(--purple)" aria-label="Previous codec, wp_static"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg><span class="pg-fam"></span><span class="pg-lab"><span class="pg-k">prev · 06</span><span class="pg-n">wp_static</span></span></a>
+      <span class="pg-mid mono">0x72D70F</span>
+      <a class="pg next" href="planar-zigzag-pfor.html" style="--fam:var(--gold)" aria-label="Next codec, planar_zigzag_pfor"><span class="pg-lab"><span class="pg-k">next · 08</span><span class="pg-n">planar_zigzag_pfor</span></span><span class="pg-fam"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></a>
+    </footer>
+  </div>
+</body>
+</html>

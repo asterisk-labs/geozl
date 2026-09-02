@@ -189,6 +189,23 @@ size_t pfor_bound(size_t nbElts, size_t eltWidth) {
   return blocks * perBlock;
 }
 
+size_t pfor_encode_block(void *dst, const void *src, size_t eltWidth) {
+  if (dst == NULL || src == NULL)
+    return 0;
+  switch (eltWidth) {
+  case 1:
+    return pfor_enc8((uint8_t *)dst, (const uint8_t *)src);
+  case 2:
+    return pfor_enc16((uint8_t *)dst, (const uint16_t *)src);
+  case 4:
+    return pfor_enc32((uint8_t *)dst, (const uint32_t *)src);
+  case 8:
+    return pfor_enc64((uint8_t *)dst, (const uint64_t *)src);
+  default:
+    return 0;
+  }
+}
+
 int pfor_encode(void *dst, size_t dstCapacity, size_t *outSize, const void *src,
                 size_t nbElts, size_t eltWidth) {
   if (dst == NULL || src == NULL || outSize == NULL)
@@ -210,20 +227,7 @@ int pfor_encode(void *dst, size_t dstCapacity, size_t *outSize, const void *src,
       memcpy(pad, blk, n * eltWidth);
       blk = (const uint8_t *)pad;
     }
-    switch (eltWidth) {
-    case 1:
-      p += pfor_enc8(p, (const uint8_t *)blk);
-      break;
-    case 2:
-      p += pfor_enc16(p, (const uint16_t *)(const void *)blk);
-      break;
-    case 4:
-      p += pfor_enc32(p, (const uint32_t *)(const void *)blk);
-      break;
-    default:
-      p += pfor_enc64(p, (const uint64_t *)(const void *)blk);
-      break;
-    }
+    p += pfor_encode_block(p, blk, eltWidth);
   }
   *outSize = (size_t)(p - (uint8_t *)dst);
   return 0;

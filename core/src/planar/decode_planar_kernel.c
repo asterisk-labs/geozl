@@ -1,13 +1,5 @@
-// Inverse planar predictor, W + N - NW. The predictor is linear, so decoding a
-// row is a prefix sum. Row zero is a plain prefix sum of the residual. Each
-// later row folds the row above into the residual, c[i] = res[i] + N[i] -
-// NW[i], and prefix sums it in the same pass, so the W chain is resolved
-// without a separate fold. Row major, @width samples per row. @dst may alias
-// @src.
-//
-// The only difference from a plain scan is the vector handed to the ladder, so
-// the ladder and the carry broadcast come from vprefix.h, the same ones scan.h
-// uses.
+// Inverse planar predictor. Interior rows prefix-sum res[i] + N[i] - NW[i];
+// row zero is a plain prefix sum.
 
 #include "decode_planar_kernel.h"
 
@@ -22,11 +14,6 @@
 #define scan16 geozl_scan16
 #define scan32 geozl_scan32
 #define scan64 geozl_scan64
-
-// Interior row, fused. c[i] = res[i] + above[i] - above[i-1] is built in
-// register and prefix summed in the same pass. The first sample has no left
-// neighbour and no above left, so above[-1] is taken as zero. above is the row
-// already reconstructed above this one.
 
 #define PLANAR_TAIL(T)                                                         \
   for (; i < n; ++i) {                                                         \
@@ -46,9 +33,7 @@ GEOZL_TARGET_AVX2 static void frow8_avx2(uint8_t *d, const uint8_t *res,
         _mm256_add_epi8(_mm256_loadu_si256((const __m256i *)(res + i)),
                         _mm256_loadu_si256((const __m256i *)(above + i))),
         _mm256_loadu_si256((const __m256i *)(above + i - 1)));
-    c = _mm256_add_epi8(geozl_vprefix8_avx2(c), carry);
-    _mm256_storeu_si256((__m256i *)(d + i), c);
-    carry = geozl_vlast8_avx2(c);
+    _mm256_storeu_si256((__m256i *)(d + i), geozl_vscan8_avx2(c, &carry));
   }
   acc = d[i - 1];
   PLANAR_TAIL(uint8_t)
@@ -66,9 +51,7 @@ static void frow8_sse2(uint8_t *d, const uint8_t *res, const uint8_t *above,
         _mm_add_epi8(_mm_loadu_si128((const __m128i *)(res + i)),
                      _mm_loadu_si128((const __m128i *)(above + i))),
         _mm_loadu_si128((const __m128i *)(above + i - 1)));
-    c = _mm_add_epi8(geozl_vprefix8_sse2(c), carry);
-    _mm_storeu_si128((__m128i *)(d + i), c);
-    carry = geozl_vlast8_sse2(c);
+    _mm_storeu_si128((__m128i *)(d + i), geozl_vscan8_sse2(c, &carry));
   }
   acc = d[i - 1];
   PLANAR_TAIL(uint8_t)
@@ -83,9 +66,7 @@ static void frow8_neon(uint8_t *d, const uint8_t *res, const uint8_t *above,
   for (; i + 16 <= n; i += 16) {
     uint8x16_t c = vsubq_u8(vaddq_u8(vld1q_u8(res + i), vld1q_u8(above + i)),
                             vld1q_u8(above + i - 1));
-    c = vaddq_u8(geozl_vprefix8_neon(c), carry);
-    vst1q_u8(d + i, c);
-    carry = geozl_vlast8_neon(c);
+    vst1q_u8(d + i, geozl_vscan8_neon(c, &carry));
   }
   acc = d[i - 1];
   PLANAR_TAIL(uint8_t)
@@ -124,9 +105,7 @@ GEOZL_TARGET_AVX2 static void frow16_avx2(uint16_t *d, const uint16_t *res,
         _mm256_add_epi16(_mm256_loadu_si256((const __m256i *)(res + i)),
                          _mm256_loadu_si256((const __m256i *)(above + i))),
         _mm256_loadu_si256((const __m256i *)(above + i - 1)));
-    c = _mm256_add_epi16(geozl_vprefix16_avx2(c), carry);
-    _mm256_storeu_si256((__m256i *)(d + i), c);
-    carry = geozl_vlast16_avx2(c);
+    _mm256_storeu_si256((__m256i *)(d + i), geozl_vscan16_avx2(c, &carry));
   }
   acc = d[i - 1];
   PLANAR_TAIL(uint16_t)
@@ -144,9 +123,7 @@ static void frow16_sse2(uint16_t *d, const uint16_t *res, const uint16_t *above,
         _mm_add_epi16(_mm_loadu_si128((const __m128i *)(res + i)),
                       _mm_loadu_si128((const __m128i *)(above + i))),
         _mm_loadu_si128((const __m128i *)(above + i - 1)));
-    c = _mm_add_epi16(geozl_vprefix16_sse2(c), carry);
-    _mm_storeu_si128((__m128i *)(d + i), c);
-    carry = geozl_vlast16_sse2(c);
+    _mm_storeu_si128((__m128i *)(d + i), geozl_vscan16_sse2(c, &carry));
   }
   acc = d[i - 1];
   PLANAR_TAIL(uint16_t)
@@ -162,9 +139,7 @@ static void frow16_neon(uint16_t *d, const uint16_t *res, const uint16_t *above,
     uint16x8_t c =
         vsubq_u16(vaddq_u16(vld1q_u16(res + i), vld1q_u16(above + i)),
                   vld1q_u16(above + i - 1));
-    c = vaddq_u16(geozl_vprefix16_neon(c), carry);
-    vst1q_u16(d + i, c);
-    carry = geozl_vlast16_neon(c);
+    vst1q_u16(d + i, geozl_vscan16_neon(c, &carry));
   }
   acc = d[i - 1];
   PLANAR_TAIL(uint16_t)
@@ -203,9 +178,7 @@ GEOZL_TARGET_AVX2 static void frow32_avx2(uint32_t *d, const uint32_t *res,
         _mm256_add_epi32(_mm256_loadu_si256((const __m256i *)(res + i)),
                          _mm256_loadu_si256((const __m256i *)(above + i))),
         _mm256_loadu_si256((const __m256i *)(above + i - 1)));
-    c = _mm256_add_epi32(geozl_vprefix32_avx2(c), carry);
-    _mm256_storeu_si256((__m256i *)(d + i), c);
-    carry = geozl_vlast32_avx2(c);
+    _mm256_storeu_si256((__m256i *)(d + i), geozl_vscan32_avx2(c, &carry));
   }
   acc = d[i - 1];
   PLANAR_TAIL(uint32_t)
@@ -223,9 +196,7 @@ static void frow32_sse2(uint32_t *d, const uint32_t *res, const uint32_t *above,
         _mm_add_epi32(_mm_loadu_si128((const __m128i *)(res + i)),
                       _mm_loadu_si128((const __m128i *)(above + i))),
         _mm_loadu_si128((const __m128i *)(above + i - 1)));
-    c = _mm_add_epi32(geozl_vprefix32_sse2(c), carry);
-    _mm_storeu_si128((__m128i *)(d + i), c);
-    carry = geozl_vlast32_sse2(c);
+    _mm_storeu_si128((__m128i *)(d + i), geozl_vscan32_sse2(c, &carry));
   }
   acc = d[i - 1];
   PLANAR_TAIL(uint32_t)
@@ -241,9 +212,7 @@ static void frow32_neon(uint32_t *d, const uint32_t *res, const uint32_t *above,
     uint32x4_t c =
         vsubq_u32(vaddq_u32(vld1q_u32(res + i), vld1q_u32(above + i)),
                   vld1q_u32(above + i - 1));
-    c = vaddq_u32(geozl_vprefix32_neon(c), carry);
-    vst1q_u32(d + i, c);
-    carry = geozl_vlast32_neon(c);
+    vst1q_u32(d + i, geozl_vscan32_neon(c, &carry));
   }
   acc = d[i - 1];
   PLANAR_TAIL(uint32_t)

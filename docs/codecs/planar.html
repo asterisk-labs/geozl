@@ -43,7 +43,8 @@
         <p class="desc"><b>planar</b> uses the west, north and north-west neighbours to continue the local
         slope: <b>W + N − NW</b>. It works especially well on smooth two-dimensional gradients, where a
         perfect plane becomes a stream of zeros. Along the top and left edges it falls back to a simple
-        one-direction predictor.</p>
+        one-direction predictor. The <b>planar&gt;zigzag&gt;pfor</b> recipe uses
+        <b>planar_zigzag</b> internally.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D703</dd>
           <dt>header</dt><dd>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</dd>

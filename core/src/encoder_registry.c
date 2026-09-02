@@ -2,6 +2,7 @@
 
 #include "average/encode_average_binding.h"
 #include "binoffset/encode_binoffset_binding.h"
+#include "blocked_transpose_zstd/encode_blocked_transpose_zstd_binding.h"
 #include "deinterleave/encode_deinterleave_binding.h"
 #include "delta_n/encode_delta_n_binding.h"
 #include "delta_w/encode_delta_w_binding.h"
@@ -12,6 +13,8 @@
 #include "nodata/encode_nodata_binding.h"
 #include "pfor/encode_pfor_binding.h"
 #include "planar/encode_planar_binding.h"
+#include "planar_zigzag/encode_planar_zigzag_binding.h"
+#include "planar_zigzag_pfor/encode_planar_zigzag_pfor_binding.h"
 #include "quant_linear/encode_quant_linear_binding.h"
 #include "quant_log/encode_quant_log_binding.h"
 #include "quant_sqrt/encode_quant_sqrt_binding.h"
@@ -68,6 +71,18 @@ ZL_NodeID geozl_node_planar(ZL_Compressor *c, uint32_t width,
   const ZL_TypedEncoderDesc desc = EI_PLANAR(GEOZL_CTID_PLANAR);
   return geometry_node(c, &desc, width, planes);
 }
+ZL_NodeID geozl_node_planar_zigzag(ZL_Compressor *c, uint32_t width,
+                                   uint32_t planes) {
+  const ZL_TypedEncoderDesc desc =
+      EI_PLANAR_ZIGZAG(GEOZL_CTID_PLANAR_ZIGZAG);
+  return geometry_node(c, &desc, width, planes);
+}
+ZL_NodeID geozl_node_planar_zigzag_pfor(ZL_Compressor *c, uint32_t width,
+                                        uint32_t planes) {
+  const ZL_TypedEncoderDesc desc =
+      EI_PLANAR_ZIGZAG_PFOR(GEOZL_CTID_PLANAR_ZIGZAG_PFOR);
+  return geometry_node(c, &desc, width, planes);
+}
 ZL_NodeID geozl_node_med(ZL_Compressor *c, uint32_t width,
                             uint32_t planes) {
   const ZL_TypedEncoderDesc desc = EI_MED(GEOZL_CTID_MED);
@@ -91,6 +106,18 @@ ZL_NodeID geozl_node_deinterleave(ZL_Compressor *c) {
 
 ZL_NodeID geozl_node_pfor(ZL_Compressor *c) {
   const ZL_TypedEncoderDesc desc = EI_PFOR(GEOZL_CTID_PFOR);
+  return ZL_Compressor_registerTypedEncoder(c, &desc);
+}
+
+ZL_NodeID geozl_node_blocked_transpose_zstd(ZL_Compressor *c,
+                                             uint32_t blockSize) {
+  if (blockSize == 0 || blockSize > BLOCKED_TRANSPOSE_ZSTD_MAX_BLOCK_SIZE)
+    return ZL_NODE_ILLEGAL;
+  ZL_TypedEncoderDesc desc = EI_BLOCKED_TRANSPOSE_ZSTD(
+      GEOZL_CTID_BLOCKED_TRANSPOSE_ZSTD);
+  ZL_LocalParams lp = ZL_LP_1INTPARAM(
+      BLOCKED_TRANSPOSE_ZSTD_PARAM_BLOCK_SIZE, (int)blockSize);
+  desc.localParams = lp;
   return ZL_Compressor_registerTypedEncoder(c, &desc);
 }
 

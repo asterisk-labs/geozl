@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-09-01
+
+### Added
+
+- `planar_zigzag`, a fused implementation of `planar>zigzag`. It applies the
+  Zigzag mapping while producing the planar residuals, without an intermediate
+  residual array.
+- `planar_zigzag_pfor`, a fused implementation of
+  `planar>zigzag>pfor`. It reconstructs one PFOR block at a time during decode
+  instead of allocating transformed copies of the complete input.
+
+### Changed
+
+- Planar candidates use `planar_zigzag` in the two-dimensional graph builder.
+  Candidates ending in PFOR use `planar_zigzag_pfor`. Explicit graphs can still
+  use the individual codecs.
+- The `planar_zigzag_pfor` encoder walks planes, rows and columns directly while
+  filling PFOR blocks. This avoids recomputing row and plane positions for every
+  sample.
+- Prefix-sum kernels update their carry from the sum of the current vector,
+  shortening the dependency between consecutive vectors.
+- PFOR decoding includes scalar fast paths and SIMD unpackers selected by value
+  width and packed bit width. Its block encode/decode entry points are shared
+  with `planar_zigzag_pfor`.
+- Frames written with the new fused codec require a reader that knows its codec
+  ID. New readers continue to accept frames produced by earlier releases.
+
 ## [0.15.1] - 2026-08-30
 
 ### Fixed
@@ -381,7 +408,8 @@ First release.
   `register_decoders` for reading frames back.
 - A libFuzzer harness over the decode path.
 
-[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.15.1...HEAD
+[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/asterisk-labs/geozl/compare/v0.15.1...v0.16.0
 [0.15.1]: https://github.com/asterisk-labs/geozl/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/asterisk-labs/geozl/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/asterisk-labs/geozl/compare/v0.13.1...v0.14.0

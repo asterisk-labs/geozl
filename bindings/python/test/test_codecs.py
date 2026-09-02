@@ -62,7 +62,8 @@ _SHAPES = [(16, 16), (7, 13), (1, 32), (32, 1), (4, 4)]
 _PATTERNS = ["random", "gradient", "constant"]
 
 _PREDICTORS = [geozl.lossless.DeltaW, geozl.lossless.DeltaN,
-               geozl.lossless.Planar, geozl.lossless.Med,
+               geozl.lossless.Planar, geozl.lossless.PlanarZigzag,
+               geozl.lossless.Med,
                geozl.lossless.Average, geozl.lossless.WpStatic]
 
 

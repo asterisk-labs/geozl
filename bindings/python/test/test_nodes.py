@@ -9,6 +9,8 @@ geozl = pytest.importorskip("geozl")
 # hand.
 _NODES = [
     ("planar", lambda: geozl.lossless.Planar(8)),
+    ("planar_zigzag", lambda: geozl.lossless.PlanarZigzag(8)),
+    ("planar_zigzag_pfor", lambda: geozl.lossless.PlanarZigzagPfor(8)),
     ("delta_w", lambda: geozl.lossless.DeltaW(8)),
     ("med", lambda: geozl.lossless.Med(8)),
     ("wp_static", lambda: geozl.lossless.WpStatic(8)),
