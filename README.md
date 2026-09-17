@@ -105,6 +105,14 @@ OpenZL decoder.
 | `quant_log`     | `0x72D782` | logarithmic grid with a relative bound: `LOG:MAX_ERROR=P%`         |
 | `quant_sqrt`    | `0x72D783` | square-root grid whose bound grows with noise: `SQRT:MAX_ERROR=VN` |
 
+## AI agent skill
+
+Install the [GeoZL skill](https://github.com/asterisk-labs/geozl/blob/main/.claude/skills/geozl/SKILL.md) so coding agents know its graph recipes, bounded-error rules and codec internals.
+
+```bash
+npx skills add asterisk-labs/geozl
+```
+
 ## Development
 
 Local builds require Python 3.11+, a C11 compiler, Git, Make, CMake and Ninja.

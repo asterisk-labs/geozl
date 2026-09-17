@@ -48,14 +48,14 @@ one row per recipe that succeeded, sorted by `ratio` descending.
 | `prior` | `"planar"` (default), `"med"`, `"delta_w"`, `"delta_n"`, `"average"`, `"wp_static"` or `"delta_1d"`: that predictor plus the `id` branch. `None`: all 8 predictors. `"none"` (or `"id"`): no predictor. Anything else raises `ValueError(... is not one of ...)`. |
 | `width`, `planes`, `error`, `nodata` | Same as `graph`. Profile with the settings you will build with. |
 | `reps` | Timed round trips per recipe; the fastest rep is reported. `reps < 1` raises `ValueError`. |
-| `verify` | Checksum verification during the timed decode only. Frames are always written with checksums, so `bytes` never changes. |
+| `verify` | Checksum verification during timed decode only. The benchmark writes the same checksum configuration as `compress`—compressed checksum always, content checksum only for lossless—so `bytes` does not change. |
 
 Each row is a `dict`:
 
 | Key | Meaning |
 | --- | --- |
 | `graph` | Recipe name, valid as `method` for `graph()` |
-| `bytes` | Exact size of the frame `compress` writes (checksums included) |
+| `bytes` | Exact size of the frame `compress` writes, including its configured checksum fields |
 | `ratio` | `tile.nbytes / bytes` |
 | `encode_mbps`, `decode_mbps` | Raw MB per second from the fastest rep; when a rep reads as zero time the mean over the run is used, and `inf` only when the whole run does |
 | `shannon_pct` | Order-0 byte entropy size of the raw tile over `bytes`, in percent. Above 100 means the graph found structure a byte histogram cannot see |

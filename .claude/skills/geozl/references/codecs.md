@@ -35,7 +35,7 @@ destroys data. Released CTids are never reassigned.
 | `med` | `0x72D705` | predictor | numeric -> numeric | `Med(width, planes)` | median edge detector (JPEG-LS) |
 | `average` | `0x72D706` | predictor | numeric -> numeric | `Average(width, planes)` | `floor((W + N) / 2)` |
 | `wp_static` | `0x72D707` | predictor | numeric -> numeric | `WpStatic(width, planes)` | fixed-weight JPEG XL self-correcting predictor, weights in header |
-| `binoffset` | `0x72D708` | legacy | numeric -> numeric x 2 | none | pcodec port, decode only in practice |
+| `binoffset` | `0x72D708` | legacy | numeric -> numeric x 2 | none | partial pcodec port; C encoder and decoder remain |
 | `intmult` | `0x72D709` | legacy | numeric -> numeric x 2 | none | pcodec port |
 | `floatquant` | `0x72D70A` | legacy | numeric -> numeric x 2 | none | pcodec port |
 | `floatmult` | `0x72D70B` | legacy | numeric -> numeric x 2 | none | pcodec port |

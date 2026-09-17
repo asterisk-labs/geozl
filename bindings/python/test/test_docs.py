@@ -11,6 +11,8 @@ ROOT = Path(__file__).resolve().parents[3]
 DOCS = ROOT / "docs"
 API_HIGH = DOCS / "api-high.html"
 NOTEBOOK = DOCS / "notebooks" / "high-level-api.ipynb"
+SKILL = ROOT / ".claude" / "skills" / "geozl"
+CODEX_SKILL = ROOT / ".agents" / "skills" / "geozl"
 HIGH_LEVEL_SOURCES = [
     ROOT / "bindings" / "python" / "geozl" / "_2d.py",
     ROOT / "bindings" / "python" / "geozl" / "_coeffs.py",
@@ -42,6 +44,24 @@ def test_current_docs_do_not_use_the_removed_max_error_argument():
         if re.search(r"\bmax_error\b", path.read_text(encoding="utf-8")):
             found.append(path.relative_to(ROOT).as_posix())
     assert not found, f"obsolete max_error argument in: {', '.join(found)}"
+
+
+def test_agent_skill_tracks_the_release_and_its_references_resolve():
+    entrypoint = SKILL / "SKILL.md"
+    body = entrypoint.read_text(encoding="utf-8")
+    version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+
+    assert f"This skill describes **geozl {version}**" in body
+    assert CODEX_SKILL.resolve() == SKILL.resolve()
+
+    failures = []
+    for source in SKILL.rglob("*.md"):
+        text = source.read_text(encoding="utf-8")
+        for relative in re.findall(r"\[[^]]*\]\((?!https?://)([^)#]+\.md)(?:#[^)]*)?\)", text):
+            if not (source.parent / relative).is_file():
+                failures.append(f"{source.relative_to(SKILL)}: {relative}")
+
+    assert not failures, "broken skill references:\n" + "\n".join(failures)
 
 
 def _source_signatures() -> dict[str, str]:
