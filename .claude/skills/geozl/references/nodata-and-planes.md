@@ -45,13 +45,23 @@ CTid `0x72D70C`. One numeric stream in, two out:
 - `values`: the raster with every hole filled, sent down the rest of the recipe.
 - `mask`: one byte per sample, `0` for NoData, nonzero for valid, sent to OpenZL generic
   compression.
-- Header: the NoData bit pattern at the element width.
+- Header: the NoData bit pattern at the element width (plain form), or the pattern
+  followed by its neighbour above, below and the other signed zero (guarded form,
+  `4 * eltWidth` bytes). The length tells a reader which form it holds.
 
 Fill rule, row by row: a hole takes the last valid sample to its left in the same row;
 a hole that opens a row takes the (already filled) sample above; a hole that opens the
 first row takes zero. Predictors therefore see a continuous surface instead of a cliff.
 
 Decode: `out[i] = mask[i] == 0 ? pattern : values[i]`.
+
+**Guarded form.** Sentinels use mask codes 1 (above), 2 (below) and 3 (the other
+signed zero). When a quantized value matches the sentinel, the decoder uses the
+adjacent value named by the mask.
+
+The graph builder records sides only within the quantizer's reach: 0 for lossless,
+`MAX_ERROR` for LINEAR, `p|S|/(1-p)` for LOG, and the corresponding SQRT root. The
+low-level node records every side. NaN uses the plain form.
 
 NaN mode masks every NaN whatever its payload, but the header stores one pattern (the
 first NaN found), so all holes decode with that payload. On a **lossless** graph a tile
@@ -109,7 +119,10 @@ c.select_starting_graph(start)
 ```
 
 - `Nodata(width, value=None, dtype=None)`: `value=None` is NaN mode; a sentinel needs
-  `dtype` because its bit pattern depends on the type.
+  `dtype` because its bit pattern depends on the type, and because the guard reads the
+  samples at that type. A stream of another width is refused.
+- Sentinels use the guarded form from section 2. `geozl.graph` supplies its radius;
+  the low-level node records every side.
 - The two successors may be `GraphID`s or unbound graphs such as `zl.graphs.Compress()`.
 - Omit the node for data that never has holes.
 

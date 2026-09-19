@@ -156,6 +156,8 @@ curve fitted on misaligned rows).
   recipe. Replace infinities with a sentinel declared as `nodata=`, or keep them out of
   lossy graphs.
 - **Subnormal floats** (LOG): encoded, but no relative bound is guaranteed.
+- **NoData sentinels** are protected from lossy collisions. See
+  `nodata-and-planes.md` section 2.
 
 ## 7. SQRT and the noise model (`fit_noise`)
 

@@ -46,10 +46,10 @@
         a hole. Put this codec before quantization, and use it only on tiles that contain nodata.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D70C</dd>
-          <dt>header</dt><dd>the nodata pattern at the sample width</dd>
+          <dt>header</dt><dd>the nodata pattern, optionally followed by three replacement values</dd>
           <dt>modes</dt><dd>every NaN &middot; one declared sentinel</dd>
           <dt>widths</dt><dd>8 &middot; 16 &middot; 32 &middot; 64-bit samples</dd>
-          <dt>decode</dt><dd>branchless select, values where the mask keeps, pattern where it discards</dd>
+          <dt>decode</dt><dd>restore the nodata pattern where the mask marks a hole</dd>
         </dl>
 
         <div class="actions">

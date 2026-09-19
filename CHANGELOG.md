@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Lossy compression no longer turns valid samples into NoData when quantization
+  lands on the sentinel. NaN encoding is unchanged.
+
+### Changed
+
+- `geozl_node_nodata` now takes the raster dtype and the maximum error of the
+  following stages. The Python API is unchanged.
+
 ## [0.16.0] - 2026-09-01
 
 ### Added

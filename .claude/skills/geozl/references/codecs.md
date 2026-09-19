@@ -59,7 +59,7 @@ The README documents fourteen codecs: the six predictors, the two fused codecs,
 | `delta_n`, `planar`, `planar_zigzag`, `med`, `average` | 4 or 8 | `u32 width` [`u32 planes`, written only when planes > 1] |
 | `wp_static` | 13 or 17 | `u32 width`, `u8 shift` (< 64), `i16 cN, cNW, cNE, cNN` [`u32 planes`] |
 | `deinterleave` | 0 | lane counts must be equal or even lane one longer |
-| `nodata` | element width | the NoData bit pattern |
+| `nodata` | `w` or `4w` | plain: the NoData bit pattern; guarded: the pattern, then its neighbour above, below and the other signed zero |
 | `pfor` | 9 | `u64 count`, `u8 element width` |
 | `planar_zigzag_pfor` | 17 | `u64 count`, `u8 element width`, `u32 width`, `u32 planes` |
 | `blocked_transpose_zstd` | 16 | `u8 version (1)`, `u8 element width`, `u16 reserved`, `u32 block size`, `u64 count` |
@@ -88,7 +88,7 @@ Arithmetic wraps at the element width unless stated.
 | `wp_static` | `out = r + W + ((cN*N + cNW*NW + cNE*NE + cNN*NN + round) >> shift)`, 32-bit accumulator for 1 and 2 byte samples, 64-bit otherwise |
 | `planar_zigzag` | `r = (z >> 1) ^ -(z & 1)`, then planar |
 | `pfor` | per block: unpack the `b`-bit body, then OR `exception_bits << b` into each listed position |
-| `nodata` | `out = mask == 0 ? pattern : values` |
+| `nodata` | plain: `out = mask == 0 ? pattern : values`; guarded (mask 0 hole, 1 above, 2 below, 3 other zero): a hole takes `pattern`, a value equal to `pattern` takes the replacement its code names, anything else is copied; codes above 3 or a replacement equal to `pattern` are corrupt |
 | `quant_linear` | integer index: `q * step` in integer arithmetic; float index: `q * step`; values: copy or cast; clamp to dtype (and to 0 when `NONNEGATIVE`) |
 | `quant_log` | index `q`: `0 -> 0`, else `sign(q) * 2^(A + (abs(q) - 1) * step)` with `A` of -24, -149, -1074 for f16, f32, f64; values: copy or cast |
 | `quant_sqrt` | index: `(q * step)^2 - offset` (rounded for integers); values: copy or cast |

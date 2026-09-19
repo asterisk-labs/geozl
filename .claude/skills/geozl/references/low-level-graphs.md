@@ -125,10 +125,11 @@ def build(c):
     tail = geozl.lossless.Pfor()(c, zl.graphs.Store())
     pred = geozl.lossless.PlanarZigzag(W)(c, tail)
     quant = geozl.lossy.QuantLinear("LINEAR:MAX_ERROR=0.5", np.float32)(c, pred)
-    return geozl.lossless.Nodata(W, value=-9999.0, dtype=np.float32)(c, quant, zl.graphs.Compress())
+    nd = geozl.lossless.Nodata(W, value=-9999.0, dtype=np.float32)
+    return nd(c, quant, zl.graphs.Compress())
 
 frame = encode(build, tile, lossy=True)
-back = decode(frame, np.float32).reshape(tile.shape)       # holes exact, valid samples within 0.5
+back = decode(frame, np.float32).reshape(tile.shape)
 ```
 
 ### Complex SAR: split real and imaginary before predicting
