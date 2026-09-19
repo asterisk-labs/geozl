@@ -57,4 +57,8 @@ int geozl_lossy_check_domain(const geozl_lossy_plan *plan, const void *src,
                              int dtype, size_t nbElts, int ignoreValue,
                              uint64_t ignoredBits, char *err, size_t errSize);
 
+// Largest distance from s that the recipe may reconstruct as s. Returns 0 for
+// lossless and +inf when the distance cannot be bounded.
+double geozl_lossy_guard_radius(const geozl_lossy_recipe *r, double s);
+
 #endif // GEOZL_LOSSY_RECIPE_H

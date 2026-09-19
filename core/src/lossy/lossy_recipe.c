@@ -311,3 +311,32 @@ int geozl_lossy_check_domain(const geozl_lossy_plan *plan, const void *src,
                            "lossy family %d is not one this build knows",
                            (int)plan->family);
 }
+
+// Largest distance from s that the recipe may reconstruct as s.
+double geozl_lossy_guard_radius(const geozl_lossy_recipe *r, double s) {
+  switch (r->family) {
+  case GEOZL_LOSSY_NONE:
+    return 0.0;
+  case GEOZL_LOSSY_LINEAR:
+    return r->as.linear.max_error >= 0.0 ? r->as.linear.max_error : INFINITY;
+  case GEOZL_LOSSY_LOG: {
+    // The farther root of |x - s| <= p|x|.
+    const double p = r->as.log.rel_err;
+    if (!(p > 0.0 && p < 1.0) || !isfinite(s))
+      return INFINITY;
+    return p * fabs(s) / (1.0 - p);
+  }
+  case GEOZL_LOSSY_SQRT: {
+    // Larger root of t^2 = k^2(a + b(s + t)); the lower side is shorter.
+    const quant_sqrt_spec *q = &r->as.sqrt;
+    if (!q->have_ab || !isfinite(s) || !(q->b > 0.0) || !(q->k > 0.0))
+      return INFINITY;
+    const double k2 = q->k * q->k;
+    const double disc = k2 * k2 * q->b * q->b + 4.0 * k2 * (q->a + q->b * s);
+    if (disc < 0.0)
+      return 0.0;
+    return 0.5 * (k2 * q->b + sqrt(disc));
+  }
+  }
+  return INFINITY;
+}
