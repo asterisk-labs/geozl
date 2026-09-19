@@ -12,7 +12,7 @@ an `openzl.ext` graph yourself. Sources: `bindings/python/geozl/lossless/`,
 1. How composition works
 2. geozl nodes
 3. Compression context settings you must set
-4. Examples (all verified on 0.16.0)
+4. Examples (all verified on 0.17.0)
 5. Decoding
 6. Raw payload helpers
 7. Codecs without a Python node
@@ -73,7 +73,7 @@ Decoding without `geozl.register_decoders(dctx)` fails with error code 30.
 
 Input goes in as one numeric stream: `zl.Input(zl.Type.Numeric, np.ascontiguousarray(arr).reshape(-1))`.
 
-## 4. Examples (all verified on 0.16.0)
+## 4. Examples (all verified on 0.17.0)
 
 ### Helpers used below
 

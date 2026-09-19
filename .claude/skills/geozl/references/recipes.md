@@ -70,7 +70,7 @@ bit for bit through their integer representation.
 | `categorical` | one pass counts the dominant value's share: all equal goes to `constant`, above 0.95 to `field_lz`, else `entropy`; the frame records the arm | 1, 2 (refused above at build) | cloud masks sit near 0.97, land cover near 0.50 |
 | `transpose>entropy` | split elements into byte lanes (low byte first), entropy per lane | 2, 4, 8 (refused at 1) | the byte shuffle of blosc and EOPF |
 | `transpose>zstd` | byte lanes, Zstandard per lane | 2, 4, 8 (refused at 1) | `id>transpose>zstd` is the EOPF-style baseline |
-| `blocked_transpose_zstd` | fused shuffle plus independent Zstandard frames per 2 MiB block | 1, 2, 4, 8 | **work in progress** in 0.16.0, not in the docs or Python node API |
+| `blocked_transpose_zstd` | fused shuffle plus independent Zstandard frames per 2 MiB block | 1, 2, 4, 8 | **work in progress**, not in the docs or Python node API |
 | `pfor` | blocks of 256 packed at the bit width with the smallest estimated size, overflowing values patched as exceptions | 1, 2, 4, 8 | very fast decode; cost grows with residual magnitude, so it pairs well with integer quantizer indices |
 
 ## 4. Which recipes run at which element width

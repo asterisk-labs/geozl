@@ -2,7 +2,7 @@
 
 Public headers live in `core/include/geozl/`; `geozl.h` includes the rest plus the
 OpenZL headers it needs. Both examples below compile with
-`-std=c11 -Wall -Wextra` and ran against a 0.16.0 build.
+`-std=c11 -Wall -Wextra` and ran against a 0.17.0 build.
 
 ## Contents
 

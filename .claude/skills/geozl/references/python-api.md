@@ -1,8 +1,8 @@
 # Python API
 
-Everything here is `geozl` 0.16.0 as implemented in `bindings/python/geozl/_2d.py`,
+Everything here is `geozl` 0.17.0 as implemented in `bindings/python/geozl/_2d.py`,
 `_coeffs.py`, `_dtype.py` and `_simd.py`. The examples and error behaviours were run
-against a 0.16.0 build.
+against a 0.17.0 build.
 
 ## Contents
 
