@@ -29,6 +29,8 @@ _NOT_A_TYPE = {"return", "if", "while", "for", "switch", "sizeof", "typedef"}
 
 # Public functions present when the C API becomes source-stable in 0.13. New
 # functions may be added, but these names and signatures must remain available.
+# One exception, pre 1.0: geozl_node_nodata took (c, width, mode, valueBits)
+# until a sentinel became guarded, which needs the dtype and a radius.
 _PUBLIC_API_0_13 = r"""
 ZL_Report geozl_register_decoders(ZL_DCtx *dctx);
 int geozl_owns_ctid(uint32_t ctid);
@@ -55,7 +57,8 @@ ZL_NodeID geozl_node_quant_log(ZL_Compressor *c,
 ZL_NodeID geozl_node_quant_sqrt(ZL_Compressor *c,
                                 const quant_sqrt_params *params, int dtype);
 ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width,
-                            geozl_nodata_mode mode, uint64_t valueBits);
+                            geozl_nodata_mode mode, uint64_t valueBits,
+                            int dtype, double radius);
 int geozl_2d_compress_c(const char *method, uint32_t width, uint32_t planes,
                         const char *error, int dtype, int nodataMode,
                         uint64_t nodataBits, const void *src, size_t numElts,

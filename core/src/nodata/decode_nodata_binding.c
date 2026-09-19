@@ -27,22 +27,33 @@ ZL_Report DI_geozl_nodata(ZL_Decoder *dictx, const ZL_Input *ins[]) {
   if (ZL_Input_eltWidth(mask) != 1)
     return ZL_returnError(ZL_ErrorCode_corruption);
 
-  // The output is sized by the values stream, which OpenZL sized, so nothing
-  // the frame declares reaches an allocation.
+  // Header length distinguishes the plain and guarded forms.
   ZL_RBuffer header = ZL_Decoder_getCodecHeader(dictx);
-  if (header.size != eltWidth)
+  const int guarded = header.size == 4 * eltWidth;
+  if (header.size != eltWidth && !guarded)
     return ZL_returnError(ZL_ErrorCode_corruption);
 
   const size_t nbElts = ZL_Input_numElts(vals);
   if (nbElts == 0 || ZL_Input_numElts(mask) != nbElts)
     return ZL_returnError(ZL_ErrorCode_corruption);
-  const uint64_t pattern = geozl_ld_le((const uint8_t *)header.start, eltWidth);
+  const uint8_t *h = (const uint8_t *)header.start;
+  const uint64_t pattern = geozl_ld_le(h, eltWidth);
 
   ZL_Output *out = ZL_Decoder_create1OutStream(dictx, nbElts, eltWidth);
   ZL_ERR_IF_NULL(out, allocation);
 
-  nodata_restore(ZL_Output_ptr(out), ZL_Input_ptr(vals), ZL_Input_ptr(mask),
-                 nbElts, eltWidth, pattern);
+  if (guarded) {
+    const uint64_t repl[3] = {geozl_ld_le(h + eltWidth, eltWidth),
+                              geozl_ld_le(h + 2 * eltWidth, eltWidth),
+                              geozl_ld_le(h + 3 * eltWidth, eltWidth)};
+    if (nodata_restore_guarded(ZL_Output_ptr(out), ZL_Input_ptr(vals),
+                               ZL_Input_ptr(mask), nbElts, eltWidth, pattern,
+                               repl) != 0)
+      return ZL_returnError(ZL_ErrorCode_corruption);
+  } else {
+    nodata_restore(ZL_Output_ptr(out), ZL_Input_ptr(vals), ZL_Input_ptr(mask),
+                   nbElts, eltWidth, pattern);
+  }
 
   ZL_ERR_IF_ERR(ZL_Output_commit(out, nbElts));
   return ZL_returnSuccess();

@@ -273,3 +273,58 @@ def test_the_nodata_header_reads_in_both_directions(dtype, hole):
     from_py = _read_with_python_decoders(frame).view(np.dtype(dtype))
     assert np.array_equal(from_py.reshape(arr.shape).view(f"u{arr.itemsize}"),
                           from_c.view(f"u{arr.itemsize}"))
+
+
+def _guard_tile(dtype, hole, lo, hi):
+    arr = np.random.default_rng(3).uniform(lo, hi, (_W, _W)).astype(dtype)
+    arr[4:12, 6:20] = np.array(hole).astype(dtype)
+    return arr
+
+
+def _no_sample_on(out, arr, hole):
+    s = np.array(hole, dtype=arr.dtype).view(f"u{arr.itemsize}")
+    is_hole = arr.view(f"u{arr.itemsize}") == s
+    got = out.reshape(arr.shape).view(f"u{arr.itemsize}")
+    return (got[is_hole] == s).all() and not (got[~is_hole] == s).any()
+
+
+@pytest.mark.parametrize("dtype,hole,error,lo,hi", [
+    ("uint16", 0, "LINEAR:MAX_ERROR=5", 1, 12),
+    ("int16", 0, "LINEAR:MAX_ERROR=5", -50, 50),
+    ("float32", 0.0, "LINEAR:MAX_ERROR=0.5", -0.4, 0.4),
+    ("float64", -9999.0, "LINEAR:MAX_ERROR=1", -10001, -9997),
+])
+def test_the_guarded_nodata_reads_in_both_directions(dtype, hole, error, lo, hi):
+    arr = _guard_tile(dtype, hole, lo, hi)
+    valid = arr[arr.view(f"u{arr.itemsize}")
+                != np.array(hole, dtype=dtype).view(f"u{arr.itemsize}")]
+    g = geozl.graph(valid, "planar>zigzag>transpose>entropy", width=_W,
+                    planes=1, error=error, nodata=hole)
+    frame = geozl.compress(arr, graph=g)
+
+    from_c = geozl.decompress(frame).view(np.dtype(dtype)).reshape(_W, _W)
+    from_py = _read_with_python_decoders(frame).view(np.dtype(dtype))
+    assert np.array_equal(from_py.reshape(arr.shape).view(f"u{arr.itemsize}"),
+                          from_c.view(f"u{arr.itemsize}"))
+    assert _no_sample_on(from_c, arr, hole)
+
+
+def test_a_python_guarded_nodata_frame_reads_in_c():
+    arr = _guard_tile("uint16", 0, 1, 12)
+    c = zl.Compressor()
+    backend = zl.graphs.Compress()(c)
+    q = geozl.lossy.QuantLinear("LINEAR:MAX_ERROR=5", np.uint16)(c, backend)
+    node = geozl.lossless.Nodata(_W, value=0, dtype=np.uint16)
+    c.select_starting_graph(node(c, q, backend))
+    cc = zl.CCtx()
+    cc.ref_compressor(c)
+    cc.set_parameter(zl.CParam.FormatVersion, zl.MAX_FORMAT_VERSION)
+    cc.set_parameter(zl.CParam.ContentChecksum, 2)  # disable, lossy
+    frame = bytes(cc.compress(
+        [zl.Input(zl.Type.Numeric, np.ascontiguousarray(arr).reshape(-1))]))
+
+    from_c = geozl.decompress(frame).view(np.uint16)
+    from_py = _read_with_python_decoders(frame).view(np.uint16)
+    assert np.array_equal(from_c, from_py)
+    assert _no_sample_on(from_c, arr, 0)
+    assert (np.abs(from_c.astype(int) - arr.reshape(-1).astype(int)) <= 5).all()

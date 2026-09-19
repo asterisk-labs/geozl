@@ -5,13 +5,15 @@
 #include "geozl/geozl.h" // geozl_nodata_mode
 #include "openzl/zl_ctransform.h"
 
-// Encoder side selectors. The wire header never carries these, by the time it
-// is written the pattern is known and both modes look the same to a reader.
+// Encoder-only parameters; the decoder infers the form from the header size.
 #define GEOZL_NODATA_PARAM_WIDTH 1
 #define GEOZL_NODATA_PARAM_MODE 2
 #define GEOZL_NODATA_PARAM_VALUE 3
+#define GEOZL_NODATA_PARAM_DTYPE 4
+// Largest error after this node, stored as a little-endian double.
+#define GEOZL_NODATA_PARAM_RADIUS 5
 
-// PARAM_MODE carries a geozl_nodata_mode.
+// PARAM_MODE carries a geozl_nodata_mode, PARAM_DTYPE a geozl_dtype.
 
 ZL_Report EI_geozl_nodata(ZL_Encoder *eictx, const ZL_Input *in);
 

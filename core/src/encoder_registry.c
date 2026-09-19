@@ -166,11 +166,14 @@ ZL_NodeID geozl_node_floatmult(ZL_Compressor *c, double base) {
 }
 
 ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width,
-                            geozl_nodata_mode mode, uint64_t valueBits) {
-  // NONE has no node to build.
+                            geozl_nodata_mode mode, uint64_t valueBits,
+                            int dtype, double radius) {
+  // Sentinel mode needs the dtype to order samples around the sentinel.
   if (mode != GEOZL_NODATA_NAN && mode != GEOZL_NODATA_VALUE)
     return ZL_NODE_ILLEGAL;
-
+  const int guard = mode == GEOZL_NODATA_VALUE;
+  if (guard && !GEOZL_DT_OK(dtype))
+    return ZL_NODE_ILLEGAL;
   const ZL_TypedEncoderDesc desc = EI_NODATA(GEOZL_CTID_NODATA);
   ZL_NodeID base = ZL_Compressor_registerTypedEncoder(c, &desc);
   if (!ZL_NodeID_isValid(base))
@@ -179,16 +182,24 @@ ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width,
   // an int param because an int cannot carry a 64-bit double's bits.
   uint8_t bits[8];
   geozl_st_le64(bits, valueBits);
-  const ZL_IntParam ip[2] = {
+  const ZL_IntParam ip[3] = {
       {.paramId = GEOZL_NODATA_PARAM_WIDTH, .paramValue = (int)width},
       {.paramId = GEOZL_NODATA_PARAM_MODE, .paramValue = (int)mode},
+      {.paramId = GEOZL_NODATA_PARAM_DTYPE, .paramValue = dtype},
   };
-  const ZL_CopyParam cp = {.paramId = GEOZL_NODATA_PARAM_VALUE,
-                           .paramPtr = bits,
-                           .paramSize = sizeof(bits)};
+  uint8_t rad[8];
+  geozl_st_le_f64(rad, radius);
+  const ZL_CopyParam cp[2] = {
+      {.paramId = GEOZL_NODATA_PARAM_VALUE,
+       .paramPtr = bits,
+       .paramSize = sizeof(bits)},
+      {.paramId = GEOZL_NODATA_PARAM_RADIUS,
+       .paramPtr = rad,
+       .paramSize = sizeof(rad)},
+  };
   ZL_LocalParams lp = {
-      .intParams = {.intParams = ip, .nbIntParams = 2},
-      .copyParams = {.copyParams = &cp, .nbCopyParams = 1},
+      .intParams = {.intParams = ip, .nbIntParams = guard ? 3u : 2u},
+      .copyParams = {.copyParams = cp, .nbCopyParams = guard ? 2 : 1},
   };
   ZL_NodeParameters np = {.localParams = &lp};
   ZL_RESULT_OF(ZL_NodeID) r = ZL_Compressor_parameterizeNode(c, base, &np);

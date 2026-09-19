@@ -9,6 +9,8 @@
 #include "openzl/zl_output.h"
 
 #include "common/endian.h"
+#include "common/fp.h"
+#include "geozl/dtype.h"
 
 #include <assert.h>
 #include <stdint.h>
@@ -37,6 +39,25 @@ ZL_Report EI_geozl_nodata(ZL_Encoder *eictx, const ZL_Input *in) {
                              ? (uint32_t)wp.paramValue
                              : (uint32_t)nbElts;
 
+  // Sentinel mode compares typed values; NaN mode only compares bits.
+  int dtype = -1;
+  double radius = GEOZL_F64_INF;
+  if (mode == GEOZL_NODATA_VALUE) {
+    ZL_IntParam dp =
+        ZL_Encoder_getLocalIntParam(eictx, GEOZL_NODATA_PARAM_DTYPE);
+    if (dp.paramId != GEOZL_NODATA_PARAM_DTYPE || !GEOZL_DT_OK(dp.paramValue) ||
+        geozl_dtype_width(dp.paramValue) != eltWidth)
+      return ZL_returnError(ZL_ErrorCode_node_invalid_input);
+    dtype = dp.paramValue;
+    ZL_CopyParam rp =
+        ZL_Encoder_getLocalCopyParam(eictx, GEOZL_NODATA_PARAM_RADIUS);
+    if (rp.paramId == GEOZL_NODATA_PARAM_RADIUS) {
+      if (rp.paramSize != 8)
+        return ZL_returnError(ZL_ErrorCode_node_invalid_input);
+      radius = geozl_ld_le_f64((const uint8_t *)rp.paramPtr);
+    }
+  }
+
   // Output 0 keeps the sample width, output 1 is one byte of mask per sample.
   ZL_Output *vals = ZL_Encoder_createTypedStream(eictx, 0, nbElts, eltWidth);
   ZL_Output *mask = ZL_Encoder_createTypedStream(eictx, 1, nbElts, 1);
@@ -44,6 +65,7 @@ ZL_Report EI_geozl_nodata(ZL_Encoder *eictx, const ZL_Input *in) {
   ZL_ERR_IF_NULL(mask, allocation);
 
   uint64_t pattern = 0;
+  int guarded = 0;
   uint8_t *mp8 = (uint8_t *)ZL_Output_ptr(mask);
   if (mode == GEOZL_NODATA_NAN) {
     // The marking is the NaN test itself, so a second payload is a hole too,
@@ -56,16 +78,31 @@ ZL_Report EI_geozl_nodata(ZL_Encoder *eictx, const ZL_Input *in) {
     if (vp.paramId != GEOZL_NODATA_PARAM_VALUE || vp.paramSize != 8)
       return ZL_returnError(ZL_ErrorCode_node_invalid_input);
     pattern = geozl_ld_le64((const uint8_t *)vp.paramPtr);
-    nodata_mark_value(mp8, ZL_Input_ptr(in), nbElts, eltWidth, pattern);
+    // Ignore bits outside the element width.
+    if (eltWidth < 8)
+      pattern &= ((uint64_t)1 << (8 * eltWidth)) - 1;
+    const int rc = nodata_mark_guarded(mp8, ZL_Input_ptr(in), nbElts, dtype,
+                                       pattern, radius);
+    // NaN sentinels use the plain form.
+    if (rc != 0 && rc != 2)
+      return ZL_returnError(ZL_ErrorCode_node_invalid_input);
+    guarded = (rc == 0);
   } else {
     return ZL_returnError(ZL_ErrorCode_node_invalid_input);
   }
 
-  // One shape on the wire, so the header is the pattern and the count is the
-  // length of a stream OpenZL already sized.
-  uint8_t header[8];
+  // Guarded headers append the replacements for mask codes 1, 2 and 3.
+  uint8_t header[32];
+  size_t headerSize = eltWidth;
   geozl_st_le(header, pattern, eltWidth);
-  ZL_Encoder_sendCodecHeader(eictx, header, eltWidth);
+  if (guarded) {
+    uint64_t repl[3];
+    nodata_guard_values(repl, dtype, pattern);
+    for (size_t k = 0; k < 3; ++k)
+      geozl_st_le(header + (k + 1) * eltWidth, repl[k], eltWidth);
+    headerSize = 4 * eltWidth;
+  }
+  ZL_Encoder_sendCodecHeader(eictx, header, headerSize);
 
   nodata_fill(ZL_Output_ptr(vals), ZL_Input_ptr(in),
               (const uint8_t *)ZL_Output_ptr(mask), width, nbElts, eltWidth);

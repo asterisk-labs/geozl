@@ -78,10 +78,13 @@ typedef enum {
   GEOZL_NODATA_VALUE = 2
 } geozl_nodata_mode;
 
-// Build a nodata node. NONE is rejected; valueBits is used only for VALUE.
+// Build a nodata node. Sentinel mode uses dtype to guard values that lossy
+// stages may move onto valueBits. radius is their maximum error; use 0 for a
+// lossless path and INFINITY when it is unknown.
 GEOZL_API ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width,
                                       geozl_nodata_mode mode,
-                                      uint64_t valueBits);
+                                      uint64_t valueBits, int dtype,
+                                      double radius);
 
 // Compress a raster with a graph recipe such as
 // "planar>zigzag>transpose>entropy". error accepts:

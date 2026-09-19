@@ -205,3 +205,29 @@ def test_quant_sqrt_decoder_rejects_a_negative_offset():
                    struct.pack("<d", -1.0))
     with pytest.raises(Exception, match="refused this codec header"):
         _decode(frame)
+
+
+# Sentinel, neighbour above, neighbour below and other signed zero.
+_S = 0x1234
+_GUARDED = struct.pack("<4H", _S, _S + 1, _S - 1, _S)
+
+
+def _guarded_build(i):
+    arr = (np.arange(256, dtype=np.uint16) * 7 + i) % 64 + (_S - 32)
+    arr[::9] = _S
+    node = geozl.lossless.Nodata(16, value=_S, dtype=np.uint16)
+    return _frame(lambda c, g: node(c, g, g), arr)
+
+
+def test_guarded_nodata_header_is_what_the_test_forges():
+    from geozl.lossless.nodata import NodataDecoder
+    assert _codec_header(NodataDecoder, _guarded_build(0)) == _GUARDED
+
+
+@pytest.mark.parametrize("offset", [2, 4], ids=["above", "below"])
+def test_guarded_nodata_refuses_a_neighbour_equal_to_the_sentinel(offset):
+    frame = _forge(_guarded_build, _GUARDED, offset, struct.pack("<H", _S))
+    with pytest.raises(Exception, match="never writes"):
+        _decode(frame)
+    with pytest.raises(RuntimeError, match="(?s)Corruption.*geozl.lossless.nodata"):
+        geozl.decompress(frame, verify=False)

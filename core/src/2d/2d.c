@@ -24,6 +24,7 @@
 
 #include "blocked_transpose_zstd/graph_blocked_transpose_zstd.h"
 
+#include "common/half.h"
 #include "lossy/lossy_node.h"   // geozl_node_lossy
 #include "lossy/lossy_recipe.h" // geozl_lossy_parse and friends
 
@@ -299,7 +300,8 @@ static ZL_GraphID build_graph(ZL_Compressor *c, geozl_predictor p,
                                  geozl_terminal t, uint32_t width,
                                  uint32_t planes, size_t eltWidth,
                                  const geozl_lossy_plan *plan, int dtype,
-                                 int nodataMode, uint64_t nodataBits) {
+                                 int nodataMode, uint64_t nodataBits,
+                                 double guardRadius) {
   ZL_GraphID sel = build_candidate(c, p, t, width, planes, eltWidth);
   if (!ZL_GraphID_isValid(sel))
     return ZL_GRAPH_ILLEGAL;
@@ -324,8 +326,8 @@ static ZL_GraphID build_graph(ZL_Compressor *c, geozl_predictor p,
                ? nodataBits
                : (nodataBits & (((uint64_t)1 << (8 * eltWidth)) - 1));
 
-  ZL_NodeID nd =
-      geozl_node_nodata(c, width, (geozl_nodata_mode)nodataMode, bits);
+  ZL_NodeID nd = geozl_node_nodata(c, width, (geozl_nodata_mode)nodataMode,
+                                   bits, dtype, guardRadius);
   if (!ZL_NodeID_isValid(nd))
     return ZL_GRAPH_ILLEGAL;
   // Outcome 0 is the raster and carries on down the recipe, outcome 1 is the
@@ -370,6 +372,34 @@ GEOZL_API void geozl_2d_graph_close_c(geozl_2d_graph *g) {
   if (g->c != NULL)
     ZL_Compressor_free(g->c);
   free(g);
+}
+
+// Read the sentinel without implementation-defined unsigned-to-signed casts.
+static double sentinel_value(int dtype, uint64_t bits) {
+  const size_t w = geozl_dtype_width(dtype);
+  const uint64_t sign = (uint64_t)1 << (8 * w - 1);
+  switch (dtype) {
+  case GEOZL_DT_I8:
+  case GEOZL_DT_I16:
+  case GEOZL_DT_I32:
+  case GEOZL_DT_I64:
+    return (double)(bits & (sign - 1)) - ((bits & sign) ? (double)sign : 0.0);
+  case GEOZL_DT_F16:
+    return (double)geozl_half_to_float((uint16_t)bits);
+  case GEOZL_DT_F32: {
+    const uint32_t u = (uint32_t)bits;
+    float f;
+    memcpy(&f, &u, sizeof f);
+    return (double)f;
+  }
+  case GEOZL_DT_F64: {
+    double d;
+    memcpy(&d, &bits, sizeof d);
+    return d;
+  }
+  default:
+    return (double)bits;
+  }
 }
 
 // Build a graph and bind its context. src resolves lossy parameters. On failure,
@@ -447,8 +477,13 @@ static ZL_Report graph_open(geozl_2d_graph **out, const char *method,
   ZL_Report r;
   err_owner owner = ERR_NONE;
 
+  const uint64_t sentinelBits =
+      (eltWidth == 8) ? nodataBits
+                      : (nodataBits & (((uint64_t)1 << (8 * eltWidth)) - 1));
+  const double radius =
+      geozl_lossy_guard_radius(&recipe, sentinel_value(dtype, sentinelBits));
   ZL_GraphID g = build_graph(e->c, pred, term, width, planes, eltWidth, &plan, dtype,
-                             nodataMode, nodataBits);
+                             nodataMode, nodataBits, radius);
   if (!ZL_GraphID_isValid(g)) {
     if (has_err)
       snprintf(errCtx, errCtxSize,
