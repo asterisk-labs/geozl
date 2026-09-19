@@ -8,6 +8,16 @@ geozl = pytest.importorskip("geozl")
 
 _DISABLE = 2  # ZL_TernaryParam_disable
 
+# The Python decoders need only the kernels. geozl.decompress needs libgeozl,
+# which a FULL=OFF build does not produce.
+try:
+    from geozl import _2d
+
+    _2d._load_lib_full()
+    _FULL = True
+except OSError:  # pragma: no cover - depends on how the build was configured
+    _FULL = False
+
 def _frame(node, arr):
     c = zl.Compressor()
     c.select_starting_graph(node(c, zl.graphs.Compress()(c)))
@@ -229,5 +239,11 @@ def test_guarded_nodata_refuses_a_neighbour_equal_to_the_sentinel(offset):
     frame = _forge(_guarded_build, _GUARDED, offset, struct.pack("<H", _S))
     with pytest.raises(Exception, match="never writes"):
         _decode(frame)
+
+
+@pytest.mark.skipif(not _FULL, reason="libgeozl not built, rebuild with FULL=ON")
+@pytest.mark.parametrize("offset", [2, 4], ids=["above", "below"])
+def test_the_c_reader_refuses_that_frame_too(offset):
+    frame = _forge(_guarded_build, _GUARDED, offset, struct.pack("<H", _S))
     with pytest.raises(RuntimeError, match="(?s)Corruption.*geozl.lossless.nodata"):
         geozl.decompress(frame, verify=False)
