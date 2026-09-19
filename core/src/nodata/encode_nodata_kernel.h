@@ -10,6 +10,22 @@
 #define GEOZL_NODATA_INVALID 0
 #define GEOZL_NODATA_VALID 255
 
+// Guarded mask codes. The plain form uses GEOZL_NODATA_VALID instead.
+#define GEOZL_NODATA_ABOVE 1
+#define GEOZL_NODATA_BELOW 2
+#define GEOZL_NODATA_OTHER_ZERO 3 // the other signed zero of a float sentinel
+
+// Compute replacements for ABOVE, BELOW and OTHER_ZERO. Missing neighbours are
+// left equal to the sentinel. Returns 1 for an invalid dtype and 2 for NaN.
+int nodata_guard_values(uint64_t repl[3], int dtype, uint64_t pattern);
+
+// Mark holes and the side of valid samples within radius. Samples outside the
+// radius share one code so the mask remains cheap to compress. A non-finite or
+// negative radius records every side. Return values match nodata_guard_values;
+// NaN uses the plain mask and an invalid dtype leaves every sample valid.
+int nodata_mark_guarded(uint8_t *mask, const void *src, size_t nb_elts,
+                        int dtype, uint64_t pattern, double radius);
+
 // Bit pattern of the first NaN in the tile, IEEE only so elt_width is 2, 4 or
 // 8. Returns 1 when one was found and 0 otherwise. Only NaN counts, an infinity
 // is a value and travels as one.

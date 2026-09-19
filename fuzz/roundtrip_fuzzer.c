@@ -23,6 +23,9 @@
 #include "wp_static/decode_wp_static_kernel.h"
 #include "wp_static/encode_wp_static_kernel.h"
 
+#include "geozl/dtype.h"
+
+#include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -165,9 +168,53 @@ static void splitters(bits *b, unsigned which, size_t w, size_t n) {
   default: {
     const size_t width = 1 + (size_t)take(b, 4) % (2 * MAX_ELTS);
     const uint64_t pattern = take(b, 8);
-    nodata_mark_value(mask, src, n, w, pattern);
+    // Odd flags exercise the guarded form with a matching dtype.
+    const unsigned flag = (unsigned)take(b, 1);
+    if ((flag & 1) == 0) {
+      nodata_mark_value(mask, src, n, w, pattern);
+      nodata_fill(mid, src, mask, width, n, w);
+      nodata_restore(back, mid, mask, n, w, pattern);
+      break;
+    }
+    static const int kDtypes[4][3] = {
+        {GEOZL_DT_U8, GEOZL_DT_I8, GEOZL_DT_U8},
+        {GEOZL_DT_U16, GEOZL_DT_I16, GEOZL_DT_F16},
+        {GEOZL_DT_U32, GEOZL_DT_I32, GEOZL_DT_F32},
+        {GEOZL_DT_U64, GEOZL_DT_I64, GEOZL_DT_F64},
+    };
+    const size_t wi = (w == 1) ? 0 : (w == 2) ? 1 : (w == 4) ? 2 : 3;
+    const int dtype = kDtypes[wi][(flag >> 1) % 3];
+    const uint64_t s =
+        (w == 8) ? pattern : (pattern & (((uint64_t)1 << (8 * w)) - 1));
+    const unsigned rsel = (unsigned)take(b, 1);
+    const double radius = (rsel % 3 == 0)   ? INFINITY
+                          : (rsel % 3 == 1) ? 0.0
+                                            : (double)(rsel >> 2);
+    uint64_t repl[3];
+    const int rc = nodata_mark_guarded(mask, src, n, dtype, s, radius);
+    if (rc != nodata_guard_values(repl, dtype, s))
+      abort();
     nodata_fill(mid, src, mask, width, n, w);
-    nodata_restore(back, mid, mask, n, w, pattern);
+    if (rc == 2) { // a NaN sentinel keeps the plain form
+      nodata_restore(back, mid, mask, n, w, s);
+      break;
+    }
+    if (rc != 0 || nodata_restore_guarded(back, mid, mask, n, w, s, repl) != 0)
+      abort();
+    memcpy(alt, mid, n * w);
+    for (size_t i = 0; i < n; ++i)
+      if (mask[i] != GEOZL_NODATA_INVALID)
+        memcpy(alt + i * w, &s, w); // little endian, as the kernels read it
+    if (nodata_restore_guarded(alt, alt, mask, n, w, s, repl) != 0)
+      abort();
+    for (size_t i = 0; i < n; ++i) {
+      uint64_t v = 0;
+      memcpy(&v, alt + i * w, w);
+      const uint64_t want =
+          (mask[i] == GEOZL_NODATA_INVALID) ? s : repl[mask[i] - 1];
+      if (v != want || (mask[i] != GEOZL_NODATA_INVALID && v == s))
+        abort();
+    }
     break;
   }
   }
