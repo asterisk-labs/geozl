@@ -93,6 +93,7 @@ Since 0.16.0 the planar recipes do not build separate `planar` and `zigzag` node
 | --- | --- |
 | `planar>zigzag>pfor` | `planar_zigzag_pfor` (CTid `0x72D710`) into `store`; payload byte-identical to `planar_zigzag` then `pfor` |
 | any other `planar>zigzag>...` | `planar_zigzag` (CTid `0x72D70F`) then the terminal |
+| `med>zigzag>...` | `med_zigzag` (CTid `0x72D711`) then the terminal |
 | every other predictor | predictor node, then OpenZL `zigzag`, then the terminal |
 
 Old frames written with separate `planar`, `zigzag` and `pfor` nodes still decode.

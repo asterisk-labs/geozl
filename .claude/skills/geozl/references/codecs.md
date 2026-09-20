@@ -44,6 +44,7 @@ destroys data. Released CTids are never reassigned.
 | `blocked_transpose_zstd` | `0x72D70E` | terminal (WIP) | numeric -> serial | none | per-block byte shuffle plus Zstandard |
 | `planar_zigzag` | `0x72D70F` | fused | numeric -> numeric | `PlanarZigzag(width, planes)` | planar then Zigzag in one pass |
 | `planar_zigzag_pfor` | `0x72D710` | fused | numeric -> serial | `PlanarZigzagPfor(width, planes)` | planar, Zigzag and PFOR, one 256-value block at a time |
+| `med_zigzag` | `0x72D711` | fused | numeric -> numeric | `MedZigzag(width, planes)` | MED then Zigzag in one pass |
 | `quant_linear` | `0x72D781` | lossy | numeric -> numeric | `QuantLinear(recipe, dtype)` | uniform grid, absolute bound |
 | `quant_log` | `0x72D782` | lossy | numeric -> numeric | `QuantLog(recipe, dtype)` | logarithmic grid, relative bound |
 | `quant_sqrt` | `0x72D783` | lossy | numeric -> numeric | `QuantSqrt(recipe, dtype)` | square-root grid, bound follows `sqrt(a + b*x)` |
@@ -56,7 +57,7 @@ The README documents fourteen codecs: the six predictors, the two fused codecs,
 | Codec | Bytes | Layout |
 | --- | --- | --- |
 | `delta_w` | 4 | `u32 width` |
-| `delta_n`, `planar`, `planar_zigzag`, `med`, `average` | 4 or 8 | `u32 width` [`u32 planes`, written only when planes > 1] |
+| `delta_n`, `planar`, `planar_zigzag`, `med`, `med_zigzag`, `average` | 4 or 8 | `u32 width` [`u32 planes`, written only when planes > 1] |
 | `wp_static` | 13 or 17 | `u32 width`, `u8 shift` (< 64), `i16 cN, cNW, cNE, cNN` [`u32 planes`] |
 | `deinterleave` | 0 | lane counts must be equal or even lane one longer |
 | `nodata` | `w` or `4w` | plain: the NoData bit pattern; guarded: the pattern, then its neighbour above, below and the other signed zero |
@@ -87,6 +88,7 @@ Arithmetic wraps at the element width unless stated.
 | `average` | `out = r + (W >> 1) + (N >> 1) + (W & N & 1)` |
 | `wp_static` | `out = r + W + ((cN*N + cNW*NW + cNE*NE + cNN*NN + round) >> shift)`, 32-bit accumulator for 1 and 2 byte samples, 64-bit otherwise |
 | `planar_zigzag` | `r = (z >> 1) ^ -(z & 1)`, then planar |
+| `med_zigzag` | `r = (z >> 1) ^ -(z & 1)`, then med |
 | `pfor` | per block: unpack the `b`-bit body, then OR `exception_bits << b` into each listed position |
 | `nodata` | plain: `out = mask == 0 ? pattern : values`; guarded (mask 0 hole, 1 above, 2 below, 3 other zero): a hole takes `pattern`, a value equal to `pattern` takes the replacement its code names, anything else is copied; codes above 3 or a replacement equal to `pattern` are corrupt |
 | `quant_linear` | integer index: `q * step` in integer arithmetic; float index: `q * step`; values: copy or cast; clamp to dtype (and to 0 when `NONNEGATIVE`) |

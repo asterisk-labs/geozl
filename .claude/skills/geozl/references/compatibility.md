@@ -42,6 +42,7 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
 
 | Version | Change | Consequence |
 | --- | --- | --- |
+| 0.18.0 (2026-09-20) | new fused codec `med_zigzag`; `med>zigzag>...` recipes select it | frames need a 0.18.0 reader; older frames with separate nodes still decode |
 | 0.16.0 (2026-09-01) | new fused codecs `planar_zigzag` and `planar_zigzag_pfor`; `planar>zigzag>...` recipes select them | frames need a 0.16.0 reader; older frames with separate nodes still decode |
 | 0.15.1 | `quant_linear` accepts all-zero domains | no format change |
 | 0.15.0 | coefficient vectors in the frame header comment | frames without coeffs unchanged |

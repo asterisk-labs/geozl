@@ -133,7 +133,7 @@ predictors restart at each plane boundary, so nothing is predicted across bands:
 
 | Codec | Planes |
 | --- | --- |
-| `planar`, `planar_zigzag`, `planar_zigzag_pfor`, `delta_n`, `average`, `med`, `wp_static` | restart per plane (`wp_static` shares one set of weights across planes) |
+| `planar`, `planar_zigzag`, `planar_zigzag_pfor`, `delta_n`, `average`, `med`, `med_zigzag`, `wp_static` | restart per plane (`wp_static` shares one set of weights across planes) |
 | `delta_w` | reads only to its left, takes no plane count (`DeltaW(width, planes=2)` raises `ValueError`) |
 | `delta_1d`, `id`, terminals | see a flat stream |
 
