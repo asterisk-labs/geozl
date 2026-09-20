@@ -10,6 +10,7 @@
 #include "floatquant/decode_floatquant_binding.h"
 #include "intmult/decode_intmult_binding.h"
 #include "med/decode_med_binding.h"
+#include "med_zigzag/decode_med_zigzag_binding.h"
 #include "nodata/decode_nodata_binding.h"
 #include "pfor/decode_pfor_binding.h"
 #include "planar/decode_planar_binding.h"
@@ -38,6 +39,7 @@ static const ZL_TypedDecoderDesc kDecoders[] = {
     REGISTER(GEOZL_CTID_PLANAR_ZIGZAG, DI_PLANAR_ZIGZAG),
     REGISTER(GEOZL_CTID_PLANAR_ZIGZAG_PFOR, DI_PLANAR_ZIGZAG_PFOR),
     REGISTER(GEOZL_CTID_MED, DI_MED),
+    REGISTER(GEOZL_CTID_MED_ZIGZAG, DI_MED_ZIGZAG),
     REGISTER(GEOZL_CTID_AVERAGE, DI_AVERAGE),
     REGISTER(GEOZL_CTID_WP_STATIC, DI_WP_STATIC),
     REGISTER(GEOZL_CTID_DEINTERLEAVE, DI_DEINTERLEAVE),

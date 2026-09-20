@@ -10,6 +10,7 @@
 #include "floatquant/encode_floatquant_binding.h"
 #include "intmult/encode_intmult_binding.h"
 #include "med/encode_med_binding.h"
+#include "med_zigzag/encode_med_zigzag_binding.h"
 #include "nodata/encode_nodata_binding.h"
 #include "pfor/encode_pfor_binding.h"
 #include "planar/encode_planar_binding.h"
@@ -86,6 +87,11 @@ ZL_NodeID geozl_node_planar_zigzag_pfor(ZL_Compressor *c, uint32_t width,
 ZL_NodeID geozl_node_med(ZL_Compressor *c, uint32_t width,
                             uint32_t planes) {
   const ZL_TypedEncoderDesc desc = EI_MED(GEOZL_CTID_MED);
+  return geometry_node(c, &desc, width, planes);
+}
+ZL_NodeID geozl_node_med_zigzag(ZL_Compressor *c, uint32_t width,
+                            uint32_t planes) {
+  const ZL_TypedEncoderDesc desc = EI_MED_ZIGZAG(GEOZL_CTID_MED_ZIGZAG);
   return geometry_node(c, &desc, width, planes);
 }
 ZL_NodeID geozl_node_average(ZL_Compressor *c, uint32_t width,

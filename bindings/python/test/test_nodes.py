@@ -13,6 +13,7 @@ _NODES = [
     ("planar_zigzag_pfor", lambda: geozl.lossless.PlanarZigzagPfor(8)),
     ("delta_w", lambda: geozl.lossless.DeltaW(8)),
     ("med", lambda: geozl.lossless.Med(8)),
+    ("med_zigzag", lambda: geozl.lossless.MedZigzag(8)),
     ("wp_static", lambda: geozl.lossless.WpStatic(8)),
     ("deinterleave", lambda: geozl.lossless.Deinterleave()),
     ("quant_linear",

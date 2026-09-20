@@ -7,11 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `med_zigzag`, a fused implementation of `med>zigzag`. It applies the Zigzag
+  mapping while producing the MED residuals, without an intermediate residual
+  array, and undoes it inside the reconstruction on the way back.
+
 ### Changed
 
 - `med` decodes four rows at a time, each one column behind the row above, so
   their dependency chains run concurrently. Its median is written with masks to
-  keep the select off unpredictable branches.
+  keep the select off unpredictable branches. `med_zigzag` shares that
+  traversal.
+- MED candidates use `med_zigzag` in the two-dimensional graph builder.
+  Explicit graphs can still use the individual codecs.
+- Frames written with `med_zigzag` require a reader that knows its codec ID.
+  New readers continue to accept frames produced by earlier releases.
 
 ## [0.17.0] - 2026-09-19
 

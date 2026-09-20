@@ -221,8 +221,10 @@ static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
     // no residual: the raw numeric stream feeds the terminal
   } else if (p == GEOZL_PRED_DELTA_1D) {
     head[n++] = ZL_NODE_DELTA_INT;
-  } else if (p == GEOZL_PRED_PLANAR) {
-    ZL_NodeID fused = geozl_node_planar_zigzag(c, width, planes);
+  } else if (p == GEOZL_PRED_PLANAR || p == GEOZL_PRED_MED) {
+    ZL_NodeID fused = (p == GEOZL_PRED_PLANAR)
+                          ? geozl_node_planar_zigzag(c, width, planes)
+                          : geozl_node_med_zigzag(c, width, planes);
     if (!ZL_NodeID_isValid(fused))
       return ZL_GRAPH_ILLEGAL;
     head[n++] = fused;
