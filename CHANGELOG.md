@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `med` decodes four rows at a time, each one column behind the row above, so
+  their dependency chains run concurrently. Its median is written with masks to
+  keep the select off unpredictable branches.
+
 ## [0.17.0] - 2026-09-19
 
 ### Fixed
