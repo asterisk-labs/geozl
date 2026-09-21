@@ -14,14 +14,7 @@
 
 ## What is GeoZL?
 
-[OpenZL](https://github.com/facebook/openzl) represents compression as a graph
-of codecs. GeoZL adds raster-aware nodes for numeric tiles: spatial predictors,
-NoData handling and bounded-error quantizers.
-
-<p align="center">
-  <img src="docs/assets/svg/graph-recipes.svg" alt="GeoZL" width="750"/>
-</p>
-
+[OpenZL](https://github.com/facebook/openzl) represents compression as a graph of codecs. GeoZL adds raster-aware nodes for numeric tiles, like spatial predictors, NoData handling and bounded-error quantizers.
 
 ## Status
 
