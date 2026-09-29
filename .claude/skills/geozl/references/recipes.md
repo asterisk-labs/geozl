@@ -22,9 +22,10 @@ id><terminal>                     no predictor
 ```
 
 `<terminal>` is one of `entropy`, `field_lz`, `zstd`, `categorical`,
-`transpose>entropy`, `transpose>zstd`, `blocked_transpose_zstd`, `pfor`.
+`transpose>entropy`, `transpose>zstd`, `blocked_transpose_zstd`, `pfor`,
+`pivco`, `transpose>pivco`.
 
-That gives 8 predictors x 8 terminals = 64 names. Anything else, such as
+That gives 8 predictors x 10 terminals = 80 names. Anything else, such as
 `planar>entropy`, `id>zigzag>entropy`, `planar_zigzag>entropy` or the removed
 `store_lo`, is `unknown method`.
 
@@ -71,6 +72,8 @@ bit for bit through their integer representation.
 | `transpose>entropy` | split elements into byte lanes (low byte first), entropy per lane | 2, 4, 8 (refused at 1) | the byte shuffle of blosc and EOPF |
 | `transpose>zstd` | byte lanes, Zstandard per lane | 2, 4, 8 (refused at 1) | `id>transpose>zstd` is the EOPF-style baseline |
 | `blocked_transpose_zstd` | fused shuffle plus independent Zstandard frames per 2 MiB block | 1, 2, 4, 8 | **work in progress**, not in the docs or Python node API |
+| `pivco` | OpenZL 0.3 PivCo Huffman on the numeric stream | 1, 2 (refused above at build) | faster decode than `entropy`, but Huffman only: loses ratio on skewed data where `entropy` picks FSE; writes OpenZL format 27 |
+| `transpose>pivco` | byte lanes, PivCo Huffman per lane | 2, 4, 8 (refused at 1) | same trade against `transpose>entropy`; writes OpenZL format 27 |
 | `pfor` | blocks of 256 packed at the bit width with the smallest estimated size, overflowing values patched as exceptions | 1, 2, 4, 8 | very fast decode; cost grows with residual magnitude, so it pairs well with integer quantizer indices |
 
 ## 4. Which recipes run at which element width

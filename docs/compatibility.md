@@ -46,5 +46,7 @@ GeoZL frames are OpenZL frames, so OpenZL container compatibility follows
 OpenZL. The Python package supports OpenZL 0.3.x.
 
 GeoZL writes OpenZL frame format 24, the newest one OpenZL 0.2 reads, so
-GeoZL 0.18 readers decode what later releases write. Readers accept every
-format OpenZL 0.3 does, up to 27.
+GeoZL 0.18 readers decode what later releases write. The exception is the
+`pivco` and `transpose>pivco` terminals: PivCo Huffman exists from format 27,
+so their frames need a reader on OpenZL 0.3, and a 0.18 reader refuses them.
+Readers accept every format OpenZL 0.3 does, up to 27.

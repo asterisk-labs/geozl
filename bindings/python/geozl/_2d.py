@@ -365,7 +365,7 @@ def decompress(frame: bytes, *, verify: bool = True,
 
 def _grid_names(prior: str | None, elt: int) -> list[str]:
     lib = _load_lib_full()
-    stride, cap = 48, 64
+    stride, cap = 48, 128
     names = ffi.new("char[]", stride * cap)
     count = ffi.new("size_t*")
     rc = lib.geozl_2d_grid_c((prior or "").encode("utf-8"), elt, names, stride,

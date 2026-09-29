@@ -39,8 +39,10 @@
 #endif
 
 #define OPENZL_COMMENT_VERSION_MIN 22
-// OpenZL 0.2 reads up to format 24, and nothing geozl writes gains from 27.
+// OpenZL 0.2 reads up to format 24, and nothing geozl writes gains from 27
+// except PivCo Huffman, which exists from 27 on.
 #define GEOZL_FORMAT_VERSION 24
+#define GEOZL_PIVCO_FORMAT_VERSION 27
 
 // A method combines an optional predictor with a terminal, for example
 // "planar>zigzag>entropy". The full graph is:
@@ -72,6 +74,8 @@ typedef enum {
   GEOZL_TERM_T_ZSTD,      // transpose to lanes, zstd (shuffle + zstd)
   GEOZL_TERM_BLOCKED_T_ZSTD, // fused blocked shuffle + zstd
   GEOZL_TERM_PFOR,        // bit pack fixed blocks and patch exceptions
+  GEOZL_TERM_PIVCO,       // PivCo Huffman, faster to decode than entropy
+  GEOZL_TERM_T_PIVCO,     // transpose to lanes, PivCo Huffman per lane
   GEOZL_TERM_COUNT
 } geozl_terminal;
 
@@ -102,6 +106,8 @@ static const char *term_name(geozl_terminal t) {
   case GEOZL_TERM_T_ZSTD:    return "transpose>zstd";
   case GEOZL_TERM_BLOCKED_T_ZSTD: return "blocked_transpose_zstd";
   case GEOZL_TERM_PFOR:      return "pfor";
+  case GEOZL_TERM_PIVCO:     return "pivco";
+  case GEOZL_TERM_T_PIVCO:   return "transpose>pivco";
   default:                   return "?";
   }
 }
@@ -270,12 +276,21 @@ static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
       return ZL_GRAPH_ILLEGAL;
     return chain(c, head, n, fg);
   }
+  case GEOZL_TERM_PIVCO:
+    // Huffman only, so unlike entropy it never falls back to FSE on skewed
+    // data, and like entropy it stops at 2-byte symbols.
+    if (eltWidth > 2)
+      return ZL_GRAPH_ILLEGAL;
+    return chain(c, head, n, ZL_GRAPH_HUFFMAN_PIVCO);
   case GEOZL_TERM_T_ENTROPY:
-  case GEOZL_TERM_T_ZSTD: {
+  case GEOZL_TERM_T_ZSTD:
+  case GEOZL_TERM_T_PIVCO: {
     // transpose to byte lanes, every lane to one backend
     if (eltWidth < 2 || eltWidth > 8)
       return ZL_GRAPH_ILLEGAL;
-    ZL_GraphID back = (t == GEOZL_TERM_T_ZSTD) ? ZL_GRAPH_ZSTD : ZL_GRAPH_ENTROPY;
+    ZL_GraphID back = (t == GEOZL_TERM_T_ZSTD)    ? ZL_GRAPH_ZSTD
+                      : (t == GEOZL_TERM_T_PIVCO) ? ZL_GRAPH_HUFFMAN_PIVCO
+                                                  : ZL_GRAPH_ENTROPY;
     ZL_GraphID tg = ZL_Compressor_registerTransposeSplitGraph(c, back);
     if (!ZL_GraphID_isValid(tg))
       return ZL_GRAPH_ILLEGAL;
@@ -495,7 +510,8 @@ static ZL_Report graph_open(geozl_2d_graph **out, const char *method,
     if (has_err)
       snprintf(errCtx, errCtxSize,
                "method \"%s\" does not apply to %zu-byte elements; the "
-               "transpose terminals need 2 to 8, categorical needs 1 or 2",
+               "transpose terminals need 2 to 8, categorical needs 1 or 2, as "
+               "does pivco",
                method, eltWidth);
     r = ZL_returnError(ZL_ErrorCode_graph_invalid);
     goto fail;
@@ -523,8 +539,10 @@ static ZL_Report graph_open(geozl_2d_graph **out, const char *method,
     owner = ERR_CCTX;
     goto fail;
   }
+  const int pivco = term == GEOZL_TERM_PIVCO || term == GEOZL_TERM_T_PIVCO;
   r = ZL_CCtx_setParameter(e->cctx, ZL_CParam_formatVersion,
-                           GEOZL_FORMAT_VERSION);
+                           pivco ? GEOZL_PIVCO_FORMAT_VERSION
+                                 : GEOZL_FORMAT_VERSION);
   if (ZL_isError(r)) {
     owner = ERR_CCTX;
     goto fail;
@@ -948,12 +966,15 @@ GEOZL_API int geozl_2d_grid_c(const char *method, size_t eltWidth, char *names,
   for (size_t i = 0; i < nbPreds; ++i) {
     for (int t = 0; t < GEOZL_TERM_COUNT; ++t) {
       if (((geozl_terminal)t == GEOZL_TERM_T_ENTROPY ||
-           (geozl_terminal)t == GEOZL_TERM_T_ZSTD) &&
+           (geozl_terminal)t == GEOZL_TERM_T_ZSTD ||
+           (geozl_terminal)t == GEOZL_TERM_T_PIVCO) &&
           (eltWidth < 2 || eltWidth > 8))
         continue;
       // categorical's entropy arm tops out at 2, the same place ZL_GRAPH_ENTROPY
-      // does
-      if ((geozl_terminal)t == GEOZL_TERM_CATEGORICAL && eltWidth > 2)
+      // and PivCo do
+      if (((geozl_terminal)t == GEOZL_TERM_CATEGORICAL ||
+           (geozl_terminal)t == GEOZL_TERM_PIVCO) &&
+          eltWidth > 2)
         continue;
       if (k < maxNames)
         candidate_name(preds[i], (geozl_terminal)t, names + k * stride, stride);

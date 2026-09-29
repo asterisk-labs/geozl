@@ -180,6 +180,21 @@ def test_frames_stay_readable_by_openzl_0_2():
     assert int.from_bytes(bytes(frame[:4]), "little") - 0xD7B1A5C0 == 24
 
 
+@pytest.mark.parametrize("method", ["planar>zigzag>pivco",
+                                    "planar>zigzag>transpose>pivco"])
+def test_pivco_frames_need_openzl_0_3_and_round_trip(method):
+    # PivCo Huffman exists from format 27, the one recipe family that needs it
+    arr = _tile()
+    frame = _frame(arr, method=method)
+    assert int.from_bytes(bytes(frame[:4]), "little") - 0xD7B1A5C0 == 27
+    assert np.array_equal(_roundtrip(arr, method=method), arr)
+
+
+def test_pivco_stops_at_two_byte_elements():
+    with pytest.raises(RuntimeError, match="as does pivco"):
+        geozl.graph(_tile(dtype=np.int32), "planar>zigzag>pivco")
+
+
 def test_unreadable_frame_is_reported():
     with pytest.raises(RuntimeError, match="unreadable frame"):
         geozl.decompress(b"not a frame at all")
@@ -307,15 +322,15 @@ def test_unbiased_prior_sweeps_more_graphs_than_a_named_one():
 
 
 def test_unbiased_prior_is_the_whole_grid():
-    # 8 predictors x 8 terminals, all buildable at 2 bytes per element
-    assert len(geozl.profile(_tile(), prior=None, reps=1)) == 64
+    # 8 predictors x 10 terminals, all buildable at 2 bytes per element
+    assert len(geozl.profile(_tile(), prior=None, reps=1)) == 80
 
 
 def test_the_grid_at_one_byte_keeps_categorical_and_drops_the_rest():
-    # 8 x 6: the two lane-producing transpose terminals need 2 bytes. The fused
-    # blocked terminal, categorical and pfor also work on byte streams.
+    # 8 x 7: the three lane-producing transpose terminals need 2 bytes. The fused
+    # blocked terminal, categorical, pfor and pivco also work on byte streams.
     rows = geozl.profile(_tile(dtype=np.uint8), prior=None, reps=1)
-    assert len(rows) == 48
+    assert len(rows) == 56
     assert any(r["graph"].endswith("categorical") for r in rows)
     assert any(r["graph"].endswith("pfor") for r in rows)
 

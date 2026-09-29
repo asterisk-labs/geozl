@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `pivco` and `transpose>pivco` terminals, OpenZL 0.3's PivCo Huffman on the
+  residual or on each byte lane. PivCo decodes faster than `entropy` but is
+  Huffman only, so it gives ratio away on skewed data where `entropy` picks
+  FSE. Their frames use OpenZL format 27 and need a reader on OpenZL 0.3.
 - Alpha support for Linux arm64, macOS x86-64, Windows x64 and arm64, and
   wasm64, built and tested in CI. No wheels are published for them yet.
   OpenZL publishes no Python wheel for these platforms, so there the package
