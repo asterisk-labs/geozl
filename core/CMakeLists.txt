@@ -89,6 +89,18 @@ endif()
 include(GNUInstallDirs)
 find_library(GEOZL_LIBM m)   # the wp_static trainer and the quantizers use libm
 
+# clang-cl turns __int128 division and __builtin_cpu_supports into calls into
+# compiler-rt, which the MSVC linker does not bring in on its own.
+if(CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC" AND CMAKE_C_COMPILER_ID STREQUAL "Clang")
+    execute_process(
+        COMMAND ${CMAKE_C_COMPILER} /clang:--rtlib=compiler-rt /clang:-print-libgcc-file-name
+        OUTPUT_VARIABLE GEOZL_CLANG_RT OUTPUT_STRIP_TRAILING_WHITESPACE)
+    file(TO_CMAKE_PATH "${GEOZL_CLANG_RT}" GEOZL_CLANG_RT)
+    if(NOT EXISTS "${GEOZL_CLANG_RT}")
+        message(FATAL_ERROR "clang-cl has no compiler-rt builtins at ${GEOZL_CLANG_RT}")
+    endif()
+endif()
+
 # Discover codecs by convention: any src/<name>/ that has an
 # encode_<name>_binding.c is a codec. CONFIGURE_DEPENDS re-globs on build, so a
 # new codec folder is picked up without editing this file.
@@ -168,6 +180,9 @@ if(GEOZL_BUILD_FULL)
     if(GEOZL_LIBM)
         target_link_libraries(geozl PRIVATE ${GEOZL_LIBM})
     endif()
+    if(GEOZL_CLANG_RT)
+        target_link_libraries(geozl PRIVATE ${GEOZL_CLANG_RT})
+    endif()
 
     install(TARGETS geozl ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
                           LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
@@ -221,6 +236,9 @@ if(GEOZL_BUILD_KERNELS_SHARED)
     target_compile_options(geozl_kernels PRIVATE ${GEOZL_WARN} ${GEOZL_FP})
     if(GEOZL_LIBM)
         target_link_libraries(geozl_kernels PRIVATE ${GEOZL_LIBM})
+    endif()
+    if(GEOZL_CLANG_RT)
+        target_link_libraries(geozl_kernels PRIVATE ${GEOZL_CLANG_RT})
     endif()
     install(TARGETS geozl_kernels LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
