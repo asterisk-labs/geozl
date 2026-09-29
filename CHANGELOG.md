@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Alpha support for Linux arm64, macOS x86-64, Windows x64 and arm64, and
+  wasm64, built and tested in CI. No wheels are published for them yet.
+  OpenZL publishes no Python wheel for these platforms, so there the package
+  installs without `openzl` and runs the high-level API on the OpenZL inside
+  `libgeozl`. `geozl.lossless` and `geozl.lossy` need `openzl` built from
+  source.
+
 ### Changed
 
 - OpenZL 0.3.0, and the Python package depends on OpenZL 0.3.x. Its decoders

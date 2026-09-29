@@ -65,12 +65,21 @@ endif()
 # of twice, and whether it does depends on the target and the compiler version.
 # On arm64 it always does. Fallin and Burtscher hit the same thing between CPU
 # and GPU builds of LC and reached for the same switch (arXiv:2407.15037).
-if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+# clang-cl ignores -ffp-contract=off with a warning and keeps contracting, so it
+# gets the flag through /clang:, and /W4 because its -Wall means -Weverything.
+if(CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+    set(GEOZL_FP /clang:-ffp-contract=off)
+elseif(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     set(GEOZL_FP -ffp-contract=off)
 endif()
 
 # Applied to the geozl targets only, so vendored OpenZL keeps its own warnings.
-if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+if(CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+    set(GEOZL_WARN /W4)
+    if(GEOZL_WERROR)
+        list(APPEND GEOZL_WARN /WX)
+    endif()
+elseif(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     set(GEOZL_WARN -Wall -Wextra)
     if(GEOZL_WERROR)
         list(APPEND GEOZL_WARN -Werror)
@@ -199,7 +208,10 @@ endif()
 
 if(GEOZL_BUILD_KERNELS_SHARED)
     add_library(geozl_kernels SHARED ${GEOZL_KERNELS})
-    set_target_properties(geozl_kernels PROPERTIES C_VISIBILITY_PRESET default)
+    # The kernel headers carry no export attribute, so a Windows DLL needs every
+    # symbol exported to match what default visibility gives elsewhere.
+    set_target_properties(geozl_kernels PROPERTIES C_VISIBILITY_PRESET default
+                          WINDOWS_EXPORT_ALL_SYMBOLS ON)
     target_compile_definitions(geozl_kernels PRIVATE GEOZL_BUILD)
     # include/ too: the kernels take their parameter blocks from geozl/, which is
     # public because the node builders over them are.

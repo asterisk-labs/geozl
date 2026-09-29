@@ -33,6 +33,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h> // QueryPerformanceCounter
+#endif
 
 #define OPENZL_COMMENT_VERSION_MIN 22
 // OpenZL 0.2 reads up to format 24, and nothing geozl writes gains from 27.
@@ -783,11 +787,21 @@ GEOZL_API int geozl_2d_decompress_c(const void *frame, size_t frameSize,
   return ZL_isError(r) ? (int)ZL_errorCode(r) : 0;
 }
 
+#ifdef _WIN32
+// The Windows C runtime has no clock_gettime.
+static double now_sec(void) {
+  LARGE_INTEGER f, t;
+  QueryPerformanceFrequency(&f);
+  QueryPerformanceCounter(&t);
+  return (double)t.QuadPart / (double)f.QuadPart;
+}
+#else
 static double now_sec(void) {
   struct timespec t;
   clock_gettime(CLOCK_MONOTONIC, &t);
   return (double)t.tv_sec + (double)t.tv_nsec * 1e-9;
 }
+#endif
 
 // Fall back to the run mean when one repetition is below clock resolution.
 static double best_or_mean(double best, double run, size_t reps) {

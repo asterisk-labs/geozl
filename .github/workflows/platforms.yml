@@ -1,0 +1,167 @@
+name: Platforms (alpha)
+
+# The platforms outside the released wheels. OpenZL publishes no Python wheel
+# for any of them, so these jobs test what a user there gets: the high-level API
+# on the OpenZL inside libgeozl, with the openzl.ext codec classes skipped.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unix:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Linux arm64, runner: ubuntu-24.04-arm }
+          - { name: macOS x86-64, runner: macos-15-intel }
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install cmake ninja numpy cffi pytest
+
+      - name: Build and test
+        run: make test FULL=ON
+
+  windows:
+    name: Windows ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64,   runner: windows-2025,   msvc: amd64 }
+          - { arch: arm64, runner: windows-11-arm, msvc: arm64 }
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.msvc }}
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install cmake ninja numpy cffi pytest
+
+      # clang-cl because OpenZL does not build with cl.
+      - name: Build
+        run: |
+          cmake -S core -B core/build -G Ninja -DCMAKE_BUILD_TYPE=Release `
+                -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl
+          cmake --build core/build
+
+      - name: Stage the libraries and install geozl
+        run: |
+          New-Item -ItemType Directory -Force bindings/python/geozl/_lib | Out-Null
+          Copy-Item core/build/geozl.dll, core/build/geozl_kernels.dll bindings/python/geozl/_lib/
+          python -m pip install -e bindings/python
+          python -c "import geozl, json; print(geozl.__version__, json.dumps(geozl.simd_info()))"
+
+      - name: Test
+        run: python -m pytest -q bindings/python
+
+  wasm:
+    name: WebAssembly (wasm64)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      # OpenZL needs a 64-bit size_t, so this is wasm64 and needs Memory64 to run.
+      - name: Install Emscripten
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install 4.0.19
+          "$RUNNER_TEMP/emsdk/emsdk" activate 4.0.19
+          python3 -m pip install cmake ninja
+
+      - name: Build libgeozl
+        run: |
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          emcmake cmake -S core -B core/build-wasm -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DGEOZL_BUILD_FULL=ON -DGEOZL_BUILD_KERNELS_SHARED=OFF -DGEOZL_LIB_TYPE=STATIC \
+            -DZSTD_BUILD_SHARED=OFF -DLZ4_BUILD_SHARED=OFF \
+            -DCMAKE_C_FLAGS=-sMEMORY64=1 -DCMAKE_CXX_FLAGS=-sMEMORY64=1
+          cmake --build core/build-wasm --target geozl
+
+      # The same sources make test-c compiles. -pthread for test_wp_static_mt.
+      - name: C tests
+        run: |
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          mkdir -p core/build-wasm/ctest
+          kernels="$(ls core/src/*/encode_*_kernel.c core/src/*/decode_*_kernel.c) \
+            core/src/coeffs/coeffs.c core/src/wp_static/train_wp_static.c \
+            core/src/lossy/lossy_recipe.c core/src/quant_linear/quant_linear_spec.c \
+            core/src/quant_sqrt/quant_sqrt_spec.c core/src/quant_sqrt/quant_sqrt_fit.c \
+            core/src/quant_log/quant_log_spec.c core/src/common/simd.c"
+          for t in test/test_*.c; do
+            n=$(basename "$t" .c)
+            emcc -O1 -std=c11 -ffp-contract=off -pthread -sPTHREAD_POOL_SIZE=16 \
+              -sMEMORY64=1 -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=16GB \
+              -Icore/include -Icore/src "$t" $kernels -lm -o "core/build-wasm/ctest/$n.js"
+            node "core/build-wasm/ctest/$n.js"
+          done
+
+      - name: Decode the released frames
+        run: |
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          b=core/build-wasm
+          emcc -O2 -sMEMORY64=1 -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=16GB \
+            -sMODULARIZE=1 -sEXPORT_ES6=1 -sENVIRONMENT=node \
+            -sEXPORTED_FUNCTIONS=_geozl_2d_frame_dsize_c,_geozl_2d_decompress_c,_malloc,_free \
+            -sEXPORTED_RUNTIME_METHODS=HEAPU8 \
+            $b/libgeozl.a $b/openzl/libopenzl.a $b/openzl/zstd_build/lib/libzstd.a \
+            $b/openzl/lz4_build/liblz4.a -o $b/geozl.mjs
+          cat > $b/golden.mjs <<'EOF'
+          import createGeozl from "./geozl.mjs";
+          import { readFileSync } from "node:fs";
+          import { createHash } from "node:crypto";
+          const dir = process.argv[2];
+          const m = await createGeozl();
+          const manifest = JSON.parse(readFileSync(`${dir}/manifest.json`, "utf8"));
+          const sha = (b) => createHash("sha256").update(b).digest("hex");
+          let bad = 0;
+          for (const e of manifest.frames) {
+            const frame = readFileSync(`${dir}/frames/${e.file}`);
+            const src = m._malloc(frame.length);
+            m.HEAPU8.set(frame, Number(src));
+            const n = Number(m._geozl_2d_frame_dsize_c(BigInt(src), BigInt(frame.length)));
+            const dst = m._malloc(Math.max(n, 1)), out = m._malloc(8), err = m._malloc(256);
+            const rc = m._geozl_2d_decompress_c(BigInt(src), BigInt(frame.length), BigInt(dst),
+                                                BigInt(n), BigInt(out), 1, BigInt(err), 256n);
+            const back = m.HEAPU8.subarray(Number(dst), Number(dst) + n);
+            if (rc !== 0 || sha(back) !== e.sha256_decoded) { bad++; console.log("FAIL", e.file, rc); }
+            for (const p of [src, dst, out, err]) m._free(p);
+          }
+          console.log(`${manifest.frames.length - bad}/${manifest.frames.length} golden frames decode`);
+          process.exit(bad ? 1 : 0);
+          EOF
+          node $b/golden.mjs bindings/python/test/golden
