@@ -49,6 +49,9 @@ jobs:
           - { arch: x64,   runner: windows-2025,   msvc: amd64 }
           - { arch: arm64, runner: windows-11-arm, msvc: arm64 }
     steps:
+      # test_licenses compares bytes with the submodule, which keeps LF.
+      - run: git config --global core.autocrlf false
+
       - uses: actions/checkout@v7
         with:
           submodules: true
