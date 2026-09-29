@@ -18,7 +18,8 @@ authors = [
 dependencies = [
     "numpy>=1.24",
     "cffi>=1.17",
-    "openzl>=0.3,<0.4",
+    # Only where OpenZL publishes a wheel; elsewhere geozl runs without it.
+    "openzl>=0.3,<0.4; (sys_platform == 'linux' and platform_machine == 'x86_64') or (sys_platform == 'darwin' and platform_machine == 'arm64')",
 ]
 
 classifiers = [

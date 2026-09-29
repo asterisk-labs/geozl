@@ -180,8 +180,8 @@ lib: build
 	  fi
 
 python: lib
-	@$(PYTHON) -c 'import numpy, cffi, openzl' 2>/dev/null \
-	  || { echo "missing runtime deps, install: numpy cffi openzl"; exit 1; }
+	@$(PYTHON) -c 'import numpy, cffi' 2>/dev/null \
+	  || { echo "missing runtime deps, install: numpy cffi"; exit 1; }
 	$(PYTHON) -m pip install -e $(PY_DIR) -q
 	$(SAN_ENV) $(PYTHON) -c "import geozl; print('geozl', geozl.__version__)"
 

@@ -181,6 +181,7 @@ def test_low_level_node_takes_an_unbound_successor():
 
 def test_low_level_nan_round_trips():
     """The codec placed by hand, which is what the README table advertises."""
+    pytest.importorskip("openzl.ext")
     tile = _smooth(np.float32)
     tile[_holes()] = ODD_NAN
     out = _low_level_roundtrip(geozl.lossless.Nodata(COLS), tile)
@@ -188,6 +189,7 @@ def test_low_level_nan_round_trips():
 
 
 def test_low_level_sentinel_round_trips():
+    pytest.importorskip("openzl.ext")
     tile = _smooth(np.int32)
     tile[_holes()] = -9999
     node = geozl.lossless.Nodata(COLS, value=-9999, dtype=np.int32)
@@ -196,12 +198,14 @@ def test_low_level_sentinel_round_trips():
 
 
 def test_low_level_sentinel_needs_a_dtype():
+    pytest.importorskip("openzl.ext")
     with pytest.raises(ValueError, match="dtype"):
         geozl.lossless.Nodata(COLS, value=-9999)
 
 
 def test_the_degenerate_tiles_go_through_the_one_wire_shape():
     """Both ends of the range, no holes at all and nothing but holes."""
+    pytest.importorskip("openzl.ext")
     node = geozl.lossless.Nodata(COLS, value=-9999, dtype=np.int32)
     clean = _smooth(np.int32)
     assert np.array_equal(_low_level_roundtrip(node, clean), clean.reshape(-1))
@@ -213,6 +217,7 @@ def test_the_degenerate_tiles_go_through_the_one_wire_shape():
 def test_python_and_c_pack_the_same_header():
     """Cross reader. The Python node and the C binding write the same bytes, so
     a frame from one decodes in the other."""
+    pytest.importorskip("openzl.ext")
     from geozl.lossless import nodata as _nd
     assert _nd.nodata_bits(-9999, np.int32) == 0xFFFFD8F1
     assert _nd.nodata_bits(np.float32(-9999.0), np.float32) == 0xC61C3C00
@@ -221,6 +226,7 @@ def test_python_and_c_pack_the_same_header():
 
 
 def test_a_sentinel_needs_a_type_that_can_carry_one():
+    pytest.importorskip("openzl.ext")
     # the two nodata_bits in 2d.c refuses, so both readers agree on the same
     # rasters
     with pytest.raises(ValueError, match="half float"):
@@ -392,6 +398,7 @@ def _nodata_header(frame):
 
 
 def test_lossless_sentinel_is_guarded_too():
+    pytest.importorskip("openzl.ext")
     tile = _smooth(np.uint16)
     tile[_holes()] = 7
     header = _nodata_header(_frame(tile, method=GRAPH, nodata=7))
@@ -399,6 +406,7 @@ def test_lossless_sentinel_is_guarded_too():
 
 
 def test_lossy_nan_mode_keeps_the_plain_form():
+    pytest.importorskip("openzl.ext")
     tile = _smooth(np.float32)
     tile[_holes()] = ODD_NAN
     frame = _frame(tile, method=GRAPH_WIDE, error="LINEAR:MAX_ERROR=2")
@@ -406,6 +414,7 @@ def test_lossy_nan_mode_keeps_the_plain_form():
 
 
 def test_lossy_sentinel_writes_the_guarded_form():
+    pytest.importorskip("openzl.ext")
     frame, _ = _lossy(_dark_u16(), 0, 2)
     assert _nodata_header(frame) == bytes([0, 0, 1, 0, 0, 0, 0, 0])
     frame, _ = _lossy(_both_sides_f64(), -9999.0, 1.0)
@@ -416,6 +425,7 @@ def test_lossy_sentinel_writes_the_guarded_form():
 
 
 def test_low_level_nan_mode_takes_the_plain_form():
+    pytest.importorskip("openzl.ext")
     tile = _smooth(np.float32)
     tile[_holes()] = ODD_NAN
     node = geozl.lossless.Nodata(COLS)
@@ -425,12 +435,14 @@ def test_low_level_nan_mode_takes_the_plain_form():
 
 
 def test_low_level_guard_refuses_a_stream_of_another_width():
+    pytest.importorskip("openzl.ext")
     node = geozl.lossless.Nodata(COLS, value=0, dtype=np.uint16)
     with pytest.raises(Exception, match="dtype code"):
         _low_level_roundtrip(node, _smooth(np.uint8))
 
 
 def test_low_level_guarded_node_round_trips_losslessly():
+    pytest.importorskip("openzl.ext")
     tile = _both_sides_i16()
     node = geozl.lossless.Nodata(COLS, value=0, dtype=np.int16)
     assert np.array_equal(_low_level_roundtrip(node, tile), tile.reshape(-1))

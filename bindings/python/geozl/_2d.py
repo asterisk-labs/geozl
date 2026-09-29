@@ -7,9 +7,8 @@ import numpy as np
 from numpy.typing import ArrayLike
 
 from ._coeffs import CoeffVectors, _pack_coeffs
-from ._dtype import dtype_code
+from ._dtype import dtype_code, nodata_bits
 from ._ffi import _load_lib_full, _ptr, ffi
-from .lossless.nodata import nodata_bits
 
 # Predictor priors. A name expands to {that predictor, id}; None is unbiased
 # over all; "none" is the no-predictor branch alone.

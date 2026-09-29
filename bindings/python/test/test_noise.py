@@ -2,6 +2,8 @@ import numpy as np
 import pytest
 
 geozl = pytest.importorskip("geozl")
+# fit_noise is exported beside the SQRT codec classes, which need OpenZL
+pytest.importorskip("openzl.ext")
 
 # The curve the synthetic rasters are drawn from, so a fit that works recovers
 # these. b is the robust half; a is an intercept extrapolated past where the data
