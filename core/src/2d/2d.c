@@ -74,13 +74,18 @@ typedef enum {
   GEOZL_TERM_T_ZSTD,      // transpose to lanes, zstd (shuffle + zstd)
   GEOZL_TERM_BLOCKED_T_ZSTD, // fused blocked shuffle + zstd
   GEOZL_TERM_PFOR,        // bit pack fixed blocks and patch exceptions
-  GEOZL_TERM_PIVCO,       // PivCo Huffman, faster to decode than entropy
-  GEOZL_TERM_T_PIVCO,     // transpose to lanes, PivCo Huffman per lane
+  GEOZL_TERM_PIVCO,       // PivCo Huffman unless one value dominates
+  GEOZL_TERM_T_PIVCO,     // transpose to lanes, the same choice per lane
   GEOZL_TERM_COUNT
 } geozl_terminal;
 
 // Dominant-symbol threshold measured on synthetic categorical fields.
 #define GEOZL_CATEGORICAL_LZ 0.95
+
+// Huffman spends at least a bit per symbol, so once one value holds most of a
+// stream FSE wins by far. Below half, PivCo cost under 0.3% on Sentinel-2
+// residual lanes and decoded them about three times faster.
+#define GEOZL_PIVCO_DOMINANT 0.5
 
 static const char *pred_name(geozl_predictor p) {
   switch (p) {
@@ -214,6 +219,37 @@ static ZL_Report geozl_categorical_fg(ZL_Graph *g, ZL_Edge *inputs[],
   return ZL_Edge_setDestination(inputs[0], dst);
 }
 
+// PivCo for dense streams, entropy where one value dominates.
+static ZL_Report geozl_pivco_fg(ZL_Graph *g, ZL_Edge *inputs[],
+                                size_t nbInputs) {
+  (void)g;
+  (void)nbInputs;
+  const ZL_Input *in = ZL_Edge_getData(inputs[0]);
+  const size_t n = ZL_Input_numElts(in);
+  if (n == 0)
+    return ZL_Edge_setDestination(inputs[0], ZL_GRAPH_ENTROPY);
+  const size_t hits =
+      dominant_count(ZL_Input_ptr(in), n, ZL_Input_eltWidth(in));
+  return ZL_Edge_setDestination(
+      inputs[0], (double)hits > GEOZL_PIVCO_DOMINANT * (double)n
+                     ? ZL_GRAPH_ENTROPY
+                     : ZL_GRAPH_HUFFMAN_PIVCO);
+}
+
+static ZL_GraphID pivco_graph(ZL_Compressor *c) {
+  static const ZL_Type in_mask = ZL_Type_serial | ZL_Type_struct |
+                                 ZL_Type_numeric;
+  static const ZL_GraphID used[2] = {ZL_GRAPH_ENTROPY, ZL_GRAPH_HUFFMAN_PIVCO};
+  ZL_FunctionGraphDesc desc = {0};
+  desc.name = "geozl_pivco";
+  desc.graph_f = geozl_pivco_fg;
+  desc.inputTypeMasks = &in_mask;
+  desc.nbInputs = 1;
+  desc.customGraphs = used;
+  desc.nbCustomGraphs = 2;
+  return ZL_Compressor_registerFunctionGraph(c, &desc);
+}
+
 // One candidate graph, or ZL_GRAPH_ILLEGAL if the pair does not apply.
 static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
                                   geozl_terminal t, uint32_t width,
@@ -276,12 +312,16 @@ static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
       return ZL_GRAPH_ILLEGAL;
     return chain(c, head, n, fg);
   }
-  case GEOZL_TERM_PIVCO:
-    // Huffman only, so unlike entropy it never falls back to FSE on skewed
-    // data, and like entropy it stops at 2-byte symbols.
-    if (eltWidth > 2)
+  case GEOZL_TERM_PIVCO: {
+    // At 2 bytes it wrote what entropy wrote as fast, transpose>pivco is the
+    // one that helps there.
+    if (eltWidth != 1)
       return ZL_GRAPH_ILLEGAL;
-    return chain(c, head, n, ZL_GRAPH_HUFFMAN_PIVCO);
+    ZL_GraphID pg = pivco_graph(c);
+    if (!ZL_GraphID_isValid(pg))
+      return ZL_GRAPH_ILLEGAL;
+    return chain(c, head, n, pg);
+  }
   case GEOZL_TERM_T_ENTROPY:
   case GEOZL_TERM_T_ZSTD:
   case GEOZL_TERM_T_PIVCO: {
@@ -289,8 +329,10 @@ static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
     if (eltWidth < 2 || eltWidth > 8)
       return ZL_GRAPH_ILLEGAL;
     ZL_GraphID back = (t == GEOZL_TERM_T_ZSTD)    ? ZL_GRAPH_ZSTD
-                      : (t == GEOZL_TERM_T_PIVCO) ? ZL_GRAPH_HUFFMAN_PIVCO
+                      : (t == GEOZL_TERM_T_PIVCO) ? pivco_graph(c)
                                                   : ZL_GRAPH_ENTROPY;
+    if (!ZL_GraphID_isValid(back))
+      return ZL_GRAPH_ILLEGAL;
     ZL_GraphID tg = ZL_Compressor_registerTransposeSplitGraph(c, back);
     if (!ZL_GraphID_isValid(tg))
       return ZL_GRAPH_ILLEGAL;
@@ -510,8 +552,8 @@ static ZL_Report graph_open(geozl_2d_graph **out, const char *method,
     if (has_err)
       snprintf(errCtx, errCtxSize,
                "method \"%s\" does not apply to %zu-byte elements; the "
-               "transpose terminals need 2 to 8, categorical needs 1 or 2, as "
-               "does pivco",
+               "transpose terminals need 2 to 8, categorical needs 1 or 2, "
+               "pivco needs 1",
                method, eltWidth);
     r = ZL_returnError(ZL_ErrorCode_graph_invalid);
     goto fail;
@@ -971,10 +1013,10 @@ GEOZL_API int geozl_2d_grid_c(const char *method, size_t eltWidth, char *names,
           (eltWidth < 2 || eltWidth > 8))
         continue;
       // categorical's entropy arm tops out at 2, the same place ZL_GRAPH_ENTROPY
-      // and PivCo do
-      if (((geozl_terminal)t == GEOZL_TERM_CATEGORICAL ||
-           (geozl_terminal)t == GEOZL_TERM_PIVCO) &&
-          eltWidth > 2)
+      // does
+      if ((geozl_terminal)t == GEOZL_TERM_CATEGORICAL && eltWidth > 2)
+        continue;
+      if ((geozl_terminal)t == GEOZL_TERM_PIVCO && eltWidth != 1)
         continue;
       if (k < maxNames)
         candidate_name(preds[i], (geozl_terminal)t, names + k * stride, stride);

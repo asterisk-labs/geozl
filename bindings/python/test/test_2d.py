@@ -180,19 +180,32 @@ def test_frames_stay_readable_by_openzl_0_2():
     assert int.from_bytes(bytes(frame[:4]), "little") - 0xD7B1A5C0 == 24
 
 
-@pytest.mark.parametrize("method", ["planar>zigzag>pivco",
-                                    "planar>zigzag>transpose>pivco"])
-def test_pivco_frames_need_openzl_0_3_and_round_trip(method):
+@pytest.mark.parametrize(("method", "dtype"), [
+    ("planar>zigzag>pivco", np.uint8),
+    ("planar>zigzag>transpose>pivco", np.int16),
+])
+def test_pivco_frames_need_openzl_0_3_and_round_trip(method, dtype):
     # PivCo Huffman exists from format 27, the one recipe family that needs it
-    arr = _tile()
+    arr = _tile(dtype=dtype)
     frame = _frame(arr, method=method)
     assert int.from_bytes(bytes(frame[:4]), "little") - 0xD7B1A5C0 == 27
     assert np.array_equal(_roundtrip(arr, method=method), arr)
 
 
-def test_pivco_stops_at_two_byte_elements():
-    with pytest.raises(RuntimeError, match="as does pivco"):
-        geozl.graph(_tile(dtype=np.int32), "planar>zigzag>pivco")
+def test_pivco_takes_one_byte_elements_only():
+    with pytest.raises(RuntimeError, match="pivco needs 1"):
+        geozl.graph(_tile(), "planar>zigzag>pivco")
+
+
+def test_a_dominated_lane_goes_to_entropy_not_pivco():
+    # Huffman spends a bit per symbol, so a lane that is mostly one value would
+    # grow several times over under PivCo
+    rng = np.random.default_rng(1)
+    arr = np.where(rng.random((256, 256)) < 0.1, rng.integers(1, 9, (256, 256)),
+                   0).astype(np.int16)
+    pivco = _frame(arr, method="id>transpose>pivco")
+    entropy = _frame(arr, method="id>transpose>entropy")
+    assert len(pivco) <= len(entropy) + 16
 
 
 def test_unreadable_frame_is_reported():
@@ -322,8 +335,8 @@ def test_unbiased_prior_sweeps_more_graphs_than_a_named_one():
 
 
 def test_unbiased_prior_is_the_whole_grid():
-    # 8 predictors x 10 terminals, all buildable at 2 bytes per element
-    assert len(geozl.profile(_tile(), prior=None, reps=1)) == 80
+    # 8 predictors x 9 terminals, all buildable at 2 bytes per element
+    assert len(geozl.profile(_tile(), prior=None, reps=1)) == 72
 
 
 def test_the_grid_at_one_byte_keeps_categorical_and_drops_the_rest():
