@@ -174,6 +174,12 @@ def test_decompress_returns_flat_bytes():
     assert np.array_equal(back.view(arr.dtype).reshape(arr.shape), arr)
 
 
+def test_frames_stay_readable_by_openzl_0_2():
+    # the magic number is a base plus the format version, and 0.2 stops at 24
+    frame = _frame(_tile(), method=GRAPH)
+    assert int.from_bytes(bytes(frame[:4]), "little") - 0xD7B1A5C0 == 24
+
+
 def test_unreadable_frame_is_reported():
     with pytest.raises(RuntimeError, match="unreadable frame"):
         geozl.decompress(b"not a frame at all")

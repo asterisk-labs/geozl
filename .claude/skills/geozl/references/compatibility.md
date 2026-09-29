@@ -24,7 +24,8 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
   compatibility. Do not compare frame bytes or hashes across versions; compare decoded data.
 - **Older readers may not understand newer codecs.**
 - GeoZL frames are OpenZL frames; container compatibility follows OpenZL. The Python
-  package supports OpenZL 0.2.x (`openzl>=0.2,<0.3`).
+  package supports OpenZL 0.3.x (`openzl>=0.3,<0.4`). The high-level API writes OpenZL
+  format 24, which OpenZL 0.2 readers accept; readers take formats up to 27.
 - Python API: semantic versioning, may grow before 1.0. C: stable source API from
   0.13.0, no ABI promise before 1.0.
 

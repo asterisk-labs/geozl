@@ -17,7 +17,7 @@ spatial predictors (`planar`, `med`, `wp_static`, ...), a NoData mask codec,
 bounded-error quantizers (`quant_linear`, `quant_log`, `quant_sqrt`) and a block
 bit packer (`pfor`).
 
-This skill describes **geozl 0.18.0** (OpenZL 0.2.x). Check `geozl.__version__`.
+This skill describes **geozl 0.18.0** (OpenZL 0.3.x). Check `geozl.__version__`.
 If it differs, trust the installed source and `CHANGELOG.md` over this file.
 
 ## Mental model

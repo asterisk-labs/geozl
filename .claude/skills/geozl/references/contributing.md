@@ -39,7 +39,7 @@ bindings/python/
 test/*.c                standalone C kernel tests (no OpenZL)
 fuzz/                   libFuzzer harnesses, replay/ inputs kept in git
 docs/                   static site (no build step), compatibility.md, c-api.md, adding-a-codec.md, notebooks/
-extern/openzl           OpenZL submodule (v0.2.0)
+extern/openzl           OpenZL submodule (v0.3.0)
 licenses/ NOTICE        vendored notices shipped in wheels
 VERSION CHANGELOG.md    single version source and Keep a Changelog history
 ```

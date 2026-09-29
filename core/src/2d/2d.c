@@ -10,7 +10,6 @@
 #include "openzl/zl_errors_types.h"
 #include "openzl/zl_graph_api.h"
 #include "openzl/zl_input.h"   // ZL_Input_numElts and friends
-#include "openzl/zl_version.h" // ZL_MAX_FORMAT_VERSION
 #include "openzl/codecs/zl_constant.h"   // ZL_GRAPH_CONSTANT
 #include "openzl/codecs/zl_conversion.h" // ZL_NODE_CONVERT_*
 #include "openzl/codecs/zl_delta.h"      // ZL_NODE_DELTA_INT
@@ -36,6 +35,8 @@
 #include <time.h>
 
 #define OPENZL_COMMENT_VERSION_MIN 22
+// OpenZL 0.2 reads up to format 24, and nothing geozl writes gains from 27.
+#define GEOZL_FORMAT_VERSION 24
 
 // A method combines an optional predictor with a terminal, for example
 // "planar>zigzag>entropy". The full graph is:
@@ -519,7 +520,7 @@ static ZL_Report graph_open(geozl_2d_graph **out, const char *method,
     goto fail;
   }
   r = ZL_CCtx_setParameter(e->cctx, ZL_CParam_formatVersion,
-                           ZL_MAX_FORMAT_VERSION);
+                           GEOZL_FORMAT_VERSION);
   if (ZL_isError(r)) {
     owner = ERR_CCTX;
     goto fail;

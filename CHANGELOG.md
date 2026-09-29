@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- OpenZL 0.3.0, and the Python package depends on OpenZL 0.3.x. Its decoders
+  refuse crafted ROLZ and LZ streams that OpenZL 0.2 read out of bounds.
+- Frames are written at OpenZL format 24, not the 27 OpenZL 0.3 defaults to, so
+  0.18 readers still decode them. Readers accept formats up to 27.
+
 ## [0.18.0] - 2026-09-20
 
 ### Added

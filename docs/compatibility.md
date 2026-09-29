@@ -43,4 +43,8 @@ The public Python API follows semantic versioning but may grow before 1.0.
 ## OpenZL
 
 GeoZL frames are OpenZL frames, so OpenZL container compatibility follows
-OpenZL. The Python package supports OpenZL 0.2.x.
+OpenZL. The Python package supports OpenZL 0.3.x.
+
+GeoZL writes OpenZL frame format 24, the newest one OpenZL 0.2 reads, so
+GeoZL 0.18 readers decode what later releases write. Readers accept every
+format OpenZL 0.3 does, up to 27.

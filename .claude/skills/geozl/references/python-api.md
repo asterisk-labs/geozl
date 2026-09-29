@@ -24,7 +24,7 @@ pip install geozl
 ```
 
 - Python 3.11 to 3.14. Runtime dependencies: `numpy>=1.24`, `cffi>=1.17`,
-  `openzl>=0.2,<0.3`.
+  `openzl>=0.3,<0.4`.
 - Wheels exist for Linux x86-64 (manylinux 2.28) and macOS arm64. Elsewhere, build
   from a checkout (`make python FULL=ON`, see `contributing.md`).
 - Two native libraries ship inside the wheel under `geozl/_lib/`:
