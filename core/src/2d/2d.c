@@ -219,6 +219,27 @@ static ZL_Report geozl_categorical_fg(ZL_Graph *g, ZL_Edge *inputs[],
   return ZL_Edge_setDestination(inputs[0], dst);
 }
 
+// The same count for byte streams, which are all PivCo is offered. Four
+// histograms so consecutive equal bytes do not wait on each other's increment.
+static size_t dominant_count_u8(const unsigned char *p, size_t n) {
+  size_t h[4][256] = {{0}};
+  size_t i = 0;
+  for (; i + 4 <= n; i += 4) {
+    h[0][p[i]]++;
+    h[1][p[i + 1]]++;
+    h[2][p[i + 2]]++;
+    h[3][p[i + 3]]++;
+  }
+  for (; i < n; ++i)
+    h[0][p[i]]++;
+  size_t hits = 0;
+  for (int s = 0; s < 256; ++s) {
+    const size_t c = h[0][s] + h[1][s] + h[2][s] + h[3][s];
+    hits = c > hits ? c : hits;
+  }
+  return hits;
+}
+
 // PivCo for dense streams, entropy where one value dominates.
 static ZL_Report geozl_pivco_fg(ZL_Graph *g, ZL_Edge *inputs[],
                                 size_t nbInputs) {
@@ -228,8 +249,9 @@ static ZL_Report geozl_pivco_fg(ZL_Graph *g, ZL_Edge *inputs[],
   const size_t n = ZL_Input_numElts(in);
   if (n == 0)
     return ZL_Edge_setDestination(inputs[0], ZL_GRAPH_ENTROPY);
-  const size_t hits =
-      dominant_count(ZL_Input_ptr(in), n, ZL_Input_eltWidth(in));
+  const size_t w = ZL_Input_eltWidth(in);
+  const size_t hits = w == 1 ? dominant_count_u8(ZL_Input_ptr(in), n)
+                             : dominant_count(ZL_Input_ptr(in), n, w);
   return ZL_Edge_setDestination(
       inputs[0], (double)hits > GEOZL_PIVCO_DOMINANT * (double)n
                      ? ZL_GRAPH_ENTROPY
