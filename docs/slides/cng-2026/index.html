@@ -399,6 +399,22 @@ window.DECK = {
   </div>
 </section>
 
+<!-- 8b. pfor -->
+<section class="slide" data-layout="content">
+  <div class="eyebrow">the trick</div>
+  <h2>pfor, by Zukowski et al., 2006</h2>
+  <div class="body body--center body--compact">
+    <svg class="chart-svg" viewBox="0 0 848 300" width="100%" role="img" aria-label="pfor, in to out. In: 3 5 2 7 4 6 1 90. In binary they need 2, 3, 2, 3, 3, 3, 1 and 7 bits, so the block stores every value in 3 bits, and the extra bits of 90, 1011, go aside. Out: every GPU thread reads its own 3 bits at once, and the aside bits go back on top of 90: 1011 then 010 is 90. Out equals in.">
+      <defs><marker id="pf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#492ae8"/></marker><marker id="pf-arrow-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#D9B300"/></marker></defs>
+      <g><text x="0" y="34" font-size="15" font-weight="700" fill="#6B7280" text-anchor="start" >in</text><rect x="136" y="8" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="170.0" y="35" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >3</text><rect x="216" y="8" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="250.0" y="35" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >5</text><rect x="296" y="8" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="330.0" y="35" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >2</text><rect x="376" y="8" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="410.0" y="35" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >7</text><rect x="456" y="8" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="490.0" y="35" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >4</text><rect x="536" y="8" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="570.0" y="35" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >6</text><rect x="616" y="8" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="650.0" y="35" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >1</text><rect x="696" y="8" width="68" height="38" rx="8" fill="#FEF3C2" stroke="#D9B300" stroke-width="2"/><text x="730.0" y="35" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >90</text></g>
+      <g data-step="1"><text x="0" y="82" font-size="15" font-weight="700" fill="#6B7280" text-anchor="start" >binary</text><text x="170.0" y="80" font-size="17" font-weight="700" fill="#17161C" text-anchor="middle" font-family="JetBrains Mono, monospace">11</text><text x="170.0" y="98" font-size="12.5" font-weight="600" fill="#6B7280" text-anchor="middle" >2 bits</text><text x="250.0" y="80" font-size="17" font-weight="700" fill="#17161C" text-anchor="middle" font-family="JetBrains Mono, monospace">101</text><text x="250.0" y="98" font-size="12.5" font-weight="600" fill="#6B7280" text-anchor="middle" >3 bits</text><text x="330.0" y="80" font-size="17" font-weight="700" fill="#17161C" text-anchor="middle" font-family="JetBrains Mono, monospace">10</text><text x="330.0" y="98" font-size="12.5" font-weight="600" fill="#6B7280" text-anchor="middle" >2 bits</text><text x="410.0" y="80" font-size="17" font-weight="700" fill="#17161C" text-anchor="middle" font-family="JetBrains Mono, monospace">111</text><text x="410.0" y="98" font-size="12.5" font-weight="600" fill="#6B7280" text-anchor="middle" >3 bits</text><text x="490.0" y="80" font-size="17" font-weight="700" fill="#17161C" text-anchor="middle" font-family="JetBrains Mono, monospace">100</text><text x="490.0" y="98" font-size="12.5" font-weight="600" fill="#6B7280" text-anchor="middle" >3 bits</text><text x="570.0" y="80" font-size="17" font-weight="700" fill="#17161C" text-anchor="middle" font-family="JetBrains Mono, monospace">110</text><text x="570.0" y="98" font-size="12.5" font-weight="600" fill="#6B7280" text-anchor="middle" >3 bits</text><text x="650.0" y="80" font-size="17" font-weight="700" fill="#17161C" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="650.0" y="98" font-size="12.5" font-weight="600" fill="#6B7280" text-anchor="middle" >1 bit</text><text x="730.0" y="80" font-size="13.5" font-weight="700" fill="#D9B300" text-anchor="middle" font-family="JetBrains Mono, monospace">1011010</text><text x="730.0" y="98" font-size="12.5" font-weight="600" fill="#D9B300" text-anchor="middle" >7 bits</text></g>
+      <g data-step="2"><text x="0" y="148" font-size="15" font-weight="700" fill="#492ae8" text-anchor="start" >3 bits</text><rect x="130" y="122" width="80" height="38" fill="#E9E5FD" stroke="#FFFFFF" stroke-width="3"/><text x="148" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><text x="170" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="192" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><rect x="210" y="122" width="80" height="38" fill="#E9E5FD" stroke="#FFFFFF" stroke-width="3"/><text x="228" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="250" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><text x="272" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><rect x="290" y="122" width="80" height="38" fill="#E9E5FD" stroke="#FFFFFF" stroke-width="3"/><text x="308" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><text x="330" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="352" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><rect x="370" y="122" width="80" height="38" fill="#E9E5FD" stroke="#FFFFFF" stroke-width="3"/><text x="388" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="410" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="432" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><rect x="450" y="122" width="80" height="38" fill="#E9E5FD" stroke="#FFFFFF" stroke-width="3"/><text x="468" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="490" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><text x="512" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><rect x="530" y="122" width="80" height="38" fill="#E9E5FD" stroke="#FFFFFF" stroke-width="3"/><text x="548" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="570" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="592" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><rect x="610" y="122" width="80" height="38" fill="#E9E5FD" stroke="#FFFFFF" stroke-width="3"/><text x="628" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><text x="650" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><text x="672" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><rect x="690" y="122" width="80" height="38" fill="#E9E5FD" stroke="#FFFFFF" stroke-width="3"/><text x="708" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><text x="730" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="752" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><rect x="692" y="124" width="76" height="34" fill="none" stroke="#D9B300" stroke-width="2.5"/><path d="M 770 141 L 784 141" stroke="#D9B300" stroke-width="2" fill="none" marker-end="url(#pf-arrow-g)"/><rect x="788" y="122" width="56" height="38" rx="8" fill="#FEF3C2" stroke="#D9B300" stroke-width="2"/><text x="816" y="147" font-size="15" font-weight="700" fill="#17161C" text-anchor="middle" font-family="JetBrains Mono, monospace">1011</text></g>
+      <g data-step="3"><text x="0" y="200" font-size="15" font-weight="700" fill="#492ae8">GPU</text><text x="0" y="217" font-size="12.5" font-weight="600" fill="#6B7280">8 threads</text><rect x="126" y="172" width="648" height="44" rx="10" fill="#F5F3FF" stroke="#492ae8" stroke-width="1.2" stroke-dasharray="4 4"/><line x1="170.0" y1="162" x2="170.0" y2="176" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><rect x="150.0" y="181" width="40" height="26" rx="6" fill="#FFFFFF" stroke="#492ae8" stroke-width="1.6"/><text x="170.0" y="199" font-size="13" font-weight="700" fill="#492ae8" text-anchor="middle">t0</text><line x1="170.0" y1="209" x2="170.0" y2="226" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><line x1="250.0" y1="162" x2="250.0" y2="176" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><rect x="230.0" y="181" width="40" height="26" rx="6" fill="#FFFFFF" stroke="#492ae8" stroke-width="1.6"/><text x="250.0" y="199" font-size="13" font-weight="700" fill="#492ae8" text-anchor="middle">t1</text><line x1="250.0" y1="209" x2="250.0" y2="226" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><line x1="330.0" y1="162" x2="330.0" y2="176" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><rect x="310.0" y="181" width="40" height="26" rx="6" fill="#FFFFFF" stroke="#492ae8" stroke-width="1.6"/><text x="330.0" y="199" font-size="13" font-weight="700" fill="#492ae8" text-anchor="middle">t2</text><line x1="330.0" y1="209" x2="330.0" y2="226" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><line x1="410.0" y1="162" x2="410.0" y2="176" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><rect x="390.0" y="181" width="40" height="26" rx="6" fill="#FFFFFF" stroke="#492ae8" stroke-width="1.6"/><text x="410.0" y="199" font-size="13" font-weight="700" fill="#492ae8" text-anchor="middle">t3</text><line x1="410.0" y1="209" x2="410.0" y2="226" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><line x1="490.0" y1="162" x2="490.0" y2="176" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><rect x="470.0" y="181" width="40" height="26" rx="6" fill="#FFFFFF" stroke="#492ae8" stroke-width="1.6"/><text x="490.0" y="199" font-size="13" font-weight="700" fill="#492ae8" text-anchor="middle">t4</text><line x1="490.0" y1="209" x2="490.0" y2="226" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><line x1="570.0" y1="162" x2="570.0" y2="176" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><rect x="550.0" y="181" width="40" height="26" rx="6" fill="#FFFFFF" stroke="#492ae8" stroke-width="1.6"/><text x="570.0" y="199" font-size="13" font-weight="700" fill="#492ae8" text-anchor="middle">t5</text><line x1="570.0" y1="209" x2="570.0" y2="226" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><line x1="650.0" y1="162" x2="650.0" y2="176" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><rect x="630.0" y="181" width="40" height="26" rx="6" fill="#FFFFFF" stroke="#492ae8" stroke-width="1.6"/><text x="650.0" y="199" font-size="13" font-weight="700" fill="#492ae8" text-anchor="middle">t6</text><line x1="650.0" y1="209" x2="650.0" y2="226" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><line x1="730.0" y1="162" x2="730.0" y2="176" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><rect x="710.0" y="181" width="40" height="26" rx="6" fill="#FFFFFF" stroke="#492ae8" stroke-width="1.6"/><text x="730.0" y="199" font-size="13" font-weight="700" fill="#492ae8" text-anchor="middle">t7</text><line x1="730.0" y1="209" x2="730.0" y2="226" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><path d="M 816 162 C 816 210 760 214 762 236" fill="none" stroke="#D9B300" stroke-width="2.2" stroke-dasharray="5 4" marker-end="url(#pf-arrow-g)"/><text x="0" y="258" font-size="15" font-weight="700" fill="#6B7280" text-anchor="start" >out</text><rect x="136" y="232" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="170.0" y="259" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >3</text><rect x="216" y="232" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="250.0" y="259" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >5</text><rect x="296" y="232" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="330.0" y="259" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >2</text><rect x="376" y="232" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="410.0" y="259" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >7</text><rect x="456" y="232" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="490.0" y="259" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >4</text><rect x="536" y="232" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="570.0" y="259" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >6</text><rect x="616" y="232" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="650.0" y="259" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >1</text><rect x="696" y="232" width="68" height="38" rx="8" fill="#FEF3C2" stroke="#D9B300" stroke-width="2"/><text x="730.0" y="259" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >90</text><text x="730.0" y="292" font-size="14" font-weight="700" fill="#17161C" text-anchor="middle" font-family="JetBrains Mono, monospace"><tspan fill="#D9B300">1011</tspan><tspan fill="#492ae8">010</tspan></text></g>
+    </svg>
+    <p class="source-note" style="margin-top:18px;">pfor: Zukowski, H&#233;man, Nes, Boncz, Super-Scalar RAM-CPU Cache Compression, ICDE 2006.</p>
+  </div>
+</section>
+
 <!-- 9. the takeaway -->
 <section class="slide ink slide--takeaway" data-bare>
   <p class="takeaway-copy">Don&#8217;t pick a codec.<br><span class="accent">Build a graph.</span></p>
@@ -407,12 +423,576 @@ window.DECK = {
 <!-- 10. thank you -->
 <section class="slide slide--thanks" data-frame>
   <p class="thanks-title">thank you</p>
+  <div class="thanks-qr"><img src="assets/img/qr-slides.svg" alt="QR code: asterisk.coop/geozl/slides/cng-2026"><span>these slides</span></div>
   <div class="links">
     <div><b>geozl</b>github.com/asterisk-labs/geozl</div>
     <div><b>install</b><span class="install-command">pip install geozl</span></div>
     <div><b>us</b>asterisk.coop</div>
   </div>
 </section>
+
+<!-- pivco, appendix -->
+<section class="slide ink" data-bare style="justify-content:center; padding:0 96px;">
+  <p style="font-size:1em; color:#9C958A; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:18px;">appendix</p>
+  <p style="font-size:3.2em; font-weight:700; letter-spacing:-0.03em; line-height:1.05;">PivCo-Huffman</p>
+  <p style="font-size:1.4em; color:#9C958A; margin-top:14px;">Marcin Zukowski, 2026. Step by step.</p>
+</section>
+<script>
+// shared by the PivCo appendix: build an SVG in code, then play a timeline once
+// when its slide becomes active and hold the last frame. A click replays it.
+window.APX = (function () {
+  var NS = 'http://www.w3.org/2000/svg';
+  var C = { v: '#492ae8', ink: '#17161C', gr: '#6B7280', gold: '#D9B300', goldT: '#FEF3C2',
+            tint: '#E9E5FD', hair: '#D6D3D1', soft: '#F4F4F5', mono: 'JetBrains Mono, monospace' };
+  function el(tag, a, p) {
+    var n = document.createElementNS(NS, tag);
+    for (var k in a) n.setAttribute(k, a[k]);
+    if (p) p.appendChild(n);
+    return n;
+  }
+  function txt(p, x, y, s, a) {
+    var o = { x: x, y: y, 'font-size': 16, fill: C.ink, 'font-weight': 700 };
+    for (var k in a || {}) o[k] = a[k];
+    var n = el('text', o, p); n.textContent = s; return n;
+  }
+  function ease(x) { x = Math.max(0, Math.min(1, x)); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function seg(t, a, b) { return ease((t - a) / (b - a)); }
+  function lerp(a, b, k) { return a + (b - a) * k; }
+  function op(n, v) { n.setAttribute('opacity', Math.max(0, Math.min(1, v)).toFixed(3)); }
+  function at(n, x, y) { n.setAttribute('transform', 'translate(' + x.toFixed(1) + ',' + y.toFixed(1) + ')'); }
+  // a round token with a label, positioned with at()
+  function token(p, label, fill, color, r) {
+    var g = el('g', { opacity: 0 }, p);
+    el('circle', { cx: 0, cy: 0, r: r || 13, fill: fill, stroke: color, 'stroke-width': 1.8 }, g);
+    txt(g, 0, 5, label, { 'text-anchor': 'middle', 'font-size': 13, fill: color });
+    return g;
+  }
+  function run(svg, draw, end) {
+    var slide = svg.closest('.slide'), raf = null, t0 = 0;
+    function frame(now) {
+      var t = (now - t0) / 1000;
+      draw(Math.min(t, end));
+      raf = t < end ? requestAnimationFrame(frame) : null;
+    }
+    function play() { if (raf) cancelAnimationFrame(raf); t0 = performance.now(); raf = requestAnimationFrame(frame); }
+    function sync() {
+      if (slide.classList.contains('active')) { if (!raf) play(); }
+      else { if (raf) cancelAnimationFrame(raf); raf = null; draw(0); }
+    }
+    new MutationObserver(sync).observe(slide, { attributes: true, attributeFilter: ['class'] });
+    svg.style.cursor = 'pointer';
+    svg.addEventListener('click', play);
+    draw(0);
+    sync();
+  }
+  return { C: C, el: el, txt: txt, seg: seg, lerp: lerp, op: op, at: at, token: token, run: run };
+})();
+</script>
+
+<!-- pivco 1 -->
+<section class="slide" data-layout="content">
+  <div class="phase phase--background">background</div>
+  <div class="eyebrow">pivco-huffman &#183; background</div>
+  <h2>Background: Huffman gives common symbols short codes</h2>
+  <div class="body body--center body--compact">
+    <svg id="apx1" class="chart-svg" viewBox="0 0 848 300" width="100%" role="img" aria-label="Eight symbols, a b a c a b a a, are counted: a five times, b twice, c once. The Huffman tree puts a next to the root, so a gets the code 0, b gets 10 and c gets 11: common symbol, short code."></svg>
+  </div>
+</section>
+<script>
+// 1. Huffman: count the symbols, build the tree, read each code off its path
+(function () {
+  var A = APX, C = A.C, svg = document.getElementById('apx1');
+  if (!svg) return;
+  var S = 'abacabaa'.split(''), X0 = 150, CW = 56;
+  function cx(i) { return X0 + i * CW + CW / 2; }
+  A.txt(svg, 0, 36, 'in', { fill: C.gr, 'font-size': 15 });
+  var boxes = S.map(function (c, i) {
+    var r = A.el('rect', { x: X0 + i * CW + 4, y: 10, width: CW - 8, height: 38, rx: 8, fill: C.soft }, svg);
+    A.txt(svg, cx(i), 37, c, { 'text-anchor': 'middle', 'font-size': 21 });
+    return r;
+  });
+  // one bar per symbol, growing as the symbols are counted
+  A.txt(svg, 0, 122, 'count', { fill: C.gr, 'font-size': 15 });
+  var bars = {}, lab = {};
+  ['a', 'b', 'c'].forEach(function (c, k) {
+    var y = 82 + k * 34;
+    A.txt(svg, X0, y + 19, c, { 'font-size': 19 });
+    bars[c] = A.el('rect', { x: X0 + 24, y: y + 3, width: 0, height: 22, rx: 4, fill: C.v }, svg);
+    lab[c] = A.txt(svg, X0 + 32, y + 20, '', { 'font-size': 15 });
+  });
+  // the tree: the common symbol sits closest to the root
+  var tree = A.el('g', { opacity: 0 }, svg);
+  var R = { x: 640, y: 92 }, I = { x: 712, y: 158 }, LA = { x: 568, y: 168 }, LB = { x: 672, y: 238 }, LC = { x: 752, y: 238 };
+  function edge(a, b, l, lx, ly) {
+    var e = A.el('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y, stroke: C.hair, 'stroke-width': 2.5 }, tree);
+    A.txt(tree, lx, ly, l, { fill: C.gr, 'font-size': 15 });
+    return e;
+  }
+  var eA = edge(R, LA, '0', 588, 124), eI = edge(R, I, '1', 684, 120), eB = edge(I, LB, '0', 674, 202), eC = edge(I, LC, '1', 742, 202);
+  A.el('circle', { cx: R.x, cy: R.y, r: 8, fill: C.v }, tree);
+  A.el('circle', { cx: I.x, cy: I.y, r: 8, fill: C.v }, tree);
+  [[LA, 'a'], [LB, 'b'], [LC, 'c']].forEach(function (l) {
+    A.el('circle', { cx: l[0].x, cy: l[0].y, r: 20, fill: C.soft, stroke: C.ink, 'stroke-width': 1.6 }, tree);
+    A.txt(tree, l[0].x, l[0].y + 7, l[1], { 'text-anchor': 'middle', 'font-size': 20 });
+  });
+  // codes, read off the path from the root
+  A.txt(svg, 0, 230, 'code', { fill: C.gr, 'font-size': 15 });
+  var codes = [['a = 0', [eA]], ['b = 10', [eI, eB]], ['c = 11', [eI, eC]]];
+  var ct = codes.map(function (cd, k) { return A.txt(svg, X0 + k * 130, 230, cd[0], { 'font-size': 24, 'font-family': C.mono, opacity: 0 }); });
+  var cap = A.txt(svg, X0, 280, 'common symbol, short code', { 'font-size': 20, opacity: 0 });
+
+  function draw(t) {
+    var n = { a: 0, b: 0, c: 0 };
+    S.forEach(function (c, i) {
+      var t1 = 0.5 + i * 0.32;
+      boxes[i].setAttribute('fill', t >= t1 && t < t1 + 0.32 ? C.tint : C.soft);
+      if (t >= t1) n[c]++;
+    });
+    ['a', 'b', 'c'].forEach(function (c) {
+      bars[c].setAttribute('width', n[c] * 38);
+      lab[c].setAttribute('x', X0 + 32 + n[c] * 38);
+      lab[c].textContent = n[c] ? '× ' + n[c] : '';
+    });
+    A.op(tree, A.seg(t, 3.3, 3.9));
+    [eA, eI, eB, eC].forEach(function (e) { e.setAttribute('stroke', C.hair); e.setAttribute('stroke-width', 2.5); });
+    codes.forEach(function (cd, k) {
+      var s = 4.2 + k * 1.1;
+      A.op(ct[k], A.seg(t, s + 0.3, s + 0.7));
+      if (t >= s && t < s + 1.0) cd[1].forEach(function (e) { e.setAttribute('stroke', C.gold); e.setAttribute('stroke-width', 5); });
+    });
+    A.op(cap, A.seg(t, 7.6, 8.0));
+  }
+  A.run(svg, draw, 8.2);
+})();
+</script>
+
+<!-- pivco 2 -->
+<section class="slide" data-layout="content">
+  <div class="phase phase--background">background</div>
+  <div class="eyebrow">pivco-huffman &#183; background</div>
+  <h2>Background: glued together, every code waits</h2>
+  <div class="body body--center body--compact">
+    <svg id="apx2" class="chart-svg" viewBox="0 0 848 240" width="100%" role="img" aria-label="The codes are written back to back: 0 10 0 11 0 10 0 0. A single reader walks the bits one by one, and a symbol appears only when its code ends, so every symbol waits for the one before it."></svg>
+  </div>
+</section>
+<script>
+// 2. glued together: one reader walks the bits, a symbol only when its code ends
+(function () {
+  var A = APX, C = A.C, svg = document.getElementById('apx2');
+  if (!svg) return;
+  var S = 'abacabaa'.split(''), CODE = { a: '0', b: '10', c: '11' }, X0 = 150, BW = 40, CW = 56;
+  var bits = [], ends = [], start = [];
+  S.forEach(function (c) { start.push(bits.length); CODE[c].split('').forEach(function (b) { bits.push(b); }); ends.push(bits.length - 1); });
+  function bx(j) { return X0 + j * BW + BW / 2; }
+  A.txt(svg, 0, 76, 'bits', { fill: C.gr, 'font-size': 15 });
+  var cells = bits.map(function (b, j) {
+    var r = A.el('rect', { x: X0 + j * BW, y: 50, width: BW, height: 40, fill: '#FFFFFF', stroke: C.hair, 'stroke-width': 2 }, svg);
+    A.txt(svg, bx(j), 77, b, { 'text-anchor': 'middle', 'font-size': 19, 'font-family': C.mono });
+    return r;
+  });
+  // one box around each code, drawn when the reader finds its end
+  var groups = S.map(function (c, k) {
+    var x = X0 + start[k] * BW, w = CODE[c].length * BW;
+    var g = A.el('g', { opacity: 0 }, svg);
+    A.el('rect', { x: x + 2, y: 52, width: w - 4, height: 36, fill: 'none', stroke: C.v, 'stroke-width': 2.5, rx: 4 }, g);
+    A.txt(g, x + w / 2, 40, c, { 'text-anchor': 'middle', 'font-size': 15, fill: C.v });
+    return g;
+  });
+  var reader = A.el('path', { d: 'M -10 0 L 10 0 L 0 14 Z', fill: C.gold }, svg);
+  A.txt(svg, 0, 166, 'out', { fill: C.gr, 'font-size': 15 });
+  var outs = S.map(function (c, i) {
+    A.el('rect', { x: X0 + i * CW + 4, y: 140, width: CW - 8, height: 38, rx: 8, fill: C.soft }, svg);
+    return A.txt(svg, X0 + i * CW + CW / 2, 167, c, { 'text-anchor': 'middle', 'font-size': 21, opacity: 0 });
+  });
+  var cap = A.txt(svg, X0, 226, 'every symbol waits for the one before it', { 'font-size': 20, opacity: 0 });
+  var T0 = 0.7, STEP = 0.42;
+  function tb(j) { return T0 + j * STEP; }
+  function draw(t) {
+    var j = Math.max(0, Math.min(bits.length - 1, Math.floor((t - T0) / STEP)));
+    var k = (t - T0) / STEP - j;
+    var x = t < T0 ? bx(0) : (j < bits.length - 1 && k > 0.6 ? A.lerp(bx(j), bx(j + 1), A.seg(k, 0.6, 1)) : bx(j));
+    A.at(reader, x, 30);
+    A.op(reader, t >= 0.3 ? 1 : 0);
+    cells.forEach(function (r, q) { r.setAttribute('fill', t >= tb(q) && t < tb(q) + STEP ? C.goldT : '#FFFFFF'); });
+    S.forEach(function (c, s) {
+      var done = tb(ends[s]) + 0.15;
+      A.op(groups[s], A.seg(t, done, done + 0.15));
+      A.op(outs[s], A.seg(t, done, done + 0.2));
+    });
+    A.op(cap, A.seg(t, tb(bits.length) + 0.3, tb(bits.length) + 0.7));
+  }
+  A.run(svg, draw, 6.6);
+})();
+</script>
+
+<!-- pivco 3 -->
+<section class="slide" data-layout="content">
+  <div class="phase phase--compress">compress</div>
+  <div class="eyebrow">pivco-huffman &#183; compress</div>
+  <h2>Compress, step 1: the first bit of every symbol</h2>
+  <div class="body body--center body--compact">
+    <svg id="apx3" class="chart-svg" viewBox="0 0 848 282" width="100%" role="img" aria-label="The first code bit of every symbol drops into the root bitmap, all eight at once: 0 1 0 1 0 1 0 0, where 0 means a and 1 means b or c. One bit per symbol."></svg>
+  </div>
+</section>
+<script>
+// 3. step one: the first bit of every symbol drops into the root, all at once
+(function () {
+  var A = APX, C = A.C, svg = document.getElementById('apx3');
+  if (!svg) return;
+  var S = 'abacabaa'.split(''), CODE = { a: '0', b: '10', c: '11' }, X0 = 150, CW = 56;
+  function cx(i) { return X0 + i * CW + CW / 2; }
+  A.txt(svg, 0, 36, 'in', { fill: C.gr, 'font-size': 15 });
+  A.txt(svg, 0, 82, 'code', { fill: C.gr, 'font-size': 15 });
+  S.forEach(function (c, i) {
+    A.el('rect', { x: X0 + i * CW + 4, y: 10, width: CW - 8, height: 38, rx: 8, fill: C.soft }, svg);
+    A.txt(svg, cx(i), 37, c, { 'text-anchor': 'middle', 'font-size': 21 });
+    var t = A.txt(svg, cx(i), 82, '', { 'text-anchor': 'middle', 'font-size': 18, 'font-family': C.mono });
+    var a = A.el('tspan', { fill: C.v }, t); a.textContent = CODE[c][0];
+    if (CODE[c].length > 1) { var b = A.el('tspan', { fill: '#C4C0BA' }, t); b.textContent = CODE[c].slice(1); }
+  });
+  A.txt(svg, 0, 172, 'root', { fill: C.v, 'font-size': 15 });
+  var cells = [], digits = [], toks = [];
+  S.forEach(function (c, i) {
+    cells.push(A.el('rect', { x: X0 + i * CW + 6, y: 148, width: CW - 12, height: 36, rx: 6, fill: '#FFFFFF', stroke: C.v, 'stroke-width': 1.5 }, svg));
+    digits.push(A.txt(svg, cx(i), 173, CODE[c][0], { 'text-anchor': 'middle', 'font-size': 19, 'font-family': C.mono, fill: C.v, opacity: 0 }));
+    toks.push(A.token(svg, CODE[c][0], CODE[c][0] === '1' ? C.tint : '#FFFFFF', C.v));
+  });
+  var leg = A.el('g', { opacity: 0 }, svg);
+  A.txt(leg, X0, 224, '0 = a', { 'font-size': 20, 'font-family': C.mono });
+  A.txt(leg, X0 + 120, 224, '1 = b or c', { 'font-size': 20, 'font-family': C.mono });
+  var cap = A.txt(svg, X0, 268, 'one bit per symbol, all eight at once', { 'font-size': 20, opacity: 0 });
+  function draw(t) {
+    var k = A.seg(t, 1.0, 2.0);
+    S.forEach(function (c, i) {
+      var x0 = CODE[c].length > 1 ? cx(i) - 6 : cx(i);
+      A.at(toks[i], A.lerp(x0, cx(i), k), A.lerp(76, 166, k));
+      A.op(toks[i], t < 0.6 ? 0 : (t < 2.1 ? A.seg(t, 0.6, 0.9) : 1 - A.seg(t, 2.1, 2.3)));
+      A.op(digits[i], A.seg(t, 2.0, 2.2));
+      cells[i].setAttribute('fill', t >= 2.05 && CODE[c][0] === '1' ? C.tint : '#FFFFFF');
+    });
+    A.op(leg, A.seg(t, 2.6, 3.0));
+    A.op(cap, A.seg(t, 3.3, 3.7));
+  }
+  A.run(svg, draw, 3.9);
+})();
+</script>
+
+<!-- pivco 4 -->
+<section class="slide" data-layout="content">
+  <div class="phase phase--compress">compress</div>
+  <div class="eyebrow">pivco-huffman &#183; compress</div>
+  <h2>Compress, step 2: the second bit, only for the 1s</h2>
+  <div class="body body--center body--compact">
+    <svg id="apx4" class="chart-svg" viewBox="0 0 848 330" width="100%" role="img" aria-label="Compress, step two. Only the symbols whose first bit is 1, b c b, send their second bit to a node of their own, packed into slots 0, 1 and 2: 0 1 0, where 0 means b and 1 means c. With leaf a and leaves b and c this is a wavelet tree. Then the root bits and the node bits, in that order, are the compressed stream: 0 1 0 1 0 1 0 0 0 1 0, eleven bits, the same as Huffman."></svg>
+  </div>
+</section>
+<script>
+// 4. compress, step 2: only the 1s get a second bit, packed into a node of
+// their own. Then both bitmaps, root first, are the compressed stream.
+(function () {
+  var A = APX, C = A.C, svg = document.getElementById('apx4');
+  if (!svg) return;
+  var S = 'abacabaa'.split(''), CODE = { a: '0', b: '10', c: '11' }, X0 = 150, CW = 56, NX = 470, BW = 40;
+  function cx(i) { return X0 + i * CW + CW / 2; }
+  function scx(j) { return X0 + j * BW + BW / 2; }
+  var ones = []; S.forEach(function (c, i) { if (c !== 'a') ones.push(i); });
+  A.txt(svg, 0, 36, 'in', { fill: C.gr, 'font-size': 15 });
+  var syms = S.map(function (c, i) {
+    var g = A.el('g', {}, svg);
+    A.el('rect', { x: X0 + i * CW + 4, y: 10, width: CW - 8, height: 38, rx: 8, fill: C.soft }, g);
+    A.txt(g, cx(i), 37, c, { 'text-anchor': 'middle', 'font-size': 21 });
+    return g;
+  });
+  A.txt(svg, 0, 88, 'root', { fill: C.v, 'font-size': 15 });
+  var rootCells = S.map(function (c, i) {
+    var b = CODE[c][0];
+    var r = A.el('rect', { x: X0 + i * CW + 6, y: 64, width: CW - 12, height: 36, rx: 6, fill: b === '1' ? C.tint : '#FFFFFF', stroke: C.v, 'stroke-width': 1.5 }, svg);
+    A.txt(svg, cx(i), 89, b, { 'text-anchor': 'middle', 'font-size': 19, 'font-family': C.mono, fill: C.v });
+    return r;
+  });
+  // the tree, drawn once both bitmaps are in place
+  var tree = A.el('g', { opacity: 0 }, svg);
+  A.el('rect', { x: X0 - 8, y: 58, width: 8 * CW + 16, height: 48, rx: 12, fill: 'none', stroke: C.v, 'stroke-width': 1.8 }, tree);
+  A.el('path', { d: 'M 374 106 L 250 158', stroke: C.hair, 'stroke-width': 2.5, fill: 'none' }, tree);
+  A.txt(tree, 292, 140, '0', { fill: C.gr, 'font-size': 15 });
+  A.el('path', { d: 'M 374 106 L ' + (NX + 84) + ' 150', stroke: C.hair, 'stroke-width': 2.5, fill: 'none' }, tree);
+  A.txt(tree, 470, 122, '1', { fill: C.gr, 'font-size': 15 });
+  A.el('circle', { cx: 250, cy: 176, r: 18, fill: C.soft, stroke: C.ink, 'stroke-width': 1.6 }, tree);
+  A.txt(tree, 250, 183, 'a', { 'text-anchor': 'middle', 'font-size': 19 });
+  [[NX + 28, 'b', '0', -14], [NX + 140, 'c', '1', 6]].forEach(function (l) {
+    A.el('path', { d: 'M ' + (NX + 84) + ' 202 L ' + l[0] + ' 230', stroke: C.hair, 'stroke-width': 2.5, fill: 'none' }, tree);
+    A.txt(tree, (NX + 84 + l[0]) / 2 + l[3], 222, l[2], { fill: C.gr, 'font-size': 15 });
+    A.el('circle', { cx: l[0], cy: 246, r: 16, fill: C.soft, stroke: C.ink, 'stroke-width': 1.6 }, tree);
+    A.txt(tree, l[0], 252, l[1], { 'text-anchor': 'middle', 'font-size': 17 });
+  });
+  // the node for the 1s
+  var node = A.el('g', { opacity: 0 }, svg);
+  A.el('rect', { x: NX - 8, y: 150, width: 3 * CW + 16, height: 52, rx: 12, fill: '#FFFFFF', stroke: C.v, 'stroke-width': 1.8 }, node);
+  var slots = ones.map(function (i, k) {
+    A.txt(node, NX + k * CW + CW / 2, 144, 'slot ' + k, { 'text-anchor': 'middle', 'font-size': 12.5, fill: C.gr });
+    return A.el('rect', { x: NX + k * CW + 6, y: 158, width: CW - 12, height: 36, rx: 6, fill: C.goldT, stroke: C.gold, 'stroke-width': 1.5 }, node);
+  });
+  var slotDigits = ones.map(function (i, k) { return A.txt(svg, NX + k * CW + CW / 2, 183, CODE[S[i]][1], { 'text-anchor': 'middle', 'font-size': 19, 'font-family': C.mono, opacity: 0 }); });
+  A.txt(svg, 0, 180, '2nd bit', { fill: C.v, 'font-size': 15 });
+  A.txt(svg, 0, 197, 'only the 1s', { fill: C.gr, 'font-size': 12.5, 'font-weight': 600 });
+  var leg = A.el('g', { opacity: 0 }, svg);
+  A.txt(leg, NX + 3 * CW + 26, 174, '0 = b', { 'font-size': 18, 'font-family': C.mono });
+  A.txt(leg, NX + 3 * CW + 26, 196, '1 = c', { 'font-size': 18, 'font-family': C.mono });
+  var toks = ones.map(function (i) { return A.token(svg, CODE[S[i]][1], C.goldT, C.gold, 14); });
+
+  // out: the compressed stream, root bits then the 2nd bits
+  var stream = A.el('g', { opacity: 0 }, svg);
+  A.txt(stream, 0, 304, 'out', { fill: C.v, 'font-size': 15 });
+  A.txt(stream, 0, 321, 'compressed', { fill: C.gr, 'font-size': 12.5, 'font-weight': 600 });
+  var bits = S.map(function (c) { return CODE[c][0]; }).concat(ones.map(function (i) { return CODE[S[i]][1]; }));
+  var sCells = bits.map(function (b, j) {
+    return A.el('rect', { x: X0 + j * BW, y: 284, width: BW, height: 36, fill: '#FFFFFF', stroke: j < 8 ? C.v : C.gold, 'stroke-width': 1.5 }, stream);
+  });
+  var fly = bits.map(function (b, j) {
+    var g = A.el('g', { opacity: 0 }, svg);
+    A.txt(g, 0, 7, b, { 'text-anchor': 'middle', 'font-size': 19, 'font-family': C.mono, fill: j < 8 ? C.v : C.ink });
+    return g;
+  });
+  var tail = A.txt(svg, X0 + 11 * BW + 18, 308, '11 bits, same as Huffman', { 'font-size': 18, opacity: 0 });
+
+  function draw(t) {
+    var hl = A.seg(t, 0.4, 0.8);
+    S.forEach(function (c, i) {
+      A.op(syms[i], c === 'a' ? 1 - 0.6 * hl : 1);
+      rootCells[i].setAttribute('stroke', c !== 'a' && t >= 0.4 && t < 4.6 ? C.gold : C.v);
+      rootCells[i].setAttribute('stroke-width', c !== 'a' && t >= 0.4 && t < 4.6 ? 3 : 1.5);
+    });
+    A.op(node, A.seg(t, 1.0, 1.4));
+    // each 1 sends its second bit down, packed to the left: slot = 1s before it
+    var k = A.seg(t, 1.6, 2.7);
+    ones.forEach(function (i, s) {
+      A.at(toks[s], A.lerp(cx(i), NX + s * CW + CW / 2, k), A.lerp(124, 176, k));
+      A.op(toks[s], t < 1.2 ? 0 : (t < 2.7 ? A.seg(t, 1.2, 1.5) : 1 - A.seg(t, 2.7, 2.9)));
+      A.op(slotDigits[s], A.seg(t, 2.7, 2.9));
+    });
+    A.op(leg, A.seg(t, 2.9, 3.2));
+    A.op(tree, A.seg(t, 3.3, 3.8));
+    // both bitmaps fly into one stream: root first, then the node
+    A.op(stream, A.seg(t, 4.2, 4.5));
+    var f = A.seg(t, 4.6, 5.6);
+    bits.forEach(function (b, j) {
+      var x0 = j < 8 ? cx(j) : NX + (j - 8) * CW + CW / 2, y0 = j < 8 ? 82 : 176;
+      A.at(fly[j], A.lerp(x0, scx(j), f), A.lerp(y0, 302, f));
+      A.op(fly[j], t < 4.6 ? 0 : 1);
+      sCells[j].setAttribute('fill', t >= 5.6 ? (j < 8 ? C.tint : C.goldT) : '#FFFFFF');
+    });
+    A.op(tail, A.seg(t, 5.8, 6.2));
+  }
+  A.run(svg, draw, 6.4);
+})();
+</script>
+
+<!-- pivco 5 -->
+<section class="slide" data-layout="content">
+  <div class="phase phase--decompress">decompress</div>
+  <div class="eyebrow">pivco-huffman &#183; decompress</div>
+  <h2>Decompress on a GPU: count the 1s before you</h2>
+  <div class="body body--center body--compact">
+    <svg id="apx5" class="chart-svg" viewBox="0 0 848 296" width="100%" role="img" aria-label="Decoding on a GPU. Stored: the first bits 0 1 0 1 0 1 0 0, one per symbol, and the second bits 0 1 0 in slots 0, 1 and 2. Eight threads each read their own first bit at once. The threads that read 0 already know they are an a. The threads that read 1 count the 1s before them with popcount, 0, 1 and 2, take that slot of the second bits, and so know b from c. All eight letters go to the output at once: a b a c a b a a."></svg>
+  </div>
+</section>
+<script>
+// 5. decode on a GPU, laid out like pfor: what is stored, eight threads, out.
+// Each thread reads its root bit. A 0 is an a. A 1 counts the 1s before it,
+// takes that slot of the 2nd bits, and so knows b from c.
+(function () {
+  var A = APX, C = A.C, svg = document.getElementById('apx5');
+  if (!svg) return;
+  var S = 'abacabaa'.split(''), CODE = { a: '0', b: '10', c: '11' }, X0 = 150, CW = 56, NX = 640, NW = 50;
+  function cx(i) { return X0 + i * CW + CW / 2; }
+  function sx(k) { return NX + k * NW + NW / 2; }
+  var ones = []; S.forEach(function (c, i) { if (c !== 'a') ones.push(i); });
+  var slotOf = {}; ones.forEach(function (i, k) { slotOf[i] = k; });
+
+  // stored: the root bits under the symbols, the 2nd bits to the right
+  A.txt(svg, 0, 62, 'stored', { fill: C.v, 'font-size': 15 });
+  A.txt(svg, X0, 26, '1st bits   0 = a, 1 = b or c', { fill: C.gr, 'font-size': 13 });
+  A.txt(svg, NX, 26, '2nd bits   0 = b, 1 = c', { fill: C.gr, 'font-size': 13 });
+  var rootCells = S.map(function (c, i) {
+    var b = CODE[c][0];
+    var r = A.el('rect', { x: X0 + i * CW + 6, y: 38, width: CW - 12, height: 36, rx: 6, fill: b === '1' ? C.tint : '#FFFFFF', stroke: C.v, 'stroke-width': 1.5 }, svg);
+    A.txt(svg, cx(i), 63, b, { 'text-anchor': 'middle', 'font-size': 19, 'font-family': C.mono, fill: C.v });
+    return r;
+  });
+  var slotCells = ones.map(function (i, k) {
+    var r = A.el('rect', { x: NX + k * NW + 4, y: 38, width: NW - 8, height: 36, rx: 6, fill: C.goldT, stroke: C.gold, 'stroke-width': 1.5 }, svg);
+    A.txt(svg, sx(k), 63, CODE[S[i]][1], { 'text-anchor': 'middle', 'font-size': 19, 'font-family': C.mono });
+    A.txt(svg, sx(k), 92, 'slot ' + k, { 'text-anchor': 'middle', 'font-size': 12.5, fill: C.gr });
+    return r;
+  });
+
+  // GPU: eight threads, each shows the bits it has read
+  var gpu = A.el('g', { opacity: 0 }, svg);
+  A.el('rect', { x: X0 - 4, y: 122, width: 8 * CW + 8, height: 58, rx: 10, fill: '#F5F3FF', stroke: C.v, 'stroke-width': 1.2, 'stroke-dasharray': '4 4' }, gpu);
+  A.txt(gpu, 0, 150, 'GPU', { fill: C.v, 'font-size': 15 });
+  A.txt(gpu, 0, 167, '8 threads', { fill: C.gr, 'font-size': 12.5, 'font-weight': 600 });
+  var thBox = [], thBits = [];
+  S.forEach(function (c, i) {
+    thBox.push(A.el('rect', { x: cx(i) - 22, y: 128, width: 44, height: 46, rx: 7, fill: '#FFFFFF', stroke: C.v, 'stroke-width': 1.6 }, gpu));
+    A.txt(gpu, cx(i), 144, 't' + i, { 'text-anchor': 'middle', 'font-size': 12.5, fill: C.v });
+    thBits.push(A.txt(gpu, cx(i), 166, '', { 'text-anchor': 'middle', 'font-size': 16, 'font-family': C.mono }));
+  });
+  // arrows: root bit down into its thread, thread down into out
+  var down = S.map(function (c, i) { return A.el('line', { x1: cx(i), y1: 76, x2: cx(i), y2: 76, stroke: C.v, 'stroke-width': 2 }, svg); });
+  var outA = S.map(function (c, i) { return A.el('line', { x1: cx(i), y1: 176, x2: cx(i), y2: 176, stroke: C.v, 'stroke-width': 2 }, svg); });
+  // counts and the 2nd-bit tokens
+  var badges = ones.map(function (i, k) { return A.token(svg, String(k), C.goldT, C.gold, 11); });
+  var toks = ones.map(function (i) { return A.token(svg, CODE[S[i]][1], C.goldT, C.gold, 12); });
+  // the counts above are popcounts: the 1s before each thread, in one instruction
+  var pc = A.el('g', { opacity: 0 }, svg);
+  A.txt(pc, 0, 104, 'popcount', { fill: C.gold, 'font-size': 15, 'font-family': C.mono });
+  A.txt(pc, 0, 120, '1s before me', { fill: C.gr, 'font-size': 12.5, 'font-weight': 600 });
+  // out
+  A.txt(svg, 0, 234, 'out', { fill: C.gr, 'font-size': 15 });
+  var outs = S.map(function (c, i) {
+    A.el('rect', { x: X0 + i * CW + 4, y: 208, width: CW - 8, height: 38, rx: 8, fill: C.soft }, svg);
+    return A.txt(svg, cx(i), 235, c, { 'text-anchor': 'middle', 'font-size': 21, opacity: 0 });
+  });
+  var cap = A.txt(svg, X0, 286, 'every thread reads, counts the 1s before it and reads again, all at once', { 'font-size': 20, opacity: 0 });
+
+  function draw(t) {
+    A.op(gpu, A.seg(t, 0.2, 0.6));
+    var d = A.seg(t, 0.8, 1.4);
+    S.forEach(function (c, i) {
+      down[i].setAttribute('y2', A.lerp(76, 124, d));
+      var first = CODE[c][0], two = c !== 'a';
+      var got = t >= 1.4 ? first : '';
+      if (two && t >= 3.4) got = CODE[c];
+      thBits[i].textContent = got;
+      // a thread that read 0 is done: it already knows it is an a
+      thBox[i].setAttribute('fill', t >= 1.8 && !two ? C.soft : '#FFFFFF');
+      thBox[i].setAttribute('stroke', two && t >= 2.0 && t < 3.6 ? C.gold : C.v);
+      thBox[i].setAttribute('stroke-width', two && t >= 2.0 && t < 3.6 ? 2.6 : 1.6);
+      var o = A.seg(t, 3.8, 4.3);
+      outA[i].setAttribute('y2', A.lerp(176, 206, o));
+      A.op(outs[i], A.seg(t, 4.2, 4.5));
+    });
+    ones.forEach(function (i, k) {
+      // the count of 1s before this thread, which is also its slot
+      A.at(badges[k], cx(i) + 22, 104);
+      A.op(badges[k], A.seg(t, 2.0, 2.3));
+      A.op(pc, A.seg(t, 2.0, 2.3));
+      slotCells[k].setAttribute('stroke-width', t >= 2.3 && t < 3.4 ? 3.2 : 1.5);
+      // the slot's bit travels to the thread
+      var f = A.seg(t, 2.6, 3.4);
+      A.at(toks[k], A.lerp(sx(k), cx(i) + 12, f), A.lerp(56, 160, f));
+      A.op(toks[k], t < 2.5 ? 0 : (t < 3.4 ? A.seg(t, 2.5, 2.6) : 1 - A.seg(t, 3.4, 3.6)));
+    });
+    A.op(cap, A.seg(t, 4.7, 5.1));
+  }
+  A.run(svg, draw, 5.3);
+})();
+</script>
+
+<!-- pivco 6 -->
+<section class="slide" data-layout="content">
+  <div class="phase phase--decompress">decompress</div>
+  <div class="eyebrow">pivco-huffman &#183; decompress</div>
+  <h2>What is popcount?</h2>
+  <div class="body body--center body--compact">
+    <svg id="apx6" class="chart-svg" viewBox="0 0 848 300" width="100%" role="img" aria-label="What popcount is, one click per idea. popcount answers how many 1s are in a word: for 0 1 0 1 0 1 0 0 it counts every 1 at once, in one instruction, and gives 3. Thread 5 only wants the 1s before it, so it masks the rest away; popcount of what is left gives 2. So thread 5 reads slot 2 of the second bits. Every thread does this at the same time, each with its own mask. It is built into CPUs and GPUs: POPCNT on x86, CNT on Arm, __popc in CUDA, popcount in Metal."></svg>
+    <span data-step="1" hidden></span><span data-step="2" hidden></span><span data-step="3" hidden></span><span data-step="4" hidden></span><span data-step="5" hidden></span>
+    <p class="source-note" style="margin-top:12px;">PivCo-Huffman: M. Zukowski, arXiv 2606.05765, 2026; in OpenZL 0.3.</p>
+  </div>
+</section>
+<script>
+// 6. what popcount is, one click per idea. The slide's build step (data-k)
+// picks the phase; each phase animates in from the one before.
+(function () {
+  var A = APX, C = A.C, svg = document.getElementById('apx6');
+  if (!svg) return;
+  var slide = svg.closest('.slide');
+  var bits = '01010100'.split(''), X0 = 150, CW = 56, ME = 5, NX = 600, NW = 56;
+  function cx(i) { return X0 + i * CW + CW / 2; }
+  var ones = []; bits.forEach(function (b, i) { if (b === '1') ones.push(i); });
+
+  var cap = A.txt(svg, 0, 26, '', { 'font-size': 21 });
+  A.txt(svg, 0, 94, 'a word', { fill: C.v, 'font-size': 15 });
+  var cells = bits.map(function (b, i) {
+    var g = A.el('g', {}, svg);
+    A.el('rect', { x: X0 + i * CW + 6, y: 70, width: CW - 12, height: 38, rx: 6, fill: b === '1' ? C.tint : '#FFFFFF', stroke: C.v, 'stroke-width': 1.5 }, g);
+    A.txt(g, cx(i), 96, b, { 'text-anchor': 'middle', 'font-size': 20, 'font-family': C.mono, fill: C.v });
+    return g;
+  });
+  // t5 and its mask
+  var me = A.el('g', {}, svg);
+  A.el('path', { d: 'M ' + (cx(ME) - 9) + ' 54 L ' + (cx(ME) + 9) + ' 54 L ' + cx(ME) + ' 66 Z', fill: C.gold }, me);
+  A.txt(me, cx(ME) + 16, 64, 't5', { 'font-size': 15 });
+  var mask = A.el('g', {}, svg);
+  A.el('path', { d: 'M ' + (X0 + 6) + ' 118 L ' + (X0 + 6) + ' 126 L ' + (X0 + ME * CW - 6) + ' 126 L ' + (X0 + ME * CW - 6) + ' 118', fill: 'none', stroke: C.gold, 'stroke-width': 2 }, mask);
+  A.txt(mask, X0 + ME * CW / 2, 148, 'the bits before t5', { 'text-anchor': 'middle', 'font-size': 15, fill: C.gr });
+  // the popcount box
+  var box = A.el('g', {}, svg);
+  A.el('rect', { x: X0 + 40, y: 172, width: 210, height: 76, rx: 12, fill: C.goldT, stroke: C.gold, 'stroke-width': 2 }, box);
+  A.txt(box, X0 + 145, 195, 'popcount', { 'text-anchor': 'middle', 'font-size': 16, 'font-family': C.mono });
+  var result = A.txt(box, X0 + 145, 236, '', { 'text-anchor': 'middle', 'font-size': 34, 'font-family': C.mono });
+  var toks = ones.map(function () { return A.token(svg, '1', C.tint, C.v, 14); });
+  // the 2nd bits, and the jump to slot 2
+  var node = A.el('g', {}, svg);
+  A.txt(node, NX, 170, '2nd bits', { fill: C.gr, 'font-size': 13 });
+  var slots = [0, 1, 2].map(function (k) {
+    A.txt(node, NX + k * NW + NW / 2, 190, 'slot ' + k, { 'text-anchor': 'middle', 'font-size': 12.5, fill: C.gr });
+    var r = A.el('rect', { x: NX + k * NW + 4, y: 198, width: NW - 8, height: 38, rx: 6, fill: C.goldT, stroke: C.gold, 'stroke-width': 1.5 }, node);
+    A.txt(node, NX + k * NW + NW / 2, 224, '010'[k], { 'text-anchor': 'middle', 'font-size': 19, 'font-family': C.mono });
+    return r;
+  });
+  var arrow = A.el('path', { d: 'M ' + (X0 + 252) + ' 220 C ' + (NX - 80) + ' 220 ' + (NX - 60) + ' 262 ' + NX + ' 262 L ' + (NX + 2 * NW + NW / 2) + ' 262 L ' + (NX + 2 * NW + NW / 2) + ' 240', fill: 'none', stroke: C.gold, 'stroke-width': 2.4 }, svg);
+  var instr = A.txt(svg, 0, 292, 'built into CPUs and GPUs, as POPCNT on x86, CNT on Arm, __popc in CUDA, popcount in Metal', { 'font-size': 15, fill: C.gr, 'font-weight': 600 });
+
+  var CAPS = ['popcount answers one question: how many 1s are in a word?',
+              'it counts every 1 at once, in one instruction, and gets 3',
+              't5 only wants the 1s before it, so the rest is masked away',
+              'popcount of what is left gives 2',
+              'so t5 reads slot 2 of the 2nd bits',
+              'every thread does this at the same time, each with its own mask'];
+
+  // state of every element for phase k, p is how far into that phase (0..1)
+  function render(k, p) {
+    cap.textContent = CAPS[k];
+    A.op(cap, k === 0 ? 1 : A.seg(p, 0, 0.3));
+    A.op(box, k >= 1 ? 1 : 0);
+    A.op(me, k >= 2 ? (k === 2 ? A.seg(p, 0, 0.3) : 1) : 0);
+    var m = k >= 2 ? (k === 2 ? A.seg(p, 0.2, 0.7) : 1) : 0;
+    cells.forEach(function (g, i) { A.op(g, i >= ME ? 1 - 0.75 * m : 1); });
+    A.op(mask, m);
+    // tokens: phase 1 counts all three 1s, phase 3 only the two before t5
+    ones.forEach(function (i, q) {
+      var counted = k === 1 || (k === 3 && i < ME);
+      var f = counted ? A.seg(p, 0.15, 0.75) : 0;
+      A.at(toks[q], A.lerp(cx(i), X0 + 95 + q * 55, f), A.lerp(89, 236, f));
+      A.op(toks[q], counted ? (p < 0.75 ? 1 : 1 - A.seg(p, 0.75, 0.9)) : 0);
+    });
+    result.textContent = (k === 1 && p > 0.8) ? '3' : (k >= 3 && (k > 3 || p > 0.8) ? '2' : '');
+    A.op(node, k >= 4 ? (k === 4 ? A.seg(p, 0, 0.3) : 1) : 0);
+    A.op(arrow, k >= 4 ? (k === 4 ? A.seg(p, 0.3, 0.6) : 1) : 0);
+    slots.forEach(function (r, s) { r.setAttribute('stroke-width', s === 2 && k >= 4 && (k > 4 || p > 0.6) ? 3.4 : 1.5); });
+    A.op(instr, k >= 5 ? A.seg(p, 0.2, 0.5) : 0);
+  }
+
+  var raf = null, t0 = 0, cur = 0;
+  function step(now) {
+    var p = Math.min(1, (now - t0) / 1600);
+    render(cur, p);
+    raf = p < 1 ? requestAnimationFrame(step) : null;
+  }
+  function sync() {
+    var k = Math.min(5, +(slide.dataset.k || 0));
+    var forward = k === cur + 1;
+    cur = k;
+    if (raf) cancelAnimationFrame(raf);
+    raf = null;
+    if (forward && slide.classList.contains('active')) { t0 = performance.now(); raf = requestAnimationFrame(step); }
+    else render(cur, 1);
+  }
+  new MutationObserver(sync).observe(slide, { attributes: true, attributeFilter: ['data-k', 'class'] });
+  render(0, 1);
+})();
+</script>
 
 </template>
 <script src="js/cover.js"></script>
