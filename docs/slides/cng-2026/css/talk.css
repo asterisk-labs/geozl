@@ -46,7 +46,7 @@ h2 {
 }
 
 .cover-conference .text-block {
-  max-width: 53%;
+  max-width: 45%;
 }
 
 .cover-conference .event-line {
@@ -57,7 +57,7 @@ h2 {
 
 .cover-conference h1 {
   margin-bottom: 18px;
-  font-size: 2.2em;
+  font-size: 2.05em;
   line-height: 1.08;
 }
 
@@ -66,6 +66,10 @@ h2 {
   font-size: 0.84em;
   font-weight: 400;
   line-height: 1.32;
+}
+
+.cover-conference .authors .author {
+  white-space: nowrap;
 }
 
 .cover-conference .authors .author-speaker {
@@ -82,26 +86,38 @@ h2 {
 }
 
 .cover-conference .project-badge {
-  right: 58px;
+  right: 44px;
 }
 
 .cover-conference .project-badge--graph {
-  width: 312px;
+  width: 452px;
 }
 
 .cover-conference .cover-dataset-graph {
   display: block;
-  width: 312px;
-  height: 312px;
+  width: 452px;
+  height: 344px;
+  overflow: visible;
 }
 
 .cover-conference .bottom-logos {
   align-items: center;
+  justify-content: flex-start;
+  gap: 18px;
 }
 
 .cover-conference .bottom-logos > img,
 .cover-conference .bottom-logos .extra-logos img {
   height: 29px;
+}
+
+/* GeoZL sits next to the asterisk mark, after a hairline */
+.cover-conference .bottom-logos .extra-logos {
+  padding-left: 18px;
+  border-left: 1.5px solid #D6D3D1;
+}
+.cover-conference .bottom-logos .extra-logos img {
+  height: 27px;
 }
 
 .cover-conference .bottom-logos .extra-logos {

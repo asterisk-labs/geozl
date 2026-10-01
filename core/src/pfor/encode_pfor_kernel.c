@@ -1,3 +1,4 @@
+// Design after TurboPFor.
 #include "encode_pfor_kernel.h"
 
 #include "pfor_check.h"

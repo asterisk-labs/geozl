@@ -11,237 +11,153 @@ function triBar() {
   return '<span></span><span></span><span></span>';
 }
 
-function startDatasetGraph(canvas, imageSource) {
-  var ctx = canvas.getContext('2d');
-  var image = new Image();
-  var width = 400;
-  var height = 400;
-  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+// the cover's right half: the three datasets of the "how it works" slide, each
+// with its own graph. A small pulse runs from the tile through the codecs into
+// the file, tinting each codec as it passes; on IMERG it splits into both
+// branches. Kept quiet on purpose: the title is what people should read first.
+function startDatasetGraph(svg) {
+  var NS = 'http://www.w3.org/2000/svg';
+  var VIOLET = '#492ae8', INK = '#17161C', WIRE = '#D6D3D1';
+  var GEO = { med: 1, wp_static: 1, planar: 1, pfor: 1 };
+  // outlined chips, tinted when the pulse is inside them
+  var EDGE = { zigzag: '#D9B300', entropy: INK, split: '#9CA3AF' };
+  var TINT = { zigzag: '#FEF3C2', entropy: '#EEF0F2', split: '#EEF0F2' };
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var colors = {
-    ink: '#1A1A1A',
-    edge: '#8B94A1',
-    rule: '#E5E7EB',
-    dim: '#6B7280',
-    violet: '#4E04EB',
-    gold: '#D3AC00',
-    mint: '#4FAE78',
-    ember: '#D9684E'
-  };
-  var datasets = [
-    {
-      name: 'SENTINEL-1', type: 'complex radar', crop: [1, 2],
-      nodes: [
-        ['split', 112, 54, 46, 18, 'SPLIT', colors.mint],
-        ['real', 194, 36, 48, 18, 'PLANAR', colors.violet],
-        ['imag', 194, 72, 48, 18, 'PLANAR', colors.violet],
-        ['realE', 278, 36, 48, 18, 'ENTROPY', colors.gold],
-        ['imagE', 278, 72, 48, 18, 'ENTROPY', colors.gold],
-        ['out', 365, 54, 28, 44, '', colors.dim, 'output']
-      ],
-      paths: [
-        [['input', 'split', 'real', 'realE', 'outTop'], colors.mint],
-        [['input', 'split', 'imag', 'imagE', 'outBottom'], colors.violet]
-      ]
-    },
-    {
-      name: 'ERA5', type: 'climate grid', crop: [2, 1],
-      nodes: [
-        ['nodata', 112, 54, 48, 18, 'NODATA', colors.mint],
-        ['planar', 194, 36, 48, 18, 'PLANAR', colors.violet],
-        ['generic', 220, 75, 52, 18, 'GENERIC', colors.ember],
-        ['entropy', 284, 36, 48, 18, 'ENTROPY', colors.gold],
-        ['out', 365, 54, 28, 40, '', colors.dim, 'output']
-      ],
-      paths: [
-        [['input', 'nodata', 'planar', 'entropy', 'outTop'], colors.violet],
-        [['input', 'nodata', 'generic', 'outBottom'], colors.ember]
-      ]
-    },
-    {
-      name: 'COPERNICUS DEM', type: 'elevation', crop: [0, 1],
-      nodes: [
-        ['planar', 116, 54, 50, 18, 'PLANAR', colors.violet],
-        ['zigzag', 205, 54, 50, 18, 'ZIGZAG', colors.dim],
-        ['entropy', 294, 54, 50, 18, 'ENTROPY', colors.gold],
-        ['out', 365, 54, 28, 36, '', colors.dim, 'output']
-      ],
-      paths: [
-        [['input', 'planar', 'zigzag', 'entropy', 'out'], colors.violet]
-      ]
-    },
-    {
-      name: 'ESA WORLDCOVER', type: 'categorical', crop: [2, 0],
-      nodes: [
-        ['entropy', 205, 54, 54, 18, 'ENTROPY', colors.gold],
-        ['out', 365, 54, 28, 36, '', colors.dim, 'output']
-      ],
-      paths: [
-        [['input', 'entropy', 'out'], colors.gold]
-      ]
-    }
+  var W = 84, H = 26, COLX = [118, 218, 318], BRANCH = 40, OUTX = 372;
+  var rows = [
+    { name: 'Sentinel-2', type: 'optical', tile: 'assets/img/tiles/t01.jpg', h: 112,
+      nodes: [['a', 'med', 0, 0], ['b', 'zigzag', 1, 0], ['c', 'entropy', 2, 0]],
+      edges: [['a', 'b'], ['b', 'c']], first: 'a', last: 'c', routes: [['a', 'b', 'c']] },
+    { name: 'Copernicus DEM', type: 'elevation', tile: 'assets/img/tiles/t03.jpg', h: 112,
+      nodes: [['a', 'wp_static', 0, 0], ['b', 'zigzag', 1, 0], ['c', 'entropy', 2, 0]],
+      edges: [['a', 'b'], ['b', 'c']], first: 'a', last: 'c', routes: [['a', 'b', 'c']] },
+    { name: 'GPM IMERG', type: 'rain', tile: 'assets/img/tiles/t13.jpg', h: 150,
+      nodes: [['s', 'split', 0, 0], ['m', 'med', 1, 1], ['e', 'entropy', 2, 0]],
+      edges: [['s', 'e'], ['s', 'm'], ['m', 'e']], first: 's', last: 'e', routes: [['s', 'e'], ['s', 'm', 'e']] }
   ];
 
-  function configureCanvas() {
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  function el(tag, attrs, parent) {
+    var n = document.createElementNS(NS, tag);
+    for (var k in attrs) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  }
+  // a smooth step between two points, flat where they share a row
+  function seg(a, b) {
+    if (a.y === b.y) return ' L ' + b.x + ' ' + b.y;
+    var mx = (a.x + b.x) / 2;
+    return ' C ' + mx + ' ' + a.y + ' ' + mx + ' ' + b.y + ' ' + b.x + ' ' + b.y;
   }
 
-  function nodeMap(dataset) {
-    var map = { input: {x: 58, y: 54} };
-    dataset.nodes.forEach(function (node) {
-      map[node[0]] = {x: node[1], y: node[2]};
-      if (node[0] === 'out') {
-        map.outTop = {x: node[1], y: node[2] - 9};
-        map.outBottom = {x: node[1], y: node[2] + 9};
-      }
+  var defs = el('defs', {}, svg);
+  var mk = el('marker', { id: 'cg-arrow', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto' }, defs);
+  el('path', { d: 'M 0 0 L 10 5 L 0 10 z', fill: WIRE }, mk);
+
+  var top = 0, live = [];
+  rows.forEach(function (row, ri) {
+    var g = el('g', {}, svg), y = top + 54, pos = {};
+    var title = el('text', { x: 0, y: top + 16, 'font-size': 16, 'font-weight': 700, fill: INK }, g);
+    title.textContent = row.name;
+    var sub = el('tspan', { dx: 8, 'font-size': 12.5, 'font-weight': 400, fill: '#6B7280' }, title);
+    sub.textContent = row.type;
+
+    // the tile, cut to our hexagon
+    var cx = 32, r = 30, clip = 'cg-hex' + ri;
+    var cp = el('clipPath', { id: clip }, defs);
+    el('polygon', { points: [[cx, y - r], [cx + 26, y - 15], [cx + 26, y + 15], [cx, y + r], [cx - 26, y + 15], [cx - 26, y - 15]].map(function (p) { return p.join(','); }).join(' ') }, cp);
+    el('image', { href: row.tile, x: cx - 30, y: y - 30, width: 60, height: 60, preserveAspectRatio: 'xMidYMid slice', 'clip-path': 'url(#' + clip + ')' }, g);
+
+    row.nodes.forEach(function (n) { pos[n[0]] = { x: COLX[n[2]], y: y + n[3] * BRANCH, name: n[1] }; });
+    var L = function (id) { return { x: pos[id].x - W / 2, y: pos[id].y }; };
+    var R = function (id) { return { x: pos[id].x + W / 2, y: pos[id].y }; };
+    var tileOut = { x: cx + 30, y: y }, out = { x: OUTX, y: y };
+
+    // wires under the chips
+    var wire = { stroke: WIRE, 'stroke-width': 1.4, fill: 'none' };
+    el('path', Object.assign({ d: 'M ' + tileOut.x + ' ' + y + seg(tileOut, L(row.first)) }, wire), g);
+    row.edges.forEach(function (e) { var a = R(e[0]), b = L(e[1]); el('path', Object.assign({ d: 'M ' + a.x + ' ' + a.y + seg(a, b) }, wire), g); });
+    el('path', Object.assign({ d: 'M ' + R(row.last).x + ' ' + y + ' L ' + (out.x - 2) + ' ' + y, 'marker-end': 'url(#cg-arrow)' }, wire), g);
+
+    // pulses travel under the chips, so a codec glows while the pulse is inside it
+    var under = el('g', {}, g);
+
+    // chips: white with a coloured edge, and a tint the pulse switches on
+    var glows = {};
+    row.nodes.forEach(function (n) {
+      var p = pos[n[0]], geo = GEO[n[1]], box = { x: p.x - W / 2, y: p.y - H / 2, width: W, height: H, rx: 13 };
+      el('rect', Object.assign({ fill: '#FFFFFF' }, box), g);
+      glows[n[0]] = el('rect', Object.assign({ fill: geo ? '#E9E5FD' : (TINT[n[1]] || '#EEF0F2'), opacity: 0 }, box), g);
+      el('rect', Object.assign({ fill: 'none', stroke: geo ? VIOLET : (EDGE[n[1]] || '#9CA3AF'), 'stroke-width': 1.5 }, box), g);
+      var t = el('text', { x: p.x, y: p.y + 5, 'text-anchor': 'middle', 'font-size': 14, 'font-weight': 600, fill: geo ? VIOLET : INK }, g);
+      t.textContent = n[1];
     });
-    return map;
-  }
 
-  function curveControls(a, b) {
-    var middle = (a.x + b.x) / 2;
-    return [{x: middle, y: a.y}, {x: middle, y: b.y}];
-  }
+    // the compressed file the wire ends in
+    var fx = out.x + 4, fy = y - 16;
+    el('rect', { x: fx, y: fy, width: 26, height: 32, rx: 4, fill: '#FFFFFF', stroke: '#A8A29E', 'stroke-width': 1.4 }, g);
+    for (var bar = 0; bar < 3; bar++) el('rect', { x: fx + 6, y: fy + 8 + bar * 6.5, width: 14, height: 2.6, rx: 1, fill: '#D6D3D1' }, g);
 
-  function curvePoint(a, b, progress) {
-    var controls = curveControls(a, b);
-    var inverse = 1 - progress;
-    return {
-      x: inverse * inverse * inverse * a.x + 3 * inverse * inverse * progress * controls[0].x + 3 * inverse * progress * progress * controls[1].x + progress * progress * progress * b.x,
-      y: inverse * inverse * inverse * a.y + 3 * inverse * inverse * progress * controls[0].y + 3 * inverse * progress * progress * controls[1].y + progress * progress * progress * b.y
-    };
-  }
-
-  function drawPath(points, color) {
-    ctx.save();
-    ctx.strokeStyle = color;
-    ctx.globalAlpha = 0.62;
-    ctx.lineWidth = 1.35;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-    for (var index = 1; index < points.length; index += 1) {
-      var controls = curveControls(points[index - 1], points[index]);
-      ctx.bezierCurveTo(controls[0].x, controls[0].y, controls[1].x, controls[1].y, points[index].x, points[index].y);
-    }
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  function pointOnPath(points, progress) {
-    var scaled = progress * (points.length - 1);
-    var segment = Math.min(points.length - 2, Math.floor(scaled));
-    return curvePoint(points[segment], points[segment + 1], scaled - segment);
-  }
-
-  function drawTile(dataset, rowTop) {
-    var sourceSize = Math.floor(Math.min(image.naturalWidth, image.naturalHeight) / 3);
-    var step = (Math.min(image.naturalWidth, image.naturalHeight) - sourceSize) / 2;
-    var sourceX = dataset.crop[0] * step;
-    var sourceY = dataset.crop[1] * step;
-    ctx.save();
-    ctx.beginPath();
-    ctx.roundRect(8, rowTop + 29, 42, 42, 3);
-    ctx.clip();
-    ctx.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 8, rowTop + 29, 42, 42);
-    ctx.restore();
-    ctx.strokeStyle = colors.ink;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(8.5, rowTop + 29.5, 41, 41);
-  }
-
-  function drawNode(node, rowTop) {
-    var x = node[1] - node[3] / 2;
-    var y = rowTop + node[2] - node[4] / 2;
-    var output = node[7] === 'output';
-    ctx.save();
-    ctx.fillStyle = output ? '#FFFFFF' : '#FAFAFB';
-    ctx.strokeStyle = node[6];
-    ctx.lineWidth = 1.25;
-    ctx.beginPath();
-    ctx.roundRect(x, y, node[3], node[4], output ? 4 : 3);
-    ctx.fill();
-    ctx.stroke();
-    if (output) {
-      ctx.fillStyle = '#C7CED7';
-      for (var bar = 0; bar < 3; bar += 1) ctx.fillRect(x + 7, y + 9 + bar * 7, node[3] - 14, 3);
-    } else {
-      ctx.fillStyle = node[6];
-      ctx.font = '600 6.5px "SFMono-Regular", Consolas, monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(node[5], node[1], rowTop + node[2] + 0.3);
-    }
-    ctx.restore();
-  }
-
-  function drawDataset(dataset, datasetIndex, time) {
-    var rowTop = datasetIndex * 100;
-    var map = nodeMap(dataset);
-    ctx.save();
-    ctx.fillStyle = colors.ink;
-    ctx.font = '700 10.5px "SFMono-Regular", Consolas, monospace';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(dataset.name, 8, rowTop + 12);
-    var nameWidth = ctx.measureText(dataset.name).width;
-    ctx.fillStyle = colors.dim;
-    ctx.font = '500 8px "SFMono-Regular", Consolas, monospace';
-    ctx.fillText(dataset.type, 8 + nameWidth + 10, rowTop + 12);
-    ctx.restore();
-
-    dataset.paths.forEach(function (path) {
-      drawPath(path[0].map(function (id) { return {x: map[id].x, y: rowTop + map[id].y}; }), path[1]);
+    // one route per branch, from the tile to the arrow head
+    var routes = row.routes.map(function (ids) {
+      var pts = [tileOut], d;
+      ids.forEach(function (id) { pts.push(L(id), R(id)); });
+      pts.push(out);
+      d = 'M ' + pts[0].x + ' ' + pts[0].y;
+      for (var i = 1; i < pts.length; i++) d += seg(pts[i - 1], pts[i]);
+      var path = el('path', { d: d, fill: 'none', stroke: 'none' }, under);
+      var dot = el('circle', { r: 3.2, fill: VIOLET, opacity: 0 }, under);
+      return { path: path, len: path.getTotalLength(), dot: dot, ids: ids };
     });
-    drawTile(dataset, rowTop);
-    dataset.nodes.forEach(function (node) { drawNode(node, rowTop); });
+    live.push({ routes: routes, glows: glows, pos: pos, offset: ri * 2 });
+    top += row.h;
+  });
+  svg.setAttribute('viewBox', '-4 0 452 ' + (top - 30));
 
-    dataset.paths.forEach(function (path, pathIndex) {
-      var points = path[0].map(function (id) { return {x: map[id].x, y: rowTop + map[id].y}; });
-      var progress = reduceMotion ? 0.64 : ((time * 0.00018) + datasetIndex * 0.19 + pathIndex * 0.34) % 1;
-      var token = pointOnPath(points, progress);
-      ctx.save();
-      ctx.fillStyle = path[1];
-      ctx.shadowColor = path[1];
-      ctx.shadowBlur = 7;
-      ctx.beginPath();
-      ctx.arc(token.x, token.y, 2.8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+  var CYCLE = 6, TRAVEL = 3.6;
+  function ease(p) { return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; }
+  function draw(t) {
+    live.forEach(function (row) {
+      var local = ((t - row.offset) % CYCLE + CYCLE) % CYCLE;
+      var p = local < TRAVEL ? ease(local / TRAVEL) : 1;
+      var moving = local < TRAVEL;
+      var lit = {};
+      row.routes.forEach(function (rt) {
+        var pt = rt.path.getPointAtLength(p * rt.len);
+        var a = moving ? 0.85 : Math.max(0, 0.85 - (local - TRAVEL) / 0.4);
+        rt.dot.setAttribute('cx', pt.x); rt.dot.setAttribute('cy', pt.y); rt.dot.setAttribute('opacity', a.toFixed(3));
+        rt.ids.forEach(function (id) {
+          var c = row.pos[id], dist = Math.hypot(pt.x - c.x, (pt.y - c.y) * 2);
+          lit[id] = Math.max(lit[id] || 0, moving ? Math.max(0, 1 - dist / 46) : 0);
+        });
+      });
+      for (var id in row.glows) row.glows[id].setAttribute('opacity', (lit[id] || 0).toFixed(3));
     });
   }
 
-  function render(time) {
-    ctx.clearRect(0, 0, width, height);
-    for (var row = 1; row < 4; row += 1) {
-      ctx.strokeStyle = colors.rule;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(8, row * 100);
-      ctx.lineTo(392, row * 100);
-      ctx.stroke();
-    }
-    datasets.forEach(function (dataset, index) { drawDataset(dataset, index, time || 0); });
-    if (!reduceMotion && canvas.isConnected) window.requestAnimationFrame(render);
+  if (reduceMotion) { draw(TRAVEL + 0.01); return; }
+  var slide = svg.closest('.slide'), raf = null, t0 = 0;
+  function frame(now) { draw((now - t0) / 1000); raf = requestAnimationFrame(frame); }
+  function sync() {
+    var on = !slide || slide.classList.contains('active');
+    if (on && !raf) { t0 = performance.now(); raf = requestAnimationFrame(frame); }
+    if (!on && raf) { cancelAnimationFrame(raf); raf = null; }
   }
-
-  configureCanvas();
-  image.addEventListener('load', function () { render(0); }, { once: true });
-  image.src = imageSource;
+  if (slide) new MutationObserver(sync).observe(slide, { attributes: true, attributeFilter: ['class'] });
+  draw(0);
+  sync();
 }
 
 function buildCover(cfg) {
   var slot = document.getElementById('cover-slot');
   var mode = cfg.cover || 'brand';
   var logos = (cfg.logos || []).map(function (l) { return '<img src="' + l + '" alt="">'; }).join('');
-  var people = cfg.speaker
+  // each name stays on one line; the list only breaks between names
+  var people = (cfg.speaker
     ? ['<strong class="author-speaker">' + cfg.speaker + '</strong>'].concat(cfg.authors || [])
-    : (cfg.authors || []);
+    : (cfg.authors || [])).map(function (n) { return '<span class="author">' + n + '</span>'; });
   var affiliationLine = (cfg.affiliations || []).concat(cfg.date ? [cfg.date] : []).join(' &middot; ');
   var plogo = cfg.project_visual === 'dataset-graphs'
-    ? '<div class="project-badge project-badge--graph"><canvas class="cover-dataset-graph" width="400" height="400" role="img" aria-label="Animated dataset-specific compression graphs for Sentinel-1, ERA5, Copernicus DEM and ESA WorldCover."></canvas></div>'
+    ? '<div class="project-badge project-badge--graph"><svg class="cover-dataset-graph" role="img" aria-label="Three datasets, three compression graphs: Sentinel-2 through med, zigzag and entropy, 2.03 times smaller; Copernicus DEM through wp_static, zigzag and entropy, 6.13 times smaller; GPM IMERG split into two branches, 14.1 times smaller."></svg></div>'
     : (cfg.project_logo
       ? '<div class="project-badge"><img src="' + cfg.project_logo + '" alt=""></div>'
       : '');
@@ -294,5 +210,5 @@ function buildCover(cfg) {
 
   slot.innerHTML = html;
   var graph = slot.querySelector('.cover-dataset-graph');
-  if (graph) startDatasetGraph(graph, cfg.project_visual_data || 'assets/img/cover-tiles.jpg');
+  if (graph) startDatasetGraph(graph);
 }
