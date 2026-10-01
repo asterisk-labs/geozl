@@ -1,0 +1,104 @@
+/* layouts.css, slide content layouts + reusable components */
+
+/* content: title top, free-form body below */
+.slide[data-layout="content"] {
+  padding: 48px 56px;
+}
+.slide[data-layout="content"] .body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+/* split: two equal columns */
+.slide[data-layout="split"] {
+  padding: 48px 56px;
+}
+.slide[data-layout="split"] .columns {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-top: 8px;
+  align-items: start;
+}
+.slide[data-layout="split"] .col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.slide[data-layout="split"] .col img {
+  width: 100%;
+  border-radius: 6px;
+}
+
+/* figure: image dominant, caption below */
+.slide[data-layout="figure"] {
+  padding: 40px 56px;
+}
+.slide[data-layout="figure"] .fig-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px 0;
+}
+.slide[data-layout="figure"] .fig-container img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+}
+.slide[data-layout="figure"] .caption {
+  font-size: 0.78em;
+  color: var(--gray);
+  text-align: center;
+}
+
+/* code block */
+.code-block {
+  background: #1a1a2e;
+  color: #e2e8f0;
+  padding: 20px;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.82em;
+  line-height: 1.6;
+  overflow-x: auto;
+  flex: 1;
+}
+.code-block .kw { color: #7c85f0; }
+.code-block .st { color: #A2FFA2; }
+.code-block .cm { color: #6B7280; }
+.code-block .num { color: #F8CE00; }
+
+/* data table */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85em;
+  margin-top: 8px;
+}
+.data-table th, .data-table td {
+  padding: 8px 12px;
+  text-align: left;
+}
+.data-table thead tr { border-bottom: 2px solid var(--dark); }
+.data-table tbody tr { border-bottom: 1px solid var(--light-gray); }
+.data-table .row-highlight { background: rgba(162, 255, 162, 0.15); }
+
+/* bullets are triangles, an echo of the corner motif */
+.dot {
+  display: inline-block;
+  width: 0; height: 0;
+  border-left: 10px solid var(--purple);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  margin-right: 10px;
+  vertical-align: 1px;
+}
+.dot-gold { border-left-color: var(--gold); }
+.dot-green { border-left-color: var(--dark); }
+.dot-purple { border-left-color: var(--purple); }

@@ -1,0 +1,30 @@
+/* covers/project.css, project logo front and center, asterisk as "powered by" */
+
+.cover-project {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  text-align: center;
+}
+
+.cover-project .project-logo img { max-height: 120px; }
+
+.cover-project h1 { font-size: 2.2em; }
+
+.cover-project .subtitle {
+  font-size: 1em;
+  color: var(--gray);
+}
+
+.cover-project .powered-by {
+  position: absolute;
+  bottom: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75em;
+  color: var(--gray);
+}
+.cover-project .powered-by svg { height: 18px; }

@@ -1,0 +1,31 @@
+/* covers/talk.css, icon + title + tagline. meetups, webinars, lightning talks */
+
+.cover-talk {
+  padding: 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.cover-talk .logo-mark { margin-bottom: 32px; }
+.cover-talk .logo-mark svg { height: 48px; }
+
+.cover-talk h1 { margin-bottom: 10px; }
+
+.cover-talk .subtitle {
+  font-size: 1.15em;
+  color: var(--gray);
+}
+
+/* tri-color accent bar at the bottom */
+.cover-talk .bottom-accent {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 6px;
+  display: flex;
+}
+.cover-talk .bottom-accent span { flex: 1; }
+.cover-talk .bottom-accent span:nth-child(1) { background: var(--gold); }
+.cover-talk .bottom-accent span:nth-child(2) { background: var(--green); }
+.cover-talk .bottom-accent span:nth-child(3) { background: var(--purple); }

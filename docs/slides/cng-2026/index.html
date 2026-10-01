@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/layouts.css">
+<link rel="stylesheet" href="css/covers/brand.css">
+<link rel="stylesheet" href="css/covers/conference.css">
+<link rel="stylesheet" href="css/covers/talk.css">
+<link rel="stylesheet" href="css/covers/project.css">
+<link rel="stylesheet" href="css/talk.css">
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+  <div id="cover-slot"></div>
+  <div id="slides-slot"></div>
+</div>
+<div class="nav">
+  <button id="btn-prev">&#8592;</button>
+  <span id="slide-num"></span>
+  <button id="btn-next">&#8594;</button>
+</div>
+<template id="slides-src">
+<!--
+  Rethinking compression for Earth observation data
+  CNG 2026, Track 2: Cloud-Native Geo in Practice, 7 October 2026, 7 minutes.
+  Numbers come from asterisk-labs/ec-benchmark (preliminary run, one timing pass).
+-->
+
+<script>
+window.DECK = {
+  cover: "conference",
+  title: "Rethinking compression for Earth observation data",
+  subtitle: "",
+  speaker: "Cesar Aybar",
+  authors: ["Mikolaj Czerkawski", "Barbara Bertozzi", "Jacqueline Campbell", "Alistair Francis"],
+  affiliations: [],
+  event: "Cloud-Native Geospatial Forum 2026",
+  date: "Snowbird, Utah &middot; 7 October 2026",
+  project_visual: "dataset-graphs",
+  project_visual_data: "assets/img/cover-tiles.jpg",
+  logos: []
+};
+</script>
+
+<!-- 1. the word -->
+<section class="slide ink slide--word" data-bare>
+  <div class="word">ZSTD</div>
+</section>
+
+<!-- 2b. the machine -->
+<section class="slide" data-layout="content">
+  <div class="eyebrow">the machine</div>
+  <h2>Zstandard won by understanding the machine</h2>
+  <div class="body body--center body--roomy">
+    <svg class="chart-svg" viewBox="0 0 848 286" width="100%" role="img" aria-label="Relative to an Intel Pentium 66 in 1993: memory 2.5 times and 2.1 times faster, CPU 64 and 86 times faster">
+      <rect x="300" y="4" width="16" height="16" fill="#f7cc09"/><text x="324" y="18" font-size="18" fill="#17161C">memory</text>
+      <rect x="420" y="4" width="16" height="16" fill="#492ae8"/><text x="444" y="18" font-size="18" fill="#17161C">CPU</text>
+      <text x="40" y="64" font-size="30" font-weight="600" fill="#17161C">1993</text><text x="40" y="86" font-size="15" fill="#6B7280">Intel Pentium 66 &#183; FPM DRAM</text><rect x="300" y="40" width="6" height="22" fill="#f7cc09"/><text x="318" y="58" font-size="19" fill="#17161C">1&#215;</text><rect x="300" y="66" width="6" height="22" fill="#492ae8"/><text x="318" y="84" font-size="19" font-weight="700" fill="#17161C">1&#215;</text>
+      <text x="40" y="142" font-size="30" font-weight="600" fill="#17161C">2015</text><text x="40" y="164" font-size="15" fill="#6B7280">Intel Core i7-6700K &#183; DDR4</text><rect x="300" y="118" width="14" height="22" fill="#f7cc09"/><text x="326" y="136" font-size="19" fill="#17161C">2.5&#215;</text><rect x="300" y="144" width="371" height="22" fill="#492ae8"/><text x="683" y="162" font-size="19" font-weight="700" fill="#17161C">64&#215;</text>
+      <text x="40" y="220" font-size="30" font-weight="600" fill="#17161C">2024</text><text x="40" y="242" font-size="15" fill="#6B7280">AMD Ryzen 9 9950X &#183; DDR5</text><rect x="300" y="196" width="12" height="22" fill="#f7cc09"/><text x="324" y="214" font-size="19" fill="#17161C">2.1&#215;</text><rect x="300" y="222" width="499" height="22" fill="#492ae8"/><text x="811" y="240" font-size="19" font-weight="700" fill="#17161C">86&#215;</text>
+      <text x="40" y="282" font-size="13" fill="#6B7280">Sources: Intel and AMD specifications, maximum clock. DRAM row access time: 70 ns FPM; JEDEC DDR4-2133 and DDR5-5600, tRCD + CL.</text>
+    </svg>
+    <p class="machine-takeaway">the bottleneck moved from computing to waiting</p>
+  </div>
+</section>
+
+<!-- 3. the limit -->
+<section class="slide" data-layout="content">
+  <div class="eyebrow">the limit</div>
+  <h2>Zstandard kept getting faster, not smaller</h2>
+  <div class="body body--center" style="gap:14px;">
+    <svg class="chart-svg" viewBox="0 0 848 290" width="100%" role="img" aria-label="Every zstd release from v1.0.0 in 2016 to v1.5.7 in 2025, change since v1.0.0. Decompression ends 34 percent faster, compression ratio 0.6 percent better. 2016: format frozen, files from 2016 still decode. 2019: copy 16 to 32 bytes at once, a little extra copying beats a branch. 2021: Huffman decoder in x86 assembly, four streams decoded side by side. 2024 and 2025: stricter checks and denser files cost about 3 percent.">
+      <line x1="90" y1="250.0" x2="690" y2="250.0" stroke="#D6D3D1" stroke-width="1.5"/><text x="80" y="255.0" text-anchor="end" font-size="14" fill="#6B7280">0%</text>
+      <line x1="90" y1="150.0" x2="690" y2="150.0" stroke="#E7E5E4" stroke-width="1.5"/><text x="80" y="155.0" text-anchor="end" font-size="14" fill="#6B7280">+20%</text>
+      <line x1="90" y1="50.0" x2="690" y2="50.0" stroke="#E7E5E4" stroke-width="1.5"/><text x="80" y="55.0" text-anchor="end" font-size="14" fill="#6B7280">+40%</text>
+      <text x="90.0" y="280" text-anchor="middle" font-size="15" fill="#6B7280">2016</text>
+      <text x="220.0" y="280" text-anchor="middle" font-size="15" fill="#6B7280">2018</text>
+      <text x="350.0" y="280" text-anchor="middle" font-size="15" fill="#6B7280">2020</text>
+      <text x="480.0" y="280" text-anchor="middle" font-size="15" fill="#6B7280">2022</text>
+      <text x="610.0" y="280" text-anchor="middle" font-size="15" fill="#6B7280">2024</text>
+      <g data-step="1"><line x1="133.3" y1="242.0" x2="133.3" y2="146" stroke="#A8A29E" stroke-width="1.2" stroke-dasharray="3 4"/><text x="141.3" y="150.0" text-anchor="start" font-size="16" font-weight="700" fill="#17161C">format frozen</text><text x="141.3" y="170.0" text-anchor="start" font-size="15" fill="#57534E">files from 2016 still decode</text></g>
+      <g data-step="2"><line x1="331.7" y1="97.0" x2="300" y2="97.0" stroke="#A8A29E" stroke-width="1.2" stroke-dasharray="3 4"/><text x="325.7" y="81.0" text-anchor="end" font-size="16" font-weight="700" fill="#17161C">copy 16&#8211;32 bytes at once</text><text x="325.7" y="101.0" text-anchor="end" font-size="15" fill="#57534E">a little extra copying beats a branch</text></g>
+      <g data-step="3"><line x1="477.9" y1="66.2" x2="477.9" y2="104" stroke="#A8A29E" stroke-width="1.2" stroke-dasharray="3 4"/><text x="485.9" y="118.0" text-anchor="start" font-size="16" font-weight="700" fill="#17161C">Huffman in x86 assembly</text><text x="485.9" y="138.0" text-anchor="start" font-size="15" fill="#57534E">four streams decoded side by side</text></g>
+      <g data-step="4"><line x1="624.2" y1="62.4" x2="624.2" y2="42" stroke="#A8A29E" stroke-width="1.2" stroke-dasharray="3 4"/><text x="690" y="16" text-anchor="end" font-size="16" font-weight="700" fill="#17161C">stricter checks, denser files</text><text x="690" y="36" text-anchor="end" font-size="15" fill="#57534E">cost about 3%</text></g>
+      <polyline points="133.3,250.0 138.3,250.0 144.3,250.0 152.0,250.0 161.4,250.0 168.0,250.0 176.9,250.0 187.9,250.0 196.1,250.0 204.9,250.0 218.0,250.0 235.0,250.0 251.7,250.0 269.3,250.0 271.3,250.0 284.1,250.0 303.7,249.0 320.4,249.0 321.5,249.0 326.0,249.0 339.7,249.0 375.1,249.0 412.3,249.0 412.7,249.0 425.7,249.0 438.7,249.0 477.9,248.3 483.4,248.3 551.9,248.3 561.6,248.3 624.2,248.3 683.5,247.1" fill="none" stroke="#f7cc09" stroke-width="3.5" stroke-linejoin="round"/>
+      <circle cx="133.3" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="138.3" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="144.3" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="152.0" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="161.4" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="168.0" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="176.9" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="187.9" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="196.1" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="204.9" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="218.0" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="235.0" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="251.7" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="269.3" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="271.3" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="284.1" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="303.7" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="320.4" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="321.5" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="326.0" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="339.7" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="375.1" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="412.3" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="412.7" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="425.7" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="438.7" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="477.9" cy="248.3" r="3.5" fill="#f7cc09"/><circle cx="483.4" cy="248.3" r="3.5" fill="#f7cc09"/><circle cx="551.9" cy="248.3" r="3.5" fill="#f7cc09"/><circle cx="561.6" cy="248.3" r="3.5" fill="#f7cc09"/><circle cx="624.2" cy="248.3" r="3.5" fill="#f7cc09"/><circle cx="683.5" cy="247.1" r="3.5" fill="#f7cc09"/>
+      <polyline points="133.3,250.0 138.3,245.6 144.3,261.5 152.0,258.5 161.4,258.5 168.0,265.2 176.9,253.0 187.9,251.2 196.1,251.6 204.9,241.2 218.0,240.2 235.0,237.7 251.7,237.7 269.3,238.2 271.3,223.8 284.1,224.2 303.7,223.6 320.4,177.5 321.5,183.6 326.0,157.4 339.7,97.0 375.1,89.5 412.3,78.2 412.7,81.0 425.7,78.5 438.7,78.6 477.9,58.2 483.4,61.7 551.9,62.1 561.6,60.9 624.2,70.4 683.5,81.7" fill="none" stroke="#492ae8" stroke-width="3.5" stroke-linejoin="round"/>
+      <circle cx="133.3" cy="250.0" r="4" fill="#492ae8"/><circle cx="138.3" cy="245.6" r="4" fill="#492ae8"/><circle cx="144.3" cy="261.5" r="4" fill="#492ae8"/><circle cx="152.0" cy="258.5" r="4" fill="#492ae8"/><circle cx="161.4" cy="258.5" r="4" fill="#492ae8"/><circle cx="168.0" cy="265.2" r="4" fill="#492ae8"/><circle cx="176.9" cy="253.0" r="4" fill="#492ae8"/><circle cx="187.9" cy="251.2" r="4" fill="#492ae8"/><circle cx="196.1" cy="251.6" r="4" fill="#492ae8"/><circle cx="204.9" cy="241.2" r="4" fill="#492ae8"/><circle cx="218.0" cy="240.2" r="4" fill="#492ae8"/><circle cx="235.0" cy="237.7" r="4" fill="#492ae8"/><circle cx="251.7" cy="237.7" r="4" fill="#492ae8"/><circle cx="269.3" cy="238.2" r="4" fill="#492ae8"/><circle cx="271.3" cy="223.8" r="4" fill="#492ae8"/><circle cx="284.1" cy="224.2" r="4" fill="#492ae8"/><circle cx="303.7" cy="223.6" r="4" fill="#492ae8"/><circle cx="320.4" cy="177.5" r="4" fill="#492ae8"/><circle cx="321.5" cy="183.6" r="4" fill="#492ae8"/><circle cx="326.0" cy="157.4" r="4" fill="#492ae8"/><circle cx="339.7" cy="97.0" r="4" fill="#492ae8"/><circle cx="375.1" cy="89.5" r="4" fill="#492ae8"/><circle cx="412.3" cy="78.2" r="4" fill="#492ae8"/><circle cx="412.7" cy="81.0" r="4" fill="#492ae8"/><circle cx="425.7" cy="78.5" r="4" fill="#492ae8"/><circle cx="438.7" cy="78.6" r="4" fill="#492ae8"/><circle cx="477.9" cy="58.2" r="4" fill="#492ae8"/><circle cx="483.4" cy="61.7" r="4" fill="#492ae8"/><circle cx="551.9" cy="62.1" r="4" fill="#492ae8"/><circle cx="561.6" cy="60.9" r="4" fill="#492ae8"/><circle cx="624.2" cy="70.4" r="4" fill="#492ae8"/><circle cx="683.5" cy="81.7" r="4" fill="#492ae8"/>
+      <text x="697.5" y="87.7" font-size="30" font-weight="700" fill="#17161C">+34%</text><text x="697.5" y="109.7" font-size="17" fill="#17161C">decompression</text>
+      <text x="697.5" y="235.1" font-size="30" font-weight="700" fill="#17161C">+0.6%</text><text x="697.5" y="257.1" font-size="17" fill="#17161C">ratio</text>
+    </svg>
+    <p class="source-note">Every release v1.0.0 to v1.5.7, level 1 on Silesia, one core of an AMD EPYC 9654, gcc 13, best of 20 runs. Changes: zstd commit history.</p>
+  </div>
+</section>
+
+<!-- 4. collet, in his own words -->
+<section class="slide ink slide--quote" data-bare>
+  <p class="quote-copy">&#8220;Reaching asymptotic limits.<br>Small gains for large energy cost.&#8221;</p>
+  <p class="quote-source">Yann Collet, creator of Zstandard &#183; Beyond Zstandard, Open Source Summit Japan 2025</p>
+</section>
+
+<!-- 5. the dolphins -->
+<section class="slide slide--openzl" data-bare>
+  <div class="openzl-lockup">
+    <span>OpenZL</span>
+  </div>
+</section>
+
+<!-- 6. the precedent -->
+<section class="slide" data-layout="content">
+  <div class="eyebrow">the precedent</div>
+  <h2>Models became graphs. <span data-step="1">Now codecs do too.</span></h2>
+  <div class="body body--center body--compact">
+    <svg class="chart-svg" viewBox="0 0 848 290" width="100%" role="img" aria-label="Lines of code. Deep learning: AlexNet hand-written CUDA 8449, PyTorch graph 35. Compression: LERC hand-written C++ 12060, OpenZL graph 4.">
+      
+      <text x="40" y="22" font-size="22" font-weight="700" fill="#17161C">deep learning</text>
+      
+      <line x1="40" y1="236" x2="384" y2="236" stroke="#E7E5E4" stroke-width="1.5"/>
+      
+      <rect x="60" y="117" width="100" height="119" fill="#f7cc09"/><text x="110.0" y="107" text-anchor="middle" font-size="24" font-weight="700" fill="#17161C">8,449</text><text x="110.0" y="262" text-anchor="middle" font-size="19" font-weight="600" fill="#17161C">AlexNet</text><text x="110.0" y="283" text-anchor="middle" font-size="15" fill="#6B7280">hand-written CUDA, 2012</text>
+      <rect x="240" y="230" width="100" height="6" fill="#492ae8"/><text x="290.0" y="220" text-anchor="middle" font-size="24" font-weight="700" fill="#17161C">35</text><text x="290.0" y="262" text-anchor="middle" font-size="19" font-weight="600" fill="#17161C">PyTorch</text><text x="290.0" y="283" text-anchor="middle" font-size="15" fill="#6B7280">a graph of layers, 2017</text>
+      <g data-step="1"><line x1="424" y1="4" x2="424" y2="286" stroke="#E7E5E4" stroke-width="1.5"/><text x="464" y="22" font-size="22" font-weight="700" fill="#17161C">compression</text><line x1="464" y1="236" x2="808" y2="236" stroke="#E7E5E4" stroke-width="1.5"/><rect x="484" y="66" width="100" height="170" fill="#f7cc09"/><text x="534.0" y="56" text-anchor="middle" font-size="24" font-weight="700" fill="#17161C">12,060</text><text x="534.0" y="262" text-anchor="middle" font-size="19" font-weight="600" fill="#17161C">LERC</text><text x="534.0" y="283" text-anchor="middle" font-size="15" fill="#6B7280">hand-written C++, 2015</text>
+      <rect x="664" y="230" width="100" height="6" fill="#492ae8"/><text x="714.0" y="220" text-anchor="middle" font-size="24" font-weight="700" fill="#17161C">4</text><text x="714.0" y="262" text-anchor="middle" font-size="19" font-weight="600" fill="#17161C">OpenZL</text><text x="714.0" y="283" text-anchor="middle" font-size="15" fill="#6B7280">a graph of nodes, 2026</text>
+    </g>
+    </svg>
+    <p class="source-note">Lines of source and headers. AlexNet: original 2012 code, Computer History Museum. PyTorch: torchvision AlexNet class. LERC: Esri, src/LercLib. OpenZL: GeoZL planar graph in ec-benchmark.</p>
+  </div>
+</section>
+
+<!-- 7. how it works -->
+<section class="slide" data-layout="content">
+  <div class="eyebrow">how it works</div>
+  <h2>GeoZL adds the raster pieces</h2>
+  <div class="body body--center">
+    <svg id="hiw" class="chart-svg" viewBox="0 0 848 378" width="100%" role="img" aria-label="An animation. A pool of OpenZL codecs and GeoZL raster codecs. For each dataset up to three codecs are picked: forward compresses the tile into streams and writes the graph into the header; backward runs the same codecs inverted, in reverse order, to rebuild the tile bit for bit. For rain the graph branches into where it rains and how much.">
+  <defs><clipPath id="hiw-clip-in"><polygon points="122,144 148,159.0 148,189.0 122,204 96,189.0 96,159.0"/></clipPath><clipPath id="hiw-clip-out"><polygon points="122,288 148,303.0 148,333.0 122,348 96,333.0 96,303.0"/></clipPath></defs>
+  <text x="136" y="11" font-size="12" font-weight="600" fill="#6B7280" letter-spacing="0.08em">CODEC POOL</text>
+  <text x="124" y="36" text-anchor="end" font-size="14" font-weight="600" fill="#6B7280">OpenZL</text>
+  <text x="124" y="70" text-anchor="end" font-size="14" font-weight="700" fill="#492ae8">GeoZL</text>
+  <g class="pc" data-name="zigzag" data-x="136" data-y="18"><rect x="136" y="18" width="96" height="26" rx="13" fill="#F4F4F5" stroke="#E7E5E4"/><text x="184.0" y="36" text-anchor="middle" font-size="14" font-weight="600" fill="#17161C">zigzag</text></g><g class="pc" data-name="transpose" data-x="238" data-y="18"><rect x="238" y="18" width="96" height="26" rx="13" fill="#F4F4F5" stroke="#E7E5E4"/><text x="286.0" y="36" text-anchor="middle" font-size="14" font-weight="600" fill="#17161C">transpose</text></g><g class="pc" data-name="entropy" data-x="340" data-y="18"><rect x="340" y="18" width="96" height="26" rx="13" fill="#F4F4F5" stroke="#E7E5E4"/><text x="388.0" y="36" text-anchor="middle" font-size="14" font-weight="600" fill="#17161C">entropy</text></g><g class="pc" data-name="zstd" data-x="442" data-y="18"><rect x="442" y="18" width="96" height="26" rx="13" fill="#F4F4F5" stroke="#E7E5E4"/><text x="490.0" y="36" text-anchor="middle" font-size="14" font-weight="600" fill="#17161C">zstd</text></g><g class="pc" data-name="field_lz" data-x="544" data-y="18"><rect x="544" y="18" width="96" height="26" rx="13" fill="#F4F4F5" stroke="#E7E5E4"/><text x="592.0" y="36" text-anchor="middle" font-size="14" font-weight="600" fill="#17161C">field_lz</text></g><g class="pc" data-name="split" data-x="646" data-y="18"><rect x="646" y="18" width="96" height="26" rx="13" fill="#F4F4F5" stroke="#E7E5E4"/><text x="694.0" y="36" text-anchor="middle" font-size="14" font-weight="600" fill="#17161C">split</text></g><g class="pc" data-name="tokenize" data-x="748" data-y="18"><rect x="748" y="18" width="96" height="26" rx="13" fill="#F4F4F5" stroke="#E7E5E4"/><text x="796.0" y="36" text-anchor="middle" font-size="14" font-weight="600" fill="#17161C">tokenize</text></g><g class="pc" data-name="planar" data-x="136" data-y="52"><rect x="136" y="52" width="96" height="26" rx="13" fill="#492ae8"/><text x="184.0" y="70" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">planar</text></g><g class="pc" data-name="med" data-x="238" data-y="52"><rect x="238" y="52" width="96" height="26" rx="13" fill="#492ae8"/><text x="286.0" y="70" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">med</text></g><g class="pc" data-name="average" data-x="340" data-y="52"><rect x="340" y="52" width="96" height="26" rx="13" fill="#492ae8"/><text x="388.0" y="70" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">average</text></g><g class="pc" data-name="wp_static" data-x="442" data-y="52"><rect x="442" y="52" width="96" height="26" rx="13" fill="#492ae8"/><text x="490.0" y="70" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">wp_static</text></g><g class="pc" data-name="delta_w" data-x="544" data-y="52"><rect x="544" y="52" width="96" height="26" rx="13" fill="#492ae8"/><text x="592.0" y="70" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">delta_w</text></g><g class="pc" data-name="pfor" data-x="646" data-y="52"><rect x="646" y="52" width="96" height="26" rx="13" fill="#492ae8"/><text x="694.0" y="70" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">pfor</text></g><g class="pc" data-name="nodata" data-x="748" data-y="52"><rect x="748" y="52" width="96" height="26" rx="13" fill="#492ae8"/><text x="796.0" y="70" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">nodata</text></g>
+
+  <text x="12" y="179" font-size="12" font-weight="700" fill="#492ae8" letter-spacing="0.1em">FORWARD</text>
+  <text x="12" y="323" font-size="12" font-weight="700" fill="#492ae8" letter-spacing="0.1em">BACKWARD</text>
+
+  <g id="hiw-in" opacity="0">
+    <text id="hiw-name" x="122" y="130" text-anchor="middle" font-size="16" font-weight="700" fill="#17161C"></text>
+    <image id="hiw-tile" x="92" y="144" width="60" height="60" preserveAspectRatio="xMidYMid slice" clip-path="url(#hiw-clip-in)"/>
+    <text x="122" y="222" text-anchor="middle" font-size="12.5" font-family="JetBrains Mono, monospace" fill="#6B7280">ZL_TypedRef</text>
+  </g>
+  <g id="hiw-fwd" opacity="0">
+    <text x="212" y="150" font-size="13" font-family="JetBrains Mono, monospace" fill="#6B7280">ZL_CCtx_compress</text>
+    <rect x="662" y="160" width="146" height="28" rx="8" fill="#5F5E5A"/>
+    <text x="735" y="179" text-anchor="middle" font-size="12.5" font-weight="600" font-family="JetBrains Mono, monospace" fill="#FFFFFF">ZL_GRAPH_STORE</text>
+  </g>
+  <g id="hiw-frame" opacity="0">
+    <text x="212" y="234" font-size="13" font-family="JetBrains Mono, monospace" fill="#6B7280">header</text>
+    <rect x="212" y="240" width="240" height="30" rx="8" fill="#17161C"/>
+    <rect x="468" y="240" width="292" height="30" rx="8" fill="#E7E5E4"/>
+    <text x="486" y="260" font-size="15" font-weight="600" fill="#17161C">streams</text>
+  </g>
+  <text id="hiw-ratio" x="744" y="260" text-anchor="end" font-size="15" font-weight="700" fill="#492ae8" opacity="0"></text>
+  <g id="hiw-back" opacity="0">
+    <text x="628" y="294" text-anchor="end" font-size="13" font-family="JetBrains Mono, monospace" fill="#6B7280">ZL_DCtx_decompressTBuffer</text>
+  </g>
+  <g id="hiw-out" opacity="0">
+    <image id="hiw-tile2" x="92" y="288" width="60" height="60" preserveAspectRatio="xMidYMid slice" clip-path="url(#hiw-clip-out)"/>
+    <text x="122" y="366" text-anchor="middle" font-size="12.5" font-family="JetBrains Mono, monospace" fill="#6B7280">ZL_TypedBuffer</text>
+    <text x="200" y="366" font-size="13" font-weight="600" fill="#492ae8">bit-identical</text>
+  </g>
+  <g id="hiw-dyn"></g>
+</svg>
+  </div>
+</section>
+<script>
+(function () {
+  var NS = 'http://www.w3.org/2000/svg', VIOLET = '#492ae8', INK = '#17161C', P2 = '#F4F4F5', WIRE = '#8A8F98';
+  var GEO = { planar: 1, med: 1, average: 1, wp_static: 1, delta_w: 1, pfor: 1, nodata: 1 };
+  var COLOR = { zigzag: '#f7cc09', transpose: '#c4ffc2', entropy: '#FFFFFF', zstd: '#D6D3D1', split: '#BFC5CE' };
+  function fillOf(n) { return GEO[n] ? VIOLET : (COLOR[n] || P2); }
+  function textOf(n) { return GEO[n] ? '#fff' : INK; }
+  function chain(names) {
+    return { nodes: names.map(function (n, i) { return { id: 'n' + i, name: n, col: i, row: 0 }; }),
+             edges: names.slice(1).map(function (_, i) { return ['n' + i, 'n' + (i + 1)]; }) };
+  }
+  // best GeoZL graph with at most three codecs, ec-benchmark; IMERG is the rain scheme in imerg/
+  var SCENES = [
+    { name: 'Sentinel-2',     tile: 'assets/img/tiles/t01.jpg', ratio: '2.03× smaller', g: chain(['med', 'zigzag', 'entropy']) },
+    { name: 'Copernicus DEM', tile: 'assets/img/tiles/t03.jpg', ratio: '6.13× smaller', g: chain(['wp_static', 'zigzag', 'entropy']) },
+    { name: 'GPM IMERG',      tile: 'assets/img/tiles/t13.jpg', ratio: '14.1× smaller', g: {
+        nodes: [ { id: 's', name: 'split', col: 0, row: 0 }, { id: 'm', name: 'med', col: 1, row: 1 }, { id: 'e', name: 'entropy', col: 2, row: 0 } ],
+        edges: [ ['s', 'e'], ['s', 'm'], ['m', 'e'] ] } }
+  ];
+  var L = [212, 372, 532], W = 96, H = 28, FCY = 174, BCY = 318, ROW = 32, T = 8.8;
+
+  function clamp(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
+  function ease(x) { x = clamp(x); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function seg(t, a, b) { return ease((t - a) / (b - a)); }
+  function el(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function cyOf(n, base) { return base + n.row * ROW; }
+  function link(x1, y1, x2, y2) {
+    if (y1 === y2) return 'M ' + x1 + ' ' + y1 + ' H ' + x2;
+    var m = (x1 + x2) / 2;
+    return 'M ' + x1 + ' ' + y1 + ' C ' + m + ' ' + y1 + ', ' + m + ' ' + y2 + ', ' + x2 + ' ' + y2;
+  }
+
+  function start(svg) {
+    var slide = svg.closest('.slide'), dyn = svg.querySelector('#hiw-dyn');
+    var pin = svg.querySelector('g#hiw-in'), pframe = svg.querySelector('g#hiw-frame'), pout = svg.querySelector('g#hiw-out');
+    var ratio = svg.querySelector('#hiw-ratio');
+    var pfwd = svg.querySelector('g#hiw-fwd'), pback = svg.querySelector('g#hiw-back');
+    var pool = {};
+    svg.querySelectorAll('.pc').forEach(function (g) { pool[g.dataset.name] = g; });
+    var items = [], picked = {}, raf = null, t0 = 0, idx = 0;
+
+    // a wire that draws itself, with its own arrowhead that arrives at the end
+    function wire(layer, d, a, opts) {
+      opts = opts || {};
+      var col = opts.colour || WIRE, p = el('path', { d: d, fill: 'none', stroke: col, 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, layer);
+      var len = p.getTotalLength(), end = p.getPointAtLength(len), pre = p.getPointAtLength(Math.max(0, len - 1));
+      var ang = Math.atan2(end.y - pre.y, end.x - pre.x) * 180 / Math.PI;
+      var head = el('path', { d: 'M -7 -4.5 L 0 0 L -7 4.5 Z', fill: col, transform: 'translate(' + end.x + ' ' + end.y + ') rotate(' + ang + ')' }, layer);
+      if (opts.dashed) p.setAttribute('stroke-dasharray', '6 6');
+      items.push(function (t) {
+        var k = seg(t, a, a + (opts.dur || .45)), out = 1 - seg(t, 7.3, 7.8);
+        if (opts.dashed) { p.style.opacity = k * out; }
+        else { p.style.strokeDasharray = len; p.style.strokeDashoffset = len * (1 - k); p.style.opacity = out; }
+        head.style.opacity = clamp((k - .8) / .2) * out;
+      });
+    }
+    // data travelling the whole route without stopping, passing under the codecs
+    function route(layer, d, a, b) {
+      var p = el('path', { d: d, fill: 'none', stroke: 'none' }, layer), len = p.getTotalLength();
+      var c = el('circle', { r: 6, fill: VIOLET, opacity: 0 }, layer);
+      items.push(function (t) {
+        var u = clamp((t - a) / (b - a)), pt = p.getPointAtLength(ease(u) * len);
+        c.setAttribute('cx', pt.x); c.setAttribute('cy', pt.y);
+        c.setAttribute('opacity', t > a && t < b ? Math.min(1, u / .05, (1 - u) / .05) : 0);
+      });
+    }
+    function chipAt(layer, x, y, name, fill, tcol) {
+      var g = el('g', {}, layer), light = fill === '#FFFFFF' || fill === P2;
+      el('rect', { x: x, y: y, width: W, height: H, rx: 4, fill: fill, stroke: light ? INK : 'none', 'stroke-width': light ? 1.5 : 0 }, g);
+      var tx = el('text', { x: x + W / 2, y: y + 19, 'text-anchor': 'middle', 'font-size': 14, 'font-weight': 600, fill: tcol }, g);
+      tx.textContent = name;
+      return g;
+    }
+
+    function build(sc) {
+      dyn.innerHTML = ''; items = []; picked = {};
+      var wires = el('g', {}, dyn), dots = el('g', {}, dyn), chips = el('g', {}, dyn), head = el('g', {}, dyn);
+      var nodes = sc.g.nodes, edges = sc.g.edges, byId = {}, maxc = 0;
+      nodes.forEach(function (n) { byId[n.id] = n; maxc = Math.max(maxc, n.col); picked[n.name] = 1; });
+      svg.querySelector('#hiw-name').textContent = sc.name;
+      svg.querySelector('#hiw-tile').setAttribute('href', sc.tile);
+      svg.querySelector('#hiw-tile2').setAttribute('href', sc.tile);
+      ratio.textContent = sc.ratio;
+
+      // forward: the codecs fly out of the pool, one after the other
+      nodes.forEach(function (n, i) {
+        var p = pool[n.name], px = +p.dataset.x, py = +p.dataset.y, tx = L[n.col], ty = cyOf(n, FCY) - H / 2;
+        var g = el('g', {}, chips);
+        var a = chipAt(g, px, py, n.name, GEO[n.name] ? VIOLET : P2, textOf(n.name));
+        var b = chipAt(g, px, py, n.name, fillOf(n.name), textOf(n.name));
+        var s0 = .35 + i * .16;
+        items.push(function (t) {
+          var k = seg(t, s0, s0 + .95) * (1 - seg(t, 7.3, 8.2));
+          g.setAttribute('transform', 'translate(' + (tx - px) * k + ' ' + (ty - py) * k + ')');
+          var c = clamp((k - .45) / .55); b.style.opacity = c; a.style.opacity = 1 - c;
+        });
+      });
+      // forward wires
+      nodes.filter(function (n) { return n.col === 0; }).forEach(function (n) { wire(wires, link(152, FCY, L[0] - 3, cyOf(n, FCY)), 1.25); });
+      edges.forEach(function (e, i) {
+        var a = byId[e[0]], b = byId[e[1]];
+        wire(wires, link(L[a.col] + W, cyOf(a, FCY), L[b.col] - 3, cyOf(b, FCY)), 1.35 + i * .1);
+      });
+      var last = nodes.filter(function (n) { return n.col === maxc; })[0];
+      wire(wires, 'M ' + (L[maxc] + W) + ' ' + FCY + ' H 659', 1.6);
+      wire(wires, 'M 735 188 V 237', 1.75);
+      // the data, one continuous run per branch
+      var tail = ' H 723 Q 735 ' + FCY + ' 735 ' + (FCY + 12) + ' V 252';
+      var mids = nodes.filter(function (n) { return n.row !== 0; });
+      route(dots, 'M 152 ' + FCY + ' H ' + (L[maxc] + W) + tail, 1.7, 3.2);
+      mids.forEach(function (m) {
+        var y = cyOf(m, FCY);
+        route(dots, 'M 152 ' + FCY + ' H ' + (L[0] + W) + ' ' + link(L[0] + W, FCY, L[m.col], y).replace(/^M [^C]*C/, 'C') +
+                    ' H ' + (L[m.col] + W) + ' ' + link(L[m.col] + W, y, L[maxc], FCY).replace(/^M [^C]*C/, 'C') + ' H ' + (L[maxc] + W) + tail, 1.7, 3.2);
+      });
+      // the frame, and the graph written into its header
+      items.push(function (t) {
+        var out = 1 - seg(t, 7.3, 7.8);
+        pin.style.opacity = seg(t, 0, .5) * (1 - seg(t, 7.3, 7.7));
+        pframe.style.opacity = seg(t, 2.9, 3.3) * out;
+        pfwd.style.opacity = seg(t, 1.1, 1.5) * out;
+        pback.style.opacity = seg(t, 3.45, 3.85) * out;
+        ratio.style.opacity = seg(t, 3.2, 3.6) * out;
+        pout.style.opacity = seg(t, 5.55, 5.95) * (1 - seg(t, 7.3, 7.7));
+      });
+      nodes.slice().sort(function (a, b) { return a.col - b.col || a.row - b.row; }).forEach(function (n, i) {
+        var x = 232 + i * 34, r = el('rect', { x: x, y: 246, width: 18, height: 18, rx: 4, fill: fillOf(n.name) }, head);
+        items.push(function (t) {
+          var k = seg(t, 3.05 + i * .12, 3.35 + i * .12) * (1 - seg(t, 7.3, 7.8));
+          r.style.opacity = k;
+          r.setAttribute('transform', 'translate(' + (x + 9) + ' 255) scale(' + (.5 + .5 * k) + ') translate(' + -(x + 9) + ' -255)');
+        });
+      });
+
+      // backward: the same codecs inverted, right under their forward twins, run right to left
+      wire(wires, 'M 340 272 V 303', 3.35, { colour: VIOLET, dashed: true });
+      wire(wires, 'M 735 272 V ' + (BCY - 12) + ' Q 735 ' + BCY + ' 723 ' + BCY + ' H ' + (L[maxc] + W + 3), 3.4);
+      nodes.slice().sort(function (a, b) { return b.col - a.col; }).forEach(function (n, j) {
+        var g = chipAt(chips, L[n.col], cyOf(n, BCY) - H / 2, n.name + '⁻¹', fillOf(n.name), textOf(n.name));
+        var cx = L[n.col] + W / 2, cy = cyOf(n, BCY), s0 = 3.6 + j * .16;
+        items.push(function (t) {
+          var k = seg(t, s0, s0 + .35) * (1 - seg(t, 7.3, 7.8));
+          g.style.opacity = k;
+          g.setAttribute('transform', 'translate(' + cx + ' ' + cy + ') scale(' + (.85 + .15 * k) + ') translate(' + -cx + ' ' + -cy + ')');
+        });
+      });
+      edges.forEach(function (e, i) {
+        var a = byId[e[0]], b = byId[e[1]];
+        wire(wires, link(L[b.col], cyOf(b, BCY), L[a.col] + W + 3, cyOf(a, BCY)), 3.85 + i * .1);
+      });
+      wire(wires, 'M ' + L[0] + ' ' + BCY + ' H 152', 4.1);
+      var btail = 'M 735 272 V ' + (BCY - 12) + ' Q 735 ' + BCY + ' 723 ' + BCY;
+      route(dots, btail + ' H 150', 4.25, 5.7);
+      mids.forEach(function (m) {
+        var y = cyOf(m, BCY);
+        route(dots, btail + ' H ' + L[maxc] + ' ' + link(L[maxc], BCY, L[m.col] + W, y).replace(/^M [^C]*C/, 'C') +
+                    ' H ' + L[m.col] + ' ' + link(L[m.col], y, L[0] + W, BCY).replace(/^M [^C]*C/, 'C') + ' H 150', 4.25, 5.7);
+      });
+
+      // the pool: picked codecs get a ring, then dim while they are out
+      items.push(function (t) {
+        Object.keys(pool).forEach(function (n) {
+          var g = pool[n], r = g.querySelector('rect');
+          if (picked[n]) {
+            g.style.opacity = 1 - .82 * (seg(t, .7, 1.1) - seg(t, 7.7, 8.2));
+            r.setAttribute('stroke', INK);
+            r.setAttribute('stroke-width', 3 * seg(t, 0, .35) * (1 - seg(t, 7.3, 7.6)));
+          } else {
+            g.style.opacity = 1;
+            r.setAttribute('stroke', GEO[n] ? 'none' : '#E7E5E4');
+            r.setAttribute('stroke-width', 1);
+          }
+        });
+      });
+    }
+
+    function render(t) { for (var i = 0; i < items.length; i++) items[i](t); }
+    var HOLD = 7.2;   // the last dataset stays on screen, complete, for the explanation
+    function frame(now) {
+      var t = (now - t0) / 1000;
+      if (idx === SCENES.length - 1 && t >= HOLD) { render(HOLD); raf = null; return; }
+      if (t > T) { idx += 1; build(SCENES[idx]); t0 = now; t = 0; }
+      render(t);
+      raf = requestAnimationFrame(frame);
+    }
+    function play() { stop(); idx = 0; build(SCENES[0]); t0 = performance.now(); raf = requestAnimationFrame(frame); }
+    function stop() { if (raf) cancelAnimationFrame(raf); raf = null; }
+    // for checking a single moment while authoring: window.__hiwSeek(scene, seconds)
+    window.__hiwSeek = function (i, t) { stop(); idx = i; build(SCENES[i]); render(t); };
+    function sync() { if (slide.classList.contains('active')) play(); else stop(); }
+    new MutationObserver(sync).observe(slide, { attributes: true, attributeFilter: ['class'] });
+    sync();
+  }
+
+  var svg = document.getElementById('hiw');
+  if (svg) start(svg);
+})();
+</script>
+
+<!-- 8. the frontier -->
+<section class="slide" data-layout="content">
+  <div class="eyebrow">the frontier</div>
+  <h2>The next machine is the GPU</h2>
+  <p class="slide-subtitle">seconds to decode one Sentinel-2 scene, S2A_37MBV_20241029 true colour</p>
+  <div class="body body--center body--compact">
+    <svg class="chart-svg" viewBox="0 0 848 316" width="100%" role="img" aria-label="Seconds to decode one Sentinel-2 scene. GDAL, DEFLATE with horizontal predictor, on one CPU thread: 2.71. GeoZL, planar, zigzag and pfor, on one CPU thread: 0.27. GeoZL with Slang on a GPU, experimental: about 0.03. GeoZL is 10 times faster than GDAL, and the GPU about 9 times faster again.">
+      <defs><marker id="fr-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#17161C"/></marker></defs>
+      <line x1="60" y1="232" x2="788" y2="232" stroke="#E7E5E4" stroke-width="1.5"/>
+      <path d="M 244 60 Q 330 70 364 168" fill="none" stroke="#17161C" stroke-width="2.5" marker-end="url(#fr-arrow)"/><text x="352" y="104" font-size="26" font-weight="700" fill="#492ae8">10&#215; faster</text>
+      <rect x="110" y="42" width="120" height="190" fill="#A8A29E"/><text x="170" y="30" text-anchor="middle" font-size="30" font-weight="700" fill="#17161C">2.71 s</text><text x="170" y="264" text-anchor="middle" font-size="22" font-weight="700" fill="#17161C">GDAL</text><text x="170" y="288" text-anchor="middle" font-size="16" fill="#6B7280">DEFLATE + horizontal predictor</text><text x="170" y="309" text-anchor="middle" font-size="16" fill="#6B7280">CPU, 1 thread</text>
+      <rect x="364" y="213" width="120" height="19" fill="#492ae8"/><text x="424" y="200" text-anchor="middle" font-size="30" font-weight="700" fill="#17161C">0.27 s</text><text x="424" y="264" text-anchor="middle" font-size="22" font-weight="700" fill="#492ae8">GeoZL</text><text x="424" y="288" text-anchor="middle" font-size="16" fill="#6B7280">planar + zigzag + pfor</text><text x="424" y="309" text-anchor="middle" font-size="16" fill="#6B7280">CPU, 1 thread</text>
+      <g data-step="1"><path d="M 498 190 Q 580 186 612 204" fill="none" stroke="#17161C" stroke-width="2.5" marker-end="url(#fr-arrow)"/><text x="555" y="170" text-anchor="middle" font-size="26" font-weight="700" fill="#492ae8">~9&#215; faster</text><rect x="618" y="229" width="120" height="3" fill="#f7cc09"/><text x="678" y="216" text-anchor="middle" font-size="30" font-weight="700" fill="#17161C">~0.03 s</text><text x="678" y="264" text-anchor="middle" font-size="22" font-weight="700" fill="#492ae8">GeoZL + Slang</text><text x="678" y="288" text-anchor="middle" font-size="16" fill="#6B7280">same graph</text><text x="678" y="309" text-anchor="middle" font-size="16" fill="#6B7280">GPU, experimental</text></g>
+    </svg>
+    <p class="source-note">Discussion: discourse.pangeo.io/t/decode-geotiff-to-gpu-memory/5214</p>
+  </div>
+</section>
+
+<!-- 9. the takeaway -->
+<section class="slide ink slide--takeaway" data-bare>
+  <p class="takeaway-copy">Don&#8217;t pick a codec.<br><span class="accent">Build a graph.</span></p>
+</section>
+
+<!-- 10. thank you -->
+<section class="slide slide--thanks" data-frame>
+  <p class="thanks-title">thank you</p>
+  <div class="links">
+    <div><b>geozl</b>github.com/asterisk-labs/geozl</div>
+    <div><b>install</b><span class="install-command">pip install geozl</span></div>
+    <div><b>us</b>asterisk.coop</div>
+  </div>
+</section>
+
+</template>
+<script src="js/cover.js"></script>
+<script src="js/engine.js"></script>
+<script>
+(function () {
+  // slides live in the template below, so the deck opens straight from disk
+  var tmp = document.createElement('div');
+  tmp.innerHTML = document.getElementById('slides-src').innerHTML;
+  var scripts = Array.from(tmp.querySelectorAll('script'));
+  scripts.forEach(function (s) { s.remove(); });
+  // slides go in first, so a script can find its own slide when it runs
+  document.getElementById('slides-slot').outerHTML = tmp.innerHTML;
+  scripts.forEach(function (s) {
+    var tag = document.createElement('script');
+    tag.textContent = s.textContent;
+    document.head.appendChild(tag);
+  });
+  buildCover(window.DECK);
+  window.initDeck();
+})();
+</script>
+</body>
+</html>
