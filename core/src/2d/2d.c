@@ -15,7 +15,9 @@
 #include "openzl/codecs/zl_delta.h"      // ZL_NODE_DELTA_INT
 #include "openzl/codecs/zl_entropy.h"    // ZL_GRAPH_ENTROPY
 #include "openzl/codecs/zl_field_lz.h"   // ZL_GRAPH_FIELD_LZ
+#include "openzl/codecs/zl_generic.h"    // ZL_GRAPH_NUMERIC
 #include "openzl/codecs/zl_illegal.h"    // ZL_GRAPH_ILLEGAL
+#include "openzl/codecs/zl_sparse_num.h" // ZL_NODE_SPARSE_NUM_AUTO
 #include "openzl/codecs/zl_store.h"      // ZL_GRAPH_STORE
 #include "openzl/codecs/zl_transpose.h"  // ZL_NODE_TRANSPOSE_SPLIT
 #include "openzl/codecs/zl_zigzag.h"     // ZL_NODE_ZIGZAG
@@ -40,9 +42,9 @@
 
 #define OPENZL_COMMENT_VERSION_MIN 22
 // OpenZL 0.2 reads up to format 24, and nothing geozl writes gains from 27
-// except PivCo Huffman, which exists from 27 on.
+// except PivCo Huffman and sparse_num, which exist from 27 and 26 on.
 #define GEOZL_FORMAT_VERSION 24
-#define GEOZL_PIVCO_FORMAT_VERSION 27
+#define GEOZL_OPENZL03_FORMAT_VERSION 27
 
 // A method combines an optional predictor with a terminal, for example
 // "planar>zigzag>entropy". The full graph is:
@@ -76,6 +78,7 @@ typedef enum {
   GEOZL_TERM_PFOR,        // bit pack fixed blocks and patch exceptions
   GEOZL_TERM_PIVCO,       // PivCo Huffman unless one value dominates
   GEOZL_TERM_T_PIVCO,     // transpose to lanes, the same choice per lane
+  GEOZL_TERM_SPARSE,      // sparse_num when one value dominates
   GEOZL_TERM_COUNT
 } geozl_terminal;
 
@@ -86,6 +89,9 @@ typedef enum {
 // stream FSE wins by far. Below half, PivCo cost under 0.3% on Sentinel-2
 // residual lanes and decoded them about three times faster.
 #define GEOZL_PIVCO_DOMINANT 0.5
+
+// Use sparse_num only when a value has a strict majority.
+#define GEOZL_SPARSE_DOMINANT 0.5
 
 static const char *pred_name(geozl_predictor p) {
   switch (p) {
@@ -113,6 +119,7 @@ static const char *term_name(geozl_terminal t) {
   case GEOZL_TERM_PFOR:      return "pfor";
   case GEOZL_TERM_PIVCO:     return "pivco";
   case GEOZL_TERM_T_PIVCO:   return "transpose>pivco";
+  case GEOZL_TERM_SPARSE:    return "sparse";
   default:                   return "?";
   }
 }
@@ -272,6 +279,21 @@ static ZL_GraphID pivco_graph(ZL_Compressor *c) {
   return ZL_Compressor_registerFunctionGraph(c, &desc);
 }
 
+// Select sparse_num for dominated streams.
+static ZL_Report geozl_sparse_fg(ZL_Graph *g, ZL_Edge *inputs[],
+                                 size_t nbInputs) {
+  (void)nbInputs;
+  const ZL_Input *in = ZL_Edge_getData(inputs[0]);
+  const size_t n = ZL_Input_numElts(in);
+  const size_t w = ZL_Input_eltWidth(in);
+  const size_t hits = w == 1 ? dominant_count_u8(ZL_Input_ptr(in), n)
+                             : dominant_count(ZL_Input_ptr(in), n, w);
+  ZL_GraphID dst = w <= 2 ? ZL_GRAPH_ENTROPY : ZL_GRAPH_NUMERIC;
+  if ((double)hits > GEOZL_SPARSE_DOMINANT * (double)n)
+    dst = ZL_Graph_getCustomGraphs(g).graphids[0];
+  return ZL_Edge_setDestination(inputs[0], dst);
+}
+
 // One candidate graph, or ZL_GRAPH_ILLEGAL if the pair does not apply.
 static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
                                   geozl_terminal t, uint32_t width,
@@ -352,6 +374,28 @@ static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
     if (!ZL_GraphID_isValid(pg))
       return ZL_GRAPH_ILLEGAL;
     return chain(c, head, n, pg);
+  }
+  case GEOZL_TERM_SPARSE: {
+    // Run lengths and literals use OpenZL's numeric graph.
+    static const ZL_Type in_mask = ZL_Type_numeric;
+    const ZL_GraphID used[3] = {
+        ZL_Compressor_registerStaticGraph_fromNode(
+            c, ZL_NODE_SPARSE_NUM_AUTO,
+            ZL_GRAPHLIST(ZL_GRAPH_NUMERIC, ZL_GRAPH_NUMERIC)),
+        ZL_GRAPH_ENTROPY, ZL_GRAPH_NUMERIC};
+    if (!ZL_GraphID_isValid(used[0]))
+      return ZL_GRAPH_ILLEGAL;
+    ZL_FunctionGraphDesc desc = {0};
+    desc.name = "geozl_sparse";
+    desc.graph_f = geozl_sparse_fg;
+    desc.inputTypeMasks = &in_mask;
+    desc.nbInputs = 1;
+    desc.customGraphs = used;
+    desc.nbCustomGraphs = 3;
+    ZL_GraphID sg = ZL_Compressor_registerFunctionGraph(c, &desc);
+    if (!ZL_GraphID_isValid(sg))
+      return ZL_GRAPH_ILLEGAL;
+    return chain(c, head, n, sg);
   }
   case GEOZL_TERM_T_ENTROPY:
   case GEOZL_TERM_T_ZSTD:
@@ -612,10 +656,11 @@ static ZL_Report graph_open(geozl_2d_graph **out, const char *method,
     owner = ERR_CCTX;
     goto fail;
   }
-  const int pivco = term == GEOZL_TERM_PIVCO || term == GEOZL_TERM_T_PIVCO;
+  const int openzl03 = term == GEOZL_TERM_PIVCO ||
+                       term == GEOZL_TERM_T_PIVCO || term == GEOZL_TERM_SPARSE;
   r = ZL_CCtx_setParameter(e->cctx, ZL_CParam_formatVersion,
-                           pivco ? GEOZL_PIVCO_FORMAT_VERSION
-                                 : GEOZL_FORMAT_VERSION);
+                           openzl03 ? GEOZL_OPENZL03_FORMAT_VERSION
+                                    : GEOZL_FORMAT_VERSION);
   if (ZL_isError(r)) {
     owner = ERR_CCTX;
     goto fail;

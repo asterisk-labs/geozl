@@ -210,6 +210,29 @@ def test_a_dominated_lane_goes_to_entropy_not_pivco():
     assert len(pivco) <= len(entropy) + 16
 
 
+@pytest.mark.parametrize(
+    ("dtype", "fill"),
+    [(np.uint8, 200), (np.int16, -1), (np.uint32, 70000), (np.float64, 0.5)],
+)
+def test_sparse_frames_need_openzl_0_3_and_round_trip(dtype, fill):
+    rng = np.random.default_rng(2)
+    arr = np.where(
+        rng.random((64, 64)) < 0.1,
+        rng.integers(1, 9, (64, 64)),
+        fill,
+    ).astype(dtype)
+    frame = _frame(arr, method="id>sparse")
+    assert int.from_bytes(bytes(frame[:4]), "little") - 0xD7B1A5C0 == 27
+    assert np.array_equal(_roundtrip(arr, method="id>sparse"), arr)
+
+
+def test_sparse_leaves_a_stream_without_a_majority_to_entropy():
+    arr = _tile()
+    sparse = _frame(arr, method="planar>zigzag>sparse")
+    entropy = _frame(arr, method="planar>zigzag>entropy")
+    assert len(sparse) <= len(entropy) + 16
+
+
 def test_unreadable_frame_is_reported():
     with pytest.raises(RuntimeError, match="unreadable frame"):
         geozl.decompress(b"not a frame at all")
@@ -337,16 +360,14 @@ def test_unbiased_prior_sweeps_more_graphs_than_a_named_one():
 
 
 def test_unbiased_prior_is_the_whole_grid():
-    # 8 predictors x 9 terminals, all buildable at 2 bytes per element, plus
-    # planar>zigzag>pivco, the one pivco that takes more than a byte
-    assert len(geozl.profile(_tile(), prior=None, reps=1)) == 73
+    # 8 predictors x 10 terminals, plus fused planar>zigzag>pivco.
+    assert len(geozl.profile(_tile(), prior=None, reps=1)) == 81
 
 
 def test_the_grid_at_one_byte_keeps_categorical_and_drops_the_rest():
-    # 8 x 7: the three lane-producing transpose terminals need 2 bytes. The fused
-    # blocked terminal, categorical, pfor and pivco also work on byte streams.
+    # The three transpose terminals require at least two bytes.
     rows = geozl.profile(_tile(dtype=np.uint8), prior=None, reps=1)
-    assert len(rows) == 56
+    assert len(rows) == 64
     assert any(r["graph"].endswith("categorical") for r in rows)
     assert any(r["graph"].endswith("pfor") for r in rows)
 
