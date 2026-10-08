@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   installs without `openzl` and runs the high-level API on the OpenZL inside
   `libgeozl`. `geozl.lossless` and `geozl.lossy` need `openzl` built from
   source.
+- A wasm64 ES module with a JavaScript API for compression and decompression.
 
 ### Changed
 

@@ -4,6 +4,8 @@
 # make test-c     run the C tests only, builds straight from source
 # make exhaustive the C tests over every value of a type, minutes
 # make test-san   run both suites against an ASan and UBSan build
+# make wasm       build the wasm64 JavaScript module
+# make wasm-test  build wasm64 and run its Node tests
 # make fuzz       build and run the fuzzers, report in fuzz/out (needs clang)
 # make fuzz-check same, but exits non-zero on any finding, for CI
 # make fuzz-replay replay the saved inputs once and exit
@@ -22,6 +24,7 @@ BUILD  ?= Release
 GEN    ?= Ninja
 FULL   ?= ON
 SAN    ?= OFF
+EMCMAKE ?= emcmake
 
 # Seconds per fuzz target, and libFuzzer worker processes. FUZZ_JOBS=0 keeps it
 # in one process, which is what you want when reading the log.
@@ -35,6 +38,7 @@ FUZZ_CORPUS := fuzz/corpus
 FUZZ_SEEDS := fuzz/replay
 FUZZ_TARGETS := roundtrip lossy_recipe quant_linear quant_log quant_sqrt pfor decode binding coeffs
 OPENZL     := extern/openzl
+WASM_BUILD_DIR := core/build-wasm
 PY_DIR     := bindings/python
 PY_LIB_DIR := $(PY_DIR)/geozl/_lib
 UNAME      := $(shell uname -s)
@@ -123,7 +127,7 @@ else
   CTEST_LIBS := -lm -lpthread
 endif
 
-.PHONY: all build configure lib python test test-c test-san fuzz fuzz-build \
+.PHONY: all build configure lib python test test-c test-san wasm wasm-test fuzz fuzz-build \
         fuzz-seed fuzz-report fuzz-check fuzz-replay clean-fuzz \
         exhaustive \
         install submodules clean help
@@ -202,6 +206,18 @@ test: test-c python
 
 test-san:
 	$(MAKE) test SAN=ON
+
+wasm: $(OPENZL)/CMakeLists.txt
+	$(EMCMAKE) cmake -S $(CORE) -B $(WASM_BUILD_DIR) -G $(GEN) \
+	      -DCMAKE_BUILD_TYPE=$(BUILD) -DGEOZL_BUILD_FULL=ON \
+	      -DGEOZL_BUILD_WASM=ON \
+	      -DGEOZL_BUILD_KERNELS_SHARED=OFF \
+	      -DZSTD_BUILD_SHARED=OFF
+	cmake --build $(WASM_BUILD_DIR) --target geozl_wasm
+
+wasm-test: wasm
+	GEOZL_GOLDEN_DIR=$(abspath $(PY_DIR)/test/golden) \
+		node --test $(WASM_BUILD_DIR)/wasm/tests/geozl_api.test.js
 
 # Every bit pattern a float32 can hold. Fuzzing says nobody found a
 # counterexample, this says there is not one. The walks sit in the same test
@@ -322,7 +338,7 @@ install: build
 	cmake --install $(BUILD_DIR) --prefix $(PREFIX)
 
 clean: clean-fuzz
-	rm -rf core/build core/build-san
+	rm -rf core/build core/build-san $(WASM_BUILD_DIR)
 	rm -rf $(PY_DIR)/build $(PY_DIR)/*.egg-info .pytest_cache
 	rm -f $(PY_LIB_DIR)/libgeozl_kernels* $(PY_LIB_DIR)/geozl_kernels*.dll
 	rm -f $(PY_LIB_DIR)/libgeozl.dylib $(PY_LIB_DIR)/libgeozl.so* $(PY_LIB_DIR)/geozl.dll
@@ -336,6 +352,8 @@ help:
 	@echo "make test-c     run the C tests only, builds straight from source"
 	@echo "make exhaustive the C tests over every value of a type, minutes"
 	@echo "make test-san   run both suites against an ASan and UBSan build"
+	@echo "make wasm       build the wasm64 JavaScript module"
+	@echo "make wasm-test  build wasm64 and run its Node tests"
 	@echo "make fuzz       build and run the fuzzers, report in fuzz/out (needs clang)"
 	@echo "make fuzz-check run the fuzzers and fail on a finding"
 	@echo "make fuzz-replay run each saved corpus once"

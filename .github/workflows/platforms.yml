@@ -106,14 +106,10 @@ jobs:
           "$RUNNER_TEMP/emsdk/emsdk" activate 4.0.19
           python3 -m pip install cmake ninja
 
-      - name: Build libgeozl
+      - name: Build GeoZL wasm64
         run: |
           source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
-          emcmake cmake -S core -B core/build-wasm -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DGEOZL_BUILD_FULL=ON -DGEOZL_BUILD_KERNELS_SHARED=OFF -DGEOZL_LIB_TYPE=STATIC \
-            -DZSTD_BUILD_SHARED=OFF -DLZ4_BUILD_SHARED=OFF \
-            -DCMAKE_C_FLAGS=-sMEMORY64=1 -DCMAKE_CXX_FLAGS=-sMEMORY64=1
-          cmake --build core/build-wasm --target geozl
+          make wasm
 
       # The same sources make test-c compiles. -pthread for test_wp_static_mt.
       - name: C tests
@@ -133,38 +129,7 @@ jobs:
             node "core/build-wasm/ctest/$n.js"
           done
 
-      - name: Decode the released frames
+      - name: JavaScript API and released frames
         run: |
           source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
-          b=core/build-wasm
-          emcc -O2 -sMEMORY64=1 -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=16GB \
-            -sMODULARIZE=1 -sEXPORT_ES6=1 -sENVIRONMENT=node \
-            -sEXPORTED_FUNCTIONS=_geozl_2d_frame_dsize_c,_geozl_2d_decompress_c,_malloc,_free \
-            -sEXPORTED_RUNTIME_METHODS=HEAPU8 \
-            $b/libgeozl.a $b/openzl/libopenzl.a $b/openzl/zstd_build/lib/libzstd.a \
-            $b/openzl/lz4_build/liblz4.a -o $b/geozl.mjs
-          cat > $b/golden.mjs <<'EOF'
-          import createGeozl from "./geozl.mjs";
-          import { readFileSync } from "node:fs";
-          import { createHash } from "node:crypto";
-          const dir = process.argv[2];
-          const m = await createGeozl();
-          const manifest = JSON.parse(readFileSync(`${dir}/manifest.json`, "utf8"));
-          const sha = (b) => createHash("sha256").update(b).digest("hex");
-          let bad = 0;
-          for (const e of manifest.frames) {
-            const frame = readFileSync(`${dir}/frames/${e.file}`);
-            const src = m._malloc(frame.length);
-            m.HEAPU8.set(frame, Number(src));
-            const n = Number(m._geozl_2d_frame_dsize_c(BigInt(src), BigInt(frame.length)));
-            const dst = m._malloc(Math.max(n, 1)), out = m._malloc(8), err = m._malloc(256);
-            const rc = m._geozl_2d_decompress_c(BigInt(src), BigInt(frame.length), BigInt(dst),
-                                                BigInt(n), BigInt(out), 1, BigInt(err), 256n);
-            const back = m.HEAPU8.subarray(Number(dst), Number(dst) + n);
-            if (rc !== 0 || sha(back) !== e.sha256_decoded) { bad++; console.log("FAIL", e.file, rc); }
-            for (const p of [src, dst, out, err]) m._free(p);
-          }
-          console.log(`${manifest.frames.length - bad}/${manifest.frames.length} golden frames decode`);
-          process.exit(bad ? 1 : 0);
-          EOF
-          node $b/golden.mjs bindings/python/test/golden
+          make wasm-test

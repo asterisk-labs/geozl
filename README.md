@@ -123,6 +123,9 @@ mypy
 
 `make help` lists the other build variants.
 
+For wasm64, activate Emscripten and run `make wasm-test`. The generated ES
+module and JavaScript API are documented in [tools/wasm](tools/wasm/README.md).
+
 ## License
 
 BSD-3-Clause

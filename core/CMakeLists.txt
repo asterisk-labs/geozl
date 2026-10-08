@@ -11,14 +11,24 @@ option(GEOZL_USE_SYSTEM_OPENZL    "Link an installed OpenZL instead of the submo
 option(GEOZL_SANITIZE             "Build with ASan and UBSan, for tests and fuzzing" OFF)
 option(GEOZL_WERROR               "Turn geozl warnings into errors, for CI" OFF)
 option(GEOZL_BUILD_FUZZERS        "Build the libFuzzer harnesses, needs clang and FULL" OFF)
+option(GEOZL_BUILD_WASM           "Build the wasm64 JavaScript module" OFF)
 set(GEOZL_OPENZL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../extern/openzl"
     CACHE PATH "Path to the OpenZL submodule source")
+
+if(GEOZL_BUILD_WASM AND NOT EMSCRIPTEN)
+    message(FATAL_ERROR "GEOZL_BUILD_WASM requires an Emscripten toolchain")
+endif()
+if(GEOZL_BUILD_WASM AND NOT GEOZL_BUILD_FULL)
+    message(FATAL_ERROR "GEOZL_BUILD_WASM requires GEOZL_BUILD_FULL=ON")
+endif()
 
 # Freeze geozl's linkage before OpenZL touches BUILD_SHARED_LIBS. A standalone
 # build is shared; a parent that explicitly sets OFF gets a static library.
 # OpenZL may restore an initially undefined value as an empty cache entry, so
 # empty still means the standalone default. Use a fresh build tree to change it.
-if(NOT DEFINED GEOZL_LIB_TYPE)
+if(GEOZL_BUILD_WASM)
+    set(GEOZL_LIB_TYPE STATIC CACHE INTERNAL "geozl library type" FORCE)
+elseif(NOT DEFINED GEOZL_LIB_TYPE)
     if(DEFINED BUILD_SHARED_LIBS
        AND NOT BUILD_SHARED_LIBS STREQUAL ""
        AND NOT BUILD_SHARED_LIBS)
@@ -43,6 +53,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS   ON)
 set(CMAKE_C_VISIBILITY_PRESET       hidden)
 set(CMAKE_CXX_VISIBILITY_PRESET     hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+
+# OpenZL requires 64-bit pointers. Its flags are scoped to its subdirectory,
+# so apply the same ABI to GeoZL and the final module here.
+if(EMSCRIPTEN)
+    add_compile_options(-sMEMORY64=1)
+    add_link_options(-sMEMORY64=1 -sWASM_BIGINT=1)
+endif()
 
 if(GEOZL_SANITIZE)
     add_compile_options(-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer)
@@ -186,6 +203,45 @@ if(GEOZL_BUILD_FULL)
     endif()
     if(GEOZL_CLANG_RT)
         target_link_libraries(geozl PRIVATE ${GEOZL_CLANG_RT})
+    endif()
+
+    if(GEOZL_BUILD_WASM)
+        add_executable(geozl_wasm_module
+            ${CMAKE_CURRENT_SOURCE_DIR}/../tools/wasm/geozl_wasm.c)
+        target_link_libraries(geozl_wasm_module PRIVATE geozl)
+        target_compile_options(geozl_wasm_module PRIVATE -O3)
+        target_link_options(geozl_wasm_module PRIVATE
+            -O3
+            --no-entry
+            -sWASM=1
+            -sALLOW_MEMORY_GROWTH=1
+            -sINITIAL_MEMORY=32MB
+            -sMAXIMUM_MEMORY=16GB
+            -sSTACK_SIZE=4MB
+            -sMODULARIZE=1
+            -sEXPORT_ES6=1
+            -sEXPORT_NAME=geozlModule
+            -sEXPORTED_FUNCTIONS=
+            -sEXPORTED_RUNTIME_METHODS=HEAPU8,HEAPU64,UTF8ToString
+            -sENVIRONMENT=web,worker,node)
+        set_target_properties(geozl_wasm_module PROPERTIES
+            OUTPUT_NAME "geozl"
+            SUFFIX ".js"
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/wasm")
+        add_custom_target(geozl_wasm ALL
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    ${CMAKE_CURRENT_SOURCE_DIR}/../tools/wasm/js
+                    $<TARGET_FILE_DIR:geozl_wasm_module>
+            DEPENDS geozl_wasm_module)
+
+        install(FILES
+            ${CMAKE_CURRENT_BINARY_DIR}/wasm/geozl.js
+            ${CMAKE_CURRENT_BINARY_DIR}/wasm/geozl.wasm
+            ${CMAKE_CURRENT_SOURCE_DIR}/../tools/wasm/js/geozl_api.js
+            ${CMAKE_CURRENT_SOURCE_DIR}/../tools/wasm/js/geozl_api.d.ts
+            ${CMAKE_CURRENT_SOURCE_DIR}/../tools/wasm/js/package.json
+            DESTINATION wasm
+            OPTIONAL)
     endif()
 
     install(TARGETS geozl ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
