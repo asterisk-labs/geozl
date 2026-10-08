@@ -105,6 +105,7 @@ jobs:
           "$RUNNER_TEMP/emsdk/emsdk" install 4.0.19
           "$RUNNER_TEMP/emsdk/emsdk" activate 4.0.19
           python3 -m pip install cmake ninja
+          echo "CMAKE=$(command -v cmake)" >> "$GITHUB_ENV"
 
       - name: Build GeoZL wasm64
         run: |

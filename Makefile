@@ -25,6 +25,7 @@ GEN    ?= Ninja
 FULL   ?= ON
 SAN    ?= OFF
 EMCMAKE ?= emcmake
+CMAKE  ?= cmake
 
 # Seconds per fuzz target, and libFuzzer worker processes. FUZZ_JOBS=0 keeps it
 # in one process, which is what you want when reading the log.
@@ -208,12 +209,12 @@ test-san:
 	$(MAKE) test SAN=ON
 
 wasm: $(OPENZL)/CMakeLists.txt
-	$(EMCMAKE) cmake -S $(CORE) -B $(WASM_BUILD_DIR) -G $(GEN) \
+	$(EMCMAKE) $(CMAKE) -S $(CORE) -B $(WASM_BUILD_DIR) -G $(GEN) \
 	      -DCMAKE_BUILD_TYPE=$(BUILD) -DGEOZL_BUILD_FULL=ON \
 	      -DGEOZL_BUILD_WASM=ON \
 	      -DGEOZL_BUILD_KERNELS_SHARED=OFF \
 	      -DZSTD_BUILD_SHARED=OFF
-	cmake --build $(WASM_BUILD_DIR) --target geozl_wasm
+	$(CMAKE) --build $(WASM_BUILD_DIR) --target geozl_wasm
 
 wasm-test: wasm
 	GEOZL_GOLDEN_DIR=$(abspath $(PY_DIR)/test/golden) \
