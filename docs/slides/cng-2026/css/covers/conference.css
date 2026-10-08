@@ -1,0 +1,84 @@
+/* covers/conference.css */
+
+.cover-conference {
+  padding: 48px 56px 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* tri-color bar */
+.cover-conference .top-bar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 6px;
+  display: flex;
+}
+.cover-conference .top-bar span { flex: 1; }
+.cover-conference .top-bar span:nth-child(1) { background: var(--gold); }
+.cover-conference .top-bar span:nth-child(2) { background: var(--green); }
+.cover-conference .top-bar span:nth-child(3) { background: var(--purple); }
+
+/* project logo: right side, vertically centered with text */
+.cover-conference .project-badge {
+  position: absolute;
+  top: 50%; right: 100px;
+  transform: translateY(-50%);
+}
+.cover-conference .project-badge img {
+  width: 160px;
+  height: 160px;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+/* text block */
+.cover-conference .text-block {
+  max-width: 62%;
+}
+
+.cover-conference .event-line {
+  font-size: 0.78em;
+  color: var(--gray);
+  margin-bottom: 14px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.cover-conference h1 {
+  font-size: 2.2em;
+  margin-bottom: 8px;
+}
+.cover-conference .subtitle {
+  font-size: 1em;
+  color: var(--gray);
+  margin-bottom: 20px;
+}
+.cover-conference .authors {
+  font-size: 0.88em;
+  color: var(--dark);
+  font-weight: 600;
+}
+.cover-conference .affil {
+  font-size: 0.78em;
+  color: var(--gray);
+  margin-top: 4px;
+}
+
+/* bottom logos */
+.cover-conference .bottom-logos {
+  position: absolute;
+  bottom: 28px; left: 56px; right: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cover-conference .bottom-logos > img { height: 28px; }
+.cover-conference .bottom-logos .extra-logos {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.cover-conference .bottom-logos .extra-logos img {
+  height: 28px;
+  object-fit: contain;
+}

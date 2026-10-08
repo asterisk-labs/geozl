@@ -1,0 +1,209 @@
+/* base.css, reset, design tokens, slide engine, typography */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* brand, taken from asterisk.coop/assets/css/style.css.
+     one job each: violet is us, yellow is what we are explaining now,
+     mint is a fill and never a mark on white. */
+  --purple: #492ae8;
+  --gold: #f7cc09;
+  --green: #c4ffc2;
+  --dark: #17161C;
+  --white: #FCFBF8;
+  --gray: #6B7280;
+  --neutral: #A8A29E;   /* everyone else in a chart, never a brand colour */
+  --hair: #E7E5E4;
+
+  /* slide dimensions (px), 16:9 */
+  --slide-w: 960;
+  --slide-h: 540;
+
+  /* the one left margin and the one title height, every slide */
+  --margin: 56px;
+  --title-y: 48px;
+
+  /* fonts: League Spartan for body (loaded in index.html), Futura fallback matches logo */
+  --font: 'League Spartan', 'Futura', 'Century Gothic', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #111;
+  font-family: var(--font);
+}
+
+/* deck: centered container, scaled to fit viewport via js/engine.js */
+.deck {
+  position: absolute;
+  width: calc(var(--slide-w) * 1px);
+  height: calc(var(--slide-h) * 1px);
+  top: 50%;
+  left: 50%;
+  transform-origin: center center;
+}
+
+/* each slide is stacked absolute, toggled via .active */
+.slide {
+  position: absolute;
+  width: calc(var(--slide-w) * 1px);
+  height: calc(var(--slide-h) * 1px);
+  background: var(--white);
+  color: var(--dark);
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.997);
+  pointer-events: none;
+  transition:
+    opacity 0.18s ease-out,
+    transform 0.18s ease-out,
+    visibility 0s linear 0.18s;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.slide.active {
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1);
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+/* type scale, titles are lowercase, like the wordmark and the site */
+h1 { font-size: 2.6em; font-weight: 700; line-height: 1.1; letter-spacing: -0.03em; }
+h2 {
+  font-size: 1.62em; font-weight: 600; line-height: 1.15; letter-spacing: -0.02em;
+  margin-bottom: 14px;
+}
+h3 { font-size: 1.1em; font-weight: 600; color: var(--gray); margin-bottom: 8px; }
+p, li { font-size: 0.95em; line-height: 1.55; }
+code { font-family: var(--font-mono); font-size: 0.88em; background: #f3f4f6; padding: 1px 6px; border-radius: 3px; }
+a { color: var(--purple); text-decoration: none; }
+
+/* helpers */
+.text-light { color: var(--gray); }
+.text-small { font-size: 0.8em; }
+.accent-gold { color: var(--gold); }
+.accent-green { color: var(--green); }
+.accent-purple { color: var(--purple); }
+.highlight { background: var(--green); padding: 2px 6px; }
+
+/* persistent footer per slide, position absolute so it doesn't affect flex layout */
+.slide-footer {
+  position: absolute;
+  bottom: 16px; left: 48px; right: 48px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.7em;
+  color: var(--gray);
+}
+
+/* nav: fixed bottom-right, works on top of scaled deck */
+.nav {
+  position: fixed;
+  bottom: 12px; right: 16px;
+  z-index: 1000;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: #fff6;
+  user-select: none;
+}
+.nav button {
+  background: #fff2; border: none; color: #fffa;
+  width: 32px; height: 32px; border-radius: 6px;
+  cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s;
+}
+.nav button:hover { background: #fff3; }
+.nav button:disabled { opacity: 0.2; cursor: default; }
+
+/* top progress bar, width set by engine.js */
+.progress {
+  position: fixed; top: 0; left: 0; height: 3px;
+  background: var(--purple);
+  transition: width 0.3s ease;
+  z-index: 1000;
+}
+/* ============================================================
+   ASTERISK HOUSE STYLE
+   Three things repeat on every slide: an eyebrow that names the
+   slide's job in the argument, a lowercase title, and the
+   furniture (mark bottom-left, corner triangles bottom-right).
+   ============================================================ */
+
+/* 1. eyebrow */
+.eyebrow {
+  font-size: 0.68em; font-weight: 600; letter-spacing: 0.16em;
+  text-transform: lowercase; color: var(--purple); margin-bottom: 8px;
+}
+
+/* 3. furniture, injected per slide by engine.js */
+.deck-footer {
+  position: absolute; left: var(--margin); bottom: 20px;
+  display: flex; align-items: center; gap: 9px;
+  font-size: 0.58em; letter-spacing: 0.11em; color: var(--gray);
+  opacity: 0.86;
+}
+.deck-footer img { height: 14px; display: block; }
+
+/* the corner motif from the site: three stacked right triangles.
+   one stack on content slides, four corners on cover and closing. */
+.corner { position: absolute; width: 68px; height: 68px; pointer-events: none; }
+.corner i { position: absolute; width: 0; height: 0; display: block; }
+.corner-br { right: 0; bottom: 0; }
+.corner-br i { right: 0; bottom: 0; }
+.corner-br .t1 { border-right: 68px solid var(--purple); border-top: 34px solid transparent; }
+.corner-br .t2 { border-right: 34px solid var(--green);  border-top: 68px solid transparent; }
+.corner-br .t3 { border-right: 34px solid var(--gold);   border-top: 34px solid transparent; }
+.corner-tl { left: 0; top: 0; }
+.corner-tl i { left: 0; top: 0; }
+.corner-tl .t1 { border-left: 68px solid var(--purple); border-bottom: 34px solid transparent; }
+.corner-tl .t2 { border-left: 34px solid var(--green);  border-bottom: 68px solid transparent; }
+.corner-tl .t3 { border-left: 34px solid var(--gold);   border-bottom: 34px solid transparent; }
+.corner-tr { right: 0; top: 0; }
+.corner-tr i { right: 0; top: 0; }
+.corner-tr .t1 { border-right: 68px solid var(--gold);   border-bottom: 34px solid transparent; }
+.corner-tr .t2 { border-right: 34px solid var(--green);  border-bottom: 68px solid transparent; }
+.corner-tr .t3 { border-right: 34px solid var(--purple); border-bottom: 34px solid transparent; }
+.corner-bl { left: 0; bottom: 0; }
+.corner-bl i { left: 0; bottom: 0; }
+.corner-bl .t1 { border-left: 68px solid var(--purple); border-top: 34px solid transparent; }
+.corner-bl .t2 { border-left: 34px solid var(--gold);   border-top: 68px solid transparent; }
+.corner-bl .t3 { border-left: 34px solid var(--green);  border-top: 34px solid transparent; }
+
+/* the hexagon is our pixel: every raster tile is clipped to it,
+   the same clip-path the site uses for team portraits */
+.hex {
+  object-fit: cover;
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  border-radius: 0 !important;
+}
+
+/* inverted slides: one idea, nothing else. used three times in the deck. */
+.slide.ink { background: var(--dark); color: var(--white); }
+.slide.ink .eyebrow { color: var(--green); }
+.slide.ink .text-light, .slide.ink .chart-note, .slide.ink .deck-footer { color: #9C958A; }
+.slide.ink code { background: #2A2830; color: var(--green); }
+.slide.ink .dot { border-left-color: var(--green); }
+.slide.ink .dot-gold { border-left-color: var(--gold); }
+.slide.ink .dot-purple { border-left-color: var(--white); }
+.slide.ink .accent { color: var(--gold); }
+.slide.ink .links b { color: #9C958A; }
+.slide.ink .deck-footer img { filter: invert(1) brightness(1.7); }
+.accent { color: var(--purple); }
+
+/* build-up within a slide, driven by engine.js */
+[data-step] { opacity: 0; transition: opacity 0.35s ease; }
+[data-step].shown { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .slide,
+  [data-step] {
+    transition: none;
+  }
+}

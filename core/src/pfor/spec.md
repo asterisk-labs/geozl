@@ -91,3 +91,10 @@ The choice of `b` per block is not part of the format. A decoder accepts any
 `b` a block declares, so an encoder may change its selection strategy without a
 new CTID. This encoder tests every width from the block maximum to zero and adds
 a four-bit cost per exception to the encoded size.
+
+## Credit
+
+The block design follows
+[TurboPFor](https://github.com/powturbo/TurboPFor-Integer-Compression/graphs/contributors)
+by powturbo and contributors. Independent implementation, not bitstream
+compatible.

@@ -1,0 +1,16 @@
+/* covers/brand.css, logo centered, nothing else. company intros, opening slides */
+
+.cover-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--white);
+}
+
+.cover-brand .logo-wrap {
+  text-align: center;
+}
+
+.cover-brand .logo-wrap svg {
+  width: 320px;
+}

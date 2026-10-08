@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/layouts.css">
+<link rel="stylesheet" href="css/covers/brand.css">
+<link rel="stylesheet" href="css/covers/conference.css">
+<link rel="stylesheet" href="css/covers/talk.css">
+<link rel="stylesheet" href="css/covers/project.css">
+<link rel="stylesheet" href="css/talk.css">
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+  <div id="cover-slot"></div>
+  <div id="slides-slot"></div>
+</div>
+<div class="nav">
+  <button id="btn-prev">&#8592;</button>
+  <span id="slide-num"></span>
+  <button id="btn-next">&#8594;</button>
+</div>
+<template id="slides-src">
+<!--
+  Rethinking compression for Earth observation data
+  CNG 2026, Track 2: Cloud-Native Geo in Practice, 7 October 2026, 7 minutes.
+  Numbers come from asterisk-labs/ec-benchmark (preliminary run, one timing pass).
+-->
+
+<script>
+window.DECK = {
+  cover: "conference",
+  title: "Rethinking compression for Earth observation data",
+  subtitle: "",
+  speaker: "Cesar Aybar",
+  authors: ["Mikolaj Czerkawski", "Barbara Bertozzi", "Jacqueline Campbell", "Alistair Francis"],
+  affiliations: [],
+  event: "Cloud-Native Geospatial Forum 2026",
+  date: "Snowbird, Utah &middot; 7 October 2026",
+  project_visual: "dataset-graphs",
+  project_visual_data: "assets/img/cover-tiles.jpg",
+  logos: ["assets/img/geozl.svg"]
+};
+</script>
+
+<!-- 1. the topic -->
+<section class="slide ink slide--word" data-bare>
+  <div class="word">COMPRESSION</div>
+</section>
+
+<!-- 1b. the word -->
+<section class="slide ink slide--word" data-bare>
+  <div class="word">ZSTD</div>
+</section>
+
+<!-- 2b. the machine -->
+<section class="slide" data-layout="content">
+  <div class="eyebrow">the machine</div>
+  <h2>Zstandard won by understanding the machine</h2>
+  <div class="body body--center body--roomy">
+    <svg class="chart-svg" viewBox="0 0 848 286" width="100%" role="img" aria-label="Relative to an Intel Pentium 66 in 1993: memory 2.5 times and 2.1 times faster, CPU 64 and 86 times faster">
+      <rect x="300" y="4" width="16" height="16" fill="#f7cc09"/><text x="324" y="18" font-size="18" fill="#17161C">memory</text>
+      <rect x="420" y="4" width="16" height="16" fill="#492ae8"/><text x="444" y="18" font-size="18" fill="#17161C">CPU</text>
+      <text x="40" y="64" font-size="30" font-weight="600" fill="#17161C">1993</text><text x="40" y="86" font-size="15" fill="#6B7280">Intel Pentium 66 &#183; FPM DRAM</text><rect x="300" y="40" width="6" height="22" fill="#f7cc09"/><text x="318" y="58" font-size="19" fill="#17161C">1&#215;</text><rect x="300" y="66" width="6" height="22" fill="#492ae8"/><text x="318" y="84" font-size="19" font-weight="700" fill="#17161C">1&#215;</text>
+      <text x="40" y="142" font-size="30" font-weight="600" fill="#17161C">2015</text><text x="40" y="164" font-size="15" fill="#6B7280">Intel Core i7-6700K &#183; DDR4</text><rect x="300" y="118" width="14" height="22" fill="#f7cc09"/><text x="326" y="136" font-size="19" fill="#17161C">2.5&#215;</text><rect x="300" y="144" width="371" height="22" fill="#492ae8"/><text x="683" y="162" font-size="19" font-weight="700" fill="#17161C">64&#215;</text>
+      <text x="40" y="220" font-size="30" font-weight="600" fill="#17161C">2024</text><text x="40" y="242" font-size="15" fill="#6B7280">AMD Ryzen 9 9950X &#183; DDR5</text><rect x="300" y="196" width="12" height="22" fill="#f7cc09"/><text x="324" y="214" font-size="19" fill="#17161C">2.1&#215;</text><rect x="300" y="222" width="499" height="22" fill="#492ae8"/><text x="811" y="240" font-size="19" font-weight="700" fill="#17161C">86&#215;</text>
+      <text x="40" y="282" font-size="13" fill="#6B7280">Sources: Intel and AMD specifications, maximum clock. DRAM row access time: 70 ns FPM; JEDEC DDR4-2133 and DDR5-5600, tRCD + CL.</text>
+    </svg>
+    <p class="machine-takeaway">the bottleneck moved from computing to waiting</p>
+  </div>
+</section>
+
+<!-- 3. the limit -->
+<section class="slide" data-layout="content">
+  <div class="eyebrow">the limit</div>
+  <h2>Zstandard kept getting faster, not smaller</h2>
+  <div class="body body--center" style="gap:14px;">
+    <svg class="chart-svg" viewBox="0 0 848 290" width="100%" role="img" aria-label="Every zstd release from v1.0.0 in 2016 to v1.5.7 in 2025, change since v1.0.0. Decompression ends 34 percent faster, compression ratio 0.6 percent better. Marked: format frozen in 2016, wider copies in 2019, Huffman in assembly in 2021, stricter checks in 2024.">
+      <line x1="90" y1="250.0" x2="690" y2="250.0" stroke="#D6D3D1" stroke-width="1.5"/><text x="80" y="255.0" text-anchor="end" font-size="14" fill="#6B7280">0%</text>
+      <line x1="90" y1="150.0" x2="690" y2="150.0" stroke="#E7E5E4" stroke-width="1.5"/><text x="80" y="155.0" text-anchor="end" font-size="14" fill="#6B7280">+20%</text>
+      <line x1="90" y1="50.0" x2="690" y2="50.0" stroke="#E7E5E4" stroke-width="1.5"/><text x="80" y="55.0" text-anchor="end" font-size="14" fill="#6B7280">+40%</text>
+      <text x="90.0" y="280" text-anchor="middle" font-size="15" fill="#6B7280">2016</text>
+      <text x="220.0" y="280" text-anchor="middle" font-size="15" fill="#6B7280">2018</text>
+      <text x="350.0" y="280" text-anchor="middle" font-size="15" fill="#6B7280">2020</text>
+      <text x="480.0" y="280" text-anchor="middle" font-size="15" fill="#6B7280">2022</text>
+      <text x="610.0" y="280" text-anchor="middle" font-size="15" fill="#6B7280">2024</text>
+      <g><line x1="133.3" y1="38" x2="133.3" y2="242.0" stroke="#A8A29E" stroke-width="1.2" stroke-dasharray="3 4"/><text x="133.3" y="28" text-anchor="start" font-size="15" font-weight="700" fill="#17161C">format frozen</text><line x1="339.7" y1="38" x2="339.7" y2="89.0" stroke="#A8A29E" stroke-width="1.2" stroke-dasharray="3 4"/><text x="339.7" y="28" text-anchor="middle" font-size="15" font-weight="700" fill="#17161C">wider copies</text><line x1="477.9" y1="38" x2="477.9" y2="50.2" stroke="#A8A29E" stroke-width="1.2" stroke-dasharray="3 4"/><text x="477.9" y="28" text-anchor="middle" font-size="15" font-weight="700" fill="#17161C">Huffman in assembly</text><line x1="624.2" y1="38" x2="624.2" y2="62.4" stroke="#A8A29E" stroke-width="1.2" stroke-dasharray="3 4"/><text x="624.2" y="28" text-anchor="middle" font-size="15" font-weight="700" fill="#17161C">stricter checks</text></g>
+      <polyline points="133.3,250.0 138.3,250.0 144.3,250.0 152.0,250.0 161.4,250.0 168.0,250.0 176.9,250.0 187.9,250.0 196.1,250.0 204.9,250.0 218.0,250.0 235.0,250.0 251.7,250.0 269.3,250.0 271.3,250.0 284.1,250.0 303.7,249.0 320.4,249.0 321.5,249.0 326.0,249.0 339.7,249.0 375.1,249.0 412.3,249.0 412.7,249.0 425.7,249.0 438.7,249.0 477.9,248.3 483.4,248.3 551.9,248.3 561.6,248.3 624.2,248.3 683.5,247.1" fill="none" stroke="#f7cc09" stroke-width="3.5" stroke-linejoin="round"/>
+      <circle cx="133.3" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="138.3" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="144.3" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="152.0" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="161.4" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="168.0" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="176.9" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="187.9" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="196.1" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="204.9" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="218.0" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="235.0" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="251.7" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="269.3" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="271.3" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="284.1" cy="250.0" r="3.5" fill="#f7cc09"/><circle cx="303.7" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="320.4" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="321.5" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="326.0" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="339.7" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="375.1" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="412.3" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="412.7" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="425.7" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="438.7" cy="249.0" r="3.5" fill="#f7cc09"/><circle cx="477.9" cy="248.3" r="3.5" fill="#f7cc09"/><circle cx="483.4" cy="248.3" r="3.5" fill="#f7cc09"/><circle cx="551.9" cy="248.3" r="3.5" fill="#f7cc09"/><circle cx="561.6" cy="248.3" r="3.5" fill="#f7cc09"/><circle cx="624.2" cy="248.3" r="3.5" fill="#f7cc09"/><circle cx="683.5" cy="247.1" r="3.5" fill="#f7cc09"/>
+      <polyline points="133.3,250.0 138.3,245.6 144.3,261.5 152.0,258.5 161.4,258.5 168.0,265.2 176.9,253.0 187.9,251.2 196.1,251.6 204.9,241.2 218.0,240.2 235.0,237.7 251.7,237.7 269.3,238.2 271.3,223.8 284.1,224.2 303.7,223.6 320.4,177.5 321.5,183.6 326.0,157.4 339.7,97.0 375.1,89.5 412.3,78.2 412.7,81.0 425.7,78.5 438.7,78.6 477.9,58.2 483.4,61.7 551.9,62.1 561.6,60.9 624.2,70.4 683.5,81.7" fill="none" stroke="#492ae8" stroke-width="3.5" stroke-linejoin="round"/>
+      <circle cx="133.3" cy="250.0" r="4" fill="#492ae8"/><circle cx="138.3" cy="245.6" r="4" fill="#492ae8"/><circle cx="144.3" cy="261.5" r="4" fill="#492ae8"/><circle cx="152.0" cy="258.5" r="4" fill="#492ae8"/><circle cx="161.4" cy="258.5" r="4" fill="#492ae8"/><circle cx="168.0" cy="265.2" r="4" fill="#492ae8"/><circle cx="176.9" cy="253.0" r="4" fill="#492ae8"/><circle cx="187.9" cy="251.2" r="4" fill="#492ae8"/><circle cx="196.1" cy="251.6" r="4" fill="#492ae8"/><circle cx="204.9" cy="241.2" r="4" fill="#492ae8"/><circle cx="218.0" cy="240.2" r="4" fill="#492ae8"/><circle cx="235.0" cy="237.7" r="4" fill="#492ae8"/><circle cx="251.7" cy="237.7" r="4" fill="#492ae8"/><circle cx="269.3" cy="238.2" r="4" fill="#492ae8"/><circle cx="271.3" cy="223.8" r="4" fill="#492ae8"/><circle cx="284.1" cy="224.2" r="4" fill="#492ae8"/><circle cx="303.7" cy="223.6" r="4" fill="#492ae8"/><circle cx="320.4" cy="177.5" r="4" fill="#492ae8"/><circle cx="321.5" cy="183.6" r="4" fill="#492ae8"/><circle cx="326.0" cy="157.4" r="4" fill="#492ae8"/><circle cx="339.7" cy="97.0" r="4" fill="#492ae8"/><circle cx="375.1" cy="89.5" r="4" fill="#492ae8"/><circle cx="412.3" cy="78.2" r="4" fill="#492ae8"/><circle cx="412.7" cy="81.0" r="4" fill="#492ae8"/><circle cx="425.7" cy="78.5" r="4" fill="#492ae8"/><circle cx="438.7" cy="78.6" r="4" fill="#492ae8"/><circle cx="477.9" cy="58.2" r="4" fill="#492ae8"/><circle cx="483.4" cy="61.7" r="4" fill="#492ae8"/><circle cx="551.9" cy="62.1" r="4" fill="#492ae8"/><circle cx="561.6" cy="60.9" r="4" fill="#492ae8"/><circle cx="624.2" cy="70.4" r="4" fill="#492ae8"/><circle cx="683.5" cy="81.7" r="4" fill="#492ae8"/>
+      <text x="697.5" y="87.7" font-size="30" font-weight="700" fill="#17161C">+34%</text><text x="697.5" y="109.7" font-size="17" fill="#17161C">decompression</text>
+      <text x="697.5" y="235.1" font-size="30" font-weight="700" fill="#17161C">+0.6%</text><text x="697.5" y="257.1" font-size="17" fill="#17161C">ratio</text>
+    </svg>
+    <p class="source-note">Every release v1.0.0 to v1.5.7, Silesia level 1, one core of an AMD EPYC 9654.</p>
+  </div>
+</section>
+
+<!-- 4. collet, in his own words -->
+<section class="slide ink slide--quote" data-bare>
+  <p class="quote-copy">&#8220;Reaching asymptotic limits.<br>Small gains for large energy cost.&#8221;</p>
+  <p class="quote-source">Yann Collet, creator of Zstandard &#183; Beyond Zstandard, Open Source Summit Japan 2025</p>
+</section>
+
+<!-- 5. the dolphins -->
+<section class="slide slide--openzl" data-bare>
+  <div class="openzl-lockup">
+    <span>OpenZL</span>
+  </div>
+</section>
+
+<!-- 6. the precedent -->
+<section class="slide" data-layout="content">
+  <div class="eyebrow">the precedent</div>
+  <h2>Models became graphs. <span data-step="1">Now codecs do too.</span></h2>
+  <div class="body body--center body--compact">
+    <svg class="chart-svg" viewBox="0 0 848 290" width="100%" role="img" aria-label="Lines of code. Deep learning: AlexNet hand-written CUDA 8449, PyTorch graph 35. Compression: LERC hand-written C++ 12060, OpenZL graph 4.">
+      
+      <text x="40" y="22" font-size="22" font-weight="700" fill="#17161C">deep learning</text>
+      
+      <line x1="40" y1="236" x2="384" y2="236" stroke="#E7E5E4" stroke-width="1.5"/>
+      
+      <rect x="60" y="117" width="100" height="119" fill="#f7cc09"/><text x="110.0" y="107" text-anchor="middle" font-size="24" font-weight="700" fill="#17161C">8,449</text><text x="110.0" y="262" text-anchor="middle" font-size="19" font-weight="600" fill="#17161C">AlexNet</text><text x="110.0" y="283" text-anchor="middle" font-size="15" fill="#6B7280">hand-written CUDA, 2012</text>
+      <rect x="240" y="230" width="100" height="6" fill="#492ae8"/><text x="290.0" y="220" text-anchor="middle" font-size="24" font-weight="700" fill="#17161C">35</text><text x="290.0" y="262" text-anchor="middle" font-size="19" font-weight="600" fill="#17161C">PyTorch</text><text x="290.0" y="283" text-anchor="middle" font-size="15" fill="#6B7280">a graph of layers, 2017</text>
+      <g data-step="1"><line x1="424" y1="4" x2="424" y2="286" stroke="#E7E5E4" stroke-width="1.5"/><text x="464" y="22" font-size="22" font-weight="700" fill="#17161C">compression</text><line x1="464" y1="236" x2="808" y2="236" stroke="#E7E5E4" stroke-width="1.5"/><rect x="484" y="66" width="100" height="170" fill="#f7cc09"/><text x="534.0" y="56" text-anchor="middle" font-size="24" font-weight="700" fill="#17161C">12,060</text><text x="534.0" y="262" text-anchor="middle" font-size="19" font-weight="600" fill="#17161C">LERC</text><text x="534.0" y="283" text-anchor="middle" font-size="15" fill="#6B7280">hand-written C++, 2015</text>
+      <rect x="664" y="230" width="100" height="6" fill="#492ae8"/><text x="714.0" y="220" text-anchor="middle" font-size="24" font-weight="700" fill="#17161C">4</text><text x="714.0" y="262" text-anchor="middle" font-size="19" font-weight="600" fill="#17161C">OpenZL</text><text x="714.0" y="283" text-anchor="middle" font-size="15" fill="#6B7280">a graph of nodes, 2026</text>
+    </g>
+    </svg>
+    <p class="source-note">Lines of source and headers. AlexNet: original 2012 code, Computer History Museum. PyTorch: torchvision AlexNet class. LERC: Esri, src/LercLib. OpenZL: GeoZL planar graph in ec-benchmark.</p>
+  </div>
+</section>
+
+<!-- 7. how it works -->
+<section class="slide" data-layout="content">
+  <div class="eyebrow">how it works</div>
+  <h2>GeoZL adds the raster pieces</h2>
+  <div class="body body--center">
+    <svg id="hiw" class="chart-svg" viewBox="0 0 848 378" width="100%" role="img" aria-label="An animation. A pool of OpenZL codecs and GeoZL raster codecs. For each dataset up to three codecs are picked: forward compresses the tile into streams and writes the graph into the header; backward runs the same codecs inverted, in reverse order, to rebuild the tile bit for bit. For rain the graph branches into where it rains and how much.">
+  <defs><clipPath id="hiw-clip-in"><polygon points="122,144 148,159.0 148,189.0 122,204 96,189.0 96,159.0"/></clipPath><clipPath id="hiw-clip-out"><polygon points="122,288 148,303.0 148,333.0 122,348 96,333.0 96,303.0"/></clipPath></defs>
+  <text x="136" y="11" font-size="12" font-weight="600" fill="#6B7280" letter-spacing="0.08em">CODEC POOL</text>
+  <text x="124" y="36" text-anchor="end" font-size="14" font-weight="600" fill="#6B7280">OpenZL</text>
+  <text x="124" y="70" text-anchor="end" font-size="14" font-weight="700" fill="#492ae8">GeoZL</text>
+  <g class="pc" data-name="zigzag" data-x="136" data-y="18"><rect x="136" y="18" width="96" height="26" rx="13" fill="#F4F4F5" stroke="#E7E5E4"/><text x="184.0" y="36" text-anchor="middle" font-size="14" font-weight="600" fill="#17161C">zigzag</text></g><g class="pc" data-name="transpose" data-x="238" data-y="18"><rect x="238" y="18" width="96" height="26" rx="13" fill="#F4F4F5" stroke="#E7E5E4"/><text x="286.0" y="36" text-anchor="middle" font-size="14" font-weight="600" fill="#17161C">transpose</text></g><g class="pc" data-name="entropy" data-x="340" data-y="18"><rect x="340" y="18" width="96" height="26" rx="13" fill="#F4F4F5" stroke="#E7E5E4"/><text x="388.0" y="36" text-anchor="middle" font-size="14" font-weight="600" fill="#17161C">entropy</text></g><g class="pc" data-name="zstd" data-x="442" data-y="18"><rect x="442" y="18" width="96" height="26" rx="13" fill="#F4F4F5" stroke="#E7E5E4"/><text x="490.0" y="36" text-anchor="middle" font-size="14" font-weight="600" fill="#17161C">zstd</text></g><g class="pc" data-name="field_lz" data-x="544" data-y="18"><rect x="544" y="18" width="96" height="26" rx="13" fill="#F4F4F5" stroke="#E7E5E4"/><text x="592.0" y="36" text-anchor="middle" font-size="14" font-weight="600" fill="#17161C">field_lz</text></g><g class="pc" data-name="split" data-x="646" data-y="18"><rect x="646" y="18" width="96" height="26" rx="13" fill="#F4F4F5" stroke="#E7E5E4"/><text x="694.0" y="36" text-anchor="middle" font-size="14" font-weight="600" fill="#17161C">split</text></g><g class="pc" data-name="tokenize" data-x="748" data-y="18"><rect x="748" y="18" width="96" height="26" rx="13" fill="#F4F4F5" stroke="#E7E5E4"/><text x="796.0" y="36" text-anchor="middle" font-size="14" font-weight="600" fill="#17161C">tokenize</text></g><g class="pc" data-name="planar" data-x="136" data-y="52"><rect x="136" y="52" width="96" height="26" rx="13" fill="#492ae8"/><text x="184.0" y="70" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">planar</text></g><g class="pc" data-name="med" data-x="238" data-y="52"><rect x="238" y="52" width="96" height="26" rx="13" fill="#492ae8"/><text x="286.0" y="70" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">med</text></g><g class="pc" data-name="average" data-x="340" data-y="52"><rect x="340" y="52" width="96" height="26" rx="13" fill="#492ae8"/><text x="388.0" y="70" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">average</text></g><g class="pc" data-name="wp_static" data-x="442" data-y="52"><rect x="442" y="52" width="96" height="26" rx="13" fill="#492ae8"/><text x="490.0" y="70" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">wp_static</text></g><g class="pc" data-name="delta_w" data-x="544" data-y="52"><rect x="544" y="52" width="96" height="26" rx="13" fill="#492ae8"/><text x="592.0" y="70" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">delta_w</text></g><g class="pc" data-name="pfor" data-x="646" data-y="52"><rect x="646" y="52" width="96" height="26" rx="13" fill="#492ae8"/><text x="694.0" y="70" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">pfor</text></g><g class="pc" data-name="nodata" data-x="748" data-y="52"><rect x="748" y="52" width="96" height="26" rx="13" fill="#492ae8"/><text x="796.0" y="70" text-anchor="middle" font-size="14" font-weight="600" fill="#fff">nodata</text></g>
+
+  <text x="12" y="179" font-size="12" font-weight="700" fill="#492ae8" letter-spacing="0.1em">FORWARD</text>
+  <text x="12" y="323" font-size="12" font-weight="700" fill="#492ae8" letter-spacing="0.1em">BACKWARD</text>
+
+  <g id="hiw-in" opacity="0">
+    <text id="hiw-name" x="122" y="130" text-anchor="middle" font-size="16" font-weight="700" fill="#17161C"></text>
+    <image id="hiw-tile" x="92" y="144" width="60" height="60" preserveAspectRatio="xMidYMid slice" clip-path="url(#hiw-clip-in)"/>
+    <text x="122" y="222" text-anchor="middle" font-size="12.5" font-family="JetBrains Mono, monospace" fill="#6B7280">ZL_TypedRef</text>
+  </g>
+  <g id="hiw-fwd" opacity="0">
+    <text x="212" y="150" font-size="13" font-family="JetBrains Mono, monospace" fill="#6B7280">ZL_CCtx_compress</text>
+    <rect x="662" y="160" width="146" height="28" rx="8" fill="#5F5E5A"/>
+    <text x="735" y="179" text-anchor="middle" font-size="12.5" font-weight="600" font-family="JetBrains Mono, monospace" fill="#FFFFFF">ZL_GRAPH_STORE</text>
+  </g>
+  <g id="hiw-frame" opacity="0">
+    <text x="212" y="234" font-size="13" font-family="JetBrains Mono, monospace" fill="#6B7280">header</text>
+    <rect x="212" y="240" width="240" height="30" rx="8" fill="#17161C"/>
+    <rect x="468" y="240" width="292" height="30" rx="8" fill="#E7E5E4"/>
+    <text x="486" y="260" font-size="15" font-weight="600" fill="#17161C">streams</text>
+  </g>
+  <text id="hiw-ratio" x="744" y="260" text-anchor="end" font-size="15" font-weight="700" fill="#492ae8" opacity="0"></text>
+  <g id="hiw-back" opacity="0">
+    <text x="628" y="294" text-anchor="end" font-size="13" font-family="JetBrains Mono, monospace" fill="#6B7280">ZL_DCtx_decompressTBuffer</text>
+  </g>
+  <g id="hiw-out" opacity="0">
+    <image id="hiw-tile2" x="92" y="288" width="60" height="60" preserveAspectRatio="xMidYMid slice" clip-path="url(#hiw-clip-out)"/>
+    <text x="122" y="366" text-anchor="middle" font-size="12.5" font-family="JetBrains Mono, monospace" fill="#6B7280">ZL_TypedBuffer</text>
+    <text x="200" y="366" font-size="13" font-weight="600" fill="#492ae8">bit-identical</text>
+  </g>
+  <g id="hiw-dyn"></g>
+</svg>
+  </div>
+</section>
+<script>
+(function () {
+  var NS = 'http://www.w3.org/2000/svg', VIOLET = '#492ae8', INK = '#17161C', P2 = '#F4F4F5', WIRE = '#8A8F98';
+  var GEO = { planar: 1, med: 1, average: 1, wp_static: 1, delta_w: 1, pfor: 1, nodata: 1 };
+  var COLOR = { zigzag: '#f7cc09', transpose: '#c4ffc2', entropy: '#FFFFFF', zstd: '#D6D3D1', split: '#BFC5CE' };
+  function fillOf(n) { return GEO[n] ? VIOLET : (COLOR[n] || P2); }
+  function textOf(n) { return GEO[n] ? '#fff' : INK; }
+  function chain(names) {
+    return { nodes: names.map(function (n, i) { return { id: 'n' + i, name: n, col: i, row: 0 }; }),
+             edges: names.slice(1).map(function (_, i) { return ['n' + i, 'n' + (i + 1)]; }) };
+  }
+  // best GeoZL graph with at most three codecs, ec-benchmark; IMERG is the rain scheme in imerg/
+  var SCENES = [
+    { name: 'Sentinel-2',     tile: 'assets/img/tiles/t01.jpg', ratio: '2.03× smaller', g: chain(['med', 'zigzag', 'entropy']) },
+    { name: 'Copernicus DEM', tile: 'assets/img/tiles/t03.jpg', ratio: '6.13× smaller', g: chain(['wp_static', 'zigzag', 'entropy']) },
+    { name: 'GPM IMERG',      tile: 'assets/img/tiles/t13.jpg', ratio: '14.1× smaller', g: {
+        nodes: [ { id: 's', name: 'split', col: 0, row: 0 }, { id: 'm', name: 'med', col: 1, row: 1 }, { id: 'e', name: 'entropy', col: 2, row: 0 } ],
+        edges: [ ['s', 'e'], ['s', 'm'], ['m', 'e'] ] } }
+  ];
+  var L = [212, 372, 532], W = 96, H = 28, FCY = 174, BCY = 318, ROW = 32, T = 8.8;
+
+  function clamp(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
+  function ease(x) { x = clamp(x); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function seg(t, a, b) { return ease((t - a) / (b - a)); }
+  function el(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function cyOf(n, base) { return base + n.row * ROW; }
+  function link(x1, y1, x2, y2) {
+    if (y1 === y2) return 'M ' + x1 + ' ' + y1 + ' H ' + x2;
+    var m = (x1 + x2) / 2;
+    return 'M ' + x1 + ' ' + y1 + ' C ' + m + ' ' + y1 + ', ' + m + ' ' + y2 + ', ' + x2 + ' ' + y2;
+  }
+
+  function start(svg) {
+    var slide = svg.closest('.slide'), dyn = svg.querySelector('#hiw-dyn');
+    var pin = svg.querySelector('g#hiw-in'), pframe = svg.querySelector('g#hiw-frame'), pout = svg.querySelector('g#hiw-out');
+    var ratio = svg.querySelector('#hiw-ratio');
+    var pfwd = svg.querySelector('g#hiw-fwd'), pback = svg.querySelector('g#hiw-back');
+    var pool = {};
+    svg.querySelectorAll('.pc').forEach(function (g) { pool[g.dataset.name] = g; });
+    var items = [], picked = {}, raf = null, t0 = 0, idx = 0;
+
+    // a wire that draws itself, with its own arrowhead that arrives at the end
+    function wire(layer, d, a, opts) {
+      opts = opts || {};
+      var col = opts.colour || WIRE, p = el('path', { d: d, fill: 'none', stroke: col, 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, layer);
+      var len = p.getTotalLength(), end = p.getPointAtLength(len), pre = p.getPointAtLength(Math.max(0, len - 1));
+      var ang = Math.atan2(end.y - pre.y, end.x - pre.x) * 180 / Math.PI;
+      var head = el('path', { d: 'M -7 -4.5 L 0 0 L -7 4.5 Z', fill: col, transform: 'translate(' + end.x + ' ' + end.y + ') rotate(' + ang + ')' }, layer);
+      if (opts.dashed) p.setAttribute('stroke-dasharray', '6 6');
+      items.push(function (t) {
+        var k = seg(t, a, a + (opts.dur || .45)), out = 1 - seg(t, 7.3, 7.8);
+        if (opts.dashed) { p.style.opacity = k * out; }
+        else { p.style.strokeDasharray = len; p.style.strokeDashoffset = len * (1 - k); p.style.opacity = out; }
+        head.style.opacity = clamp((k - .8) / .2) * out;
+      });
+    }
+    // data travelling the whole route without stopping, passing under the codecs
+    function route(layer, d, a, b) {
+      var p = el('path', { d: d, fill: 'none', stroke: 'none' }, layer), len = p.getTotalLength();
+      var c = el('circle', { r: 6, fill: VIOLET, opacity: 0 }, layer);
+      items.push(function (t) {
+        var u = clamp((t - a) / (b - a)), pt = p.getPointAtLength(ease(u) * len);
+        c.setAttribute('cx', pt.x); c.setAttribute('cy', pt.y);
+        c.setAttribute('opacity', t > a && t < b ? Math.min(1, u / .05, (1 - u) / .05) : 0);
+      });
+    }
+    function chipAt(layer, x, y, name, fill, tcol) {
+      var g = el('g', {}, layer), light = fill === '#FFFFFF' || fill === P2;
+      el('rect', { x: x, y: y, width: W, height: H, rx: 4, fill: fill, stroke: light ? INK : 'none', 'stroke-width': light ? 1.5 : 0 }, g);
+      var tx = el('text', { x: x + W / 2, y: y + 19, 'text-anchor': 'middle', 'font-size': 14, 'font-weight': 600, fill: tcol }, g);
+      tx.textContent = name;
+      return g;
+    }
+
+    function build(sc) {
+      dyn.innerHTML = ''; items = []; picked = {};
+      var wires = el('g', {}, dyn), dots = el('g', {}, dyn), chips = el('g', {}, dyn), head = el('g', {}, dyn);
+      var nodes = sc.g.nodes, edges = sc.g.edges, byId = {}, maxc = 0;
+      nodes.forEach(function (n) { byId[n.id] = n; maxc = Math.max(maxc, n.col); picked[n.name] = 1; });
+      svg.querySelector('#hiw-name').textContent = sc.name;
+      svg.querySelector('#hiw-tile').setAttribute('href', sc.tile);
+      svg.querySelector('#hiw-tile2').setAttribute('href', sc.tile);
+      ratio.textContent = sc.ratio;
+
+      // forward: the codecs fly out of the pool, one after the other
+      nodes.forEach(function (n, i) {
+        var p = pool[n.name], px = +p.dataset.x, py = +p.dataset.y, tx = L[n.col], ty = cyOf(n, FCY) - H / 2;
+        var g = el('g', {}, chips);
+        var a = chipAt(g, px, py, n.name, GEO[n.name] ? VIOLET : P2, textOf(n.name));
+        var b = chipAt(g, px, py, n.name, fillOf(n.name), textOf(n.name));
+        var s0 = .35 + i * .16;
+        items.push(function (t) {
+          var k = seg(t, s0, s0 + .95) * (1 - seg(t, 7.3, 8.2));
+          g.setAttribute('transform', 'translate(' + (tx - px) * k + ' ' + (ty - py) * k + ')');
+          var c = clamp((k - .45) / .55); b.style.opacity = c; a.style.opacity = 1 - c;
+        });
+      });
+      // forward wires
+      nodes.filter(function (n) { return n.col === 0; }).forEach(function (n) { wire(wires, link(152, FCY, L[0] - 3, cyOf(n, FCY)), 1.25); });
+      edges.forEach(function (e, i) {
+        var a = byId[e[0]], b = byId[e[1]];
+        wire(wires, link(L[a.col] + W, cyOf(a, FCY), L[b.col] - 3, cyOf(b, FCY)), 1.35 + i * .1);
+      });
+      var last = nodes.filter(function (n) { return n.col === maxc; })[0];
+      wire(wires, 'M ' + (L[maxc] + W) + ' ' + FCY + ' H 659', 1.6);
+      wire(wires, 'M 735 188 V 237', 1.75);
+      // the data, one continuous run per branch
+      var tail = ' H 723 Q 735 ' + FCY + ' 735 ' + (FCY + 12) + ' V 252';
+      var mids = nodes.filter(function (n) { return n.row !== 0; });
+      route(dots, 'M 152 ' + FCY + ' H ' + (L[maxc] + W) + tail, 1.7, 3.2);
+      mids.forEach(function (m) {
+        var y = cyOf(m, FCY);
+        route(dots, 'M 152 ' + FCY + ' H ' + (L[0] + W) + ' ' + link(L[0] + W, FCY, L[m.col], y).replace(/^M [^C]*C/, 'C') +
+                    ' H ' + (L[m.col] + W) + ' ' + link(L[m.col] + W, y, L[maxc], FCY).replace(/^M [^C]*C/, 'C') + ' H ' + (L[maxc] + W) + tail, 1.7, 3.2);
+      });
+      // the frame, and the graph written into its header
+      items.push(function (t) {
+        var out = 1 - seg(t, 7.3, 7.8);
+        pin.style.opacity = seg(t, 0, .5) * (1 - seg(t, 7.3, 7.7));
+        pframe.style.opacity = seg(t, 2.9, 3.3) * out;
+        pfwd.style.opacity = seg(t, 1.1, 1.5) * out;
+        pback.style.opacity = seg(t, 3.45, 3.85) * out;
+        ratio.style.opacity = seg(t, 3.2, 3.6) * out;
+        pout.style.opacity = seg(t, 5.55, 5.95) * (1 - seg(t, 7.3, 7.7));
+      });
+      nodes.slice().sort(function (a, b) { return a.col - b.col || a.row - b.row; }).forEach(function (n, i) {
+        var x = 232 + i * 34, r = el('rect', { x: x, y: 246, width: 18, height: 18, rx: 4, fill: fillOf(n.name) }, head);
+        items.push(function (t) {
+          var k = seg(t, 3.05 + i * .12, 3.35 + i * .12) * (1 - seg(t, 7.3, 7.8));
+          r.style.opacity = k;
+          r.setAttribute('transform', 'translate(' + (x + 9) + ' 255) scale(' + (.5 + .5 * k) + ') translate(' + -(x + 9) + ' -255)');
+        });
+      });
+
+      // backward: the same codecs inverted, right under their forward twins, run right to left
+      wire(wires, 'M 340 272 V 303', 3.35, { colour: VIOLET, dashed: true });
+      wire(wires, 'M 735 272 V ' + (BCY - 12) + ' Q 735 ' + BCY + ' 723 ' + BCY + ' H ' + (L[maxc] + W + 3), 3.4);
+      nodes.slice().sort(function (a, b) { return b.col - a.col; }).forEach(function (n, j) {
+        var g = chipAt(chips, L[n.col], cyOf(n, BCY) - H / 2, n.name + '⁻¹', fillOf(n.name), textOf(n.name));
+        var cx = L[n.col] + W / 2, cy = cyOf(n, BCY), s0 = 3.6 + j * .16;
+        items.push(function (t) {
+          var k = seg(t, s0, s0 + .35) * (1 - seg(t, 7.3, 7.8));
+          g.style.opacity = k;
+          g.setAttribute('transform', 'translate(' + cx + ' ' + cy + ') scale(' + (.85 + .15 * k) + ') translate(' + -cx + ' ' + -cy + ')');
+        });
+      });
+      edges.forEach(function (e, i) {
+        var a = byId[e[0]], b = byId[e[1]];
+        wire(wires, link(L[b.col], cyOf(b, BCY), L[a.col] + W + 3, cyOf(a, BCY)), 3.85 + i * .1);
+      });
+      wire(wires, 'M ' + L[0] + ' ' + BCY + ' H 152', 4.1);
+      var btail = 'M 735 272 V ' + (BCY - 12) + ' Q 735 ' + BCY + ' 723 ' + BCY;
+      route(dots, btail + ' H 150', 4.25, 5.7);
+      mids.forEach(function (m) {
+        var y = cyOf(m, BCY);
+        route(dots, btail + ' H ' + L[maxc] + ' ' + link(L[maxc], BCY, L[m.col] + W, y).replace(/^M [^C]*C/, 'C') +
+                    ' H ' + L[m.col] + ' ' + link(L[m.col], y, L[0] + W, BCY).replace(/^M [^C]*C/, 'C') + ' H 150', 4.25, 5.7);
+      });
+
+      // the pool: picked codecs get a ring, then dim while they are out
+      items.push(function (t) {
+        Object.keys(pool).forEach(function (n) {
+          var g = pool[n], r = g.querySelector('rect');
+          if (picked[n]) {
+            g.style.opacity = 1 - .82 * (seg(t, .7, 1.1) - seg(t, 7.7, 8.2));
+            r.setAttribute('stroke', INK);
+            r.setAttribute('stroke-width', 3 * seg(t, 0, .35) * (1 - seg(t, 7.3, 7.6)));
+          } else {
+            g.style.opacity = 1;
+            r.setAttribute('stroke', GEO[n] ? 'none' : '#E7E5E4');
+            r.setAttribute('stroke-width', 1);
+          }
+        });
+      });
+    }
+
+    function render(t) { for (var i = 0; i < items.length; i++) items[i](t); }
+    var HOLD = 7.2;   // the last dataset stays on screen, complete, for the explanation
+    function frame(now) {
+      var t = (now - t0) / 1000;
+      if (idx === SCENES.length - 1 && t >= HOLD) { render(HOLD); raf = null; return; }
+      if (t > T) { idx += 1; build(SCENES[idx]); t0 = now; t = 0; }
+      render(t);
+      raf = requestAnimationFrame(frame);
+    }
+    function play() { stop(); idx = 0; build(SCENES[0]); t0 = performance.now(); raf = requestAnimationFrame(frame); }
+    function stop() { if (raf) cancelAnimationFrame(raf); raf = null; }
+    // for checking a single moment while authoring: window.__hiwSeek(scene, seconds)
+    window.__hiwSeek = function (i, t) { stop(); idx = i; build(SCENES[i]); render(t); };
+    function sync() { if (slide.classList.contains('active')) play(); else stop(); }
+    new MutationObserver(sync).observe(slide, { attributes: true, attributeFilter: ['class'] });
+    sync();
+  }
+
+  var svg = document.getElementById('hiw');
+  if (svg) start(svg);
+})();
+</script>
+
+<!-- 8. the takeaway -->
+<section class="slide ink slide--takeaway" data-bare>
+  <p class="takeaway-copy">Don&#8217;t pick a codec.<br><span class="accent">Build a graph.</span></p>
+</section>
+
+<!-- 9. thank you -->
+<section class="slide slide--thanks" data-frame>
+  <p class="thanks-title">thank you</p>
+  <div class="thanks-qr"><img src="assets/img/qr-slides.svg" alt="QR code: asterisk.coop/geozl/slides/cng-2026"><span>these slides</span></div>
+  <div class="links">
+    <div><b>geozl</b>github.com/asterisk-labs/geozl</div>
+    <div><b>install</b><span class="install-command">pip install geozl</span></div>
+    <div><b>us</b>asterisk.coop</div>
+  </div>
+</section>
+
+<!-- the frontier, appendix -->
+<section class="slide" data-layout="content">
+  <div class="eyebrow">the frontier</div>
+  <h2>The next machine is the GPU</h2>
+  <p class="slide-subtitle">seconds to decode one Sentinel-2 scene, S2A_37MBV_20241029 true colour</p>
+  <div class="body body--center body--compact">
+    <svg class="chart-svg" viewBox="0 0 848 316" width="100%" role="img" aria-label="Seconds to decode one Sentinel-2 scene. GDAL, DEFLATE with horizontal predictor, on one CPU thread: 2.71. GeoZL, planar, zigzag and pfor, on one CPU thread: 0.27. GeoZL with Slang on a GPU, experimental: about 0.03. GeoZL is 10 times faster than GDAL, and the GPU about 9 times faster again.">
+      <defs><marker id="fr-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#17161C"/></marker></defs>
+      <line x1="60" y1="232" x2="788" y2="232" stroke="#E7E5E4" stroke-width="1.5"/>
+      <path d="M 244 60 Q 330 70 364 168" fill="none" stroke="#17161C" stroke-width="2.5" marker-end="url(#fr-arrow)"/><text x="352" y="104" font-size="26" font-weight="700" fill="#492ae8">10&#215; faster</text>
+      <rect x="110" y="42" width="120" height="190" fill="#A8A29E"/><text x="170" y="30" text-anchor="middle" font-size="30" font-weight="700" fill="#17161C">2.71 s</text><text x="170" y="264" text-anchor="middle" font-size="22" font-weight="700" fill="#17161C">GDAL</text><text x="170" y="288" text-anchor="middle" font-size="16" fill="#6B7280">DEFLATE + horizontal predictor</text><text x="170" y="309" text-anchor="middle" font-size="16" fill="#6B7280">CPU, 1 thread</text>
+      <rect x="364" y="213" width="120" height="19" fill="#492ae8"/><text x="424" y="200" text-anchor="middle" font-size="30" font-weight="700" fill="#17161C">0.27 s</text><text x="424" y="264" text-anchor="middle" font-size="22" font-weight="700" fill="#492ae8">GeoZL</text><text x="424" y="288" text-anchor="middle" font-size="16" fill="#6B7280">planar + zigzag + pfor</text><text x="424" y="309" text-anchor="middle" font-size="16" fill="#6B7280">CPU, 1 thread</text>
+      <g data-step="1"><path d="M 498 190 Q 580 186 612 204" fill="none" stroke="#17161C" stroke-width="2.5" marker-end="url(#fr-arrow)"/><text x="555" y="170" text-anchor="middle" font-size="26" font-weight="700" fill="#492ae8">~9&#215; faster</text><rect x="618" y="229" width="120" height="3" fill="#f7cc09"/><text x="678" y="216" text-anchor="middle" font-size="30" font-weight="700" fill="#17161C">~0.03 s</text><text x="678" y="264" text-anchor="middle" font-size="22" font-weight="700" fill="#492ae8">GeoZL + Slang</text><text x="678" y="288" text-anchor="middle" font-size="16" fill="#6B7280">same graph</text><text x="678" y="309" text-anchor="middle" font-size="16" fill="#6B7280">GPU, experimental</text></g>
+    </svg>
+  </div>
+</section>
+
+<!-- pfor, appendix -->
+<section class="slide" data-layout="content">
+  <div class="eyebrow">the trick</div>
+  <h2>pfor, by Zukowski et al., 2006</h2>
+  <div class="body body--center body--compact">
+    <svg class="chart-svg" viewBox="0 0 848 300" width="100%" role="img" aria-label="pfor, in to out. In: 3 5 2 7 4 6 1 90. In binary they need 2, 3, 2, 3, 3, 3, 1 and 7 bits, so the block stores every value in 3 bits, and the extra bits of 90, 1011, go aside. Out: every GPU thread reads its own 3 bits at once, and the aside bits go back on top of 90: 1011 then 010 is 90. Out equals in.">
+      <defs><marker id="pf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#492ae8"/></marker><marker id="pf-arrow-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#D9B300"/></marker></defs>
+      <g><text x="0" y="34" font-size="15" font-weight="700" fill="#6B7280" text-anchor="start" >in</text><rect x="136" y="8" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="170.0" y="35" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >3</text><rect x="216" y="8" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="250.0" y="35" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >5</text><rect x="296" y="8" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="330.0" y="35" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >2</text><rect x="376" y="8" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="410.0" y="35" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >7</text><rect x="456" y="8" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="490.0" y="35" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >4</text><rect x="536" y="8" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="570.0" y="35" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >6</text><rect x="616" y="8" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="650.0" y="35" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >1</text><rect x="696" y="8" width="68" height="38" rx="8" fill="#FEF3C2" stroke="#D9B300" stroke-width="2"/><text x="730.0" y="35" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >90</text></g>
+      <g data-step="1"><text x="0" y="82" font-size="15" font-weight="700" fill="#6B7280" text-anchor="start" >binary</text><text x="170.0" y="80" font-size="17" font-weight="700" fill="#17161C" text-anchor="middle" font-family="JetBrains Mono, monospace">11</text><text x="170.0" y="98" font-size="12.5" font-weight="600" fill="#6B7280" text-anchor="middle" >2 bits</text><text x="250.0" y="80" font-size="17" font-weight="700" fill="#17161C" text-anchor="middle" font-family="JetBrains Mono, monospace">101</text><text x="250.0" y="98" font-size="12.5" font-weight="600" fill="#6B7280" text-anchor="middle" >3 bits</text><text x="330.0" y="80" font-size="17" font-weight="700" fill="#17161C" text-anchor="middle" font-family="JetBrains Mono, monospace">10</text><text x="330.0" y="98" font-size="12.5" font-weight="600" fill="#6B7280" text-anchor="middle" >2 bits</text><text x="410.0" y="80" font-size="17" font-weight="700" fill="#17161C" text-anchor="middle" font-family="JetBrains Mono, monospace">111</text><text x="410.0" y="98" font-size="12.5" font-weight="600" fill="#6B7280" text-anchor="middle" >3 bits</text><text x="490.0" y="80" font-size="17" font-weight="700" fill="#17161C" text-anchor="middle" font-family="JetBrains Mono, monospace">100</text><text x="490.0" y="98" font-size="12.5" font-weight="600" fill="#6B7280" text-anchor="middle" >3 bits</text><text x="570.0" y="80" font-size="17" font-weight="700" fill="#17161C" text-anchor="middle" font-family="JetBrains Mono, monospace">110</text><text x="570.0" y="98" font-size="12.5" font-weight="600" fill="#6B7280" text-anchor="middle" >3 bits</text><text x="650.0" y="80" font-size="17" font-weight="700" fill="#17161C" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="650.0" y="98" font-size="12.5" font-weight="600" fill="#6B7280" text-anchor="middle" >1 bit</text><text x="730.0" y="80" font-size="13.5" font-weight="700" fill="#D9B300" text-anchor="middle" font-family="JetBrains Mono, monospace">1011010</text><text x="730.0" y="98" font-size="12.5" font-weight="600" fill="#D9B300" text-anchor="middle" >7 bits</text></g>
+      <g data-step="2"><text x="0" y="148" font-size="15" font-weight="700" fill="#492ae8" text-anchor="start" >3 bits</text><rect x="130" y="122" width="80" height="38" fill="#E9E5FD" stroke="#FFFFFF" stroke-width="3"/><text x="148" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><text x="170" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="192" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><rect x="210" y="122" width="80" height="38" fill="#E9E5FD" stroke="#FFFFFF" stroke-width="3"/><text x="228" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="250" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><text x="272" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><rect x="290" y="122" width="80" height="38" fill="#E9E5FD" stroke="#FFFFFF" stroke-width="3"/><text x="308" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><text x="330" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="352" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><rect x="370" y="122" width="80" height="38" fill="#E9E5FD" stroke="#FFFFFF" stroke-width="3"/><text x="388" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="410" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="432" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><rect x="450" y="122" width="80" height="38" fill="#E9E5FD" stroke="#FFFFFF" stroke-width="3"/><text x="468" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="490" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><text x="512" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><rect x="530" y="122" width="80" height="38" fill="#E9E5FD" stroke="#FFFFFF" stroke-width="3"/><text x="548" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="570" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="592" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><rect x="610" y="122" width="80" height="38" fill="#E9E5FD" stroke="#FFFFFF" stroke-width="3"/><text x="628" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><text x="650" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><text x="672" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><rect x="690" y="122" width="80" height="38" fill="#E9E5FD" stroke="#FFFFFF" stroke-width="3"/><text x="708" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><text x="730" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">1</text><text x="752" y="148" font-size="18" font-weight="700" fill="#492ae8" text-anchor="middle" font-family="JetBrains Mono, monospace">0</text><rect x="692" y="124" width="76" height="34" fill="none" stroke="#D9B300" stroke-width="2.5"/><path d="M 770 141 L 784 141" stroke="#D9B300" stroke-width="2" fill="none" marker-end="url(#pf-arrow-g)"/><rect x="788" y="122" width="56" height="38" rx="8" fill="#FEF3C2" stroke="#D9B300" stroke-width="2"/><text x="816" y="147" font-size="15" font-weight="700" fill="#17161C" text-anchor="middle" font-family="JetBrains Mono, monospace">1011</text></g>
+      <g data-step="3"><text x="0" y="200" font-size="15" font-weight="700" fill="#492ae8">GPU</text><text x="0" y="217" font-size="12.5" font-weight="600" fill="#6B7280">8 threads</text><rect x="126" y="172" width="648" height="44" rx="10" fill="#F5F3FF" stroke="#492ae8" stroke-width="1.2" stroke-dasharray="4 4"/><line x1="170.0" y1="162" x2="170.0" y2="176" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><rect x="150.0" y="181" width="40" height="26" rx="6" fill="#FFFFFF" stroke="#492ae8" stroke-width="1.6"/><text x="170.0" y="199" font-size="13" font-weight="700" fill="#492ae8" text-anchor="middle">t0</text><line x1="170.0" y1="209" x2="170.0" y2="226" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><line x1="250.0" y1="162" x2="250.0" y2="176" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><rect x="230.0" y="181" width="40" height="26" rx="6" fill="#FFFFFF" stroke="#492ae8" stroke-width="1.6"/><text x="250.0" y="199" font-size="13" font-weight="700" fill="#492ae8" text-anchor="middle">t1</text><line x1="250.0" y1="209" x2="250.0" y2="226" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><line x1="330.0" y1="162" x2="330.0" y2="176" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><rect x="310.0" y="181" width="40" height="26" rx="6" fill="#FFFFFF" stroke="#492ae8" stroke-width="1.6"/><text x="330.0" y="199" font-size="13" font-weight="700" fill="#492ae8" text-anchor="middle">t2</text><line x1="330.0" y1="209" x2="330.0" y2="226" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><line x1="410.0" y1="162" x2="410.0" y2="176" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><rect x="390.0" y="181" width="40" height="26" rx="6" fill="#FFFFFF" stroke="#492ae8" stroke-width="1.6"/><text x="410.0" y="199" font-size="13" font-weight="700" fill="#492ae8" text-anchor="middle">t3</text><line x1="410.0" y1="209" x2="410.0" y2="226" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><line x1="490.0" y1="162" x2="490.0" y2="176" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><rect x="470.0" y="181" width="40" height="26" rx="6" fill="#FFFFFF" stroke="#492ae8" stroke-width="1.6"/><text x="490.0" y="199" font-size="13" font-weight="700" fill="#492ae8" text-anchor="middle">t4</text><line x1="490.0" y1="209" x2="490.0" y2="226" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><line x1="570.0" y1="162" x2="570.0" y2="176" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><rect x="550.0" y="181" width="40" height="26" rx="6" fill="#FFFFFF" stroke="#492ae8" stroke-width="1.6"/><text x="570.0" y="199" font-size="13" font-weight="700" fill="#492ae8" text-anchor="middle">t5</text><line x1="570.0" y1="209" x2="570.0" y2="226" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><line x1="650.0" y1="162" x2="650.0" y2="176" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><rect x="630.0" y="181" width="40" height="26" rx="6" fill="#FFFFFF" stroke="#492ae8" stroke-width="1.6"/><text x="650.0" y="199" font-size="13" font-weight="700" fill="#492ae8" text-anchor="middle">t6</text><line x1="650.0" y1="209" x2="650.0" y2="226" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><line x1="730.0" y1="162" x2="730.0" y2="176" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><rect x="710.0" y="181" width="40" height="26" rx="6" fill="#FFFFFF" stroke="#492ae8" stroke-width="1.6"/><text x="730.0" y="199" font-size="13" font-weight="700" fill="#492ae8" text-anchor="middle">t7</text><line x1="730.0" y1="209" x2="730.0" y2="226" stroke="#492ae8" stroke-width="2" marker-end="url(#pf-arrow)"/><path d="M 816 162 C 816 210 760 214 762 236" fill="none" stroke="#D9B300" stroke-width="2.2" stroke-dasharray="5 4" marker-end="url(#pf-arrow-g)"/><text x="0" y="258" font-size="15" font-weight="700" fill="#6B7280" text-anchor="start" >out</text><rect x="136" y="232" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="170.0" y="259" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >3</text><rect x="216" y="232" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="250.0" y="259" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >5</text><rect x="296" y="232" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="330.0" y="259" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >2</text><rect x="376" y="232" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="410.0" y="259" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >7</text><rect x="456" y="232" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="490.0" y="259" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >4</text><rect x="536" y="232" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="570.0" y="259" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >6</text><rect x="616" y="232" width="68" height="38" rx="8" fill="#F4F4F5" stroke="none" stroke-width="2"/><text x="650.0" y="259" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >1</text><rect x="696" y="232" width="68" height="38" rx="8" fill="#FEF3C2" stroke="#D9B300" stroke-width="2"/><text x="730.0" y="259" font-size="21" font-weight="700" fill="#17161C" text-anchor="middle" >90</text><text x="730.0" y="292" font-size="14" font-weight="700" fill="#17161C" text-anchor="middle" font-family="JetBrains Mono, monospace"><tspan fill="#D9B300">1011</tspan><tspan fill="#492ae8">010</tspan></text></g>
+    </svg>
+    <p class="source-note" style="margin-top:18px;">pfor: Zukowski, H&#233;man, Nes, Boncz, Super-Scalar RAM-CPU Cache Compression, ICDE 2006.</p>
+  </div>
+</section>
+
+<!-- pivco, appendix -->
+<section class="slide ink" data-bare style="justify-content:center; padding:0 96px;">
+  <p style="font-size:1em; color:#9C958A; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:18px;">appendix</p>
+  <p style="font-size:3.2em; font-weight:700; letter-spacing:-0.03em; line-height:1.05;">PivCo-Huffman</p>
+  <p style="font-size:1.4em; color:#9C958A; margin-top:14px;">Marcin Zukowski, 2026. Step by step.</p>
+</section>
+<script>
+// shared by the PivCo appendix: build an SVG in code, then play a timeline once
+// when its slide becomes active and hold the last frame. A click replays it.
+window.APX = (function () {
+  var NS = 'http://www.w3.org/2000/svg';
+  var C = { v: '#492ae8', ink: '#17161C', gr: '#6B7280', gold: '#D9B300', goldT: '#FEF3C2',
+            tint: '#E9E5FD', hair: '#D6D3D1', soft: '#F4F4F5', mono: 'JetBrains Mono, monospace' };
+  function el(tag, a, p) {
+    var n = document.createElementNS(NS, tag);
+    for (var k in a) n.setAttribute(k, a[k]);
+    if (p) p.appendChild(n);
+    return n;
+  }
+  function txt(p, x, y, s, a) {
+    var o = { x: x, y: y, 'font-size': 16, fill: C.ink, 'font-weight': 700 };
+    for (var k in a || {}) o[k] = a[k];
+    var n = el('text', o, p); n.textContent = s; return n;
+  }
+  function ease(x) { x = Math.max(0, Math.min(1, x)); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; }
+  function seg(t, a, b) { return ease((t - a) / (b - a)); }
+  function lerp(a, b, k) { return a + (b - a) * k; }
+  function op(n, v) { n.setAttribute('opacity', Math.max(0, Math.min(1, v)).toFixed(3)); }
+  function at(n, x, y) { n.setAttribute('transform', 'translate(' + x.toFixed(1) + ',' + y.toFixed(1) + ')'); }
+  // a round token with a label, positioned with at()
+  function token(p, label, fill, color, r) {
+    var g = el('g', { opacity: 0 }, p);
+    el('circle', { cx: 0, cy: 0, r: r || 13, fill: fill, stroke: color, 'stroke-width': 1.8 }, g);
+    txt(g, 0, 5, label, { 'text-anchor': 'middle', 'font-size': 13, fill: color });
+    return g;
+  }
+  function run(svg, draw, end) {
+    var slide = svg.closest('.slide'), raf = null, t0 = 0;
+    function frame(now) {
+      var t = (now - t0) / 1000;
+      draw(Math.min(t, end));
+      raf = t < end ? requestAnimationFrame(frame) : null;
+    }
+    function play() { if (raf) cancelAnimationFrame(raf); t0 = performance.now(); raf = requestAnimationFrame(frame); }
+    function sync() {
+      if (slide.classList.contains('active')) { if (!raf) play(); }
+      else { if (raf) cancelAnimationFrame(raf); raf = null; draw(0); }
+    }
+    new MutationObserver(sync).observe(slide, { attributes: true, attributeFilter: ['class'] });
+    svg.style.cursor = 'pointer';
+    svg.addEventListener('click', play);
+    draw(0);
+    sync();
+  }
+  return { C: C, el: el, txt: txt, seg: seg, lerp: lerp, op: op, at: at, token: token, run: run };
+})();
+</script>
+
+<!-- pivco 1 -->
+<section class="slide" data-layout="content">
+  <div class="phase phase--background">background</div>
+  <div class="eyebrow">pivco-huffman &#183; background</div>
+  <h2>Background: Huffman gives common symbols short codes</h2>
+  <div class="body body--center body--compact">
+    <svg id="apx1" class="chart-svg" viewBox="0 0 848 300" width="100%" role="img" aria-label="Eight symbols, a b a c a b a a, are counted: a five times, b twice, c once. The Huffman tree puts a next to the root, so a gets the code 0, b gets 10 and c gets 11: common symbol, short code."></svg>
+  </div>
+</section>
+<script>
+// 1. Huffman: count the symbols, build the tree, read each code off its path
+(function () {
+  var A = APX, C = A.C, svg = document.getElementById('apx1');
+  if (!svg) return;
+  var S = 'abacabaa'.split(''), X0 = 150, CW = 56;
+  function cx(i) { return X0 + i * CW + CW / 2; }
+  A.txt(svg, 0, 36, 'in', { fill: C.gr, 'font-size': 15 });
+  var boxes = S.map(function (c, i) {
+    var r = A.el('rect', { x: X0 + i * CW + 4, y: 10, width: CW - 8, height: 38, rx: 8, fill: C.soft }, svg);
+    A.txt(svg, cx(i), 37, c, { 'text-anchor': 'middle', 'font-size': 21 });
+    return r;
+  });
+  // one bar per symbol, growing as the symbols are counted
+  A.txt(svg, 0, 122, 'count', { fill: C.gr, 'font-size': 15 });
+  var bars = {}, lab = {};
+  ['a', 'b', 'c'].forEach(function (c, k) {
+    var y = 82 + k * 34;
+    A.txt(svg, X0, y + 19, c, { 'font-size': 19 });
+    bars[c] = A.el('rect', { x: X0 + 24, y: y + 3, width: 0, height: 22, rx: 4, fill: C.v }, svg);
+    lab[c] = A.txt(svg, X0 + 32, y + 20, '', { 'font-size': 15 });
+  });
+  // the tree: the common symbol sits closest to the root
+  var tree = A.el('g', { opacity: 0 }, svg);
+  var R = { x: 640, y: 92 }, I = { x: 712, y: 158 }, LA = { x: 568, y: 168 }, LB = { x: 672, y: 238 }, LC = { x: 752, y: 238 };
+  function edge(a, b, l, lx, ly) {
+    var e = A.el('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y, stroke: C.hair, 'stroke-width': 2.5 }, tree);
+    A.txt(tree, lx, ly, l, { fill: C.gr, 'font-size': 15 });
+    return e;
+  }
+  var eA = edge(R, LA, '0', 588, 124), eI = edge(R, I, '1', 684, 120), eB = edge(I, LB, '0', 674, 202), eC = edge(I, LC, '1', 742, 202);
+  A.el('circle', { cx: R.x, cy: R.y, r: 8, fill: C.v }, tree);
+  A.el('circle', { cx: I.x, cy: I.y, r: 8, fill: C.v }, tree);
+  [[LA, 'a'], [LB, 'b'], [LC, 'c']].forEach(function (l) {
+    A.el('circle', { cx: l[0].x, cy: l[0].y, r: 20, fill: C.soft, stroke: C.ink, 'stroke-width': 1.6 }, tree);
+    A.txt(tree, l[0].x, l[0].y + 7, l[1], { 'text-anchor': 'middle', 'font-size': 20 });
+  });
+  // codes, read off the path from the root
+  A.txt(svg, 0, 230, 'code', { fill: C.gr, 'font-size': 15 });
+  var codes = [['a = 0', [eA]], ['b = 10', [eI, eB]], ['c = 11', [eI, eC]]];
+  var ct = codes.map(function (cd, k) { return A.txt(svg, X0 + k * 130, 230, cd[0], { 'font-size': 24, 'font-family': C.mono, opacity: 0 }); });
+  var cap = A.txt(svg, X0, 280, 'common symbol, short code', { 'font-size': 20, opacity: 0 });
+
+  function draw(t) {
+    var n = { a: 0, b: 0, c: 0 };
+    S.forEach(function (c, i) {
+      var t1 = 0.5 + i * 0.32;
+      boxes[i].setAttribute('fill', t >= t1 && t < t1 + 0.32 ? C.tint : C.soft);
+      if (t >= t1) n[c]++;
+    });
+    ['a', 'b', 'c'].forEach(function (c) {
+      bars[c].setAttribute('width', n[c] * 38);
+      lab[c].setAttribute('x', X0 + 32 + n[c] * 38);
+      lab[c].textContent = n[c] ? '× ' + n[c] : '';
+    });
+    A.op(tree, A.seg(t, 3.3, 3.9));
+    [eA, eI, eB, eC].forEach(function (e) { e.setAttribute('stroke', C.hair); e.setAttribute('stroke-width', 2.5); });
+    codes.forEach(function (cd, k) {
+      var s = 4.2 + k * 1.1;
+      A.op(ct[k], A.seg(t, s + 0.3, s + 0.7));
+      if (t >= s && t < s + 1.0) cd[1].forEach(function (e) { e.setAttribute('stroke', C.gold); e.setAttribute('stroke-width', 5); });
+    });
+    A.op(cap, A.seg(t, 7.6, 8.0));
+  }
+  A.run(svg, draw, 8.2);
+})();
+</script>
+
+<!-- pivco 2 -->
+<section class="slide" data-layout="content">
+  <div class="phase phase--background">background</div>
+  <div class="eyebrow">pivco-huffman &#183; background</div>
+  <h2>Background: glued together, every code waits</h2>
+  <div class="body body--center body--compact">
+    <svg id="apx2" class="chart-svg" viewBox="0 0 848 240" width="100%" role="img" aria-label="The codes are written back to back: 0 10 0 11 0 10 0 0. A single reader walks the bits one by one, and a symbol appears only when its code ends, so every symbol waits for the one before it."></svg>
+  </div>
+</section>
+<script>
+// 2. glued together: one reader walks the bits, a symbol only when its code ends
+(function () {
+  var A = APX, C = A.C, svg = document.getElementById('apx2');
+  if (!svg) return;
+  var S = 'abacabaa'.split(''), CODE = { a: '0', b: '10', c: '11' }, X0 = 150, BW = 40, CW = 56;
+  var bits = [], ends = [], start = [];
+  S.forEach(function (c) { start.push(bits.length); CODE[c].split('').forEach(function (b) { bits.push(b); }); ends.push(bits.length - 1); });
+  function bx(j) { return X0 + j * BW + BW / 2; }
+  A.txt(svg, 0, 76, 'bits', { fill: C.gr, 'font-size': 15 });
+  var cells = bits.map(function (b, j) {
+    var r = A.el('rect', { x: X0 + j * BW, y: 50, width: BW, height: 40, fill: '#FFFFFF', stroke: C.hair, 'stroke-width': 2 }, svg);
+    A.txt(svg, bx(j), 77, b, { 'text-anchor': 'middle', 'font-size': 19, 'font-family': C.mono });
+    return r;
+  });
+  // one box around each code, drawn when the reader finds its end
+  var groups = S.map(function (c, k) {
+    var x = X0 + start[k] * BW, w = CODE[c].length * BW;
+    var g = A.el('g', { opacity: 0 }, svg);
+    A.el('rect', { x: x + 2, y: 52, width: w - 4, height: 36, fill: 'none', stroke: C.v, 'stroke-width': 2.5, rx: 4 }, g);
+    A.txt(g, x + w / 2, 40, c, { 'text-anchor': 'middle', 'font-size': 15, fill: C.v });
+    return g;
+  });
+  var reader = A.el('path', { d: 'M -10 0 L 10 0 L 0 14 Z', fill: C.gold }, svg);
+  A.txt(svg, 0, 166, 'out', { fill: C.gr, 'font-size': 15 });
+  var outs = S.map(function (c, i) {
+    A.el('rect', { x: X0 + i * CW + 4, y: 140, width: CW - 8, height: 38, rx: 8, fill: C.soft }, svg);
+    return A.txt(svg, X0 + i * CW + CW / 2, 167, c, { 'text-anchor': 'middle', 'font-size': 21, opacity: 0 });
+  });
+  var cap = A.txt(svg, X0, 226, 'every symbol waits for the one before it', { 'font-size': 20, opacity: 0 });
+  var T0 = 0.7, STEP = 0.42;
+  function tb(j) { return T0 + j * STEP; }
+  function draw(t) {
+    var j = Math.max(0, Math.min(bits.length - 1, Math.floor((t - T0) / STEP)));
+    var k = (t - T0) / STEP - j;
+    var x = t < T0 ? bx(0) : (j < bits.length - 1 && k > 0.6 ? A.lerp(bx(j), bx(j + 1), A.seg(k, 0.6, 1)) : bx(j));
+    A.at(reader, x, 30);
+    A.op(reader, t >= 0.3 ? 1 : 0);
+    cells.forEach(function (r, q) { r.setAttribute('fill', t >= tb(q) && t < tb(q) + STEP ? C.goldT : '#FFFFFF'); });
+    S.forEach(function (c, s) {
+      var done = tb(ends[s]) + 0.15;
+      A.op(groups[s], A.seg(t, done, done + 0.15));
+      A.op(outs[s], A.seg(t, done, done + 0.2));
+    });
+    A.op(cap, A.seg(t, tb(bits.length) + 0.3, tb(bits.length) + 0.7));
+  }
+  A.run(svg, draw, 6.6);
+})();
+</script>
+
+<!-- pivco 3 -->
+<section class="slide" data-layout="content">
+  <div class="phase phase--compress">compress</div>
+  <div class="eyebrow">pivco-huffman &#183; compress</div>
+  <h2>Compress, step 1: the first bit of every symbol</h2>
+  <div class="body body--center body--compact">
+    <svg id="apx3" class="chart-svg" viewBox="0 0 848 282" width="100%" role="img" aria-label="The first code bit of every symbol drops into the root bitmap, all eight at once: 0 1 0 1 0 1 0 0, where 0 means a and 1 means b or c. One bit per symbol."></svg>
+  </div>
+</section>
+<script>
+// 3. step one: the first bit of every symbol drops into the root, all at once
+(function () {
+  var A = APX, C = A.C, svg = document.getElementById('apx3');
+  if (!svg) return;
+  var S = 'abacabaa'.split(''), CODE = { a: '0', b: '10', c: '11' }, X0 = 150, CW = 56;
+  function cx(i) { return X0 + i * CW + CW / 2; }
+  A.txt(svg, 0, 36, 'in', { fill: C.gr, 'font-size': 15 });
+  A.txt(svg, 0, 82, 'code', { fill: C.gr, 'font-size': 15 });
+  S.forEach(function (c, i) {
+    A.el('rect', { x: X0 + i * CW + 4, y: 10, width: CW - 8, height: 38, rx: 8, fill: C.soft }, svg);
+    A.txt(svg, cx(i), 37, c, { 'text-anchor': 'middle', 'font-size': 21 });
+    var t = A.txt(svg, cx(i), 82, '', { 'text-anchor': 'middle', 'font-size': 18, 'font-family': C.mono });
+    var a = A.el('tspan', { fill: C.v }, t); a.textContent = CODE[c][0];
+    if (CODE[c].length > 1) { var b = A.el('tspan', { fill: '#C4C0BA' }, t); b.textContent = CODE[c].slice(1); }
+  });
+  A.txt(svg, 0, 172, 'root', { fill: C.v, 'font-size': 15 });
+  var cells = [], digits = [], toks = [];
+  S.forEach(function (c, i) {
+    cells.push(A.el('rect', { x: X0 + i * CW + 6, y: 148, width: CW - 12, height: 36, rx: 6, fill: '#FFFFFF', stroke: C.v, 'stroke-width': 1.5 }, svg));
+    digits.push(A.txt(svg, cx(i), 173, CODE[c][0], { 'text-anchor': 'middle', 'font-size': 19, 'font-family': C.mono, fill: C.v, opacity: 0 }));
+    toks.push(A.token(svg, CODE[c][0], CODE[c][0] === '1' ? C.tint : '#FFFFFF', C.v));
+  });
+  var leg = A.el('g', { opacity: 0 }, svg);
+  A.txt(leg, X0, 224, '0 = a', { 'font-size': 20, 'font-family': C.mono });
+  A.txt(leg, X0 + 120, 224, '1 = b or c', { 'font-size': 20, 'font-family': C.mono });
+  var cap = A.txt(svg, X0, 268, 'one bit per symbol, all eight at once', { 'font-size': 20, opacity: 0 });
+  function draw(t) {
+    var k = A.seg(t, 1.0, 2.0);
+    S.forEach(function (c, i) {
+      var x0 = CODE[c].length > 1 ? cx(i) - 6 : cx(i);
+      A.at(toks[i], A.lerp(x0, cx(i), k), A.lerp(76, 166, k));
+      A.op(toks[i], t < 0.6 ? 0 : (t < 2.1 ? A.seg(t, 0.6, 0.9) : 1 - A.seg(t, 2.1, 2.3)));
+      A.op(digits[i], A.seg(t, 2.0, 2.2));
+      cells[i].setAttribute('fill', t >= 2.05 && CODE[c][0] === '1' ? C.tint : '#FFFFFF');
+    });
+    A.op(leg, A.seg(t, 2.6, 3.0));
+    A.op(cap, A.seg(t, 3.3, 3.7));
+  }
+  A.run(svg, draw, 3.9);
+})();
+</script>
+
+<!-- pivco 4 -->
+<section class="slide" data-layout="content">
+  <div class="phase phase--compress">compress</div>
+  <div class="eyebrow">pivco-huffman &#183; compress</div>
+  <h2>Compress, step 2: the second bit, only for the 1s</h2>
+  <div class="body body--center body--compact">
+    <svg id="apx4" class="chart-svg" viewBox="0 0 848 330" width="100%" role="img" aria-label="Compress, step two. Only the symbols whose first bit is 1, b c b, send their second bit to a node of their own, packed into slots 0, 1 and 2: 0 1 0, where 0 means b and 1 means c. With leaf a and leaves b and c this is a wavelet tree. Then the root bits and the node bits, in that order, are the compressed stream: 0 1 0 1 0 1 0 0 0 1 0, eleven bits, the same as Huffman."></svg>
+  </div>
+</section>
+<script>
+// 4. compress, step 2: only the 1s get a second bit, packed into a node of
+// their own. Then both bitmaps, root first, are the compressed stream.
+(function () {
+  var A = APX, C = A.C, svg = document.getElementById('apx4');
+  if (!svg) return;
+  var S = 'abacabaa'.split(''), CODE = { a: '0', b: '10', c: '11' }, X0 = 150, CW = 56, NX = 470, BW = 40;
+  function cx(i) { return X0 + i * CW + CW / 2; }
+  function scx(j) { return X0 + j * BW + BW / 2; }
+  var ones = []; S.forEach(function (c, i) { if (c !== 'a') ones.push(i); });
+  A.txt(svg, 0, 36, 'in', { fill: C.gr, 'font-size': 15 });
+  var syms = S.map(function (c, i) {
+    var g = A.el('g', {}, svg);
+    A.el('rect', { x: X0 + i * CW + 4, y: 10, width: CW - 8, height: 38, rx: 8, fill: C.soft }, g);
+    A.txt(g, cx(i), 37, c, { 'text-anchor': 'middle', 'font-size': 21 });
+    return g;
+  });
+  A.txt(svg, 0, 88, 'root', { fill: C.v, 'font-size': 15 });
+  var rootCells = S.map(function (c, i) {
+    var b = CODE[c][0];
+    var r = A.el('rect', { x: X0 + i * CW + 6, y: 64, width: CW - 12, height: 36, rx: 6, fill: b === '1' ? C.tint : '#FFFFFF', stroke: C.v, 'stroke-width': 1.5 }, svg);
+    A.txt(svg, cx(i), 89, b, { 'text-anchor': 'middle', 'font-size': 19, 'font-family': C.mono, fill: C.v });
+    return r;
+  });
+  // the tree, drawn once both bitmaps are in place
+  var tree = A.el('g', { opacity: 0 }, svg);
+  A.el('rect', { x: X0 - 8, y: 58, width: 8 * CW + 16, height: 48, rx: 12, fill: 'none', stroke: C.v, 'stroke-width': 1.8 }, tree);
+  A.el('path', { d: 'M 374 106 L 250 158', stroke: C.hair, 'stroke-width': 2.5, fill: 'none' }, tree);
+  A.txt(tree, 292, 140, '0', { fill: C.gr, 'font-size': 15 });
+  A.el('path', { d: 'M 374 106 L ' + (NX + 84) + ' 150', stroke: C.hair, 'stroke-width': 2.5, fill: 'none' }, tree);
+  A.txt(tree, 470, 122, '1', { fill: C.gr, 'font-size': 15 });
+  A.el('circle', { cx: 250, cy: 176, r: 18, fill: C.soft, stroke: C.ink, 'stroke-width': 1.6 }, tree);
+  A.txt(tree, 250, 183, 'a', { 'text-anchor': 'middle', 'font-size': 19 });
+  [[NX + 28, 'b', '0', -14], [NX + 140, 'c', '1', 6]].forEach(function (l) {
+    A.el('path', { d: 'M ' + (NX + 84) + ' 202 L ' + l[0] + ' 230', stroke: C.hair, 'stroke-width': 2.5, fill: 'none' }, tree);
+    A.txt(tree, (NX + 84 + l[0]) / 2 + l[3], 222, l[2], { fill: C.gr, 'font-size': 15 });
+    A.el('circle', { cx: l[0], cy: 246, r: 16, fill: C.soft, stroke: C.ink, 'stroke-width': 1.6 }, tree);
+    A.txt(tree, l[0], 252, l[1], { 'text-anchor': 'middle', 'font-size': 17 });
+  });
+  // the node for the 1s
+  var node = A.el('g', { opacity: 0 }, svg);
+  A.el('rect', { x: NX - 8, y: 150, width: 3 * CW + 16, height: 52, rx: 12, fill: '#FFFFFF', stroke: C.v, 'stroke-width': 1.8 }, node);
+  var slots = ones.map(function (i, k) {
+    A.txt(node, NX + k * CW + CW / 2, 144, 'slot ' + k, { 'text-anchor': 'middle', 'font-size': 12.5, fill: C.gr });
+    return A.el('rect', { x: NX + k * CW + 6, y: 158, width: CW - 12, height: 36, rx: 6, fill: C.goldT, stroke: C.gold, 'stroke-width': 1.5 }, node);
+  });
+  var slotDigits = ones.map(function (i, k) { return A.txt(svg, NX + k * CW + CW / 2, 183, CODE[S[i]][1], { 'text-anchor': 'middle', 'font-size': 19, 'font-family': C.mono, opacity: 0 }); });
+  A.txt(svg, 0, 180, '2nd bit', { fill: C.v, 'font-size': 15 });
+  A.txt(svg, 0, 197, 'only the 1s', { fill: C.gr, 'font-size': 12.5, 'font-weight': 600 });
+  var leg = A.el('g', { opacity: 0 }, svg);
+  A.txt(leg, NX + 3 * CW + 26, 174, '0 = b', { 'font-size': 18, 'font-family': C.mono });
+  A.txt(leg, NX + 3 * CW + 26, 196, '1 = c', { 'font-size': 18, 'font-family': C.mono });
+  var toks = ones.map(function (i) { return A.token(svg, CODE[S[i]][1], C.goldT, C.gold, 14); });
+
+  // out: the compressed stream, root bits then the 2nd bits
+  var stream = A.el('g', { opacity: 0 }, svg);
+  A.txt(stream, 0, 304, 'out', { fill: C.v, 'font-size': 15 });
+  A.txt(stream, 0, 321, 'compressed', { fill: C.gr, 'font-size': 12.5, 'font-weight': 600 });
+  var bits = S.map(function (c) { return CODE[c][0]; }).concat(ones.map(function (i) { return CODE[S[i]][1]; }));
+  var sCells = bits.map(function (b, j) {
+    return A.el('rect', { x: X0 + j * BW, y: 284, width: BW, height: 36, fill: '#FFFFFF', stroke: j < 8 ? C.v : C.gold, 'stroke-width': 1.5 }, stream);
+  });
+  var fly = bits.map(function (b, j) {
+    var g = A.el('g', { opacity: 0 }, svg);
+    A.txt(g, 0, 7, b, { 'text-anchor': 'middle', 'font-size': 19, 'font-family': C.mono, fill: j < 8 ? C.v : C.ink });
+    return g;
+  });
+  var tail = A.txt(svg, X0 + 11 * BW + 18, 308, '11 bits, same as Huffman', { 'font-size': 18, opacity: 0 });
+
+  function draw(t) {
+    var hl = A.seg(t, 0.4, 0.8);
+    S.forEach(function (c, i) {
+      A.op(syms[i], c === 'a' ? 1 - 0.6 * hl : 1);
+      rootCells[i].setAttribute('stroke', c !== 'a' && t >= 0.4 && t < 4.6 ? C.gold : C.v);
+      rootCells[i].setAttribute('stroke-width', c !== 'a' && t >= 0.4 && t < 4.6 ? 3 : 1.5);
+    });
+    A.op(node, A.seg(t, 1.0, 1.4));
+    // each 1 sends its second bit down, packed to the left: slot = 1s before it
+    var k = A.seg(t, 1.6, 2.7);
+    ones.forEach(function (i, s) {
+      A.at(toks[s], A.lerp(cx(i), NX + s * CW + CW / 2, k), A.lerp(124, 176, k));
+      A.op(toks[s], t < 1.2 ? 0 : (t < 2.7 ? A.seg(t, 1.2, 1.5) : 1 - A.seg(t, 2.7, 2.9)));
+      A.op(slotDigits[s], A.seg(t, 2.7, 2.9));
+    });
+    A.op(leg, A.seg(t, 2.9, 3.2));
+    A.op(tree, A.seg(t, 3.3, 3.8));
+    // both bitmaps fly into one stream: root first, then the node
+    A.op(stream, A.seg(t, 4.2, 4.5));
+    var f = A.seg(t, 4.6, 5.6);
+    bits.forEach(function (b, j) {
+      var x0 = j < 8 ? cx(j) : NX + (j - 8) * CW + CW / 2, y0 = j < 8 ? 82 : 176;
+      A.at(fly[j], A.lerp(x0, scx(j), f), A.lerp(y0, 302, f));
+      A.op(fly[j], t < 4.6 ? 0 : 1);
+      sCells[j].setAttribute('fill', t >= 5.6 ? (j < 8 ? C.tint : C.goldT) : '#FFFFFF');
+    });
+    A.op(tail, A.seg(t, 5.8, 6.2));
+  }
+  A.run(svg, draw, 6.4);
+})();
+</script>
+
+<!-- pivco 5 -->
+<section class="slide" data-layout="content">
+  <div class="phase phase--decompress">decompress</div>
+  <div class="eyebrow">pivco-huffman &#183; decompress</div>
+  <h2>Decompress on a GPU: count the 1s before you</h2>
+  <div class="body body--center body--compact">
+    <svg id="apx5" class="chart-svg" viewBox="0 0 848 296" width="100%" role="img" aria-label="Decoding on a GPU. Stored: the first bits 0 1 0 1 0 1 0 0, one per symbol, and the second bits 0 1 0 in slots 0, 1 and 2. Eight threads each read their own first bit at once. The threads that read 0 already know they are an a. The threads that read 1 count the 1s before them with popcount, 0, 1 and 2, take that slot of the second bits, and so know b from c. All eight letters go to the output at once: a b a c a b a a."></svg>
+  </div>
+</section>
+<script>
+// 5. decode on a GPU, laid out like pfor: what is stored, eight threads, out.
+// Each thread reads its root bit. A 0 is an a. A 1 counts the 1s before it,
+// takes that slot of the 2nd bits, and so knows b from c.
+(function () {
+  var A = APX, C = A.C, svg = document.getElementById('apx5');
+  if (!svg) return;
+  var S = 'abacabaa'.split(''), CODE = { a: '0', b: '10', c: '11' }, X0 = 150, CW = 56, NX = 640, NW = 50;
+  function cx(i) { return X0 + i * CW + CW / 2; }
+  function sx(k) { return NX + k * NW + NW / 2; }
+  var ones = []; S.forEach(function (c, i) { if (c !== 'a') ones.push(i); });
+  var slotOf = {}; ones.forEach(function (i, k) { slotOf[i] = k; });
+
+  // stored: the root bits under the symbols, the 2nd bits to the right
+  A.txt(svg, 0, 62, 'stored', { fill: C.v, 'font-size': 15 });
+  A.txt(svg, X0, 26, '1st bits   0 = a, 1 = b or c', { fill: C.gr, 'font-size': 13 });
+  A.txt(svg, NX, 26, '2nd bits   0 = b, 1 = c', { fill: C.gr, 'font-size': 13 });
+  var rootCells = S.map(function (c, i) {
+    var b = CODE[c][0];
+    var r = A.el('rect', { x: X0 + i * CW + 6, y: 38, width: CW - 12, height: 36, rx: 6, fill: b === '1' ? C.tint : '#FFFFFF', stroke: C.v, 'stroke-width': 1.5 }, svg);
+    A.txt(svg, cx(i), 63, b, { 'text-anchor': 'middle', 'font-size': 19, 'font-family': C.mono, fill: C.v });
+    return r;
+  });
+  var slotCells = ones.map(function (i, k) {
+    var r = A.el('rect', { x: NX + k * NW + 4, y: 38, width: NW - 8, height: 36, rx: 6, fill: C.goldT, stroke: C.gold, 'stroke-width': 1.5 }, svg);
+    A.txt(svg, sx(k), 63, CODE[S[i]][1], { 'text-anchor': 'middle', 'font-size': 19, 'font-family': C.mono });
+    A.txt(svg, sx(k), 92, 'slot ' + k, { 'text-anchor': 'middle', 'font-size': 12.5, fill: C.gr });
+    return r;
+  });
+
+  // GPU: eight threads, each shows the bits it has read
+  var gpu = A.el('g', { opacity: 0 }, svg);
+  A.el('rect', { x: X0 - 4, y: 122, width: 8 * CW + 8, height: 58, rx: 10, fill: '#F5F3FF', stroke: C.v, 'stroke-width': 1.2, 'stroke-dasharray': '4 4' }, gpu);
+  A.txt(gpu, 0, 150, 'GPU', { fill: C.v, 'font-size': 15 });
+  A.txt(gpu, 0, 167, '8 threads', { fill: C.gr, 'font-size': 12.5, 'font-weight': 600 });
+  var thBox = [], thBits = [];
+  S.forEach(function (c, i) {
+    thBox.push(A.el('rect', { x: cx(i) - 22, y: 128, width: 44, height: 46, rx: 7, fill: '#FFFFFF', stroke: C.v, 'stroke-width': 1.6 }, gpu));
+    A.txt(gpu, cx(i), 144, 't' + i, { 'text-anchor': 'middle', 'font-size': 12.5, fill: C.v });
+    thBits.push(A.txt(gpu, cx(i), 166, '', { 'text-anchor': 'middle', 'font-size': 16, 'font-family': C.mono }));
+  });
+  // arrows: root bit down into its thread, thread down into out
+  var down = S.map(function (c, i) { return A.el('line', { x1: cx(i), y1: 76, x2: cx(i), y2: 76, stroke: C.v, 'stroke-width': 2 }, svg); });
+  var outA = S.map(function (c, i) { return A.el('line', { x1: cx(i), y1: 176, x2: cx(i), y2: 176, stroke: C.v, 'stroke-width': 2 }, svg); });
+  // counts and the 2nd-bit tokens
+  var badges = ones.map(function (i, k) { return A.token(svg, String(k), C.goldT, C.gold, 11); });
+  var toks = ones.map(function (i) { return A.token(svg, CODE[S[i]][1], C.goldT, C.gold, 12); });
+  // the counts above are popcounts: the 1s before each thread, in one instruction
+  var pc = A.el('g', { opacity: 0 }, svg);
+  A.txt(pc, 0, 104, 'popcount', { fill: C.gold, 'font-size': 15, 'font-family': C.mono });
+  A.txt(pc, 0, 120, '1s before me', { fill: C.gr, 'font-size': 12.5, 'font-weight': 600 });
+  // out
+  A.txt(svg, 0, 234, 'out', { fill: C.gr, 'font-size': 15 });
+  var outs = S.map(function (c, i) {
+    A.el('rect', { x: X0 + i * CW + 4, y: 208, width: CW - 8, height: 38, rx: 8, fill: C.soft }, svg);
+    return A.txt(svg, cx(i), 235, c, { 'text-anchor': 'middle', 'font-size': 21, opacity: 0 });
+  });
+  var cap = A.txt(svg, X0, 286, 'every thread reads, counts the 1s before it and reads again, all at once', { 'font-size': 20, opacity: 0 });
+
+  function draw(t) {
+    A.op(gpu, A.seg(t, 0.2, 0.6));
+    var d = A.seg(t, 0.8, 1.4);
+    S.forEach(function (c, i) {
+      down[i].setAttribute('y2', A.lerp(76, 124, d));
+      var first = CODE[c][0], two = c !== 'a';
+      var got = t >= 1.4 ? first : '';
+      if (two && t >= 3.4) got = CODE[c];
+      thBits[i].textContent = got;
+      // a thread that read 0 is done: it already knows it is an a
+      thBox[i].setAttribute('fill', t >= 1.8 && !two ? C.soft : '#FFFFFF');
+      thBox[i].setAttribute('stroke', two && t >= 2.0 && t < 3.6 ? C.gold : C.v);
+      thBox[i].setAttribute('stroke-width', two && t >= 2.0 && t < 3.6 ? 2.6 : 1.6);
+      var o = A.seg(t, 3.8, 4.3);
+      outA[i].setAttribute('y2', A.lerp(176, 206, o));
+      A.op(outs[i], A.seg(t, 4.2, 4.5));
+    });
+    ones.forEach(function (i, k) {
+      // the count of 1s before this thread, which is also its slot
+      A.at(badges[k], cx(i) + 22, 104);
+      A.op(badges[k], A.seg(t, 2.0, 2.3));
+      A.op(pc, A.seg(t, 2.0, 2.3));
+      slotCells[k].setAttribute('stroke-width', t >= 2.3 && t < 3.4 ? 3.2 : 1.5);
+      // the slot's bit travels to the thread
+      var f = A.seg(t, 2.6, 3.4);
+      A.at(toks[k], A.lerp(sx(k), cx(i) + 12, f), A.lerp(56, 160, f));
+      A.op(toks[k], t < 2.5 ? 0 : (t < 3.4 ? A.seg(t, 2.5, 2.6) : 1 - A.seg(t, 3.4, 3.6)));
+    });
+    A.op(cap, A.seg(t, 4.7, 5.1));
+  }
+  A.run(svg, draw, 5.3);
+})();
+</script>
+
+<!-- pivco 6 -->
+<section class="slide" data-layout="content">
+  <div class="phase phase--decompress">decompress</div>
+  <div class="eyebrow">pivco-huffman &#183; decompress</div>
+  <h2>What is popcount?</h2>
+  <div class="body body--center body--compact">
+    <svg id="apx6" class="chart-svg" viewBox="0 0 848 300" width="100%" role="img" aria-label="What popcount is, one click per idea. popcount answers how many 1s are in a word: for 0 1 0 1 0 1 0 0 it counts every 1 at once, in one instruction, and gives 3. Thread 5 only wants the 1s before it, so it masks the rest away; popcount of what is left gives 2. So thread 5 reads slot 2 of the second bits. Every thread does this at the same time, each with its own mask. It is built into CPUs and GPUs: POPCNT on x86, CNT on Arm, __popc in CUDA, popcount in Metal."></svg>
+    <span data-step="1" hidden></span><span data-step="2" hidden></span><span data-step="3" hidden></span><span data-step="4" hidden></span><span data-step="5" hidden></span>
+    <p class="source-note" style="margin-top:12px;">PivCo-Huffman: M. Zukowski, arXiv 2606.05765, 2026; in OpenZL 0.3.</p>
+  </div>
+</section>
+<script>
+// 6. what popcount is, one click per idea. The slide's build step (data-k)
+// picks the phase; each phase animates in from the one before.
+(function () {
+  var A = APX, C = A.C, svg = document.getElementById('apx6');
+  if (!svg) return;
+  var slide = svg.closest('.slide');
+  var bits = '01010100'.split(''), X0 = 150, CW = 56, ME = 5, NX = 600, NW = 56;
+  function cx(i) { return X0 + i * CW + CW / 2; }
+  var ones = []; bits.forEach(function (b, i) { if (b === '1') ones.push(i); });
+
+  var cap = A.txt(svg, 0, 26, '', { 'font-size': 21 });
+  A.txt(svg, 0, 94, 'a word', { fill: C.v, 'font-size': 15 });
+  var cells = bits.map(function (b, i) {
+    var g = A.el('g', {}, svg);
+    A.el('rect', { x: X0 + i * CW + 6, y: 70, width: CW - 12, height: 38, rx: 6, fill: b === '1' ? C.tint : '#FFFFFF', stroke: C.v, 'stroke-width': 1.5 }, g);
+    A.txt(g, cx(i), 96, b, { 'text-anchor': 'middle', 'font-size': 20, 'font-family': C.mono, fill: C.v });
+    return g;
+  });
+  // t5 and its mask
+  var me = A.el('g', {}, svg);
+  A.el('path', { d: 'M ' + (cx(ME) - 9) + ' 54 L ' + (cx(ME) + 9) + ' 54 L ' + cx(ME) + ' 66 Z', fill: C.gold }, me);
+  A.txt(me, cx(ME) + 16, 64, 't5', { 'font-size': 15 });
+  var mask = A.el('g', {}, svg);
+  A.el('path', { d: 'M ' + (X0 + 6) + ' 118 L ' + (X0 + 6) + ' 126 L ' + (X0 + ME * CW - 6) + ' 126 L ' + (X0 + ME * CW - 6) + ' 118', fill: 'none', stroke: C.gold, 'stroke-width': 2 }, mask);
+  A.txt(mask, X0 + ME * CW / 2, 148, 'the bits before t5', { 'text-anchor': 'middle', 'font-size': 15, fill: C.gr });
+  // the popcount box
+  var box = A.el('g', {}, svg);
+  A.el('rect', { x: X0 + 40, y: 172, width: 210, height: 76, rx: 12, fill: C.goldT, stroke: C.gold, 'stroke-width': 2 }, box);
+  A.txt(box, X0 + 145, 195, 'popcount', { 'text-anchor': 'middle', 'font-size': 16, 'font-family': C.mono });
+  var result = A.txt(box, X0 + 145, 236, '', { 'text-anchor': 'middle', 'font-size': 34, 'font-family': C.mono });
+  var toks = ones.map(function () { return A.token(svg, '1', C.tint, C.v, 14); });
+  // the 2nd bits, and the jump to slot 2
+  var node = A.el('g', {}, svg);
+  A.txt(node, NX, 170, '2nd bits', { fill: C.gr, 'font-size': 13 });
+  var slots = [0, 1, 2].map(function (k) {
+    A.txt(node, NX + k * NW + NW / 2, 190, 'slot ' + k, { 'text-anchor': 'middle', 'font-size': 12.5, fill: C.gr });
+    var r = A.el('rect', { x: NX + k * NW + 4, y: 198, width: NW - 8, height: 38, rx: 6, fill: C.goldT, stroke: C.gold, 'stroke-width': 1.5 }, node);
+    A.txt(node, NX + k * NW + NW / 2, 224, '010'[k], { 'text-anchor': 'middle', 'font-size': 19, 'font-family': C.mono });
+    return r;
+  });
+  var arrow = A.el('path', { d: 'M ' + (X0 + 252) + ' 220 C ' + (NX - 80) + ' 220 ' + (NX - 60) + ' 262 ' + NX + ' 262 L ' + (NX + 2 * NW + NW / 2) + ' 262 L ' + (NX + 2 * NW + NW / 2) + ' 240', fill: 'none', stroke: C.gold, 'stroke-width': 2.4 }, svg);
+  var instr = A.txt(svg, 0, 292, 'built into CPUs and GPUs, as POPCNT on x86, CNT on Arm, __popc in CUDA, popcount in Metal', { 'font-size': 15, fill: C.gr, 'font-weight': 600 });
+
+  var CAPS = ['popcount answers one question: how many 1s are in a word?',
+              'it counts every 1 at once, in one instruction, and gets 3',
+              't5 only wants the 1s before it, so the rest is masked away',
+              'popcount of what is left gives 2',
+              'so t5 reads slot 2 of the 2nd bits',
+              'every thread does this at the same time, each with its own mask'];
+
+  // state of every element for phase k, p is how far into that phase (0..1)
+  function render(k, p) {
+    cap.textContent = CAPS[k];
+    A.op(cap, k === 0 ? 1 : A.seg(p, 0, 0.3));
+    A.op(box, k >= 1 ? 1 : 0);
+    A.op(me, k >= 2 ? (k === 2 ? A.seg(p, 0, 0.3) : 1) : 0);
+    var m = k >= 2 ? (k === 2 ? A.seg(p, 0.2, 0.7) : 1) : 0;
+    cells.forEach(function (g, i) { A.op(g, i >= ME ? 1 - 0.75 * m : 1); });
+    A.op(mask, m);
+    // tokens: phase 1 counts all three 1s, phase 3 only the two before t5
+    ones.forEach(function (i, q) {
+      var counted = k === 1 || (k === 3 && i < ME);
+      var f = counted ? A.seg(p, 0.15, 0.75) : 0;
+      A.at(toks[q], A.lerp(cx(i), X0 + 95 + q * 55, f), A.lerp(89, 236, f));
+      A.op(toks[q], counted ? (p < 0.75 ? 1 : 1 - A.seg(p, 0.75, 0.9)) : 0);
+    });
+    result.textContent = (k === 1 && p > 0.8) ? '3' : (k >= 3 && (k > 3 || p > 0.8) ? '2' : '');
+    A.op(node, k >= 4 ? (k === 4 ? A.seg(p, 0, 0.3) : 1) : 0);
+    A.op(arrow, k >= 4 ? (k === 4 ? A.seg(p, 0.3, 0.6) : 1) : 0);
+    slots.forEach(function (r, s) { r.setAttribute('stroke-width', s === 2 && k >= 4 && (k > 4 || p > 0.6) ? 3.4 : 1.5); });
+    A.op(instr, k >= 5 ? A.seg(p, 0.2, 0.5) : 0);
+  }
+
+  var raf = null, t0 = 0, cur = 0;
+  function step(now) {
+    var p = Math.min(1, (now - t0) / 1600);
+    render(cur, p);
+    raf = p < 1 ? requestAnimationFrame(step) : null;
+  }
+  function sync() {
+    var k = Math.min(5, +(slide.dataset.k || 0));
+    var forward = k === cur + 1;
+    cur = k;
+    if (raf) cancelAnimationFrame(raf);
+    raf = null;
+    if (forward && slide.classList.contains('active')) { t0 = performance.now(); raf = requestAnimationFrame(step); }
+    else render(cur, 1);
+  }
+  new MutationObserver(sync).observe(slide, { attributes: true, attributeFilter: ['data-k', 'class'] });
+  render(0, 1);
+})();
+</script>
+
+</template>
+<script src="js/cover.js"></script>
+<script src="js/engine.js"></script>
+<script>
+(function () {
+  // slides live in the template below, so the deck opens straight from disk
+  var tmp = document.createElement('div');
+  tmp.innerHTML = document.getElementById('slides-src').innerHTML;
+  var scripts = Array.from(tmp.querySelectorAll('script'));
+  scripts.forEach(function (s) { s.remove(); });
+  // slides go in first, so a script can find its own slide when it runs
+  document.getElementById('slides-slot').outerHTML = tmp.innerHTML;
+  scripts.forEach(function (s) {
+    var tag = document.createElement('script');
+    tag.textContent = s.textContent;
+    document.head.appendChild(tag);
+  });
+  buildCover(window.DECK);
+  window.initDeck();
+})();
+</script>
+</body>
+</html>
