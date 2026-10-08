@@ -184,8 +184,8 @@ back = planar_zigzag_pfor.decode(payload, raster.size, raster.dtype, width, plan
 
 | Codec | CTid | Status |
 | --- | --- | --- |
-| `binoffset`, `intmult`, `floatquant`, `floatmult` | `0x72D708` to `0x72D70B` | ported from pcodec in 0.7.0; Python bindings removed in 0.8.0; C nodes and decoders stay so old frames decode |
-| `blocked_transpose_zstd` | `0x72D70E` | work in progress: C node `geozl_node_blocked_transpose_zstd(c, blockSize)` and a recipe terminal, no Python node or docs |
+| `binoffset`, `intmult`, `floatquant`, `floatmult` | `0x72D708` to `0x72D70B` | retired pcodec ports; C decoders remain for old frames |
+| `blocked_transpose_zstd` | `0x72D70E` | retired blocked-shuffle experiment; C decoder remains for old frames |
 
 `geozl.decompress` and `geozl_register_decoders` (C) decode all of them.
 `geozl.register_decoders` (Python) does not.

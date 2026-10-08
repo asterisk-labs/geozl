@@ -1,9 +1,20 @@
 #include "blocked_transpose_zstd/decode_blocked_transpose_zstd_kernel.h"
-#include "blocked_transpose_zstd/encode_blocked_transpose_zstd_kernel.h"
 
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
+
+static void make_lanes(uint8_t *dst, const uint8_t *src, size_t n,
+                       size_t width) {
+  const uint16_t one = 1;
+  const int little = *(const uint8_t *)&one == 1;
+  for (size_t i = 0; i < n; ++i) {
+    for (size_t lane = 0; lane < width; ++lane) {
+      const size_t native = little ? lane : width - 1 - lane;
+      dst[lane * n + i] = src[i * width + native];
+    }
+  }
+}
 
 int main(void) {
   uint8_t src[8 * 67];
@@ -18,7 +29,7 @@ int main(void) {
     const size_t n = sizeof(src) / width;
     memset(shuffled, 0, sizeof(shuffled));
     memset(back, 0, sizeof(back));
-    blocked_transpose_zstd_shuffle(shuffled, src, n, width);
+    make_lanes(shuffled, src, n, width);
     blocked_transpose_zstd_unshuffle(back, shuffled, n, width);
     assert(memcmp(src, back, n * width) == 0);
   }

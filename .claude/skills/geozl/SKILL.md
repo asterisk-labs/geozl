@@ -91,8 +91,6 @@ recipes that fail. Treat these as starting points, not fixed recommendations.
   exposed by the Python packages; the high-level C-backed `geozl.decompress` also knows
   legacy and C-only codecs.
 - Keep checksum verification enabled and set `max_output_size` for untrusted frames.
-  `blocked_transpose_zstd` is work in progress; do not select it merely because
-  it appears in `profile`.
 
 ## Reference map
 

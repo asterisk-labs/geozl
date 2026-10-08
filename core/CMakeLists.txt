@@ -118,28 +118,24 @@ if(CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC" AND CMAKE_C_COMPILER_ID STR
     endif()
 endif()
 
-# Discover codecs by convention: any src/<name>/ that has an
-# encode_<name>_binding.c is a codec. CONFIGURE_DEPENDS re-globs on build, so a
-# new codec folder is picked up without editing this file.
-file(GLOB GEOZL_CODEC_BINDINGS CONFIGURE_DEPENDS
+# Discover encoder and decoder sides independently. Retired writers keep their
+# decoders so frames already on disk remain readable.
+file(GLOB GEOZL_ENCODER_BINDINGS CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*/encode_*_binding.c)
-set(GEOZL_CODECS "")
-foreach(binding IN LISTS GEOZL_CODEC_BINDINGS)
+foreach(binding IN LISTS GEOZL_ENCODER_BINDINGS)
     get_filename_component(dir ${binding} DIRECTORY)
     get_filename_component(name ${dir} NAME)
-    if(EXISTS ${dir}/encode_${name}_binding.c)
-        list(APPEND GEOZL_CODECS ${name})
-    endif()
+    list(APPEND GEOZL_BINDINGS src/${name}/encode_${name}_binding.c)
+    list(APPEND GEOZL_KERNELS src/${name}/encode_${name}_kernel.c)
 endforeach()
-list(SORT GEOZL_CODECS)
 
-foreach(name IN LISTS GEOZL_CODECS)
-    list(APPEND GEOZL_BINDINGS
-        src/${name}/encode_${name}_binding.c
-        src/${name}/decode_${name}_binding.c)
-    list(APPEND GEOZL_KERNELS
-        src/${name}/encode_${name}_kernel.c
-        src/${name}/decode_${name}_kernel.c)
+file(GLOB GEOZL_DECODER_BINDINGS CONFIGURE_DEPENDS
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/*/decode_*_binding.c)
+foreach(binding IN LISTS GEOZL_DECODER_BINDINGS)
+    get_filename_component(dir ${binding} DIRECTORY)
+    get_filename_component(name ${dir} NAME)
+    list(APPEND GEOZL_BINDINGS src/${name}/decode_${name}_binding.c)
+    list(APPEND GEOZL_KERNELS src/${name}/decode_${name}_kernel.c)
 endforeach()
 # The rest of the kernels library, which the glob above cannot find because none
 # of it is a codec. It is here so a Python caller reaches it without OpenZL: the

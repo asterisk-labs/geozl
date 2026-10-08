@@ -35,13 +35,13 @@ destroys data. Released CTids are never reassigned.
 | `med` | `0x72D705` | predictor | numeric -> numeric | `Med(width, planes)` | median edge detector (JPEG-LS) |
 | `average` | `0x72D706` | predictor | numeric -> numeric | `Average(width, planes)` | `floor((W + N) / 2)` |
 | `wp_static` | `0x72D707` | predictor | numeric -> numeric | `WpStatic(width, planes)` | fixed-weight JPEG XL self-correcting predictor, weights in header |
-| `binoffset` | `0x72D708` | legacy | numeric -> numeric x 2 | none | partial pcodec port; C encoder and decoder remain |
-| `intmult` | `0x72D709` | legacy | numeric -> numeric x 2 | none | pcodec port |
-| `floatquant` | `0x72D70A` | legacy | numeric -> numeric x 2 | none | pcodec port |
-| `floatmult` | `0x72D70B` | legacy | numeric -> numeric x 2 | none | pcodec port |
+| `binoffset` | `0x72D708` | legacy | numeric -> numeric x 2 | none | retired pcodec port; decoder only |
+| `intmult` | `0x72D709` | legacy | numeric -> numeric x 2 | none | retired pcodec port; decoder only |
+| `floatquant` | `0x72D70A` | legacy | numeric -> numeric x 2 | none | retired pcodec port; decoder only |
+| `floatmult` | `0x72D70B` | legacy | numeric -> numeric x 2 | none | retired pcodec port; decoder only |
 | `nodata` | `0x72D70C` | split | numeric -> values + mask | `Nodata(width, value, dtype)` | holes into a validity mask, filled values onward |
 | `pfor` | `0x72D70D` | terminal | numeric -> serial | `Pfor()` | 256-value blocks bit packed with patched exceptions |
-| `blocked_transpose_zstd` | `0x72D70E` | terminal (WIP) | numeric -> serial | none | per-block byte shuffle plus Zstandard |
+| `blocked_transpose_zstd` | `0x72D70E` | legacy | numeric -> serial | none | retired experiment; decoder only |
 | `planar_zigzag` | `0x72D70F` | fused | numeric -> numeric | `PlanarZigzag(width, planes)` | planar then Zigzag in one pass |
 | `planar_zigzag_pfor` | `0x72D710` | fused | numeric -> serial | `PlanarZigzagPfor(width, planes)` | planar, Zigzag and PFOR, one 256-value block at a time |
 | `med_zigzag` | `0x72D711` | fused | numeric -> numeric | `MedZigzag(width, planes)` | MED then Zigzag in one pass |
@@ -125,3 +125,4 @@ Part of the wire format (quantizer headers) and of the C API (`geozl_dtype` in `
   frame fails to find a decoder instead of being misread.
 - The pcodec family (`0x72D708` to `0x72D70B`) keeps C decoders registered so old frames
   still decode.
+- `blocked_transpose_zstd` (`0x72D70E`) is retired as a writer; its C decoder remains.

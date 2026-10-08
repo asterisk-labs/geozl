@@ -39,8 +39,7 @@ the useful thing to say, which is what the nodata markers return.
 
 Most depend only on `<stdint.h>`, `<stddef.h>` and `<string.h>`. The quantizers
 and the wp_static trainer call into libm, which is why `core/CMakeLists.txt`
-runs `find_library(GEOZL_LIBM m)`. binoffset and floatmult include `<math.h>`
-too, but only for `INFINITY` and `isfinite`, so they cost nothing at link.
+runs `find_library(GEOZL_LIBM m)`.
 Anything that includes `common/scan.h` picks its path with `geozl_simd_has`, so
 it needs `common/simd.c` at link time.
 

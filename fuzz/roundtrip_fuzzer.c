@@ -1,19 +1,11 @@
 #include "average/decode_average_kernel.h"
 #include "average/encode_average_kernel.h"
-#include "binoffset/decode_binoffset_kernel.h"
-#include "binoffset/encode_binoffset_kernel.h"
 #include "deinterleave/decode_deinterleave_kernel.h"
 #include "deinterleave/encode_deinterleave_kernel.h"
 #include "delta_n/decode_delta_n_kernel.h"
 #include "delta_n/encode_delta_n_kernel.h"
 #include "delta_w/decode_delta_w_kernel.h"
 #include "delta_w/encode_delta_w_kernel.h"
-#include "floatmult/decode_floatmult_kernel.h"
-#include "floatmult/encode_floatmult_kernel.h"
-#include "floatquant/decode_floatquant_kernel.h"
-#include "floatquant/encode_floatquant_kernel.h"
-#include "intmult/decode_intmult_kernel.h"
-#include "intmult/encode_intmult_kernel.h"
 #include "med/decode_med_kernel.h"
 #include "med/encode_med_kernel.h"
 #include "nodata/decode_nodata_kernel.h"
@@ -124,47 +116,6 @@ static void splitters(bits *b, unsigned which, size_t w, size_t n) {
     deinterleave_split(mid, alt, src, n, w);
     deinterleave_join(back, mid, alt, n, w);
     break;
-  case 1: {
-    binoffset_split(mask, mid, src, n, w);
-    if (binoffset_join(back, mask, mid, n, w) != 0)
-      abort();
-    break;
-  }
-  case 2: {
-    // The header carries the base in eltWidth bytes and the binding refuses one
-    // below two, so those are the only bases a kernel is handed.
-    const uint64_t span = w == 8 ? UINT64_MAX : ((uint64_t)1 << (8 * w)) - 1;
-    const uint64_t base = 2 + take(b, 8) % (span - 1);
-    intmult_split(mid, alt, src, n, w, base);
-    if (intmult_join(back, mid, alt, n, w, base) != 0)
-      abort();
-    break;
-  }
-  case 3: {
-    // A float codec, so the two narrow element widths are not geometries it is
-    // ever handed. The encoder also picks a base it can divide by and writes it
-    // into the header, so a zero one is not a frame that exists.
-    if (w < 4)
-      return;
-    double base;
-    const uint64_t bitsOf = take(b, 8);
-    memcpy(&base, &bitsOf, 8);
-    if (!(base > 0.0) || base > 1e300)
-      return;
-    floatmult_split(mid, alt, src, n, w, base, 1.0 / base);
-    if (floatmult_join(back, mid, alt, n, w, base) != 0)
-      abort();
-    break;
-  }
-  case 4: {
-    if (w < 4)
-      return;
-    const unsigned k = 1 + (unsigned)take(b, 1) % (8 * (unsigned)w - 1);
-    floatquant_split(mid, alt, src, n, w, k);
-    if (floatquant_join(back, mid, alt, n, w, k) != 0)
-      abort();
-    break;
-  }
   default: {
     const size_t width = 1 + (size_t)take(b, 4) % (2 * MAX_ELTS);
     const uint64_t pattern = take(b, 8);
@@ -225,7 +176,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 4)
     return 0;
   bits b = {data + 1, size - 1, 0};
-  const unsigned codec = data[0] % 12;
+  const unsigned codec = data[0] % 8;
 
   static const size_t kWidths[] = {1, 2, 4, 8};
   const size_t w = kWidths[take(&b, 1) & 3];

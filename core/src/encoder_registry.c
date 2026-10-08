@@ -1,14 +1,9 @@
 #include "geozl/geozl.h"
 
 #include "average/encode_average_binding.h"
-#include "binoffset/encode_binoffset_binding.h"
-#include "blocked_transpose_zstd/encode_blocked_transpose_zstd_binding.h"
 #include "deinterleave/encode_deinterleave_binding.h"
 #include "delta_n/encode_delta_n_binding.h"
 #include "delta_w/encode_delta_w_binding.h"
-#include "floatmult/encode_floatmult_binding.h"
-#include "floatquant/encode_floatquant_binding.h"
-#include "intmult/encode_intmult_binding.h"
 #include "med/encode_med_binding.h"
 #include "med_zigzag/encode_med_zigzag_binding.h"
 #include "nodata/encode_nodata_binding.h"
@@ -122,60 +117,27 @@ ZL_NodeID geozl_node_pfor(ZL_Compressor *c) {
   return ZL_Compressor_registerTypedEncoder(c, &desc);
 }
 
-ZL_NodeID geozl_node_blocked_transpose_zstd(ZL_Compressor *c,
-                                             uint32_t blockSize) {
-  if (blockSize == 0 || blockSize > BLOCKED_TRANSPOSE_ZSTD_MAX_BLOCK_SIZE)
-    return ZL_NODE_ILLEGAL;
-  ZL_TypedEncoderDesc desc = EI_BLOCKED_TRANSPOSE_ZSTD(
-      GEOZL_CTID_BLOCKED_TRANSPOSE_ZSTD);
-  ZL_LocalParams lp = ZL_LP_1INTPARAM(
-      BLOCKED_TRANSPOSE_ZSTD_PARAM_BLOCK_SIZE, (int)blockSize);
-  desc.localParams = lp;
-  return ZL_Compressor_registerTypedEncoder(c, &desc);
-}
-
 ZL_NodeID geozl_node_binoffset(ZL_Compressor *c) {
-  const ZL_TypedEncoderDesc desc = EI_BINOFFSET(GEOZL_CTID_BINOFFSET);
-  return ZL_Compressor_registerTypedEncoder(c, &desc);
+  (void)c;
+  return ZL_NODE_ILLEGAL;
 }
 
 ZL_NodeID geozl_node_intmult(ZL_Compressor *c, uint64_t base) {
-  const ZL_TypedEncoderDesc desc = EI_INTMULT(GEOZL_CTID_INTMULT);
-  ZL_NodeID node = ZL_Compressor_registerTypedEncoder(c, &desc);
-  if (!ZL_NodeID_isValid(node))
-    return node;
-  ZL_LocalParams lp = ZL_LP_1INTPARAM(1 /* base */, (int)base);
-  ZL_NodeParameters np = {.localParams = &lp};
-  ZL_RESULT_OF(ZL_NodeID) r = ZL_Compressor_parameterizeNode(c, node, &np);
-  return ZL_RES_isError(r) ? ZL_NODE_ILLEGAL : ZL_RES_value(r);
+  (void)c;
+  (void)base;
+  return ZL_NODE_ILLEGAL;
 }
 
 ZL_NodeID geozl_node_floatquant(ZL_Compressor *c, unsigned k) {
-  const ZL_TypedEncoderDesc desc = EI_FLOATQUANT(GEOZL_CTID_FLOATQUANT);
-  ZL_NodeID node = ZL_Compressor_registerTypedEncoder(c, &desc);
-  if (!ZL_NodeID_isValid(node))
-    return node;
-  ZL_LocalParams lp = ZL_LP_1INTPARAM(1 /* k */, (int)k);
-  ZL_NodeParameters np = {.localParams = &lp};
-  ZL_RESULT_OF(ZL_NodeID) r = ZL_Compressor_parameterizeNode(c, node, &np);
-  return ZL_RES_isError(r) ? ZL_NODE_ILLEGAL : ZL_RES_value(r);
+  (void)c;
+  (void)k;
+  return ZL_NODE_ILLEGAL;
 }
 
 ZL_NodeID geozl_node_floatmult(ZL_Compressor *c, double base) {
-  const ZL_TypedEncoderDesc desc = EI_FLOATMULT(GEOZL_CTID_FLOATMULT);
-  ZL_NodeID node = ZL_Compressor_registerTypedEncoder(c, &desc);
-  if (!ZL_NodeID_isValid(node))
-    return node;
-  uint64_t bits;
-  memcpy(&bits, &base, sizeof(double));
-  ZL_IntParam ps[2] = {
-      {.paramId = 1, .paramValue = (int)(uint32_t)(bits & 0xFFFFFFFFu)},
-      {.paramId = 2, .paramValue = (int)(uint32_t)(bits >> 32)},
-  };
-  ZL_LocalParams lp = {.intParams = {.intParams = ps, .nbIntParams = 2}};
-  ZL_NodeParameters np = {.localParams = &lp};
-  ZL_RESULT_OF(ZL_NodeID) r = ZL_Compressor_parameterizeNode(c, node, &np);
-  return ZL_RES_isError(r) ? ZL_NODE_ILLEGAL : ZL_RES_value(r);
+  (void)c;
+  (void)base;
+  return ZL_NODE_ILLEGAL;
 }
 
 ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width,

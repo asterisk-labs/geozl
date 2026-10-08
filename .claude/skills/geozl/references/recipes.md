@@ -22,11 +22,11 @@ id><terminal>                     no predictor
 ```
 
 `<terminal>` is one of `entropy`, `field_lz`, `zstd`, `categorical`,
-`transpose>entropy`, `transpose>zstd`, `blocked_transpose_zstd`, `pfor`,
-`pivco`, `transpose>pivco`, `sparse`.
+`transpose>entropy`, `transpose>zstd`, `pfor`, `pivco`, `transpose>pivco`,
+`sparse`.
 
-That gives 88 candidates before width filtering. A 2-byte grid offers 81,
-including the fused `planar>zigzag>pivco`; a 1-byte grid offers 64. Anything else, such as
+That gives 80 candidates before width filtering. A 2-byte grid offers 73,
+including the fused `planar>zigzag>pivco`; a 1-byte grid offers 56. Anything else, such as
 `planar>entropy`, `id>zigzag>entropy`, `planar_zigzag>entropy` or the removed
 `store_lo`, is `unknown method`.
 
@@ -72,7 +72,6 @@ bit for bit through their integer representation.
 | `categorical` | one pass counts the dominant value's share: all equal goes to `constant`, above 0.95 to `field_lz`, else `entropy`; the frame records the arm | 1, 2 (refused above at build) | cloud masks sit near 0.97, land cover near 0.50 |
 | `transpose>entropy` | split elements into byte lanes (low byte first), entropy per lane | 2, 4, 8 (refused at 1) | the byte shuffle of blosc and EOPF |
 | `transpose>zstd` | byte lanes, Zstandard per lane | 2, 4, 8 (refused at 1) | `id>transpose>zstd` is the EOPF-style baseline |
-| `blocked_transpose_zstd` | fused shuffle plus independent Zstandard frames per 2 MiB block | 1, 2, 4, 8 | **work in progress**, not in the docs or Python node API |
 | `pivco` | PivCo Huffman on the byte stream, `entropy` when one value holds more than half of it | 1 only (refused above at build) | Landsat 8-bit bands: same ratio as `entropy` within 0.1%, decode 1.4 to 2.8x; writes OpenZL format 27 |
 | `transpose>pivco` | byte lanes, the same choice per lane | 2, 4, 8 (refused at 1) | Sentinel-2, Landsat 8, GOES, DEM: within 0.3% of `transpose>entropy`, decode 1.2 to 1.6x behind a predictor; the near-constant high lane keeps FSE; writes OpenZL format 27 |
 | `sparse` | `sparse_num` when one value has a strict majority; otherwise `entropy`, or the numeric graph above 2 bytes | 1, 2, 4, 8 | useful for class maps; writes OpenZL format 27 |
