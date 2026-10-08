@@ -1,8 +1,8 @@
-// Build valid OpenZL frames around fuzzed geozl headers and streams. This reaches
-// decoder bindings more often than mutating complete frames.
+// Wrap fuzzed GeoZL headers and streams in valid OpenZL frames.
 
 #include "geozl/geozl.h"
 
+#include "openzl/codecs/zl_store.h"
 #include "openzl/zl_common_types.h" // ZL_TernaryParam_disable
 #include "openzl/zl_compress.h"
 #include "openzl/zl_compressor.h"
@@ -13,7 +13,6 @@
 #include "openzl/zl_input.h"
 #include "openzl/zl_output.h"
 #include "openzl/zl_version.h" // ZL_MAX_FORMAT_VERSION
-#include "openzl/codecs/zl_store.h"
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -26,21 +25,35 @@
 #define MAX_BYTES (MAX_ELTS * 8)
 #define MAX_FRAME (1u << 20)
 
-// Every geozl CTid and its input stream count.
+// Every geozl CTid, its child-stream count, and which children are serial.
 typedef struct {
   uint32_t ctid;
   unsigned nbOut;
+  unsigned serialMask;
 } codec_slot;
 
 static const codec_slot kSlots[] = {
-    {GEOZL_CTID_DELTA_W, 1},      {GEOZL_CTID_DELTA_N, 1},
-    {GEOZL_CTID_PLANAR, 1},       {GEOZL_CTID_MED, 1},
-    {GEOZL_CTID_AVERAGE, 1},      {GEOZL_CTID_WP_STATIC, 1},
-    {GEOZL_CTID_QUANT_LINEAR, 1}, {GEOZL_CTID_QUANT_LOG, 1},
-    {GEOZL_CTID_QUANT_SQRT, 1},   {GEOZL_CTID_DEINTERLEAVE, 2},
-    {GEOZL_CTID_NODATA, 2},       {GEOZL_CTID_BINOFFSET, 2},
-    {GEOZL_CTID_INTMULT, 2},      {GEOZL_CTID_FLOATQUANT, 2},
-    {GEOZL_CTID_FLOATMULT, 2},
+    {GEOZL_CTID_DELTA_W, 1, 0},
+    {GEOZL_CTID_DELTA_N, 1, 0},
+    {GEOZL_CTID_PLANAR, 1, 0},
+    {GEOZL_CTID_MED, 1, 0},
+    {GEOZL_CTID_AVERAGE, 1, 0},
+    {GEOZL_CTID_WP_STATIC, 1, 0},
+    {GEOZL_CTID_PLANAR_ZIGZAG, 1, 0},
+    {GEOZL_CTID_MED_ZIGZAG, 1, 0},
+    {GEOZL_CTID_QUANT_LINEAR, 1, 0},
+    {GEOZL_CTID_QUANT_LOG, 1, 0},
+    {GEOZL_CTID_QUANT_SQRT, 1, 0},
+    {GEOZL_CTID_PFOR, 1, 1},
+    {GEOZL_CTID_PLANAR_ZIGZAG_PFOR, 1, 1},
+    {GEOZL_CTID_BLOCKED_TRANSPOSE_ZSTD, 1, 1},
+    {GEOZL_CTID_DEINTERLEAVE, 2, 0},
+    {GEOZL_CTID_NODATA, 2, 0},
+    {GEOZL_CTID_BINOFFSET, 2, 0},
+    {GEOZL_CTID_INTMULT, 2, 0},
+    {GEOZL_CTID_FLOATQUANT, 2, 0},
+    {GEOZL_CTID_FLOATMULT, 2, 0},
+    {GEOZL_CTID_PLANAR_ZIGZAG_PIVCO, 2, 2},
 };
 
 #define NB_SLOTS (sizeof(kSlots) / sizeof(kSlots[0]))
@@ -70,9 +83,8 @@ static uint64_t take(bits *b, size_t k) {
 
 // Zero-pad short payloads.
 static void fill(uint8_t *dst, size_t want) {
-  const size_t have = g_plan.payAt < g_plan.payLen
-                          ? g_plan.payLen - g_plan.payAt
-                          : 0;
+  const size_t have =
+      g_plan.payAt < g_plan.payLen ? g_plan.payLen - g_plan.payAt : 0;
   const size_t n = have < want ? have : want;
   if (n)
     memcpy(dst, g_plan.pay + g_plan.payAt, n);
@@ -98,13 +110,15 @@ static ZL_Report stub_encode(ZL_Encoder *ectx, const ZL_Input *in) {
 }
 
 static size_t build_frame(const codec_slot *slot, uint8_t *dst, size_t cap) {
-  static const ZL_Type kOut1[] = {ZL_Type_numeric};
-  static const ZL_Type kOut2[] = {ZL_Type_numeric, ZL_Type_numeric};
+  ZL_Type childTypes[MAX_OUT];
+  for (size_t i = 0; i < slot->nbOut; ++i)
+    childTypes[i] =
+        (slot->serialMask & (1u << i)) ? ZL_Type_serial : ZL_Type_numeric;
 
   ZL_TypedEncoderDesc desc = {0};
   desc.gd.CTid = slot->ctid;
   desc.gd.inStreamType = ZL_Type_numeric;
-  desc.gd.outStreamTypes = slot->nbOut == 1 ? kOut1 : kOut2;
+  desc.gd.outStreamTypes = childTypes;
   desc.gd.nbOutStreams = slot->nbOut;
   desc.transform_f = stub_encode;
   desc.name = "geozl_fuzz_stub";
