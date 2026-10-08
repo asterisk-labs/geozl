@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Fused `planar_zigzag_pivco` codec (`0x72D712`).
+
 - `pivco` and `transpose>pivco` terminals. Each stream, the byte lanes for
   `transpose>pivco` and the 1-byte residual for `pivco`, goes to OpenZL 0.3's
   PivCo Huffman unless one value holds more than half of it, which goes to

@@ -192,9 +192,11 @@ def test_pivco_frames_need_openzl_0_3_and_round_trip(method, dtype):
     assert np.array_equal(_roundtrip(arr, method=method), arr)
 
 
-def test_pivco_takes_one_byte_elements_only():
+def test_pivco_takes_one_byte_elements_unless_it_follows_planar():
     with pytest.raises(RuntimeError, match="pivco needs 1"):
-        geozl.graph(_tile(), "planar>zigzag>pivco")
+        geozl.graph(_tile(), "med>zigzag>pivco")
+    arr = _tile()
+    assert np.array_equal(_roundtrip(arr, method="planar>zigzag>pivco"), arr)
 
 
 def test_a_dominated_lane_goes_to_entropy_not_pivco():
@@ -335,8 +337,9 @@ def test_unbiased_prior_sweeps_more_graphs_than_a_named_one():
 
 
 def test_unbiased_prior_is_the_whole_grid():
-    # 8 predictors x 9 terminals, all buildable at 2 bytes per element
-    assert len(geozl.profile(_tile(), prior=None, reps=1)) == 72
+    # 8 predictors x 9 terminals, all buildable at 2 bytes per element, plus
+    # planar>zigzag>pivco, the one pivco that takes more than a byte
+    assert len(geozl.profile(_tile(), prior=None, reps=1)) == 73
 
 
 def test_the_grid_at_one_byte_keeps_categorical_and_drops_the_rest():

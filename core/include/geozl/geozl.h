@@ -42,6 +42,11 @@ GEOZL_API ZL_NodeID geozl_node_planar_zigzag(ZL_Compressor *c, uint32_t width,
 GEOZL_API ZL_NodeID geozl_node_planar_zigzag_pfor(ZL_Compressor *c,
                                                    uint32_t width,
                                                    uint32_t planes);
+// Planar, Zigzag and PivCo Huffman per residual byte lane. Two outputs: the
+// lanes' weights (1-byte numeric) and their PivCo bitstreams (serial).
+GEOZL_API ZL_NodeID geozl_node_planar_zigzag_pivco(ZL_Compressor *c,
+                                                    uint32_t width,
+                                                    uint32_t planes);
 GEOZL_API ZL_NodeID geozl_node_med(ZL_Compressor *c, uint32_t width,
                                    uint32_t planes);
 GEOZL_API ZL_NodeID geozl_node_med_zigzag(ZL_Compressor *c, uint32_t width,

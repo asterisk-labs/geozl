@@ -175,6 +175,10 @@ if(GEOZL_BUILD_FULL)
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/src)
     target_link_libraries(geozl PUBLIC ${GEOZL_OPENZL_TARGET})
+    # planar_zigzag_pivco calls PivCo's kernels, which OpenZL does not install.
+    if(GEOZL_USE_SYSTEM_OPENZL)
+        target_include_directories(geozl PRIVATE ${GEOZL_OPENZL_DIR}/src)
+    endif()
     target_compile_definitions(geozl PRIVATE GEOZL_BUILD)
     target_compile_options(geozl PRIVATE ${GEOZL_WARN} ${GEOZL_FP})
     if(GEOZL_LIBM)

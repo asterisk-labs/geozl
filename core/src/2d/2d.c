@@ -283,6 +283,15 @@ static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
     return ZL_Compressor_registerStaticGraph_fromNode1o(c, fused,
                                                          ZL_GRAPH_STORE);
   }
+  if (p == GEOZL_PRED_PLANAR && t == GEOZL_TERM_PIVCO) {
+    // Every residual byte lane goes to PivCo inside one node, so the frame
+    // decodes on a GPU; the lanes' weights are small and go to entropy.
+    ZL_NodeID fused = geozl_node_planar_zigzag_pivco(c, width, planes);
+    if (!ZL_NodeID_isValid(fused))
+      return ZL_GRAPH_ILLEGAL;
+    return ZL_Compressor_registerStaticGraph_fromNode(
+        c, fused, ZL_GRAPHLIST(ZL_GRAPH_ENTROPY, ZL_GRAPH_STORE));
+  }
 
   ZL_NodeID head[3];
   size_t n = 0;
@@ -336,7 +345,7 @@ static ZL_GraphID build_candidate(ZL_Compressor *c, geozl_predictor p,
   }
   case GEOZL_TERM_PIVCO: {
     // At 2 bytes it wrote what entropy wrote as fast, transpose>pivco is the
-    // one that helps there.
+    // one that helps there. Planar is fused above and takes any width.
     if (eltWidth != 1)
       return ZL_GRAPH_ILLEGAL;
     ZL_GraphID pg = pivco_graph(c);
@@ -575,7 +584,7 @@ static ZL_Report graph_open(geozl_2d_graph **out, const char *method,
       snprintf(errCtx, errCtxSize,
                "method \"%s\" does not apply to %zu-byte elements; the "
                "transpose terminals need 2 to 8, categorical needs 1 or 2, "
-               "pivco needs 1",
+               "pivco needs 1 unless it follows planar",
                method, eltWidth);
     r = ZL_returnError(ZL_ErrorCode_graph_invalid);
     goto fail;
@@ -1038,7 +1047,9 @@ GEOZL_API int geozl_2d_grid_c(const char *method, size_t eltWidth, char *names,
       // does
       if ((geozl_terminal)t == GEOZL_TERM_CATEGORICAL && eltWidth > 2)
         continue;
-      if ((geozl_terminal)t == GEOZL_TERM_PIVCO && eltWidth != 1)
+      // planar>zigzag>pivco is one fused node with a lane per residual byte
+      if ((geozl_terminal)t == GEOZL_TERM_PIVCO && eltWidth != 1 &&
+          preds[i] != GEOZL_PRED_PLANAR)
         continue;
       if (k < maxNames)
         candidate_name(preds[i], (geozl_terminal)t, names + k * stride, stride);
