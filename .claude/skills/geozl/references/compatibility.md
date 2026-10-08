@@ -25,8 +25,9 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
 - **Older readers may not understand newer codecs.**
 - GeoZL frames are OpenZL frames; container compatibility follows OpenZL. The Python
   package supports OpenZL 0.3.x (`openzl>=0.3,<0.4`). The high-level API writes OpenZL
-  format 24, which OpenZL 0.2 readers accept, except `pivco` and `transpose>pivco`, which
-  write 27 and need an OpenZL 0.3 reader; readers take formats up to 27.
+  format 24, which OpenZL 0.2 readers accept, except `pivco`, `transpose>pivco` and
+  `sparse`, which write 27 and need an OpenZL 0.3 reader; readers take formats up to 27.
+  Frames containing `planar_zigzag_pivco` also need a GeoZL 0.19 reader.
 - Python API: semantic versioning, may grow before 1.0. C: stable source API from
   0.13.0, no ABI promise before 1.0.
 
@@ -44,6 +45,8 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
 
 | Version | Change | Consequence |
 | --- | --- | --- |
+| 0.19.0 (unreleased) | new `planar_zigzag_pivco` codec and `sparse` terminal | those frames need a 0.19 reader; PivCo and sparse frames use OpenZL format 27 |
+| 0.19.0 (unreleased) | lossy recipes no longer accept `STORE`; stream layout is automatic | no wire change; readers still decode both layouts |
 | 0.18.0 (2026-09-20) | new fused codec `med_zigzag`; `med>zigzag>...` recipes select it | frames need a 0.18.0 reader; older frames with separate nodes still decode |
 | 0.16.0 (2026-09-01) | new fused codecs `planar_zigzag` and `planar_zigzag_pfor`; `planar>zigzag>...` recipes select them | frames need a 0.16.0 reader; older frames with separate nodes still decode |
 | 0.15.1 | `quant_linear` accepts all-zero domains | no format change |
@@ -58,6 +61,7 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
 
 | Version | Old | New |
 | --- | --- | --- |
+| 0.19.0 (unreleased) | lossy recipe `STORE=...`; `Noise.recipe(..., store=...)` | removed; layout is automatic |
 | 0.14.0 | `store_lo` terminal | removed; `unknown method` |
 | 0.10.0 | `geozl.compress(tile, method=..., error=..., nodata=...)` | `g = geozl.graph(tile, method, error=..., nodata=...)`, then `geozl.compress(tile, graph=g)` |
 | 0.10.0 | `geozl.decompress(frame, dtype, width)` | `geozl.decompress(frame).view(dtype).reshape(shape)` |
@@ -78,7 +82,8 @@ Code or docs mentioning `max_error=` as a Python argument, `method=` on `compres
 - `bindings/python/test/golden/frames/*.zl` are released frames: 28 written by 0.13.0
   (all six predictors at 1 and 3 planes, `id`, `deinterleave`, `nodata` with an int32
   sentinel and float32 NaN, float quantizers) and 6 by 0.14.0 (integer quantizer frames in
-  both storage modes, including `planar>zigzag>pfor`, then written with separate nodes).
+  both storage modes, including `planar>zigzag>pfor`, then written with separate nodes),
+  plus 9 value-layout float frames written by 0.18.0.
   As of 0.16.0 no golden frame uses the fused `0x72D70F` or `0x72D710` CTids.
 - `manifest.json` records per frame: `graph`, `error`, `nodata`, `dtype`, `shape`,
   `sha256_frame`, `sha256_decoded`, `frame_bytes` (0.13.0 entries only), and `written_by`

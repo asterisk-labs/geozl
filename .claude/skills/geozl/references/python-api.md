@@ -77,7 +77,7 @@ average>zigzag>entropy             6.91     431.2     469.8    569
 ```
 
 Rows whose recipe fails on this tile are skipped silently, which is why a float32
-profile with `prior=None` returns 48 rows while the grid lists 56 names (every
+profile with `prior=None` returns 65 rows while the grid lists 73 names (every
 plain `>entropy` recipe fails at 4 bytes). Speeds depend on the machine and the
 SIMD path; compare rows from one run only.
 

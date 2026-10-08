@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="GeoZL planar_zigzag_pfor carries the whole planar, Zigzag and PFOR chain as one numeric-to-serial codec.">
+<meta name="description" content="GeoZL planar_zigzag_pivco carries planar, Zigzag and PivCo Huffman per residual byte lane as one codec that a GPU can decode.">
 <meta name="theme-color" content="#F1EDE4">
-<title>GeoZL · planar_zigzag_pfor</title>
+<title>GeoZL · planar_zigzag_pivco</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
@@ -37,35 +37,36 @@
 
     <main class="codoc">
       <div class="col-text">
-        <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> numeric to serial &middot; 2D <span class="sep">/</span> lossless</p>
-        <h1 class="name">planar_zigzag_pfor</h1>
-        <p class="subtitle">The fused version of Planar + Zigzag + PFOR.</p>
+        <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> numeric to numeric + serial &middot; 2D <span class="sep">/</span> lossless</p>
+        <h1 class="name">planar_zigzag_pivco</h1>
+        <p class="subtitle">Planar + Zigzag, then PivCo Huffman on every residual byte lane, in one codec.</p>
         <dl class="spec">
-          <dt>ctid</dt><dd>0x72D710</dd>
-          <dt>header</dt><dd>uint64 &middot; element count<br>+ uint8 &middot; element width<br>+ uint32 &middot; row width<br>+ uint32 &middot; plane count</dd>
+          <dt>ctid</dt><dd>0x72D712</dd>
+          <dt>header</dt><dd>uint64 &middot; element count<br>+ uint8 &middot; element width<br>+ uint32 &middot; row width<br>+ uint32 &middot; plane count<br>+ uint32 &middot; PivCo block size<br>+ per lane: uint8 mode, uint16 weights, uint32 bitstream</dd>
           <dt>values</dt><dd>8 &middot; 16 &middot; 32 &middot; 64-bit numeric elements</dd>
+          <dt>lanes</dt><dd>one per residual byte: PivCo Huffman,<br>or byte PFOR where that is smaller</dd>
           <dt>geometry</dt><dd>width = columns<br>planes = contiguous independent rasters</dd>
         </dl>
 
         <div class="actions">
-          <a class="btn-code" href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag_pfor" target="_blank" rel="noopener noreferrer">
+          <a class="btn-code" href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag_pivco" target="_blank" rel="noopener noreferrer">
             <span>Code</span>
             <svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"></path><path d="M8 7h9v9"></path></svg>
           </a>
-          <span class="usage mono">geozl.lossless.PlanarZigzagPfor(width, planes=1)</span>
+          <span class="usage mono">geozl.graph(tile, "planar&gt;zigzag&gt;pivco")</span>
         </div>
       </div>
 
       <div class="panel">
-        <img class="diagram" src="../assets/svg/codecs/planar-zigzag-pfor.svg"
-             alt="Planar, Zigzag and PFOR fused into one codec">
+        <img class="diagram" src="../assets/svg/codecs/planar-zigzag-pivco.svg"
+             alt="Planar, Zigzag and PivCo fused into one codec">
       </div>
     </main>
 
     <footer class="footer pager">
-      <a class="pg prev" href="planar-zigzag.html" style="--fam:var(--gold)" aria-label="Previous codec, planar_zigzag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg><span class="pg-fam"></span><span class="pg-lab"><span class="pg-k">prev · 07</span><span class="pg-n">planar_zigzag</span></span></a>
-      <span class="pg-mid mono">0x72D710</span>
-      <a class="pg next" href="planar-zigzag-pivco.html" style="--fam:var(--gold)" aria-label="Next codec, planar_zigzag_pivco"><span class="pg-lab"><span class="pg-k">next · 09</span><span class="pg-n">planar_zigzag_pivco</span></span><span class="pg-fam"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></a>
+      <a class="pg prev" href="planar-zigzag-pfor.html" style="--fam:var(--gold)" aria-label="Previous codec, planar_zigzag_pfor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg><span class="pg-fam"></span><span class="pg-lab"><span class="pg-k">prev · 08</span><span class="pg-n">planar_zigzag_pfor</span></span></a>
+      <span class="pg-mid mono">0x72D712</span>
+      <a class="pg next" href="med-zigzag.html" style="--fam:var(--gold)" aria-label="Next codec, med_zigzag"><span class="pg-lab"><span class="pg-k">next · 10</span><span class="pg-n">med_zigzag</span></span><span class="pg-fam"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></a>
     </footer>
   </div>
 </body>

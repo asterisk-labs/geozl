@@ -23,10 +23,10 @@ id><terminal>                     no predictor
 
 `<terminal>` is one of `entropy`, `field_lz`, `zstd`, `categorical`,
 `transpose>entropy`, `transpose>zstd`, `blocked_transpose_zstd`, `pfor`,
-`pivco`, `transpose>pivco`.
+`pivco`, `transpose>pivco`, `sparse`.
 
-That gives 8 predictors x 10 terminals = 80 names; a 2-byte grid offers 72 of them
-and a 1-byte grid 56. Anything else, such as
+That gives 88 candidates before width filtering. A 2-byte grid offers 81,
+including the fused `planar>zigzag>pivco`; a 1-byte grid offers 64. Anything else, such as
 `planar>entropy`, `id>zigzag>entropy`, `planar_zigzag>entropy` or the removed
 `store_lo`, is `unknown method`.
 
@@ -75,19 +75,20 @@ bit for bit through their integer representation.
 | `blocked_transpose_zstd` | fused shuffle plus independent Zstandard frames per 2 MiB block | 1, 2, 4, 8 | **work in progress**, not in the docs or Python node API |
 | `pivco` | PivCo Huffman on the byte stream, `entropy` when one value holds more than half of it | 1 only (refused above at build) | Landsat 8-bit bands: same ratio as `entropy` within 0.1%, decode 1.4 to 2.8x; writes OpenZL format 27 |
 | `transpose>pivco` | byte lanes, the same choice per lane | 2, 4, 8 (refused at 1) | Sentinel-2, Landsat 8, GOES, DEM: within 0.3% of `transpose>entropy`, decode 1.2 to 1.6x behind a predictor; the near-constant high lane keeps FSE; writes OpenZL format 27 |
+| `sparse` | `sparse_num` when one value has a strict majority; otherwise `entropy`, or the numeric graph above 2 bytes | 1, 2, 4, 8 | useful for class maps; writes OpenZL format 27 |
 | `pfor` | blocks of 256 packed at the bit width with the smallest estimated size, overflowing values patched as exceptions | 1, 2, 4, 8 | very fast decode; cost grows with residual magnitude, so it pairs well with integer quantizer indices |
 
 ## 4. Which recipes run at which element width
 
 | Element width | Names in the grid | Usable in `compress` | Excluded |
 | --- | --- | --- | --- |
-| 1 byte (`uint8`, `int8`, `bool`) | 48 | 48 | `transpose>entropy`, `transpose>zstd` |
-| 2 bytes (`uint16`, `int16`, `float16`) | 64 | 64 | none |
-| 4 bytes (`uint32`, `int32`, `float32`) | 56 | 48 | `categorical` at build; plain `entropy` fails at compress |
-| 8 bytes (`uint64`, `int64`, `float64`) | 56 | 48 | same as 4 bytes |
+| 1 byte (`uint8`, `int8`, `bool`) | 64 | 64 | `transpose>entropy`, `transpose>zstd`, `transpose>pivco` |
+| 2 bytes (`uint16`, `int16`, `float16`) | 81 | 81 | `pivco`, except the fused planar recipe |
+| 4 bytes (`uint32`, `int32`, `float32`) | 73 | 65 | `categorical` and `pivco` at build, except fused planar PivCo; plain `entropy` fails at compress |
+| 8 bytes (`uint64`, `int64`, `float64`) | 73 | 65 | same as 4 bytes |
 
-With the default `prior="planar"` the sweep has 12, 16, 14 (12 usable) and 14
-(12 usable) names respectively.
+With the default `prior="planar"` the sweep has 16, 21, 19 (17 usable) and 19
+(17 usable) names respectively.
 
 ## 5. Fused codecs behind recipe names
 
@@ -96,12 +97,14 @@ Since 0.16.0 the planar recipes do not build separate `planar` and `zigzag` node
 | Recipe | Codec actually written |
 | --- | --- |
 | `planar>zigzag>pfor` | `planar_zigzag_pfor` (CTid `0x72D710`) into `store`; payload byte-identical to `planar_zigzag` then `pfor` |
+| `planar>zigzag>pivco` | `planar_zigzag_pivco` (CTid `0x72D712`) |
 | any other `planar>zigzag>...` | `planar_zigzag` (CTid `0x72D70F`) then the terminal |
 | `med>zigzag>...` | `med_zigzag` (CTid `0x72D711`) then the terminal |
 | every other predictor | predictor node, then OpenZL `zigzag`, then the terminal |
 
 Old frames written with separate `planar`, `zigzag` and `pfor` nodes still decode.
-New frames need a 0.16.0 or later reader (`compatibility.md`).
+The PivCo fusion needs a 0.19.0 reader; the other fused planar codecs need
+0.16.0 or later (`compatibility.md`).
 
 ## 6. Reading a profile and picking a row
 

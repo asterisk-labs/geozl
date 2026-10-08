@@ -45,12 +45,13 @@ destroys data. Released CTids are never reassigned.
 | `planar_zigzag` | `0x72D70F` | fused | numeric -> numeric | `PlanarZigzag(width, planes)` | planar then Zigzag in one pass |
 | `planar_zigzag_pfor` | `0x72D710` | fused | numeric -> serial | `PlanarZigzagPfor(width, planes)` | planar, Zigzag and PFOR, one 256-value block at a time |
 | `med_zigzag` | `0x72D711` | fused | numeric -> numeric | `MedZigzag(width, planes)` | MED then Zigzag in one pass |
+| `planar_zigzag_pivco` | `0x72D712` | fused | numeric -> weights + serial | none, C only | planar and Zigzag, then PivCo Huffman or byte PFOR per residual byte lane |
 | `quant_linear` | `0x72D781` | lossy | numeric -> numeric | `QuantLinear(recipe, dtype)` | uniform grid, absolute bound |
 | `quant_log` | `0x72D782` | lossy | numeric -> numeric | `QuantLog(recipe, dtype)` | logarithmic grid, relative bound |
 | `quant_sqrt` | `0x72D783` | lossy | numeric -> numeric | `QuantSqrt(recipe, dtype)` | square-root grid, bound follows `sqrt(a + b*x)` |
 
-The README documents fourteen codecs: the six predictors, the two fused codecs,
-`deinterleave`, `nodata`, `pfor` and the three quantizers.
+The README documents sixteen codecs: six predictors, four fused codecs,
+`deinterleave`, `nodata`, `pfor` and three quantizers.
 
 ## 3. Header layouts
 
@@ -63,13 +64,15 @@ The README documents fourteen codecs: the six predictors, the two fused codecs,
 | `nodata` | `w` or `4w` | plain: the NoData bit pattern; guarded: the pattern, then its neighbour above, below and the other signed zero |
 | `pfor` | 9 | `u64 count`, `u8 element width` |
 | `planar_zigzag_pfor` | 17 | `u64 count`, `u8 element width`, `u32 width`, `u32 planes` |
+| `planar_zigzag_pivco` | 21 + 7 per lane | `u64 count`, `u8 element width`, `u32 width`, `u32 planes`, `u32 PivCo block size`, then per byte lane `u8 mode` (0 PivCo, 1 PFOR), `u16 weights size`, `u32 payload size` |
 | `blocked_transpose_zstd` | 16 | `u8 version (1)`, `u8 element width`, `u16 reserved`, `u32 block size`, `u64 count` |
 | `quant_linear`, `quant_log` | 10 | `u8 dtype`, `u8 flags`, `f64 step` |
 | `quant_sqrt` | 18 | `u8 dtype`, `u8 flags`, `f64 step`, `f64 offset` |
 | coefficient blob (not a codec) | 6 + 4 per vector + 4 per value | `"GZC1"`, `u8 version (1)`, `u8 vector count`, then per vector `u32 n` and `n` x `i32`; in the frame header comment |
 
-Quantizer flags: bit 0 `NONNEGATIVE` (clamp at zero), bit 1 `STORE_VALUES`, and for
-`quant_sqrt` bit 2 `DECODE_F32` (rebuild f32 indices in binary32).
+Quantizer flags: bit 0 `NONNEGATIVE` (clamp at zero); bit 1 `STORE_VALUES`
+(integer LOG, integer SQRT when the index does not fit, and legacy frames); and,
+for `quant_sqrt`, bit 2 `DECODE_F32` (rebuild f32 indices in binary32).
 
 Width and planes must be nonzero and each plane must hold whole rows, or the frame is
 corrupt. PFOR readers bound the declared count by the payload (at most 128 elements per
@@ -89,6 +92,7 @@ Arithmetic wraps at the element width unless stated.
 | `wp_static` | `out = r + W + ((cN*N + cNW*NW + cNE*NE + cNN*NN + round) >> shift)`, 32-bit accumulator for 1 and 2 byte samples, 64-bit otherwise |
 | `planar_zigzag` | `r = (z >> 1) ^ -(z & 1)`, then planar |
 | `med_zigzag` | `r = (z >> 1) ^ -(z & 1)`, then med |
+| `planar_zigzag_pivco` | decode each byte lane (PivCo or byte PFOR), `z = sum lane_k << 8k`, then as `planar_zigzag` |
 | `pfor` | per block: unpack the `b`-bit body, then OR `exception_bits << b` into each listed position |
 | `nodata` | plain: `out = mask == 0 ? pattern : values`; guarded (mask 0 hole, 1 above, 2 below, 3 other zero): a hole takes `pattern`, a value equal to `pattern` takes the replacement its code names, anything else is copied; codes above 3 or a replacement equal to `pattern` are corrupt |
 | `quant_linear` | integer index: `q * step` in integer arithmetic; float index: `q * step`; values: copy or cast; clamp to dtype (and to 0 when `NONNEGATIVE`) |

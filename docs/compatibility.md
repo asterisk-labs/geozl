@@ -16,6 +16,10 @@ and older readers may not understand codecs introduced later.
 Released frames in `bindings/python/test/golden` are decoded in CI on x86-64
 and arm64.
 
+From 0.19, lossy codecs choose the stream layout and recipes no longer accept
+`STORE`. The wire format is unchanged, and readers still accept both layouts.
+Golden frames preserve the retired 0.14–0.18 value layouts.
+
 ### Changing the wire format of an existing codec
 
 Adding a codec is covered by [adding a codec](adding-a-codec.md). Changing one
@@ -46,7 +50,11 @@ GeoZL frames are OpenZL frames, so OpenZL container compatibility follows
 OpenZL. The Python package supports OpenZL 0.3.x.
 
 GeoZL writes OpenZL frame format 24, the newest one OpenZL 0.2 reads, so
-GeoZL 0.18 readers decode what later releases write. The exception is the
-`pivco` and `transpose>pivco` terminals: PivCo Huffman exists from format 27,
-so their frames need a reader on OpenZL 0.3, and a 0.18 reader refuses them.
+GeoZL 0.18 readers decode what later releases write. The exceptions are the
+`pivco`, `transpose>pivco` and `sparse` terminals. PivCo Huffman exists from
+format 27 and `sparse_num` from 26, so their frames need a reader on OpenZL
+0.3, and a 0.18 reader refuses them. `planar>zigzag>pivco` writes the
+`planar_zigzag_pivco` codec, new in 0.19, so its frames need a 0.19 reader. It
+calls the PivCo kernels of the pinned OpenZL, so a change to their bitstream
+would need a new CTid here.
 Readers accept every format OpenZL 0.3 does, up to 27.

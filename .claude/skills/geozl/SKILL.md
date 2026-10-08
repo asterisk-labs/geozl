@@ -47,8 +47,8 @@ back = geozl.decompress(frames[0]).view(tiles[0].dtype).reshape(tiles[0].shape)
 ```
 
 Bounded error: pass the **same** `error=` to `profile` and `graph`. `2` means
-`|x - x^| <= 2` (LINEAR), `"1%"` means relative (LOG), full recipes allow SQRT and
-`STORE=`. `None` and `0` are lossless. Build lossy graphs from data spanning the
+`|x - x^| <= 2` (LINEAR), `"1%"` means relative (LOG), full recipes allow SQRT.
+`None` and `0` are lossless. Build lossy graphs from data spanning the
 whole product, not from the first tile.
 
 ## Choosing a graph
@@ -103,7 +103,7 @@ files in the repository and is scoped to GeoZL 0.18.0.
 | --- | --- |
 | Python API: arguments, return values, dtypes, tiling, parallelism | [references/python-api.md](references/python-api.md) |
 | Recipe grammar, predictors, terminals, width rules, reading `profile` | [references/recipes.md](references/recipes.md) |
-| Bounded error: LINEAR, LOG, SQRT, `STORE`, domains, `fit_noise` | [references/lossy.md](references/lossy.md) |
+| Bounded error: LINEAR, LOG, SQRT, what the stream stores, domains, `fit_noise` | [references/lossy.md](references/lossy.md) |
 | NoData, NaN, sentinels, planes and cubes | [references/nodata-and-planes.md](references/nodata-and-planes.md) |
 | `openzl.ext` graphs with geozl nodes, complex rasters, raw PFOR | [references/low-level-graphs.md](references/low-level-graphs.md) |
 | Codec catalog: CTids, streams, header layouts, legacy codecs | [references/codecs.md](references/codecs.md) |

@@ -7,7 +7,7 @@ bound. Sources: `core/src/quant_*/spec.md`, `quant_*_spec.c`, `core/src/lossy/lo
 
 1. The three families
 2. Recipe grammar and the Python shorthand
-3. What the stream stores (`STORE`)
+3. What the stream stores
 4. How each grid is cut
 5. The domain frozen by `graph()`
 6. Special values: zero, negatives, NaN, infinity
@@ -34,31 +34,30 @@ Unknown keys, a trailing comma, or a repeated `MAX_ERROR` are refused.
 
 | Family | Keys |
 | --- | --- |
-| LINEAR | `MAX_ERROR=V` (required, `> 0`), `STORE=INDEX` or `STORE=VALUES` |
-| LOG | `MAX_ERROR=P%` (required, `%` required, `0 < P < 100`), `STORE=INDEX` or `STORE=VALUES` (repeats refused) |
-| SQRT | `MAX_ERROR=KN` (required, `N` required, `K > 0`), `A=a` (`>= 0`) and `B=b` (`> 0`) together or not at all, `STORE=INDEX` or `STORE=VALUES` |
+| LINEAR | `MAX_ERROR=V` (required, `> 0`) |
+| LOG | `MAX_ERROR=P%` (required, `%` required, `0 < P < 100`) |
+| SQRT | `MAX_ERROR=KN` (required, `N` required, `K > 0`), `A=a` (`>= 0`) and `B=b` (`> 0`) together or not at all |
 
 Python shorthand for `error=` (`graph`, `profile`): a positive number is
 `LINEAR:MAX_ERROR=<n>`, `"P%"` is `LOG:MAX_ERROR=P%`, zero in any form is lossless.
-SQRT and `STORE` always need the full recipe.
+SQRT always needs the full recipe. `STORE`, accepted from 0.14 to 0.18, is refused
+since 0.19 in every family.
 
-## 3. What the stream stores (`STORE`)
+## 3. What the stream stores
 
-The encoded stream is always integers. `STORE` picks between the grid index `q` and the
-reconstructed value. The grid and the bound are the same either way; only the
-numbers on the wire and the decode work change.
+The encoded stream is always integers, and the codec decides what they are. The
+grid and the bound do not depend on it.
 
 | Family | Integer input | Float input |
 | --- | --- | --- |
-| LINEAR | default `INDEX`; `VALUES` allowed | default `INDEX`; `VALUES` needs a whole step (`floor(2V) >= 1`) and an exactly representable top value |
-| LOG | always `VALUES`; `STORE=INDEX` is **refused** | default `INDEX`; `VALUES` rounds to whole numbers, refused where that breaks the bound (small magnitudes) |
-| SQRT | default `VALUES`; `INDEX` allowed only if the index range fits the element width | default `INDEX`; `VALUES` refused below the magnitude where whole-number rounding holds |
+| LINEAR | grid index | grid index |
+| LOG | reconstructed value, rounded to a whole number at encode | grid index |
+| SQRT | grid index, or the reconstructed value where the index would outgrow the element | grid index |
 
-Why it matters: indices are `step` times smaller than values, which bit packers
-(`pfor`) and transposed entropy coders exploit. Since 0.14.0 an integer LINEAR frame
-stores indices by default; on the project benchmark at `MAX_ERROR=100`,
-`planar>zigzag>pfor` moved from 4.08x to 9.37x. Entropy terminals see no change,
-because scaling every value by a constant keeps the distribution.
+Indices are `step` times smaller than values, which bit packers (`pfor`) and
+transposed entropy coders exploit; entropy on the untransposed stream sees no
+change. Frames from 0.14 to 0.18 may hold values where the table says index (the
+`STORE=VALUES` of those releases, and SQRT's integer default); readers decode both.
 
 ## 4. How each grid is cut
 
@@ -66,11 +65,10 @@ because scaling every value by a constant keeps the distribution.
 
 - Zero-anchored uniform grid, reconstruction `q * step`, clamped to the dtype (and to
   zero when the build raster had no negatives).
-- Integers (either `STORE`) and float `VALUES`: `step = floor(2V)`, minimum 1 for
-  integers. The real integer bound is `floor(step / 2)`: `error=2.7` gives step 5 and a
-  worst error of 2; any `V < 0.5` gives step 1, which is lossless. Integers rebuild in
-  integer arithmetic, exact up to `uint64` and `int64`.
-- Float `INDEX`: `step = 2 * (V - 2 * eps * maxAbs)`, with `eps` of `2^-11`, `2^-24`,
+- Integers: `step = floor(2V)`, minimum 1. The real integer bound is `floor(step / 2)`:
+  `error=2.7` gives step 5 and a worst error of 2; any `V < 0.5` gives step 1, which is
+  lossless. Integers rebuild in integer arithmetic, exact up to `uint64` and `int64`.
+- Floats: `step = 2 * (V - 2 * eps * maxAbs)`, with `eps` of `2^-11`, `2^-24`,
   `2^-53` for f16, f32, f64. The step depends on the largest magnitude of the build
   raster, so graphs built from different rasters can land on different grids (each
   still within the bound). Refused when the step is not positive (`V` below the type's
@@ -79,14 +77,14 @@ because scaling every value by a constant keeps the distribution.
 ### LOG
 
 - Levels a constant ratio apart; `step` is the gap in log2 units.
-- Float `INDEX`: the grid covers the whole floating-point type, anchored by the type
+- Floats: the grid covers the whole floating-point type, anchored by the type
   (`2^-24`, `2^-149`, `2^-1074` for f16, f32, f64) and the requested bound only. It never
   reads the tile, so cutting a product into different tiles never changes a
   reconstruction. Refused when `P` is finer than the type rebuilds
   (`... at or below what this type rebuilds to ...`) or the index needs more levels
   than the element holds.
-- `VALUES`: grid anchored at one with levels rounded to whole numbers; the budget is split
-  between the grid and the rounding. On integers, where adjacent levels are closer than
+- Integers: grid anchored at one with levels rounded to whole numbers; the budget is split
+  between the grid and the rounding. Where adjacent levels are closer than
   one, the rounding lands back on the sample, so tight bounds on small integers become
   lossless rather than wrong.
 
@@ -95,8 +93,8 @@ because scaling every value by a constant keeps the distribution.
 - Substituting `u = sqrt(x + offset)` makes the grid uniform again:
   `c = K * sqrt(b)`, `offset = a / b`, `x^ = (q * step)^2 - offset`. The header carries
   `step` and `offset`; `a` and `b` cannot be recovered from a frame.
-- Integers and float `VALUES`: `step = c / 2`, independent of the raster.
-- Float `INDEX`: `step` is `c` minus rounding charges measured over the raster range;
+- Integers: `step = c / 2`, independent of the raster.
+- Floats: `step` is `c` minus rounding charges measured over the raster range;
   f32 may decode in binary32 arithmetic when that costs at most a quarter of the budget.
 - Refused when the raster reaches below `-A/B` (`a shot bound is defined at or above
   -A/B ...`) or needs more levels than the arithmetic or element can resolve.
@@ -112,8 +110,7 @@ its statistics. `compress` then refuses tiles outside that domain, raising
 | LINEAR and LOG | the build raster had no negative sample and the tile has one (`built without negative samples`) |
 | LINEAR, float | the tile's largest magnitude exceeds the build raster's (`built for magnitudes up to ...`) |
 | LINEAR, integer | only the negativity rule |
-| LOG, float with `STORE=VALUES` | the tile's non-zero magnitudes leave the build range (`built for non-zero magnitudes from ... to ...`) |
-| LOG, other modes | only the negativity rule |
+| LOG | only the negativity rule |
 | SQRT | any finite value leaves the build raster's `[min, max]` (`built for values from ... to ...`) |
 
 A declared sentinel (`nodata=value`) is ignored by the check in later tiles, **but not
@@ -170,7 +167,6 @@ signal-dependent noise. Fit once over a product instead:
 curve = geozl.lossy.fit_noise(stack)   # 2-D array, (N, H, W) stack, or a sequence of 2-D arrays
 print(curve)       # sigma^2 = 11.02 + 0.9948*x  [900 blocks, 18/24 bins, range 6.4x, colin 2.2, resid 0.084]
 recipe = curve.recipe(1.0)                  # "SQRT:MAX_ERROR=1N,A=...,B=..."
-recipe = curve.recipe(1.0, store="VALUES")  # optional STORE
 g = geozl.graph(stack, best, width=stack.shape[-1], planes=1, error=recipe)
 ```
 

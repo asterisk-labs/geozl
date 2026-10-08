@@ -9,14 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Fused `planar_zigzag_pivco` codec (`0x72D712`).
-
+- `planar_zigzag_pivco` (CTID `0x72D712`), selected by
+  `planar>zigzag>pivco`. It fuses planar prediction, Zigzag and byte-lane
+  splitting, then uses PivCo or byte PFOR per lane. Frames require a 0.19 reader.
 - `pivco` and `transpose>pivco` terminals. Each stream, the byte lanes for
   `transpose>pivco` and the 1-byte residual for `pivco`, goes to OpenZL 0.3's
   PivCo Huffman unless one value holds more than half of it, which goes to
   `entropy`. PivCo decodes faster, but Huffman spends at least a bit per
   symbol, so the dominated streams keep FSE. Their frames use OpenZL format
   27 and need a reader on OpenZL 0.3.
+- `sparse` terminal for streams dominated by one value. It uses OpenZL's
+  `sparse_num` codec and writes format 27 frames.
 - Alpha support for Linux arm64, macOS x86-64, Windows x64 and arm64, and
   wasm64, built and tested in CI. No wheels are published for them yet.
   OpenZL publishes no Python wheel for these platforms, so there the package
@@ -30,6 +33,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   refuse crafted ROLZ and LZ streams that OpenZL 0.2 read out of bounds.
 - Frames are written at OpenZL format 24, not the 27 OpenZL 0.3 defaults to, so
   0.18 readers still decode them. Readers accept formats up to 27.
+- `quant_linear` no longer needs 128-bit integer arithmetic and now vectorizes
+  the narrow integer paths.
+- `quant_sqrt` uses a lookup table when decoding 8- and 16-bit integer indices.
+
+### Breaking
+
+- Removed `STORE` from lossy recipes and `store=` from `Noise.recipe`. Stream
+  layout is now selected by dtype and index range. Frames written by 0.14–0.18
+  remain readable.
+- Floating-point inputs no longer use integer-preserving value grids. Use an
+  integer dtype when exact whole-number reconstruction is required.
 
 ## [0.18.0] - 2026-09-20
 

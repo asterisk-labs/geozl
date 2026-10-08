@@ -95,6 +95,7 @@ OpenZL decoder.
 | `planar_zigzag` | `0x72D70F` | fuses planar residuals and Zigzag without an intermediate stream   |
 | `planar_zigzag_pfor` | `0x72D710` | the whole planar, Zigzag and PFOR chain as one numeric-to-serial codec |
 | `med_zigzag`    | `0x72D711` | fuses MED residuals and Zigzag without an intermediate stream      |
+| `planar_zigzag_pivco` | `0x72D712` | planar and Zigzag, then PivCo Huffman or byte PFOR per residual byte lane |
 | `quant_linear`  | `0x72D781` | uniform grid with a fixed absolute bound: `LINEAR:MAX_ERROR=V`     |
 | `quant_log`     | `0x72D782` | logarithmic grid with a relative bound: `LOG:MAX_ERROR=P%`         |
 | `quant_sqrt`    | `0x72D783` | square-root grid whose bound grows with noise: `SQRT:MAX_ERROR=VN` |

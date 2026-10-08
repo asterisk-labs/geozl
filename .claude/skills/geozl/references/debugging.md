@@ -40,9 +40,7 @@ to see the reason.
 | `RuntimeError: ... A and B travel together` | only one of `A`, `B` | give both, or neither to fit |
 | `RuntimeError: ... the local variance does not grow with the signal, so this is not shot noise` | SQRT fit on data without signal-dependent noise | use LINEAR or LOG, or give `A` and `B` |
 | `RuntimeError: ... a shot bound is defined at or above -A/B, which is -4, and this raster reaches -10` | data below the SQRT model's domain | shift data or choose another family |
-| `RuntimeError: ... STORE=INDEX is not available for integer input on this family` | LOG with `STORE=INDEX` on integers | drop `STORE=INDEX` |
 | `RuntimeError: ... is at or below what this type rebuilds to, which bottoms out near ...%` | LOG bound finer than float precision | loosen the bound or go lossless |
-| `RuntimeError: ... STORE=VALUES needs a whole step, and a MAX_ERROR of 0.4 gives 0.8` | float LINEAR `VALUES` with `V < 0.5` | use the default `INDEX` or a larger `V` |
 | `OverflowError: Python integer -9999 out of bounds for uint16` | sentinel outside the dtype | choose a representable sentinel |
 | `ValueError: nodata 3.5 is not a whole number, it cannot be a sentinel on int16` | fractional sentinel on integers | use an integer sentinel |
 | `ValueError: a half float carries no sentinel, NaN still works on one` | sentinel on `float16` | use NaN, or store as float32 |
@@ -57,9 +55,9 @@ to see the reason.
 | `RuntimeError: geozl.compress failed (...): Code: Input does not respect conditions for this node` with `eltWidth != 2` in the message (ZL error code 55) | plain `entropy` terminal on 4 or 8 byte elements | pick a transpose, zstd, field_lz or pfor recipe |
 | `RuntimeError: geozl.compress failed (...): Code: Input does not respect conditions for this node ... Transform ID: ...` (ZL error code 55) with a predictor recipe | tile sample count not a multiple of the graph's row width | build a graph with this tile's column count |
 | `RuntimeError: ... the lossy graph was built without negative samples, but this tile contains them; build the graph from the full product` | domain frozen at `graph()` | build from data spanning the product |
+| `RuntimeError: ... STORE was removed, ...` | a 0.14 to 0.18 recipe with `STORE=` | drop the key; the codec picks what the stream carries |
 | `RuntimeError: ... built for magnitudes up to A, but this tile reaches B` | float LINEAR domain | same |
 | `RuntimeError: ... built for values from lo to hi, but this tile reaches ...` | SQRT domain | same |
-| `RuntimeError: ... built for non-zero magnitudes from ... to ...` | float LOG `STORE=VALUES` domain | same, or use `INDEX` |
 | `TypeError: coefficient is not an integer: 1.5` | float in `coeffs` | integers only |
 | `ValueError: coeffs exceeds the 10000-byte limit` | too much metadata | fewer or shorter vectors |
 

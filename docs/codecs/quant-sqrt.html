@@ -43,12 +43,12 @@
         <p class="desc"><b>quant_sqrt</b> is designed for data whose noise grows with signal, such as shot
         noise described by <b>&#963;&#178; = a + b&middot;x</b>. Clean, low values get tighter spacing while noisier,
         high values get wider spacing. Fit <b>a</b> and <b>b</b> once for the whole product so every tile uses
-        the same grid, and send non-finite values through <b>nodata</b>. Integer input stores reconstructed
-        values by default; <code>STORE=INDEX</code> is accepted when the indices fit the input width.</p>
+        the same grid, and send non-finite values through <b>nodata</b>. The stream holds grid indices, or
+        the reconstructed values on an integer input whose indices would not fit its width.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D783</dd>
           <dt>header</dt><dd>dtype + flags + step + offset &middot; 18 bytes</dd>
-          <dt>recipe</dt><dd>SQRT:MAX_ERROR=VN &middot; ,A=&hellip;,B=&hellip; &middot; ,STORE=INDEX | VALUES</dd>
+          <dt>recipe</dt><dd>SQRT:MAX_ERROR=VN &middot; ,A=&hellip;,B=&hellip;</dd>
           <dt>types</dt><dd>integers 8 to 64-bit &middot; floats 16 to 64-bit</dd>
           <dt>decode</dt><dd>x = (q &middot; step)&#178; &minus; offset, or a copy when the stream holds the reconstruction</dd>
         </dl>
@@ -69,7 +69,7 @@
     </main>
 
     <footer class="footer pager">
-      <a class="pg prev" href="quant-log.html" style="--fam:var(--orange)" aria-label="Previous codec, quant_log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg><span class="pg-fam"></span><span class="pg-lab"><span class="pg-k">prev · 14</span><span class="pg-n">quant_log</span></span></a>
+      <a class="pg prev" href="quant-log.html" style="--fam:var(--orange)" aria-label="Previous codec, quant_log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg><span class="pg-fam"></span><span class="pg-lab"><span class="pg-k">prev · 15</span><span class="pg-n">quant_log</span></span></a>
       <span class="pg-mid mono">0x72D783</span>
       <a class="pg next" href="delta-w.html" style="--fam:var(--purple)" aria-label="Next codec, delta_w"><span class="pg-lab"><span class="pg-k">next · 01</span><span class="pg-n">delta_w</span></span><span class="pg-fam"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
     </footer>
