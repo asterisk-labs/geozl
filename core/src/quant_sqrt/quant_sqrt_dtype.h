@@ -46,19 +46,6 @@ static inline double quant_sqrt_eps(int dtype) {
   }
 }
 
-// Largest integer the type holds with no gaps. Past it a cast back would round,
-// which is what limits STORE=VALUES.
-static inline double quant_sqrt_exact_int(int dtype) {
-  switch (dtype) {
-  case QSQ_F16:
-    return 2048.0; // 2^11
-  case QSQ_F32:
-    return 16777216.0; // 2^24
-  default:
-    return GEOZL_F64_EXACT_INT;
-  }
-}
-
 // Largest magnitude the stream carries. It keeps the element width of the
 // original type, signed once the original was a float.
 static inline double quant_sqrt_stream_max(int dtype) {

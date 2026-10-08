@@ -17,7 +17,6 @@
 int quant_linear_parse(const char *s, quant_linear_spec *out, char *err,
                        size_t errSize) {
   memset(out, 0, sizeof(*out));
-  out->store = QUANT_LINEAR_STORE_DEFAULT;
 
   if (s == NULL || strncmp(s, "LINEAR:", 7) != 0)
     return geozl_recipe_fail(err, errSize,
@@ -36,16 +35,12 @@ int quant_linear_parse(const char *s, quant_linear_spec *out, char *err,
         return geozl_recipe_fail(err, errSize, "error \"%s\": MAX_ERROR must be positive", s);
       haveError = 1;
     } else if (geozl_recipe_keyed(&cur, "STORE", &vb, &ve) == 0) {
-      const size_t n = (size_t)(ve - vb);
-      if (n == 5 && strncmp(vb, "INDEX", 5) == 0)
-        out->store = QUANT_LINEAR_STORE_INDEX;
-      else if (n == 6 && strncmp(vb, "VALUES", 6) == 0)
-        out->store = QUANT_LINEAR_STORE_VALUES;
-      else
-        return geozl_recipe_fail(err, errSize, "error \"%s\": STORE takes INDEX or VALUES", s);
+      return geozl_recipe_fail(err, errSize,
+                  "error \"%s\": STORE was removed, a LINEAR stream always "
+                  "carries the grid index", s);
     } else {
       return geozl_recipe_fail(err, errSize,
-                  "error \"%s\": unknown key, expected MAX_ERROR or STORE", s);
+                  "error \"%s\": unknown key, expected MAX_ERROR", s);
     }
     if (*cur == '\0')
       break;
@@ -69,11 +64,8 @@ int quant_linear_resolve(const quant_linear_spec *sp, int dtype,
   if (!sc->anyNegative)
     out->flags |= QUANT_LINEAR_FLAG_NONNEGATIVE;
 
-  const int isInt = dtype <= QL_LAST_INT;
-  const int wantValues = sp->store == QUANT_LINEAR_STORE_VALUES;
-
-  // Integer INDEX and VALUES share one whole-step grid.
-  if (isInt) {
+  // Integers keep a whole step, so the grid never reads the raster.
+  if (dtype <= QL_LAST_INT) {
     out->step = floor(2.0 * sp->max_error);
     if (!isfinite(out->step))
       return geozl_recipe_fail(err, errSize,
@@ -81,51 +73,14 @@ int quant_linear_resolve(const quant_linear_spec *sp, int dtype,
                   sp->max_error);
     if (!(out->step >= 1.0))
       out->step = 1.0; // a step of one is lossless, which is the floor
-    if (wantValues)
-      out->flags |= QUANT_LINEAR_FLAG_STORE_VALUES;
     // Integer division keeps |index| <= |sample|, including past 2^53.
-    return 0;
-  }
-
-  if (wantValues) {
-    // Truncated, never rounded. A grid of levels every 2V holds the bound, but
-    // this one steps by a whole unit, and rounding 2V up would widen it past what
-    // was declared: 0.94 asks for 1.88 and a step of 2 misses by 1.
-    out->step = floor(2.0 * sp->max_error);
-    if (!isfinite(out->step))
-      return geozl_recipe_fail(err, errSize,
-                  "a MAX_ERROR of %g makes the grid step too large",
-                  sp->max_error);
-    if (!(out->step >= 1.0)) {
-      return geozl_recipe_fail(err, errSize,
-                  "STORE=VALUES needs a whole step, and a MAX_ERROR of %g "
-                  "gives %g",
-                  sp->max_error, 2.0 * sp->max_error);
-    }
-    out->flags |= QUANT_LINEAR_FLAG_STORE_VALUES;
-
-    {
-      // Past this a cast back would round and the bound would stop holding.
-      const double top = ceil(maxAbs / out->step) * out->step;
-      if (top > quant_linear_exact_int(dtype))
-        return geozl_recipe_fail(err, errSize,
-                    "STORE=VALUES needs a reconstruction exact in the output "
-                    "type, and %g is past the %g it carries",
-                    top, quant_linear_exact_int(dtype));
-      if (top > quant_linear_stream_max(dtype))
-        return geozl_recipe_fail(err, errSize,
-                    "STORE=VALUES needs a reconstruction of %g, wider than a "
-                    "%zu-byte stream carries",
-                    top, quant_linear_width(dtype));
-    }
     return 0;
   }
 
   // Two roundings, not one. The division inside nearbyint(x/step) can send q to
   // the neighbour the exact quotient would not have picked, which costs eps*|x|,
   // and storing q*step at the output width rounds again by eps*|x^|. See
-  // spec.md. This is also the only thing on this path that reads the tile, and
-  // STORE=VALUES is the way out.
+  // spec.md. This is also the only thing on this path that reads the tile.
   out->step = 2.0 * (sp->max_error - 2.0 * quant_linear_eps(dtype) * maxAbs);
   if (!isfinite(out->step))
     return geozl_recipe_fail(err, errSize,

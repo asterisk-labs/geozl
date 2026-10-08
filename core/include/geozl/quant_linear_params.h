@@ -4,7 +4,7 @@
 // Clamp reconstruction at zero when the input has no negative samples.
 #define QUANT_LINEAR_FLAG_NONNEGATIVE 1u
 
-// Store reconstructed values instead of quantizer indices.
+// Legacy frames may store reconstructed values instead of grid indices.
 #define QUANT_LINEAR_FLAG_STORE_VALUES 2u
 
 #define QUANT_LINEAR_FLAGS_KNOWN                                               \
@@ -15,19 +15,9 @@ typedef struct {
   double step;
 } quant_linear_params;
 
-// What the caller asked for. DEFAULT is not a third layout: it resolves to
-// INDEX or VALUES per input type, because the two are not equally available
-// everywhere and the resolver is the only place that knows the dtype.
-typedef enum {
-  QUANT_LINEAR_STORE_INDEX = 0,
-  QUANT_LINEAR_STORE_VALUES = 1,
-  QUANT_LINEAR_STORE_DEFAULT = 2
-} quant_linear_store;
-
 // Parsed recipe before it is resolved for a dtype and raster.
 typedef struct {
   double max_error;
-  unsigned char store;
 } quant_linear_spec;
 
 // Statistics used to resolve a recipe.

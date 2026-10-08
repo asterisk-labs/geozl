@@ -64,10 +64,6 @@ static void mode_parse(const uint8_t *d, size_t n) {
   // A parse that succeeded has to leave something the resolver can read.
   if (!(sp.k > 0.0) || !isfinite(sp.k))
     abort();
-  if (sp.store != QUANT_SQRT_STORE_DEFAULT &&
-      sp.store != QUANT_SQRT_STORE_INDEX &&
-      sp.store != QUANT_SQRT_STORE_VALUES)
-    abort();
   if (sp.have_ab && (!(sp.b > 0.0) || !(sp.a >= 0.0) || !isfinite(sp.a) ||
                      !isfinite(sp.b)))
     abort();
@@ -151,9 +147,7 @@ static void mode_roundtrip(const uint8_t *d, size_t n) {
       "SQRT:MAX_ERROR=1N,A=0,B=1",
       "SQRT:MAX_ERROR=0.1N,A=0,B=1",
       "SQRT:MAX_ERROR=5N,A=1000,B=0.5",
-      "SQRT:MAX_ERROR=1N,A=100,B=1,STORE=VALUES",
-      "SQRT:MAX_ERROR=0.5N,A=25,B=2,STORE=VALUES",
-      "SQRT:MAX_ERROR=3N,A=1,B=1,STORE=VALUES",
+      "SQRT:MAX_ERROR=3N,A=1,B=1",
       "SQRT:MAX_ERROR=1e-3N,A=1e6,B=1",
       "SQRT:MAX_ERROR=100N,A=1,B=1"};
   if (n < 4)
@@ -226,11 +220,9 @@ static void mode_roundtrip(const uint8_t *d, size_t n) {
   if (!(worst <= 1.0) && !(dtype == QSQ_U64 || dtype == QSQ_I64))
     abort();
 
-  // Two frames that each hold the bound can still disagree by twice it. The index
+  // Two frames that each hold the bound can still disagree by twice it. The float
   // path is excluded, its step reads the raster on purpose.
-  const int pinned =
-      dtype <= QSQ_LAST_INT || sp.store == QUANT_SQRT_STORE_VALUES;
-  if (!pinned || elts < 4)
+  if (dtype > QSQ_LAST_INT || elts < 4)
     return;
   const size_t half = elts / 2;
   for (size_t off = 0; off + half <= elts; off += half) {

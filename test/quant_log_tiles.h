@@ -179,7 +179,7 @@ static inline qt_tile qt_make(const char *name) {
       qt_put(t.data, t.dtype, i,
              f[i] < 0.5 ? 0.0 : 1.0e-5 * exp(4.0 * (f[i] - 0.5)));
   } else if (strcmp(name, "kelvin") == 0) {
-    // A narrow band away from zero, which is where STORE=VALUES applies.
+    // A narrow band away from zero.
     t.data = malloc(QT_N * 4);
     for (size_t i = 0; i < QT_N; ++i)
       qt_put(t.data, t.dtype, i, 290.0 + 14.0 * f[i]);

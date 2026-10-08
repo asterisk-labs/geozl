@@ -317,7 +317,6 @@ def _both_sides_f64():
 _COLLISIONS = [
     ("u16 zero, LINEAR", _dark_u16, 0, 2),
     ("u16 zero, LINEAR wide", _dark_u16, 0, 5),
-    ("u16 zero, LINEAR values", _dark_u16, 0, "LINEAR:MAX_ERROR=5,STORE=VALUES"),
     ("u16 zero, LOG", _dark_u16, 0, "LOG:MAX_ERROR=20%"),
     ("u16 zero, SQRT", _dark_u16, 0, "SQRT:MAX_ERROR=1N,A=1,B=1"),
     ("u16 top, LINEAR", _near_top_u16, 65535, 8),

@@ -58,10 +58,6 @@ static void mode_parse(const uint8_t *d, size_t n) {
   // resolver runs on data the parser let through.
   if (!(sp.max_error > 0.0) || !isfinite(sp.max_error))
     abort();
-  if (sp.store != QUANT_LINEAR_STORE_INDEX &&
-      sp.store != QUANT_LINEAR_STORE_VALUES &&
-      sp.store != QUANT_LINEAR_STORE_DEFAULT)
-    abort();
 
   quant_linear_params p;
   // Exercise signed decode with and without the nonnegative flag.
@@ -134,9 +130,7 @@ static void mode_roundtrip(const uint8_t *d, size_t n) {
   static const char *kRecipes[] = {
       "LINEAR:MAX_ERROR=0.5",       "LINEAR:MAX_ERROR=5",
       "LINEAR:MAX_ERROR=1000",      "LINEAR:MAX_ERROR=0.001",
-      "LINEAR:MAX_ERROR=2,STORE=VALUES",
-      "LINEAR:MAX_ERROR=0.5,STORE=VALUES",
-      "LINEAR:MAX_ERROR=50,STORE=VALUES",
+      "LINEAR:MAX_ERROR=2",         "LINEAR:MAX_ERROR=50",
       "LINEAR:MAX_ERROR=1e-4",      "LINEAR:MAX_ERROR=12.5",
       "LINEAR:MAX_ERROR=0.05"};
   if (n < 4)
@@ -211,11 +205,9 @@ static void mode_roundtrip(const uint8_t *d, size_t n) {
 
   // The grid must not depend on which part of the raster this call got. Two
   // frames that each hold the bound can still disagree by twice it, and no
-  // per-sample check sees that. The float index path is excluded, its step reads
+  // per-sample check sees that. The float path is excluded, its step reads
   // maxAbs on purpose.
-  const int pinned =
-      dtype <= QL_LAST_INT || sp.store == QUANT_LINEAR_STORE_VALUES;
-  if (!pinned || elts < 4)
+  if (dtype > QL_LAST_INT || elts < 4)
     return;
   const size_t half = elts / 2;
   for (size_t off = 0; off + half <= elts; off += half) {

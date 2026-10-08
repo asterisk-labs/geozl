@@ -64,15 +64,12 @@ def test_recipe_round_trips_the_curve():
     a = float(recipe.split("A=")[1].split(",")[0])
     b = float(recipe.split("B=")[1])
     assert (a, b) == (noise.a, noise.b)
-    assert noise.recipe(1, store="VALUES").endswith(",STORE=VALUES")
 
 
 def test_recipe_refuses_what_the_codec_would():
     noise = geozl.lossy.fit_noise(_scene(256, 50, 4000))
     with pytest.raises(ValueError):
         noise.recipe(0)
-    with pytest.raises(ValueError):
-        noise.recipe(0.5, store="MAYBE")
 
 
 def test_a_flat_raster_has_no_curve():

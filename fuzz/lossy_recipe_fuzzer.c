@@ -44,17 +44,15 @@ static void mode_route(const uint8_t *d, size_t n) {
       abort();
     break;
   case GEOZL_LOSSY_LINEAR:
-    if (!okLin || r.as.linear.max_error != lin.max_error ||
-        r.as.linear.store != lin.store)
+    if (!okLin || r.as.linear.max_error != lin.max_error)
       abort();
     break;
   case GEOZL_LOSSY_LOG:
-    if (!okLog || r.as.log.rel_err != lg.rel_err || r.as.log.store != lg.store)
+    if (!okLog || r.as.log.rel_err != lg.rel_err)
       abort();
     break;
   case GEOZL_LOSSY_SQRT:
-    if (!okSqrt || r.as.sqrt.k != sq.k || r.as.sqrt.have_ab != sq.have_ab ||
-        r.as.sqrt.store != sq.store)
+    if (!okSqrt || r.as.sqrt.k != sq.k || r.as.sqrt.have_ab != sq.have_ab)
       abort();
     break;
   default:
@@ -65,12 +63,12 @@ static void mode_route(const uint8_t *d, size_t n) {
 static const char *kRecipes[] = {
     "",
     "LINEAR:MAX_ERROR=0.5",
-    "LINEAR:MAX_ERROR=5,STORE=VALUES",
+    "LINEAR:MAX_ERROR=5",
     "LOG:MAX_ERROR=1%",
     "LOG:MAX_ERROR=0.01%",
     "SQRT:MAX_ERROR=0.5N",
     "SQRT:MAX_ERROR=0.5N,A=100,B=1",
-    "SQRT:MAX_ERROR=2N,STORE=VALUES",
+    "SQRT:MAX_ERROR=2N",
 };
 #define NB_RECIPES (sizeof(kRecipes) / sizeof(*kRecipes))
 

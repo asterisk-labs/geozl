@@ -19,36 +19,58 @@ static double ql_lo(const quant_linear_params *p, int dtype) {
              : quant_linear_value_lo(dtype);
 }
 
-// Saturate before multiplying; a forged wide index can overflow 128 bits.
-#define QL_DEC_IDX_U(T)                                                        \
+// WT is twice as wide as T. Cap the step so the product cannot overflow WT.
+#define QL_DEC_IDX_U(T, WT)                                                    \
   do {                                                                         \
     const T *s = (const T *)src;                                               \
     T *d = (T *)dst;                                                           \
-    const unsigned __int128 cap = (unsigned __int128)(T)(~(T)0);               \
-    const unsigned __int128 lim = cap / isc;                                   \
+    const WT cap = (WT)(T)(~(T)0);                                             \
+    const WT k = isc > cap ? cap : (WT)isc;                                    \
     for (size_t i = 0; i < nbElts; ++i) {                                      \
-      const unsigned __int128 m = (unsigned __int128)s[i];                     \
-      d[i] = (T)(uint64_t)(m > lim ? cap : m * isc);                           \
+      const WT v = (WT)s[i] * k;                                               \
+      d[i] = (T)(v > cap ? cap : v);                                           \
     }                                                                          \
   } while (0)
 
-// TYPE_MIN has magnitude HI+1, so signed saturation uses that upper bound.
-#define QL_DEC_IDX_I(T, LO, HI)                                                \
+// Signed saturation uses HI + 1, the magnitude of the type's minimum.
+#define QL_DEC_IDX_I(T, WT, UT, HI)                                            \
   do {                                                                         \
     const T *s = (const T *)src;                                               \
     T *d = (T *)dst;                                                           \
-    const T lo = floorZero ? (T)0 : (T)(LO);                                   \
-    const unsigned __int128 top = (unsigned __int128)(HI) + 1u;                \
-    const unsigned __int128 lim = top / isc;                                   \
+    const UT top = (UT)(HI) + 1u;                                              \
+    const UT k = isc > top ? top : (UT)isc;                                    \
+    const WT lo = floorZero ? 0 : -(WT)top;                                    \
     for (size_t i = 0; i < nbElts; ++i) {                                      \
-      const __int128 q = (__int128)s[i];                                       \
-      const unsigned __int128 m =                                              \
-          q < 0 ? (unsigned __int128)(-q) : (unsigned __int128)q;              \
-      const unsigned __int128 mr = m > lim ? top : m * isc;                    \
-      const __int128 r = q < 0 ? -(__int128)mr : (__int128)mr;                 \
-      d[i] = r < (__int128)lo ? lo : (r > (__int128)(HI) ? (HI) : (T)r);       \
+      const WT q = s[i];                                                       \
+      const UT m = (UT)(q < 0 ? -q : q) * k;                                   \
+      const WT mr = (WT)(m > top ? top : m);                                   \
+      const WT r = q < 0 ? -mr : mr;                                           \
+      d[i] = (T)(r < lo ? lo : (r > (WT)(HI) ? (WT)(HI) : r));                 \
     }                                                                          \
   } while (0)
+
+// Check before multiplying because there is no wider integer type.
+static void ql_dec_u64(uint64_t *d, const uint64_t *s, uint64_t isc,
+                       size_t nbElts) {
+  const uint64_t lim = UINT64_MAX / isc;
+  for (size_t i = 0; i < nbElts; ++i)
+    d[i] = s[i] > lim ? UINT64_MAX : s[i] * isc;
+}
+
+static void ql_dec_i64(int64_t *d, const int64_t *s, uint64_t isc,
+                       int floorZero, size_t nbElts) {
+  const uint64_t top = (uint64_t)INT64_MAX + 1u;
+  const uint64_t lim = top / isc;
+  for (size_t i = 0; i < nbElts; ++i) {
+    const int neg = s[i] < 0;
+    const uint64_t m = neg ? 0u - (uint64_t)s[i] : (uint64_t)s[i];
+    const uint64_t mr = m > lim ? top : m * isc;
+    if (neg)
+      d[i] = floorZero ? 0 : (mr >= top ? INT64_MIN : -(int64_t)mr);
+    else
+      d[i] = mr >= top ? INT64_MAX : (int64_t)mr;
+  }
+}
 
 #define QL_DEC_MUL(WT, IT, CAST)                                               \
   do {                                                                         \
@@ -93,36 +115,34 @@ int quant_linear_decode(void *restrict dst, const void *restrict src,
       const uint64_t isc = quant_linear_step_u64(step);
       switch ((ql_dtype)dtype) {
       case QL_U8:
-        QL_DEC_IDX_U(uint8_t);
+        QL_DEC_IDX_U(uint8_t, uint32_t);
         break;
       case QL_U16:
-        QL_DEC_IDX_U(uint16_t);
+        QL_DEC_IDX_U(uint16_t, uint32_t);
         break;
       case QL_U32:
-        QL_DEC_IDX_U(uint32_t);
+        QL_DEC_IDX_U(uint32_t, uint64_t);
         break;
       case QL_U64:
-        QL_DEC_IDX_U(uint64_t);
+        ql_dec_u64((uint64_t *)dst, (const uint64_t *)src, isc, nbElts);
         break;
       case QL_I8:
-        QL_DEC_IDX_I(int8_t, INT8_MIN, INT8_MAX);
+        QL_DEC_IDX_I(int8_t, int32_t, uint32_t, INT8_MAX);
         break;
       case QL_I16:
-        QL_DEC_IDX_I(int16_t, INT16_MIN, INT16_MAX);
+        QL_DEC_IDX_I(int16_t, int32_t, uint32_t, INT16_MAX);
         break;
       case QL_I32:
-        QL_DEC_IDX_I(int32_t, INT32_MIN, INT32_MAX);
+        QL_DEC_IDX_I(int32_t, int64_t, uint64_t, INT32_MAX);
         break;
       default:
-        QL_DEC_IDX_I(int64_t, INT64_MIN, INT64_MAX);
+        ql_dec_i64((int64_t *)dst, (const int64_t *)src, isc, floorZero,
+                   nbElts);
         break;
       }
       return 0;
     }
-    // An unsigned type cannot hold a negative, so the floor is already true of
-    // the stream and the copy stands. A signed one has to have it applied, the
-    // same way the float STORE=VALUES paths below do. Without this the flag
-    // means the floor on a float frame and nothing at all on an integer one.
+    // Apply the nonnegative flag to legacy signed values frames.
     if (floorZero && dtype >= QL_I8) {
       switch ((ql_dtype)dtype) {
       case QL_I8:

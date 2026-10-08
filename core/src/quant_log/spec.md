@@ -5,15 +5,15 @@ Lossy numeric codec, CTID `0x72D782`.
 `quant_log` uses a logarithmic grid with a relative error bound:
 
     LOG:MAX_ERROR=V%
-    LOG:MAX_ERROR=V%,STORE=INDEX
-    LOG:MAX_ERROR=V%,STORE=VALUES
 
-`MAX_ERROR` is required, must include `%`, and must be in `(0, 100)`. `STORE`
-defaults to `INDEX`. Unknown or repeated keys and trailing commas are rejected.
-Integer input always stores reconstructed values. `STORE=INDEX` on integer input
-is refused rather than ignored: rebuilding a level and then rounding it to a
-whole number spends both the index arithmetic budget and the rounding budget,
-and the grid resolved here charges for only one of them.
+`MAX_ERROR` is required, must include `%`, and must be in `(0, 100)`. Unknown or
+repeated keys and trailing commas are rejected.
+
+The dtype picks what the stream carries. Integer input stores the reconstructed
+values: the encoder rounds each level to a whole number, so the decoder never
+rebuilds a level and rounds it a second time, which the bound has no budget for.
+Floating-point input stores grid indices. A float frame from 0.14 to 0.18 may hold
+values, which that release's `STORE=VALUES` asked for; a decoder still reads it.
 
 ## Inputs
 
@@ -39,7 +39,7 @@ The encoded stream always has an integer representation:
 | Input | Storage | Reconstruction |
 | --- | --- | --- |
 | integer | values | copy the stored value |
-| float | values | cast the stored value to the output type |
+| float | values (0.14 to 0.18) | cast the stored value to the output type |
 | float | index | rebuild the logarithmic level |
 
 The values grid is anchored at one. Its levels are rounded to whole numbers
@@ -57,16 +57,13 @@ clamped to the output range and to zero when flag bit 0 is set.
 ## Resolving the grid
 
 The resolver chooses `step` so grid error and output rounding remain within the
-requested relative bound. `STORE=VALUES` splits that budget between the grid
-and whole-number rounding. It is refused when the tile reaches magnitudes where
-whole-number rounding exceeds the bound or the reconstruction is not exact in
-the output type.
+requested relative bound. The values grid of integer input splits that budget
+between the grid and whole-number rounding.
 
 The index grid covers the full floating-point type rather than the current tile.
 It is refused if the requested bound is below the output precision or needs
 more indices than the stream width can hold. Its anchor and step do not depend
-on tile statistics. Tile statistics only set the nonnegative flag and perform
-the `STORE=VALUES` range checks.
+on tile statistics. Tile statistics only set the nonnegative flag.
 
 Zero is exact. Negative zero loses its sign. NaNs reconstruct as zero unless a
 preceding `nodata` codec restores them. Infinities are clamped to the largest

@@ -17,7 +17,6 @@
 int quant_log_parse(const char *s, quant_log_spec *out, char *err,
                     size_t errSize) {
   memset(out, 0, sizeof(*out));
-  out->store = QUANT_LOG_STORE_DEFAULT;
 
   if (s == NULL || strncmp(s, "LOG:", 4) != 0)
     return geozl_recipe_fail(err, errSize, "quant_log takes \"LOG:MAX_ERROR=V%%\", got \"%s\"",
@@ -25,7 +24,7 @@ int quant_log_parse(const char *s, quant_log_spec *out, char *err,
 
   const char *cur = s + 4;
   const char *vb, *ve;
-  int haveError = 0, haveStore = 0;
+  int haveError = 0;
 
   for (;;) {
     if (geozl_recipe_keyed(&cur, "MAX_ERROR", &vb, &ve) == 0) {
@@ -44,19 +43,12 @@ int quant_log_parse(const char *s, quant_log_spec *out, char *err,
       out->rel_err = v / 100.0;
       haveError = 1;
     } else if (geozl_recipe_keyed(&cur, "STORE", &vb, &ve) == 0) {
-      const size_t n = (size_t)(ve - vb);
-      if (haveStore)
-        return geozl_recipe_fail(err, errSize, "error \"%s\": STORE is given twice", s);
-      if (n == 5 && strncmp(vb, "INDEX", 5) == 0)
-        out->store = QUANT_LOG_STORE_INDEX;
-      else if (n == 6 && strncmp(vb, "VALUES", 6) == 0)
-        out->store = QUANT_LOG_STORE_VALUES;
-      else
-        return geozl_recipe_fail(err, errSize, "error \"%s\": STORE takes INDEX or VALUES", s);
-      haveStore = 1;
+      return geozl_recipe_fail(err, errSize,
+                  "error \"%s\": STORE was removed, a LOG stream carries values "
+                  "for integers and grid indices for floats", s);
     } else {
       return geozl_recipe_fail(err, errSize,
-                  "error \"%s\": unknown key, expected MAX_ERROR or STORE", s);
+                  "error \"%s\": unknown key, expected MAX_ERROR", s);
     }
     if (*cur == '\0')
       break;
@@ -80,14 +72,8 @@ int quant_log_resolve(const quant_log_spec *sp, int dtype,
     return geozl_recipe_fail(err, errSize, "MAX_ERROR must be positive");
 
   const double b = sp->rel_err;
-  const int isInt = dtype <= QLOG_LAST_INT;
-  // Integer INDEX needs a second rounding budget that this grid does not have.
-  if (isInt && sp->store == QUANT_LOG_STORE_INDEX)
-    return geozl_recipe_fail(err, errSize,
-                "STORE=INDEX is not available for integer input on this family, "
-                "because rebuilding a level and then rounding it to a whole "
-                "number spends more than the bound allows");
-  const int values = isInt || sp->store == QUANT_LOG_STORE_VALUES;
+  // Integer streams hold the rounded reconstruction.
+  const int values = dtype <= QLOG_LAST_INT;
 
   if (!sc->anyNegative)
     out->flags |= QUANT_LOG_FLAG_NONNEGATIVE;
@@ -109,31 +95,6 @@ int quant_log_resolve(const quant_log_spec *sp, int dtype,
                   "reconstruction",
                   b * 100.0);
     out->step = 2.0 * half;
-
-    // Below this the gap between levels is under one, so the level nearest a
-    // whole number rounds back to it and the reconstruction is exact. An integer
-    // sample is already whole and rides that for free. A float sample is not, and
-    // rounding it costs more than the bound, so it is refused rather than served.
-    if (!isInt) {
-      const double cross = 0.5 / (r - 1.0);
-      if (sc->minAbs < cross)
-        return geozl_recipe_fail(err, errSize,
-                    "STORE=VALUES rounds to whole numbers, which holds a "
-                    "MAX_ERROR of %g%% only at or above %g, and this tile "
-                    "reaches %g",
-                    b * 100.0, cross, sc->minAbs);
-
-      const double lim = quant_log_exact_int(dtype);
-      if (sc->maxAbs > 0.0) {
-        const double j = ceil(log2(sc->maxAbs) / out->step);
-        const double top = qlog_value_level(j, out->step);
-        if (top > lim)
-          return geozl_recipe_fail(err, errSize,
-                      "STORE=VALUES needs a reconstruction exact in the output "
-                      "type, and %g is past the %g it carries",
-                      top, lim);
-      }
-    }
     return 0;
   }
 

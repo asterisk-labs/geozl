@@ -6,6 +6,7 @@
 
 #include <math.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 // The rebuild is (q*step)^2 - offset. Everything below exists to keep control
@@ -53,6 +54,37 @@
 #define QSQ_TOF32(v) ((float)(v))
 #define QSQ_TOF16(v) (quant_sqrt_float_to_half((float)(v)))
 
+// Rebuild small integer levels once, then decode through the table.
+static int qsq_dec_table(void *dst, const void *src, const quant_sqrt_params *p,
+                         int dtype, size_t nbElts, size_t w, size_t n) {
+  unsigned char *buf = malloc(2 * n * w);
+  if (buf == NULL)
+    return 1;
+  unsigned char *ramp = buf, *tab = buf + n * w;
+  for (size_t k = 0; k < n; ++k) {
+    if (w == 1)
+      ramp[k] = (uint8_t)k;
+    else
+      ((uint16_t *)ramp)[k] = (uint16_t)k;
+  }
+  quant_sqrt_decode(tab, ramp, p, dtype, n);
+  const size_t top = n - 1;
+  if (w == 1) {
+    const uint8_t *s = (const uint8_t *)src;
+    uint8_t *d = (uint8_t *)dst;
+    for (size_t i = 0; i < nbElts; ++i)
+      d[i] = tab[s[i] > top ? top : s[i]];
+  } else {
+    const uint16_t *s = (const uint16_t *)src;
+    const uint16_t *t = (const uint16_t *)tab;
+    uint16_t *d = (uint16_t *)dst;
+    for (size_t i = 0; i < nbElts; ++i)
+      d[i] = t[s[i] > top ? top : s[i]];
+  }
+  free(buf);
+  return 0;
+}
+
 int quant_sqrt_decode(void *restrict dst, const void *restrict src,
                       const quant_sqrt_params *p, int dtype, size_t nbElts) {
   // Same predicate the encoder and the binding read.
@@ -94,7 +126,14 @@ int quant_sqrt_decode(void *restrict dst, const void *restrict src,
   const double vlo = nonneg ? 0.0 : quant_sqrt_value_lo(dtype);
   const double dtop = quant_sqrt_index_top(step, offset, dtype, 0);
 
-  // Integer INDEX rounds with the budget reserved by the resolver.
+  if (dtype <= QSQ_LAST_INT && quant_sqrt_width(dtype) <= 2) {
+    const size_t w = quant_sqrt_width(dtype);
+    const size_t n = (size_t)(w == 1 ? (uint8_t)dtop : (uint16_t)dtop) + 1;
+    if (nbElts > 2 * n && qsq_dec_table(dst, src, p, dtype, nbElts, w, n) == 0)
+      return 0;
+  }
+
+  // Integer indices use the rounding budget reserved by the resolver.
   switch ((qsq_dtype)dtype) {
   case QSQ_U8: {
     const uint8_t utop = (uint8_t)dtop;

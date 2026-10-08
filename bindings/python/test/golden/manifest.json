@@ -517,6 +517,141 @@
       "written_by": "geozl 0.14.0",
       "sha256_decoded": "5874c371c72388aff6c5b4797ccac62e3e84575cfade7c2fbb89557346d0adaf",
       "sha256_frame": "b001c8da2bf9f3220e12d3aef419b956fe434d569bf73ae4383d0e282ca04fb7"
+    },
+    {
+      "name": "quant-linear-values-float16",
+      "file": "quant-linear-values-float16.zl",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "LINEAR:MAX_ERROR=0.5,STORE=VALUES",
+      "nodata": null,
+      "dtype": "float16",
+      "shape": [
+        32,
+        32
+      ],
+      "written_by": "geozl 0.18.0",
+      "sha256_decoded": "8c826a0827081de061de226272f29c332d1ae5c991d62bea30d82e5acfa3c511",
+      "sha256_frame": "750216f6028b2bb2fa8e83fb4d1348c35370b50a9b7935a9eb6b90f4fe578f8e"
+    },
+    {
+      "name": "quant-linear-values-float32",
+      "file": "quant-linear-values-float32.zl",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "LINEAR:MAX_ERROR=0.5,STORE=VALUES",
+      "nodata": null,
+      "dtype": "float32",
+      "shape": [
+        32,
+        32
+      ],
+      "written_by": "geozl 0.18.0",
+      "sha256_decoded": "a3f75a345ad92c0aba94208cb75cb259450b4565fbe082f738d264a0de6e5b07",
+      "sha256_frame": "46609f32588071c39188f3927ed39dc28046f9b1e787954a68e42665254938e5"
+    },
+    {
+      "name": "quant-linear-values-float64",
+      "file": "quant-linear-values-float64.zl",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "LINEAR:MAX_ERROR=0.5,STORE=VALUES",
+      "nodata": null,
+      "dtype": "float64",
+      "shape": [
+        32,
+        32
+      ],
+      "written_by": "geozl 0.18.0",
+      "sha256_decoded": "f1524b823b4d7fbd620ef0ebde846f13bfa910f90f4d4179047f8bbafff80d4d",
+      "sha256_frame": "3a97951c512b401ac709c741b8f39f1248d3aeda698a5b3f8d2cd8dea9b69f76"
+    },
+    {
+      "name": "quant-log-values-float16",
+      "file": "quant-log-values-float16.zl",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "LOG:MAX_ERROR=1%,STORE=VALUES",
+      "nodata": null,
+      "dtype": "float16",
+      "shape": [
+        32,
+        32
+      ],
+      "written_by": "geozl 0.18.0",
+      "sha256_decoded": "ff6845ae9274f07ba1530848653175743f14a209b40f561eb2f8b85ffc55c32a",
+      "sha256_frame": "c5132b4c67415793544d9459d842a64a4058b5a5171d792ce875b19e6e937619"
+    },
+    {
+      "name": "quant-log-values-float32",
+      "file": "quant-log-values-float32.zl",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "LOG:MAX_ERROR=1%,STORE=VALUES",
+      "nodata": null,
+      "dtype": "float32",
+      "shape": [
+        32,
+        32
+      ],
+      "written_by": "geozl 0.18.0",
+      "sha256_decoded": "cb6c6a151670ec6ad02eb5b418b7ce002dd28e8b69fdc3e0aef0933da0fa3847",
+      "sha256_frame": "affcebd34da55556ee71f80544672c9365d814c1024b9698ada8604b33eacfb9"
+    },
+    {
+      "name": "quant-log-values-float64",
+      "file": "quant-log-values-float64.zl",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "LOG:MAX_ERROR=1%,STORE=VALUES",
+      "nodata": null,
+      "dtype": "float64",
+      "shape": [
+        32,
+        32
+      ],
+      "written_by": "geozl 0.18.0",
+      "sha256_decoded": "ed57038a1f3f80777bcc1614a85aba9d84c05cc04f5f90f8387fc89f2f75cd89",
+      "sha256_frame": "71c81e0b640c835e9413996a0ec615121e77aff6e1a8f7571ea4e6813e89bbfa"
+    },
+    {
+      "name": "quant-sqrt-values-float16",
+      "file": "quant-sqrt-values-float16.zl",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "SQRT:MAX_ERROR=1N,A=100,B=1,STORE=VALUES",
+      "nodata": null,
+      "dtype": "float16",
+      "shape": [
+        32,
+        32
+      ],
+      "written_by": "geozl 0.18.0",
+      "sha256_decoded": "dc461b3e510b3854e594fc4612fd6c90fede91d10dd4b2e448b38a7392bcd6f3",
+      "sha256_frame": "59d338eb82fa76302c4b8d2266fc5766828c1e7aca66a4d91f26896805754621"
+    },
+    {
+      "name": "quant-sqrt-values-float32",
+      "file": "quant-sqrt-values-float32.zl",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "SQRT:MAX_ERROR=1N,A=100,B=1,STORE=VALUES",
+      "nodata": null,
+      "dtype": "float32",
+      "shape": [
+        32,
+        32
+      ],
+      "written_by": "geozl 0.18.0",
+      "sha256_decoded": "16f58fbbbbebe608043aec2c514c28f169a76de6ef11c7921cf432f05055c548",
+      "sha256_frame": "7f43f96b1f762ee0a7cb80f56610ac08d6bb00b192267e898dfb4119a462ebf5"
+    },
+    {
+      "name": "quant-sqrt-values-float64",
+      "file": "quant-sqrt-values-float64.zl",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "SQRT:MAX_ERROR=1N,A=100,B=1,STORE=VALUES",
+      "nodata": null,
+      "dtype": "float64",
+      "shape": [
+        32,
+        32
+      ],
+      "written_by": "geozl 0.18.0",
+      "sha256_decoded": "c3346e813b236927dc9a8f6a7a7c3226252f61019b7482cc94cb9a5f2971f9bf",
+      "sha256_frame": "5054e26825d3b106a17abbc23363a4644ade31853da110dc16401ead70179f99"
     }
   ]
 }

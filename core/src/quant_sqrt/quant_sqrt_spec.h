@@ -5,7 +5,7 @@
 
 #include <stddef.h>
 
-// Parse "SQRT:MAX_ERROR=VN[,A=a,B=b][,STORE=VALUES]". A and B must appear
+// Parse "SQRT:MAX_ERROR=VN[,A=a,B=b]". A and B must appear
 // together; otherwise quant_sqrt_resolve requires a fit.
 int quant_sqrt_parse(const char *s, quant_sqrt_spec *out, char *err,
                      size_t errSize);

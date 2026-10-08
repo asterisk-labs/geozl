@@ -89,8 +89,8 @@ endif()
 include(GNUInstallDirs)
 find_library(GEOZL_LIBM m)   # the wp_static trainer and the quantizers use libm
 
-# clang-cl turns __int128 division and __builtin_cpu_supports into calls into
-# compiler-rt, which the MSVC linker does not bring in on its own.
+# clang-cl turns __builtin_cpu_supports into a call into compiler-rt, which the
+# MSVC linker does not bring in on its own.
 if(CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC" AND CMAKE_C_COMPILER_ID STREQUAL "Clang")
     execute_process(
         COMMAND ${CMAKE_C_COMPILER} /clang:--rtlib=compiler-rt /clang:-print-libgcc-file-name

@@ -21,16 +21,11 @@ class Noise:
     colin: float
     resid: float
 
-    def recipe(self, max_error, *, store=None):
+    def recipe(self, max_error):
         """Return a SQRT recipe using this fitted curve."""
         if not max_error > 0:
             raise ValueError(f"max_error must be positive, got {max_error!r}")
-        s = f"SQRT:MAX_ERROR={max_error:.17g}N,A={self.a:.17g},B={self.b:.17g}"
-        if store is not None:
-            if store not in ("INDEX", "VALUES"):
-                raise ValueError(f"store is INDEX or VALUES, got {store!r}")
-            s += f",STORE={store}"
-        return s
+        return f"SQRT:MAX_ERROR={max_error:.17g}N,A={self.a:.17g},B={self.b:.17g}"
 
     def __str__(self):
         return (f"sigma^2 = {self.a:.4g} + {self.b:.4g}*x  "

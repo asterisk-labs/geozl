@@ -6,7 +6,7 @@ import sys
 # Codes from qlog_dtype, only the ones the tiles below use.
 U16, U32, I16, F32, F64 = 1, 2, 5, 9, 10
 
-RECIPES = 9  # length of kRecipes in the harness
+RECIPES = 7  # length of kRecipes in the harness
 
 
 def rng(seed):
@@ -57,8 +57,7 @@ def humidity(n):
 
 
 def kelvin(n):
-    """float64 in a narrow band well away from zero, which is the band
-    STORE=VALUES accepts."""
+    """float64 in a narrow band well away from zero."""
     r = rng(5)
     out = [250.0 + 80.0 * next(r) for _ in range(n)]
     return struct.pack(f"<{n}d", *out)

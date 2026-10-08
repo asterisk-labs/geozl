@@ -5,7 +5,7 @@
 
 #include <stddef.h>
 
-// Parse "LOG:MAX_ERROR=P%[,STORE=VALUES]".
+// Parse "LOG:MAX_ERROR=P%".
 int quant_log_parse(const char *s, quant_log_spec *out, char *err,
                     size_t errSize);
 

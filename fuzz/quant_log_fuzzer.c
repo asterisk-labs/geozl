@@ -58,10 +58,6 @@ static void mode_parse(const uint8_t *d, size_t n) {
   // resolver runs on data the parser let through.
   if (!(sp.rel_err > 0.0) || !isfinite(sp.rel_err))
     abort();
-  if (sp.store != QUANT_LOG_STORE_DEFAULT &&
-      sp.store != QUANT_LOG_STORE_INDEX &&
-      sp.store != QUANT_LOG_STORE_VALUES)
-    abort();
 
   const quant_log_stats sc = {1.0e4, 1.0e4, 0, 0};
   quant_log_params p;
@@ -133,9 +129,7 @@ static void mode_roundtrip(const uint8_t *d, size_t n) {
                                    "LOG:MAX_ERROR=0.1%",
                                    "LOG:MAX_ERROR=0.002%",
                                    "LOG:MAX_ERROR=25%",
-                                   "LOG:MAX_ERROR=1%,STORE=VALUES",
-                                   "LOG:MAX_ERROR=0.5%,STORE=VALUES",
-                                   "LOG:MAX_ERROR=10%,STORE=VALUES"};
+                                   "LOG:MAX_ERROR=10%"};
   if (n < 4)
     return;
   const char *rec = kRecipes[d[0] % (sizeof(kRecipes) / sizeof(*kRecipes))];

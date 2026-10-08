@@ -17,7 +17,7 @@
 // the truncated mantissa in one subtract and one shift.
 #define QL_HALF_REBASE (((uint32_t)(127 - 15)) << 23)
 
-// The int16 stream of the STORE=VALUES path. Exact in float, so no nan, no
+// The int16 stream of a values frame. Exact in float, so no nan, no
 // infinity, no subnormal and no overflow. Only the rebase is left.
 static inline uint16_t ql_i16_to_half(int32_t v) {
   const float f = (float)v;

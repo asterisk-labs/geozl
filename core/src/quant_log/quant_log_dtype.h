@@ -114,7 +114,7 @@ static inline double quant_log_normal_min(int dtype) {
   }
 }
 
-// Largest whole number the type carries with no gap. STORE=VALUES cannot reach
+// Largest whole number the type carries with no gap. A values frame cannot reach
 // past it, since the reconstruction would round on the way back.
 static inline double quant_log_exact_int(int dtype) {
   switch (dtype) {

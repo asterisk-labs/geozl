@@ -34,7 +34,6 @@
 int quant_sqrt_parse(const char *s, quant_sqrt_spec *out, char *err,
                      size_t errSize) {
   memset(out, 0, sizeof(*out));
-  out->store = QUANT_SQRT_STORE_DEFAULT;
 
   if (s == NULL || strncmp(s, "SQRT:", 5) != 0)
     return geozl_recipe_fail(err, errSize,
@@ -78,17 +77,12 @@ int quant_sqrt_parse(const char *s, quant_sqrt_spec *out, char *err,
                     s);
       haveB = 1;
     } else if (geozl_recipe_keyed(&cur, "STORE", &vb, &ve) == 0) {
-      const size_t n = (size_t)(ve - vb);
-      if (n == 5 && strncmp(vb, "INDEX", 5) == 0)
-        out->store = QUANT_SQRT_STORE_INDEX;
-      else if (n == 6 && strncmp(vb, "VALUES", 6) == 0)
-        out->store = QUANT_SQRT_STORE_VALUES;
-      else
-        return geozl_recipe_fail(err, errSize, "error \"%s\": STORE takes INDEX or VALUES", s);
+      return geozl_recipe_fail(err, errSize,
+                  "error \"%s\": STORE was removed, a SQRT stream carries the "
+                  "grid index wherever it fits the element", s);
     } else {
       return geozl_recipe_fail(err, errSize,
-                  "error \"%s\": unknown key, expected MAX_ERROR, A, B or STORE",
-                  s);
+                  "error \"%s\": unknown key, expected MAX_ERROR, A or B", s);
     }
     if (*cur == '\0')
       break;
@@ -187,28 +181,18 @@ int quant_sqrt_resolve(const quant_sqrt_spec *sp, int dtype,
   if (!sc->anyNegative)
     out->flags |= QUANT_SQRT_FLAG_NONNEGATIVE;
 
-  const int isInt = dtype <= QSQ_LAST_INT;
-  // Tight sqrt grids may outgrow an integer stream, so VALUES stays the default.
-  const int values = sp->store == QUANT_SQRT_STORE_VALUES ||
-                     (isInt && sp->store == QUANT_SQRT_STORE_DEFAULT);
   const double maxAbs = fmax(fabs(sc->lo), fabs(sc->hi));
   const double u = sqrt(maxAbs + offset);
 
-  // Integer INDEX and VALUES use the same tile-independent grid.
-  if (isInt || values) {
+  if (dtype <= QSQ_LAST_INT) {
     // Half the budget to the grid and half to rounding the level to a whole
     // number, which meet exactly at sqrt(x+offset) = 1/(2*step).
     //
     // Nothing here reads the raster, on purpose. Two tiles of one product have to
     // land on the same grid or the same value encodes differently in each.
     out->step = 0.5 * c;
-    if (values)
-      out->flags |= QUANT_SQRT_FLAG_STORE_VALUES;
 
-    // The index never leaves the encoder here, so the element width does not
-    // limit it and QSQ_INDEX_TERMS does. Taken as a ceiling rather than a charge
-    // so the step above stays pinned to the recipe. Also what catches a step
-    // small enough to square to zero.
+    // Refuse grids whose index arithmetic cannot resolve every level.
     const double levels = 0.5 / (QSQ_INDEX_TERMS * DBL_EPSILON);
     if (!(u / out->step < levels))
       return geozl_recipe_fail(err, errSize,
@@ -216,35 +200,10 @@ int quant_sqrt_resolve(const quant_sqrt_spec *sp, int dtype,
                   "arithmetic that finds one resolves",
                   u / out->step, levels);
 
-    // Tile statistics limit INDEX width but do not change the step.
-    if (isInt && !values && !(u / out->step < quant_sqrt_stream_max(dtype)))
-      return geozl_recipe_fail(err, errSize,
-                  "STORE=INDEX needs %g levels over this raster, more than a "
-                  "%zu-byte element carries; drop it and the reconstruction is "
-                  "stored instead",
-                  u / out->step, quant_sqrt_width(dtype));
-
-    if (!isInt) {
-      // An integer sample is already whole. A float one is not, so the whole
-      // raster has to sit above the crossover.
-      const double need = 1.0 / c;          // sqrt(x + offset) has to reach this
-      const double xmin = need * need - offset;
-      if (sc->hi >= sc->lo && sc->lo < xmin)
-        return geozl_recipe_fail(err, errSize,
-                    "STORE=VALUES rounds to whole numbers, which holds this "
-                    "bound only at or above %g, and this raster reaches %g",
-                    xmin, sc->lo);
-
-      const double lim = quant_sqrt_exact_int(dtype);
-      if (maxAbs > 0.0) {
-        const double top = ceil(maxAbs);
-        if (top > lim)
-          return geozl_recipe_fail(err, errSize,
-                      "STORE=VALUES needs a reconstruction exact in the output "
-                      "type, and %g is past the %g it carries",
-                      top, lim);
-      }
-    }
+    // Fall back to reconstructions when the largest index does not fit.
+    const double uTop = sqrt(fmax(sc->hi, -offset) + offset);
+    if (!(uTop / out->step < quant_sqrt_stream_max(dtype)))
+      out->flags |= QUANT_SQRT_FLAG_STORE_VALUES;
     return 0;
   }
 

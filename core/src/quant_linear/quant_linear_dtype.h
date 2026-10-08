@@ -45,21 +45,6 @@ static inline double quant_linear_eps(int dtype) {
   }
 }
 
-// Largest integer the type holds with no gaps. Past it a cast rounds, which is
-// what limits STORE=VALUES.
-static inline double quant_linear_exact_int(int dtype) {
-  switch (dtype) {
-  case QL_F16:
-    return 2048.0; // 2^11
-  case QL_F32:
-    return 16777216.0; // 2^24
-  case QL_F64:
-    return GEOZL_F64_EXACT_INT;
-  default:
-    return 0.0;
-  }
-}
-
 // Largest magnitude the stream carries. It keeps the original element width,
 // signed once the original was a float.
 static inline double quant_linear_stream_max(int dtype) {

@@ -47,7 +47,7 @@ int nodata_mark_guarded(uint8_t* mask, const void* src, size_t nb_elts, int dtyp
 int nodata_restore_guarded(void* dst, const void* values, const uint8_t* mask, size_t nb_elts, size_t elt_width, uint64_t pattern, const uint64_t repl[3]);
 
 // The three quantizers. Scan and resolve differ per curve.
-typedef struct { double max_error; unsigned char store; } quant_linear_spec;
+typedef struct { double max_error; } quant_linear_spec;
 typedef struct { double maxAbs; int anyNegative; } quant_linear_stats;
 typedef struct { unsigned char flags; double step; } quant_linear_params;
 int quant_linear_parse(const char* s, quant_linear_spec* out, char* err, size_t err_size);
@@ -56,7 +56,7 @@ int quant_linear_resolve(const quant_linear_spec* sp, int dtype, const quant_lin
 int quant_linear_encode(void* dst, const void* src, const quant_linear_params* p, int dtype, size_t nb_elts);
 int quant_linear_decode(void* dst, const void* src, const quant_linear_params* p, int dtype, size_t nb_elts);
 
-typedef struct { double rel_err; unsigned char store; } quant_log_spec;
+typedef struct { double rel_err; } quant_log_spec;
 typedef struct { unsigned char flags; double step; } quant_log_params;
 typedef struct { double minAbs; double maxAbs; int anyNegative; int anySubnormal; } quant_log_stats;
 int quant_log_parse(const char* s, quant_log_spec* out, char* err, size_t err_size);
@@ -65,7 +65,7 @@ int quant_log_resolve(const quant_log_spec* sp, int dtype, const quant_log_stats
 int quant_log_encode(void* dst, const void* src, const quant_log_params* p, int dtype, size_t nb_elts);
 int quant_log_decode(void* dst, const void* src, const quant_log_params* p, int dtype, size_t nb_elts);
 
-typedef struct { double k; double a; double b; unsigned char store; unsigned char have_ab; } quant_sqrt_spec;
+typedef struct { double k; double a; double b; unsigned char have_ab; } quant_sqrt_spec;
 typedef struct { unsigned char flags; double step; double offset; } quant_sqrt_params;
 typedef struct { double lo; double hi; int anyNegative; int anyNonFinite; } quant_sqrt_stats;
 typedef struct { double a; double b; int ok; int blocks; int bins; double range; double colin; double resid; } quant_sqrt_noise;

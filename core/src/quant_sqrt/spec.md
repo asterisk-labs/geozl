@@ -6,8 +6,6 @@ Lossy numeric codec, CTID `0x72D783`.
 
     SQRT:MAX_ERROR=KN
     SQRT:MAX_ERROR=KN,A=a,B=b
-    SQRT:MAX_ERROR=KN,STORE=INDEX
-    SQRT:MAX_ERROR=KN,STORE=VALUES
 
 `MAX_ERROR` is required, must be positive, and must end in `N`. The declared
 bound is:
@@ -15,17 +13,17 @@ bound is:
     |x - reconstructed(x)| <= K * sqrt(a + b*x)
 
 `A` must be nonnegative and `B` positive. They must be supplied together or
-fitted before resolution. `STORE` defaults to `INDEX` on floating-point input
-and to `VALUES` on integer input. A sqrt index is not held down by the sample it
-came from the way a linear one is: `sqrt(x + offset) / step` climbs as the bound
-tightens, so a tight recipe on a narrow element asks for more levels than that
-element carries. `STORE=INDEX` on integer input is therefore something a recipe
-asks for, and the resolver either honours it or refuses it; it is never a default
-that could turn a working recipe into an error.
+fitted before resolution.
 
-The grid does not move with the choice. Integer input resolves the same
-`step = c / 2` either way, so the levels and the bound are the same and `STORE`
-selects only what the stream carries.
+The stream carries grid indices wherever they fit. A sqrt index is not held down
+by the sample it came from the way a linear one is: `sqrt(x + offset) / step`
+climbs as the bound tightens, so a tight recipe on a narrow integer element can
+ask for more levels than the element carries. There the reconstruction, which
+always fits, is stored instead, on the same `step = c / 2` grid, so the levels
+and the bound do not change with the choice. Floating-point input always carries
+indices. Frames from 0.14 to 0.18 stored integer reconstructions by default, and
+floating-point ones on request through `STORE=VALUES`; a decoder still reads
+both.
 
 ## Inputs
 
@@ -81,10 +79,8 @@ zero when flag bit 0 is set.
 
 ## Cutting the step
 
-For integer input and floating-point `STORE=VALUES`, `step = c / 2`. The
-resolver refuses grids whose level calculation is not reliable. Floating-point
-value storage is also refused when whole-number rounding exceeds the bound or
-the reconstruction is not exact in the output type.
+For integer input, `step = c / 2`. The resolver refuses grids whose level
+calculation is not reliable.
 
 The floating-point index path subtracts the encoding and output-rounding costs
 from `c`. Let `u = sqrt(maxAbs + offset)` and

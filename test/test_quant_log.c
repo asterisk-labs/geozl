@@ -53,56 +53,6 @@ static int trip(const char *recipe, int dtype, const void *src, void *stream,
   return 0;
 }
 
-static double worst_error(const qt_tile *t, const void *dec, size_t *skipped) {
-  const double nmin =
-      t->dtype > QLOG_LAST_INT ? quant_log_normal_min(t->dtype) : 0.0;
-  double w = 0.0;
-  size_t skip = 0;
-  for (size_t i = 0; i < t->n; ++i) {
-    const double x = qt_get(t->data, t->dtype, i);
-    const double y = qt_get(dec, t->dtype, i);
-    if (!isfinite(x) || x == 0.0 || x == y)
-      continue;
-    if (fabs(x) < nmin) {
-      ++skip;
-      continue;
-    }
-    const double e = fabs(y - x) / fabs(x);
-    if (e > w)
-      w = e;
-  }
-  if (skipped != NULL)
-    *skipped = skip;
-  return w;
-}
-
-static void store_values_holds_where_it_applies(void) {
-  printf("STORE=VALUES holds where it applies and is refused where it does not\n");
-  const char *names[] = {"kelvin", "utm", "reflectance", "humidity"};
-  for (size_t d = 0; d < 4; ++d) {
-    qt_tile t = qt_make(names[d]);
-    void *st = alloc_for(t.dtype, t.n), *dec = alloc_for(t.dtype, t.n);
-    char err[256];
-    quant_log_spec sp;
-    quant_log_stats sc;
-    quant_log_params p;
-    quant_log_parse("LOG:MAX_ERROR=1%,STORE=VALUES", &sp, err, sizeof err);
-    quant_log_scan(t.data, t.dtype, t.n, &sc);
-    if (quant_log_resolve(&sp, t.dtype, &sc, &p, err, sizeof err) == 0) {
-      CHECK(quant_log_encode(st, t.data, &p, t.dtype, t.n) == 0);
-      CHECK(quant_log_decode(dec, st, &p, t.dtype, t.n) == 0);
-      const double w = worst_error(&t, dec, NULL);
-      printf("  %-14s accepted, worst %.4e\n", t.name, w);
-      CHECK(w <= 0.01);
-    } else {
-      printf("  %-14s refused, %s\n", t.name, err);
-    }
-    free(st);
-    free(dec);
-    qt_free(&t);
-  }
-}
-
 // Integers below the crossover come back exact, because there the gap between
 // levels is under one and the level nearest a whole number rounds back to it.
 static void small_integers_come_back_exact(void) {
@@ -323,12 +273,12 @@ static void the_parser_is_strict(void) {
   quant_log_spec sp;
   char err[256];
   CHECK(quant_log_parse("LOG:MAX_ERROR=1%", &sp, err, sizeof err) == 0);
-  // The resolver chooses the dtype-specific default.
-  CHECK(sp.rel_err == 0.01 && sp.store == QUANT_LOG_STORE_DEFAULT);
+  CHECK(sp.rel_err == 0.01);
+  // The stream layout follows the dtype, so a recipe cannot pick it.
   CHECK(quant_log_parse("LOG:MAX_ERROR=0.5%,STORE=VALUES", &sp, err,
-                        sizeof err) == 0);
-  CHECK(sp.rel_err == 0.005 && sp.store == QUANT_LOG_STORE_VALUES);
-  CHECK(quant_log_parse("LOG:STORE=INDEX,MAX_ERROR=2%", &sp, err, sizeof err) ==
+                        sizeof err) != 0);
+  CHECK(strstr(err, "STORE was removed") != NULL);
+  CHECK(quant_log_parse("LOG:STORE=INDEX,MAX_ERROR=2%", &sp, err, sizeof err) !=
         0);
 
   const char *bad[] = {NULL,
@@ -375,21 +325,6 @@ static void the_refusals(void) {
   CHECK(quant_log_parse("LOG:MAX_ERROR=0.000001%", &sp, err, sizeof err) == 0);
   CHECK(quant_log_resolve(&sp, QLOG_F32, &sc, &p, err, sizeof err) != 0);
   printf("  f32 too tight: %s\n", err);
-
-  // A float below the crossover cannot carry a whole-number reconstruction.
-  CHECK(quant_log_parse("LOG:MAX_ERROR=1%,STORE=VALUES", &sp, err, sizeof err) ==
-        0);
-  sc.minAbs = 0.4;
-  CHECK(quant_log_resolve(&sp, QLOG_F32, &sc, &p, err, sizeof err) != 0);
-  printf("  too small: %s\n", err);
-
-  // And one past what the type carries as a whole number.
-  sc.minAbs = 1000.0;
-  sc.maxAbs = 3.0e7;
-  CHECK(quant_log_resolve(&sp, QLOG_F32, &sc, &p, err, sizeof err) != 0);
-  printf("  too large: %s\n", err);
-  sc.maxAbs = 1.0e6;
-  CHECK(quant_log_resolve(&sp, QLOG_F32, &sc, &p, err, sizeof err) == 0);
 }
 
 // There is no decode binding yet, so the kernels are the only thing between a
@@ -448,12 +383,14 @@ static void a_forged_stream_stays_in_range(void) {
   const size_t n = sizeof forged / sizeof *forged;
   float out[8];
 
-  const char *rec[] = {"LOG:MAX_ERROR=1%", "LOG:MAX_ERROR=1%,STORE=VALUES"};
-  for (int r = 0; r < 2; ++r) {
-    CHECK(quant_log_parse(rec[r], &sp, err, sizeof err) == 0);
+  // Keep both legacy layouts covered.
+  CHECK(quant_log_parse("LOG:MAX_ERROR=1%", &sp, err, sizeof err) == 0);
+  for (int values = 0; values < 2; ++values) {
     for (int neg = 0; neg < 2; ++neg) {
       sc.anyNegative = neg;
       CHECK(quant_log_resolve(&sp, QLOG_F32, &sc, &p, err, sizeof err) == 0);
+      if (values)
+        p.flags |= QUANT_LOG_FLAG_STORE_VALUES;
       CHECK(quant_log_decode(out, forged, &p, QLOG_F32, n) == 0);
       for (size_t i = 0; i < n; ++i) {
         CHECK(isfinite(out[i]));
@@ -629,50 +566,6 @@ static void the_wide_integers_hold(void) {
   }
 }
 
-// Case 2 is the case no exhaustive walk covers. On a half the band the resolver
-// accepts is small enough to walk whole.
-static void store_values_on_a_half_is_walked(void) {
-  printf("STORE=VALUES on a half, every value of the band it accepts\n");
-  const char *rec[] = {"LOG:MAX_ERROR=5%,STORE=VALUES",
-                       "LOG:MAX_ERROR=1%,STORE=VALUES",
-                       "LOG:MAX_ERROR=0.1%,STORE=VALUES"};
-  const double bound[] = {0.05, 0.01, 0.001};
-  static uint16_t in[65536], bk[65536];
-  static int16_t st[65536];
-
-  for (int r = 0; r < 3; ++r) {
-    const double cross = 0.5 / (sqrt(1.0 + bound[r]) - 1.0);
-    size_t n = 0;
-    for (int i = 0; i < 65536; ++i) {
-      const float v = quant_log_half_to_float((uint16_t)i);
-      const double a = fabs((double)v);
-      if (a >= cross && a <= 1024.0)
-        in[n++] = (uint16_t)i;
-    }
-    CHECK(n > 0);
-    quant_log_spec sp;
-    quant_log_stats sc;
-    quant_log_params p;
-    char err[256];
-    CHECK(quant_log_parse(rec[r], &sp, err, sizeof err) == 0);
-    CHECK(quant_log_scan(in, QLOG_F16, n, &sc) == 0);
-    CHECK(quant_log_resolve(&sp, QLOG_F16, &sc, &p, err, sizeof err) == 0);
-    CHECK(quant_log_encode(st, in, &p, QLOG_F16, n) == 0);
-    CHECK(quant_log_decode(bk, st, &p, QLOG_F16, n) == 0);
-    double worst = 0.0;
-    for (size_t i = 0; i < n; ++i) {
-      const double x = (double)quant_log_half_to_float(in[i]);
-      const double y = (double)quant_log_half_to_float(bk[i]);
-      const double e = fabs(y - x) / fabs(x);
-      if (e > worst)
-        worst = e;
-    }
-    printf("  %-32s %zu values, worst %.4e of %.4e\n", rec[r], n, worst,
-           bound[r]);
-    CHECK(worst <= bound[r]);
-  }
-}
-
 // What the tiles cost the codecs behind this one. Reported, not asserted.
 static void report_streams(void) {
   printf("\n  tile           type   case              stream range\n");
@@ -736,8 +629,8 @@ static void the_parser_takes_only_decimals(void) {
       {"LOG:MAX_ERROR=1e-3%", 1},
       {"LOG:MAX_ERROR=1E+1%", 1},
       {"LOG:MAX_ERROR=.5%", 1},
-      {"LOG:MAX_ERROR=1%,STORE=VALUES", 1},
-      {"LOG:MAX_ERROR=1%,STORE=INDEX", 1},
+      {"LOG:MAX_ERROR=1%,STORE=VALUES", 0},
+      {"LOG:MAX_ERROR=1%,STORE=INDEX", 0},
       {"LOG:MAX_ERROR=1", 0},   // a bound of one is not what anybody means
       {"LOG:MAX_ERROR=0%", 0},
       {"LOG:MAX_ERROR=100%", 0},
@@ -952,7 +845,6 @@ static void every_value_holds_the_bound(void) {
 }
 
 int main(void) {
-  store_values_holds_where_it_applies();
   small_integers_come_back_exact();
   zero_and_nan_stay_zero();
   the_sign_survives();
@@ -972,7 +864,6 @@ int main(void) {
   the_wide_integers_hold();
   the_most_negative_value_survives();
   the_floor_reaches_an_integer_frame();
-  store_values_on_a_half_is_walked();
   every_value_holds_the_bound();
   report_streams();
   if (failures != 0) {

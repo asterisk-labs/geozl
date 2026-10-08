@@ -13,43 +13,50 @@ static double ql_fit(double q, double lo, double hi) {
   return q < lo ? lo : (q > hi ? hi : q);
 }
 
-// 128 bits keeps value + half-step in range for u64.
+// Round without forming m + half, which may overflow uint64_t.
+static inline uint64_t ql_round_u64(uint64_t m, uint64_t isc, uint64_t half) {
+  return m / isc + (m % isc >= isc - half);
+}
+
+// Multiply with saturation for legacy values frames.
+static inline uint64_t ql_times_u64(uint64_t q, uint64_t isc) {
+  return q > UINT64_MAX / isc ? UINT64_MAX : q * isc;
+}
+
+// Quantize magnitudes so signed grids remain symmetric around zero.
 #define QL_ENC_UV(T)                                                           \
   do {                                                                         \
     const T *s = (const T *)src;                                               \
     T *d = (T *)dst;                                                           \
-    const uint64_t isc = quant_linear_step_u64(step);                          \
-    const uint64_t half = isc >> 1;                                            \
     const uint64_t cap = (uint64_t)(T)(~(T)0);                                 \
     for (size_t i = 0; i < nbElts; ++i) {                                      \
-      const unsigned __int128 q = ((unsigned __int128)s[i] + half) / isc;      \
-      const unsigned __int128 r = values ? q * isc : q;                        \
-      d[i] = (T)(r < cap ? (uint64_t)r : cap);                                 \
+      const uint64_t q = sizeof(T) < 8 ? ((uint64_t)s[i] + half) / isc         \
+                                       : ql_round_u64(s[i], isc, half);        \
+      const uint64_t r = values ? ql_times_u64(q, isc) : q;                    \
+      d[i] = (T)(r < cap ? r : cap);                                           \
     }                                                                          \
   } while (0)
 
-// Rounding is done on the magnitude and the sign put back, so the grid stays
-// symmetric about zero.
+// LO has magnitude HI + 1.
 #define QL_ENC_IV(T, LO, HI)                                                   \
   do {                                                                         \
     const T *s = (const T *)src;                                               \
     T *d = (T *)dst;                                                           \
-    const uint64_t isc = quant_linear_step_u64(step);                          \
-    const uint64_t half = isc >> 1;                                            \
+    const uint64_t top = (uint64_t)(HI) + 1u;                                  \
     for (size_t i = 0; i < nbElts; ++i) {                                      \
-      const __int128 v = (__int128)s[i];                                       \
-      const unsigned __int128 m =                                              \
-          v < 0 ? (unsigned __int128)(-v) : (unsigned __int128)v;              \
-      const unsigned __int128 qm = (m + half) / isc;                           \
-      __int128 r = (__int128)(values ? qm * isc : qm);                         \
-      if (v < 0)                                                              \
-        r = -r;                                                                \
-      d[i] = r < (__int128)(LO) ? (LO) : (r > (__int128)(HI) ? (HI) : (T)r);   \
+      const int neg = s[i] < 0;                                                \
+      const uint64_t m = neg ? 0u - (uint64_t)s[i] : (uint64_t)s[i];           \
+      const uint64_t q = sizeof(T) < 8 ? (m + half) / isc                      \
+                                       : ql_round_u64(m, isc, half);           \
+      const uint64_t r = values ? ql_times_u64(q, isc) : q;                    \
+      if (neg)                                                                 \
+        d[i] = r >= top ? (LO) : (T)(0 - (int64_t)r);                          \
+      else                                                                     \
+        d[i] = r >= top - 1u ? (HI) : (T)r;                                    \
     }                                                                          \
   } while (0)
 
-// With STORE=VALUES the step is whole, so q*step is too and the same integer
-// stream holds it.
+// Legacy values frames have an integer step and reconstruction.
 #define QL_ENC_F(WT, IT, RD)                                                   \
   do {                                                                         \
     const WT *s = (const WT *)src;                                             \
@@ -69,6 +76,8 @@ int quant_linear_encode(void *restrict dst, const void *restrict src,
   const double step = p->step;
   const double smax = quant_linear_stream_max(dtype);
   const int values = (p->flags & QUANT_LINEAR_FLAG_STORE_VALUES) != 0;
+  const uint64_t isc = quant_linear_step_u64(step);
+  const uint64_t half = isc >> 1;
 
   switch ((ql_dtype)dtype) {
   case QL_U8:

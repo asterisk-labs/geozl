@@ -5,7 +5,7 @@
 
 #include <stddef.h>
 
-// Parse "LINEAR:MAX_ERROR=V[,STORE=VALUES]".
+// Parse "LINEAR:MAX_ERROR=V".
 int quant_linear_parse(const char *s, quant_linear_spec *out, char *err,
                        size_t errSize);
 

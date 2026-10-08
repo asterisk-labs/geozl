@@ -261,22 +261,9 @@ int geozl_lossy_check_domain(const geozl_lossy_plan *plan, const void *src,
     } else if (quant_log_scan(src, dtype, nbElts, &now) != 0) {
       return geozl_recipe_fail(err, errSize, "could not scan the lossy tile");
     }
-    if (rejects_negative(plan->as.log.flags, QUANT_LOG_FLAG_NONNEGATIVE,
-                         now.anyNegative, err, errSize) != 0)
-      return 1;
-    // Integer value grids and floating-point index grids span their whole dtype.
-    // A floating-point value grid is the one LOG plan tied to the opening data.
-    if (dtype > GEOZL_DT_LAST_INT &&
-        (plan->as.log.flags & QUANT_LOG_FLAG_STORE_VALUES) != 0 &&
-        (now.minAbs < plan->domain.log.minAbs ||
-         now.maxAbs > plan->domain.log.maxAbs))
-      return geozl_recipe_fail(
-          err, errSize,
-          "the lossy graph was built for non-zero magnitudes from %g to %g, "
-          "but this tile reaches %g to %g; build the graph from the full product",
-          plan->domain.log.minAbs, plan->domain.log.maxAbs, now.minAbs,
-          now.maxAbs);
-    return 0;
+    // Every LOG grid spans its whole dtype, so only the sign can leave it.
+    return rejects_negative(plan->as.log.flags, QUANT_LOG_FLAG_NONNEGATIVE,
+                            now.anyNegative, err, errSize);
   }
 
   case GEOZL_LOSSY_SQRT: {

@@ -230,8 +230,8 @@ static void the_parser_takes_only_valid_recipes(void) {
       {"SQRT:MAX_ERROR=0.5N", 1},
       {"SQRT:MAX_ERROR=0.5N,A=100,B=1", 1},
       {"SQRT:MAX_ERROR=0.5N,B=1,A=100", 1},
-      {"SQRT:MAX_ERROR=0.5N,STORE=VALUES", 1},
-      {"SQRT:MAX_ERROR=0.5N,A=0,B=1,STORE=INDEX", 1},
+      {"SQRT:MAX_ERROR=0.5N,STORE=VALUES", 0},
+      {"SQRT:MAX_ERROR=0.5N,A=0,B=1,STORE=INDEX", 0},
       {"SQRT:MAX_ERROR=1N", 1},
       // without the N, half a sigma reads as half a count
       {"SQRT:MAX_ERROR=0.5", 0},
@@ -402,7 +402,6 @@ static void the_grid_holds_on_a_photon_raster(void) {
       "SQRT:MAX_ERROR=0.5N,A=100,B=1",
       "SQRT:MAX_ERROR=1N,A=100,B=1",
       "SQRT:MAX_ERROR=2N,A=25,B=2",
-      "SQRT:MAX_ERROR=1N,A=100,B=1,STORE=VALUES",
   };
 
   enum { W = 96, H = 96, N = W * H };
@@ -481,14 +480,13 @@ static void the_resolver_refuses_what_the_curve_cannot_cover(void) {
 
 // Two tiles can each hold the bound and still disagree by twice it, and no per
 // sample check sees that. Found by the fuzzer.
-static void the_value_grid_does_not_move_with_the_tile(void) {
-  puts("the value grid does not move with the tile");
+static void the_integer_grid_does_not_move_with_the_tile(void) {
+  puts("the integer grid does not move with the tile");
 
-  static const char *recipes[] = {"SQRT:MAX_ERROR=1N,A=100,B=1,STORE=VALUES",
-                                  "SQRT:MAX_ERROR=0.5N,A=25,B=2,STORE=VALUES",
-                                  "SQRT:MAX_ERROR=2N,A=0,B=1,STORE=VALUES"};
-  static const int types[] = {QSQ_U8, QSQ_U16, QSQ_I16, QSQ_U32,
-                              QSQ_F32, QSQ_F64};
+  static const char *recipes[] = {"SQRT:MAX_ERROR=1N,A=100,B=1",
+                                  "SQRT:MAX_ERROR=0.5N,A=25,B=2",
+                                  "SQRT:MAX_ERROR=2N,A=0,B=1"};
+  static const int types[] = {QSQ_U8, QSQ_U16, QSQ_I16, QSQ_U32};
 
   enum { N = 512 };
   double dim[N], bright[N];
@@ -641,30 +639,26 @@ static void every_value_holds_the_bound(void) {
   }
 }
 
-static void an_integer_raster_can_carry_the_index(void) {
-  printf("an integer raster carries the index when asked\n");
+static void an_integer_raster_carries_the_index_where_it_fits(void) {
+  printf("an integer raster carries the index where it fits the element\n");
   enum { N = 4096 };
   static uint16_t src[N], back[N], stream[N];
   for (size_t i = 0; i < N; ++i)
     src[i] = (uint16_t)(i * 15u);
 
   char err[256];
-  quant_sqrt_spec si, sv;
+  quant_sqrt_spec si;
   quant_sqrt_stats sc;
   quant_sqrt_params pi, pv;
-  CHECK(quant_sqrt_parse("SQRT:MAX_ERROR=2N,A=25,B=2,STORE=INDEX", &si, err,
-                         sizeof(err)) == 0);
-  CHECK(quant_sqrt_parse("SQRT:MAX_ERROR=2N,A=25,B=2", &sv, err,
-                         sizeof(err)) == 0);
+  CHECK(quant_sqrt_parse("SQRT:MAX_ERROR=2N,A=25,B=2", &si, err, sizeof(err)) ==
+        0);
   CHECK(quant_sqrt_scan(src, QSQ_U16, N, &sc) == 0);
   CHECK(quant_sqrt_resolve(&si, QSQ_U16, &sc, NULL, &pi, err, sizeof(err)) == 0);
-  CHECK(quant_sqrt_resolve(&sv, QSQ_U16, &sc, NULL, &pv, err, sizeof(err)) == 0);
-
-  // Storage changes, the grid does not.
-  CHECK(pi.step == pv.step);
-  CHECK(pi.offset == pv.offset);
   CHECK((pi.flags & QUANT_SQRT_FLAG_STORE_VALUES) == 0);
-  CHECK((pv.flags & QUANT_SQRT_FLAG_STORE_VALUES) != 0);
+
+  // Legacy values frames rebuild the same samples.
+  pv = pi;
+  pv.flags |= QUANT_SQRT_FLAG_STORE_VALUES;
 
   CHECK(quant_sqrt_encode(stream, src, &pi, QSQ_U16, N) == 0);
   CHECK(quant_sqrt_decode(back, stream, &pi, QSQ_U16, N) == 0);
@@ -691,20 +685,24 @@ static void an_integer_raster_can_carry_the_index(void) {
     CHECKF(back[i] == vback[i], "index gave %u where values gave %u",
            back[i], vback[i]);
 
-  // Tight integer indices may not fit the element width.
-  static uint8_t small[256];
+  // Store reconstructions when the index does not fit.
+  static uint8_t small[256], sback[256], sstream[256];
   for (size_t i = 0; i < 256; ++i)
     small[i] = (uint8_t)i;
   quant_sqrt_spec tight;
   quant_sqrt_params tp;
-  CHECK(quant_sqrt_parse("SQRT:MAX_ERROR=0.1N,A=0,B=1,STORE=INDEX", &tight, err,
-                         sizeof(err)) == 0);
-  CHECK(quant_sqrt_scan(small, QSQ_U8, 256, &sc) == 0);
-  CHECK(quant_sqrt_resolve(&tight, QSQ_U8, &sc, NULL, &tp, err, sizeof(err)) != 0);
-  // Default VALUES still resolves.
   CHECK(quant_sqrt_parse("SQRT:MAX_ERROR=0.1N,A=0,B=1", &tight, err,
                          sizeof(err)) == 0);
+  CHECK(quant_sqrt_scan(small, QSQ_U8, 256, &sc) == 0);
   CHECK(quant_sqrt_resolve(&tight, QSQ_U8, &sc, NULL, &tp, err, sizeof(err)) == 0);
+  CHECK((tp.flags & QUANT_SQRT_FLAG_STORE_VALUES) != 0);
+  CHECK(quant_sqrt_encode(sstream, small, &tp, QSQ_U8, 256) == 0);
+  CHECK(quant_sqrt_decode(sback, sstream, &tp, QSQ_U8, 256) == 0);
+  for (size_t i = 0; i < 256; ++i) {
+    const double bound = quant_sqrt_bound(&tight, NULL, (double)small[i]);
+    CHECKF(fabs((double)sback[i] - (double)small[i]) <= bound,
+           "u8 %zu rebuilt as %u", i, sback[i]);
+  }
 }
 
 int main(void) {
@@ -717,10 +715,10 @@ int main(void) {
   the_grid_holds_on_a_photon_raster();
   the_scan_reports_what_the_resolver_needs();
   the_resolver_refuses_what_the_curve_cannot_cover();
-  the_value_grid_does_not_move_with_the_tile();
+  the_integer_grid_does_not_move_with_the_tile();
   the_charge_is_read_at_the_worst_end();
   an_empty_raster_is_not_a_crash();
-  an_integer_raster_can_carry_the_index();
+  an_integer_raster_carries_the_index_where_it_fits();
   every_value_holds_the_bound();
 
   if (failures != 0) {
