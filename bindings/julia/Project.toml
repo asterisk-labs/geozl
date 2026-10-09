@@ -2,6 +2,7 @@ name = "GeoZL"
 uuid = "e52aded2-0fd2-4544-9046-a0526ea1415a"
 version = "0.19.0"
 authors = ["Cesar Aybar <cesar@asterisk.coop>"]
+description = "Julia bindings to libgeozl, the geospatial codec extensions for OpenZL."
 
 [deps]
 Artifacts = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"

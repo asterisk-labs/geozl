@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 [project]
 name            = "geozl"
 dynamic         = ["version"]
-description     = "Geospatial codec extensions for OpenZL."
+description     = "Python bindings to libgeozl, the geospatial codec extensions for OpenZL."
 readme          = "README.md"
 license         = { text = "BSD-3-Clause" }
 requires-python = ">=3.11"

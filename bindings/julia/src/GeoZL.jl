@@ -1,10 +1,10 @@
 """
     GeoZL
 
-Julia bindings to GeoZL, the geospatial codecs for OpenZL. Build a graph once
-with [`GeoZL.graph`](@ref), compress tiles with [`GeoZL.compress`](@ref), and
-read them back with [`GeoZL.decompress`](@ref). [`GeoZL.profile`](@ref) ranks
-recipes on a sample. The frames are the ones the Python and R packages write.
+Julia bindings to libgeozl, the geospatial codec extensions for OpenZL.
+Build a graph once with [`GeoZL.graph`](@ref), compress tiles with
+[`GeoZL.compress`](@ref), and read them back with [`GeoZL.decompress`](@ref).
+[`GeoZL.profile`](@ref) ranks recipes on a sample.
 """
 module GeoZL
 

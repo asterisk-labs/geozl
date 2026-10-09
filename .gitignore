@@ -107,3 +107,7 @@ oom-*
 
 # Local backup of the pre-migration documentation site
 /docs/legacy/
+
+# Vendored build scripts the R package compiles with.
+!bindings/r/src/ext/openzl/build-scripts/
+!bindings/r/src/ext/openzl/deps/*/build/

@@ -4,10 +4,9 @@
 \name{geozl-package}
 \alias{geozl}
 \alias{geozl-package}
-\title{geozl: geospatial codecs for OpenZL}
+\title{geozl: Geospatial Codec Extensions for 'OpenZL'}
 \description{
-Compress raster tiles with GeoZL's spatial predictors, NoData mask and
-bounded-error quantizers, and decode the frames any GeoZL reader writes.
+R bindings to libgeozl, the geospatial codec extensions for OpenZL.
 Build a graph once with \code{\link[=geozl_graph]{geozl_graph()}}, compress tiles with
 \code{\link[=geozl_compress]{geozl_compress()}}, and read them back with \code{\link[=geozl_decompress]{geozl_decompress()}}.
 \code{\link[=geozl_profile]{geozl_profile()}} ranks recipes on a sample.

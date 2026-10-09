@@ -1,6 +1,6 @@
 Package: geozl
 Type: Package
-Title: Geospatial Codecs for 'OpenZL'
+Title: Geospatial Codec Extensions for 'OpenZL'
 Version: 0.19.0
 Authors@R: c(
     person("Cesar", "Aybar", email = "cesar@asterisk.coop",
@@ -9,10 +9,8 @@ Authors@R: c(
     person("Meta Platforms, Inc. and affiliates", role = "cph",
            comment = "OpenZL and Zstandard"),
     person("Yann", "Collet", role = "cph", comment = "LZ4"))
-Description: R bindings to 'GeoZL', the geospatial codecs for 'OpenZL'.
-    Compresses raster tiles with spatial predictors, a NoData mask and
-    bounded-error quantizers, and reads and writes the same frames as the
-    'Python' package.
+Description: R bindings to libgeozl, the geospatial codec extensions for
+    OpenZL.
 License: BSD_3_clause + file LICENSE
 Copyright: file inst/COPYRIGHTS
 URL: https://github.com/asterisk-labs/geozl

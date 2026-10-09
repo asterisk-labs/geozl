@@ -25,11 +25,10 @@ Julia and JavaScript.
 
 | Language | Install | Role | Docs |
 |----------|---------|------|------|
-| Python | `pip install geozl` | full API and OpenZL nodes | [guide](docs/api-high.html) |
-| R | `install.packages("geozl", repos="https://asterisk-labs.r-universe.dev")` | graph, compress, decompress, profile | [R-universe](https://asterisk-labs.r-universe.dev/geozl) · [README](bindings/r/README.md) |
-| Julia | `Pkg.add(url="https://github.com/asterisk-labs/geozl", subdir="bindings/julia")` | graph, compress, decompress, profile | [GeoZL.jl](bindings/julia/README.md) |
-| JavaScript | `npm install @asterisk-labs/geozl` | compress, decompress | [npm](https://www.npmjs.com/package/@asterisk-labs/geozl) · [README](tools/wasm/README.md) |
-| C | `make install` | the core | [C API](docs/c-api.md) |
+| Python | `pip install geozl` | full API and OpenZL nodes | [README](bindings/python/README.md) |
+| R | `install.packages("geozl", repos = "https://asterisk-labs.r-universe.dev")` | graph, compress, decompress, profile | [README](bindings/r/README.md) |
+| Julia | `Pkg.Registry.add(url="https://github.com/asterisk-labs/AsteriskRegistry"); Pkg.add("GeoZL")` | graph, compress, decompress, profile | [README](bindings/julia/README.md) |
+| JavaScript | `npm install @asterisk-labs/geozl` | compress, decompress | [README](tools/wasm/README.md) |
 
 ## Quick start
 
@@ -67,7 +66,7 @@ back = geozl.decompress(frame).view(np.uint16).reshape(tile.shape)
 | `quant_log` | `0x72D782` | relative bound: `LOG:MAX_ERROR=P%` |
 | `quant_sqrt` | `0x72D783` | noise-scaled bound: `SQRT:MAX_ERROR=VN` |
 
-The [codec catalog](docs/docs.html) documents each wire format.
+The [codec catalog](https://asterisk.coop/geozl/docs.html) documents each wire format.
 
 ## AI agent skill
 

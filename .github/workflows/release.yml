@@ -41,7 +41,7 @@ jobs:
       - name: Verify the R package's vendored sources
         run: |
           python3 tools/sync_r_vendor.py
-          status="$(git status --porcelain -- bindings/r/src/ext bindings/r/inst/licenses bindings/r/DESCRIPTION)"
+          status="$(git status --porcelain --ignored -- bindings/r/src/ext bindings/r/inst/licenses bindings/r/DESCRIPTION)"
           [ -z "$status" ] || { echo "::error::bindings/r is out of date, run make r-vendor"; echo "$status"; exit 1; }
 
   linux:

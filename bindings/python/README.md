@@ -1,7 +1,7 @@
 # geozl
 
-Python bindings for [geozl](https://github.com/asterisk-labs/geozl), geospatial
-codec extensions for [OpenZL](https://github.com/facebook/openzl).
+Python bindings to [libgeozl](https://github.com/asterisk-labs/geozl), the
+geospatial codec extensions for [OpenZL](https://github.com/facebook/openzl).
 
 ```python
 import numpy as np
