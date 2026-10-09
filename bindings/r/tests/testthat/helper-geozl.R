@@ -36,7 +36,15 @@ python_frame <- function(x, method, datatype, error = NULL, nodata = NULL,
     "open('%s', 'wb').write(geozl.compress(a, graph=g))", sep = "\n"),
     samples, dt$name, paste0("(", paste(shape, collapse = ", "), ",)"), method,
     arg(error), arg(nodata), arg(width), arg(planes), frame)
+  env <- character()
+  if (identical(Sys.info()[["sysname"]], "Linux")) {
+    python_lib <- file.path(dirname(dirname(normalizePath(python))), "lib")
+    library_path <- c(python_lib, Sys.getenv("LD_LIBRARY_PATH"))
+    env <- paste0("LD_LIBRARY_PATH=", paste(library_path[nzchar(library_path)],
+                                             collapse = .Platform$path.sep))
+  }
   output <- suppressWarnings(system2(python, c("-c", shQuote(script)),
+                                     env = env,
                                      stdout = TRUE, stderr = TRUE))
   status <- attr(output, "status")
   if (is.null(status))
