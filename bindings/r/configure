@@ -22,9 +22,16 @@ else
 fi
 
 CMAKE=${CMAKE:-}
-if [ -z "$CMAKE" ]; then
-    for candidate in cmake /Applications/CMake.app/Contents/bin/cmake; do
-        if command -v "$candidate" >/dev/null 2>&1; then
+if [ -n "$CMAKE" ]; then
+    if ! "$CMAKE" --version >/dev/null 2>&1; then
+        echo "configure: CMAKE=$CMAKE does not run" >&2
+        exit 1
+    fi
+else
+    for candidate in cmake /usr/bin/cmake /usr/local/bin/cmake \
+        /opt/homebrew/bin/cmake /Applications/CMake.app/Contents/bin/cmake; do
+        if command -v "$candidate" >/dev/null 2>&1 \
+            && "$candidate" --version >/dev/null 2>&1; then
             CMAKE=$candidate
             break
         fi
