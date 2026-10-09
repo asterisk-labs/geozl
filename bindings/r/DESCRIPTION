@@ -1,0 +1,31 @@
+Package: geozl
+Type: Package
+Title: Geospatial Codecs for 'OpenZL'
+Version: 0.18.0
+Authors@R: c(
+    person("Cesar", "Aybar", email = "cesar@asterisk.coop",
+           role = c("aut", "cre")),
+    person("Asterisk Labs", role = "cph"),
+    person("Meta Platforms, Inc. and affiliates", role = "cph",
+           comment = "OpenZL and Zstandard"),
+    person("Yann", "Collet", role = "cph", comment = "LZ4"))
+Description: R bindings to 'GeoZL', the geospatial codecs for 'OpenZL'.
+    Compresses raster tiles with spatial predictors, a NoData mask and
+    bounded-error quantizers, and reads and writes the same frames as the
+    'Python' package.
+License: BSD_3_clause + file LICENSE
+Copyright: file inst/COPYRIGHTS
+URL: https://github.com/asterisk-labs/geozl
+BugReports: https://github.com/asterisk-labs/geozl/issues
+Encoding: UTF-8
+Language: en-US
+SystemRequirements: CMake (>= 3.21), C11 and C++17 compilers
+Depends:
+    R (>= 4.1)
+Suggests:
+    digest,
+    jsonlite,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3

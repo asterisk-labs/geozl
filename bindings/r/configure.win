@@ -1,0 +1,6 @@
+#!/bin/sh
+# Rtools: the same CMake build, with Makefiles because there is no Visual Studio
+# generator to fall back on.
+GEOZL_CMAKE_GENERATOR=${GEOZL_CMAKE_GENERATOR:-"Unix Makefiles"} \
+GEOZL_THREAD_LIBS=${GEOZL_THREAD_LIBS--lpthread} \
+    exec sh ./configure

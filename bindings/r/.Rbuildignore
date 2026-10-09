@@ -1,0 +1,9 @@
+^\.DS_Store$
+^src/build$
+^src/lib$
+^src/gen$
+^src/Makevars$
+^src/.*\.(o|so|dll|dylib)$
+^config\.(log|status)$
+^.*\.Rproj$
+^\.Rproj\.user$

@@ -1,0 +1,6 @@
+# Written by configure, which leaves the static libraries in lib/ and OpenZL's
+# generated zl_config.h in gen/, ahead of the one in the OpenZL sources.
+PKG_CPPFLAGS = -Igen -I@CORE@/include -I@OPENZL@/include
+PKG_CFLAGS = @OSX_FLAG@
+PKG_LIBS = @OSX_FLAG@ lib/libgeozl.a lib/libopenzl.a lib/libzstd.a lib/liblz4.a \
+	-lm @THREAD_LIBS@

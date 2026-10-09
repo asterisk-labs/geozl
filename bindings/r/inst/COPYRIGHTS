@@ -1,0 +1,11 @@
+The geozl R package bundles the sources of these libraries, copied from the
+GeoZL repository by tools/sync_r_vendor.py. Their licenses are in
+inst/licenses.
+
+GeoZL      Copyright (c) 2026, Asterisk Labs. BSD 3-Clause.
+OpenZL     Copyright (c) Meta Platforms, Inc. and affiliates. BSD 3-Clause.
+           licenses/LICENSE.OpenZL
+Zstandard  Copyright (c) Meta Platforms, Inc. and affiliates. BSD 3-Clause.
+           licenses/LICENSE.Zstandard
+LZ4        Copyright (c) 2011-2020, Yann Collet. BSD 2-Clause.
+           licenses/LICENSE.LZ4

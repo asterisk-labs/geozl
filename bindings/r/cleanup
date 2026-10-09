@@ -1,0 +1,2 @@
+#!/bin/sh
+rm -rf src/build src/lib src/gen src/Makevars src/*.o src/*.so src/*.dll config.log config.status
