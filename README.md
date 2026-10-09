@@ -5,9 +5,9 @@
     <a href="https://github.com/asterisk-labs/geozl/actions/workflows/ci.yml"><img src="https://github.com/asterisk-labs/geozl/actions/workflows/ci.yml/badge.svg?event=push" alt="CI"/></a>
     <img src="coverage.svg" alt="Coverage"/>
     <a href="https://pypi.org/project/geozl"><img src="https://img.shields.io/pypi/v/geozl?label=python&logo=python&logoColor=white&color=3776AB&style=flat-square" alt="Python"/></a>
-    <a href="bindings/r/README.md"><img src="https://img.shields.io/badge/R-geozl-276DC3?logo=r&logoColor=white&style=flat-square" alt="R"/></a>
+    <a href="https://asterisk-labs.r-universe.dev/geozl"><img src="https://asterisk-labs.r-universe.dev/badges/geozl" alt="R-universe"/></a>
     <a href="bindings/julia/README.md"><img src="https://img.shields.io/badge/julia-GeoZL.jl-9558B2?logo=julia&logoColor=white&style=flat-square" alt="Julia"/></a>
-    <a href="tools/wasm/README.md"><img src="https://img.shields.io/badge/wasm64-JavaScript-654FF0?logo=webassembly&logoColor=white&style=flat-square" alt="WebAssembly"/></a>
+    <a href="https://www.npmjs.com/package/@asterisk-labs/geozl"><img src="https://img.shields.io/npm/v/%40asterisk-labs%2Fgeozl?label=npm&logo=npm&style=flat-square" alt="npm"/></a>
     <a href="https://github.com/asterisk-labs/geozl/actions/workflows/platforms.yml"><img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-0078D6?style=flat-square" alt="Linux, macOS and Windows"/></a>
     <a href="https://github.com/facebook/openzl"><img src="https://img.shields.io/badge/built%20on-OpenZL-6f42c1?style=flat-square" alt="Built on OpenZL"/></a>
   </p>
@@ -15,22 +15,20 @@
 
 ---
 
-GeoZL compresses raster tiles. [OpenZL](https://github.com/facebook/openzl)
-represents compression as a graph of codecs, and GeoZL adds the nodes Earth
-observation data needs: spatial predictors, NoData masks, a block bit packer and
-bounded-error quantizers.
-
-Frames written by 0.14.0 are the compatibility baseline, and every binding reads
-and writes the same frames. See [compatibility](docs/compatibility.md).
+GeoZL extends [OpenZL](https://github.com/facebook/openzl) with codecs designed
+for Earth observation data. It adds spatial prediction, NoData
+handling, efficient integer packing and bounded-error quantization for
+multidimensional numeric arrays. The same core is available from C, Python, R,
+Julia and JavaScript.
 
 ## Bindings
 
 | Language | Install | Role | Docs |
 |----------|---------|------|------|
 | Python | `pip install geozl` | full API and OpenZL nodes | [guide](docs/api-high.html) |
-| R | `remotes::install_github("asterisk-labs/geozl", subdir = "bindings/r")` | graph, compress, decompress, profile | [README](bindings/r/README.md) |
-| Julia | `Pkg.add(url = "https://github.com/asterisk-labs/geozl", subdir = "bindings/julia")` | graph, compress, decompress, profile | [README](bindings/julia/README.md) |
-| JavaScript | `npm install @asterisk-labs/geozl` | compress, decompress | [README](tools/wasm/README.md) |
+| R | `install.packages("geozl", repos="https://asterisk-labs.r-universe.dev")` | graph, compress, decompress, profile | [R-universe](https://asterisk-labs.r-universe.dev/geozl) · [README](bindings/r/README.md) |
+| Julia | `Pkg.add(url="https://github.com/asterisk-labs/geozl", subdir="bindings/julia")` | graph, compress, decompress, profile | [GeoZL.jl](bindings/julia/README.md) |
+| JavaScript | `npm install @asterisk-labs/geozl` | compress, decompress | [npm](https://www.npmjs.com/package/@asterisk-labs/geozl) · [README](tools/wasm/README.md) |
 | C | `make install` | the core | [C API](docs/c-api.md) |
 
 ## Quick start
@@ -47,10 +45,6 @@ g = geozl.graph(tile, best)                   # build once, reuse per tile
 frame = geozl.compress(tile, graph=g)
 back = geozl.decompress(frame).view(np.uint16).reshape(tile.shape)
 ```
-
-`error=2` bounds the absolute error, `error="1%"` the relative one, and
-`nodata=-9999` masks a sentinel. The [changelog](CHANGELOG.md) records each
-release.
 
 ## Codecs
 
