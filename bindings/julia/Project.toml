@@ -1,6 +1,6 @@
 name = "GeoZL"
 uuid = "e52aded2-0fd2-4544-9046-a0526ea1415a"
-version = "0.18.0"
+version = "0.19.0"
 authors = ["Cesar Aybar <cesar@asterisk.coop>"]
 
 [deps]

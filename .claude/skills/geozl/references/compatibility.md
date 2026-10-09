@@ -45,8 +45,8 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
 
 | Version | Change | Consequence |
 | --- | --- | --- |
-| 0.19.0 (unreleased) | new `planar_zigzag_pivco` codec and `sparse` terminal | those frames need a 0.19 reader; PivCo and sparse frames use OpenZL format 27 |
-| 0.19.0 (unreleased) | lossy recipes no longer accept `STORE`; stream layout is automatic | no wire change; readers still decode both layouts |
+| 0.19.0 (2026-10-08) | new `planar_zigzag_pivco` codec and `sparse` terminal | those frames need a 0.19 reader; PivCo and sparse frames use OpenZL format 27 |
+| 0.19.0 (2026-10-08) | lossy recipes no longer accept `STORE`; stream layout is automatic | no wire change; readers still decode both layouts |
 | 0.18.0 (2026-09-20) | new fused codec `med_zigzag`; `med>zigzag>...` recipes select it | frames need a 0.18.0 reader; older frames with separate nodes still decode |
 | 0.16.0 (2026-09-01) | new fused codecs `planar_zigzag` and `planar_zigzag_pfor`; `planar>zigzag>...` recipes select them | frames need a 0.16.0 reader; older frames with separate nodes still decode |
 | 0.15.1 | `quant_linear` accepts all-zero domains | no format change |
@@ -61,7 +61,7 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
 
 | Version | Old | New |
 | --- | --- | --- |
-| 0.19.0 (unreleased) | lossy recipe `STORE=...`; `Noise.recipe(..., store=...)` | removed; layout is automatic |
+| 0.19.0 | lossy recipe `STORE=...`; `Noise.recipe(..., store=...)` | removed; layout is automatic |
 | 0.14.0 | `store_lo` terminal | removed; `unknown method` |
 | 0.10.0 | `geozl.compress(tile, method=..., error=..., nodata=...)` | `g = geozl.graph(tile, method, error=..., nodata=...)`, then `geozl.compress(tile, graph=g)` |
 | 0.10.0 | `geozl.decompress(frame, dtype, width)` | `geozl.decompress(frame).view(dtype).reshape(shape)` |

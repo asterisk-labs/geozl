@@ -1,6 +1,6 @@
 # Debugging
 
-Messages below were captured from geozl 0.18.0 with OpenZL 0.2. Numeric
+Messages below were captured from GeoZL 0.19.0 with OpenZL 0.3. Numeric
 `ZL error code` values come from OpenZL and may move; match on the text.
 
 ## Contents
