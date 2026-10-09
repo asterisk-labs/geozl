@@ -100,6 +100,8 @@ mkdir -p lib gen/openzl
 cp build/libgeozl.a build/openzl/libopenzl.a \
     build/openzl/zstd_build/lib/libzstd.a build/openzl/lz4_build/liblz4.a lib/
 cp build/openzl/include/openzl/zl_config.h gen/openzl/
+tr -d '\r' < gen/openzl/zl_config.h > gen/openzl/zl_config.h.lf
+mv gen/openzl/zl_config.h.lf gen/openzl/zl_config.h
 rm -rf build
 
 THREAD_LIBS=${GEOZL_THREAD_LIBS--pthread}
