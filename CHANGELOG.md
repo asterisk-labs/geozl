@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `libgeozl`. `geozl.lossless` and `geozl.lossy` need `openzl` built from
   source.
 - A wasm64 ES module with a JavaScript API for compression and decompression.
+- R and Julia bindings for graph selection, compression, decompression,
+  profiling and frame coefficients. Both write the same frames as Python.
+- Release artifacts for GeoZL.jl on Linux x86-64 and macOS arm64.
 
 ### Changed
 
@@ -37,6 +40,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `quant_linear` no longer needs 128-bit integer arithmetic and now vectorizes
   the narrow integer paths.
 - `quant_sqrt` uses a lookup table when decoding 8- and 16-bit integer indices.
+- `geozl_node_nodata` uses `radius` in NaN mode: zero keeps distinct NaN
+  payloads on a lossless path, while a nonzero radius masks every NaN before a
+  lossy stage.
+
+### Fixed
+
+- Lossless NaN handling preserves payload bits, avoiding checksum failures.
+  Older mixed-payload frames still need `verify=False`; discarded payloads
+  cannot be recovered.
 
 ### Breaking
 

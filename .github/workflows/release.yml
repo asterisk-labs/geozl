@@ -15,13 +15,32 @@ jobs:
   validate:
     name: Validate tag
     runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - if: startsWith(github.ref, 'refs/tags/v')
         run: |
           tag="${GITHUB_REF#refs/tags/v}"
           file="$(tr -d '[:space:]' < VERSION)"
           [ "$tag" = "$file" ] || { echo "::error::tag v$tag != VERSION $file"; exit 1; }
+
+      - id: version
+        run: |
+          file="$(tr -d '[:space:]' < VERSION)"
+          jl="$(sed -n 's/^version = "\(.*\)"$/\1/p' bindings/julia/Project.toml)"
+          [ "$jl" = "$file" ] || { echo "::error::bindings/julia/Project.toml $jl != VERSION $file"; exit 1; }
+          echo "version=$file" >> "$GITHUB_OUTPUT"
+
+      # The R source package builds from the copy of the native sources it
+      # carries, so a release must carry the current one.
+      - name: Verify the R package's vendored sources
+        run: |
+          python3 tools/sync_r_vendor.py
+          status="$(git status --porcelain -- bindings/r/src/ext bindings/r/inst/licenses bindings/r/DESCRIPTION)"
+          [ -z "$status" ] || { echo "::error::bindings/r is out of date, run make r-vendor"; echo "$status"; exit 1; }
 
   linux:
     name: Wheel linux-x86_64
@@ -64,10 +83,24 @@ jobs:
             d=geozl.decompress(f).view(np.uint16).reshape(t.shape); \
             assert (d == t).all(), 'round-trip mismatch'; \
             print('compress', len(f), 'bytes, round-trip ok')"
+      # The same libgeozl, for the Julia package's artifact.
+      - name: Package libgeozl
+        run: |
+          set -euxo pipefail
+          name="libgeozl-$(tr -d '[:space:]' < VERSION)-linux-x86_64"
+          mkdir -p "$name/lib" lib-dist
+          cp build/libgeozl.so "$name/lib/"
+          cp LICENSE "$name/"
+          tar -czf "lib-dist/$name.tar.gz" "$name"
       - uses: actions/upload-artifact@v7
         with:
           name: wheel-linux
           path: dist/*.whl
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          name: libgeozl-linux
+          path: lib-dist/*.tar.gz
           if-no-files-found: error
 
   macos:
@@ -112,17 +145,32 @@ jobs:
             d=geozl.decompress(f).view(np.uint16).reshape(t.shape); \
             assert (d == t).all(), 'round-trip mismatch'; \
             print('compress', len(f), 'bytes, round-trip ok')"
+      - name: Package libgeozl
+        run: |
+          set -euxo pipefail
+          name="libgeozl-$(tr -d '[:space:]' < VERSION)-macos-arm64"
+          mkdir -p "$name/lib" lib-dist
+          cp build/libgeozl.dylib "$name/lib/"
+          cp LICENSE "$name/"
+          # No AppleDouble files or extended attributes, which would change the
+          # tree Julia hashes.
+          COPYFILE_DISABLE=1 tar --no-xattrs -czf "lib-dist/$name.tar.gz" "$name"
       - uses: actions/upload-artifact@v7
         with:
           name: wheel-macos
           path: dist/*.whl
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          name: libgeozl-macos
+          path: lib-dist/*.tar.gz
           if-no-files-found: error
 
   # Only on a tag. Both wheels must have built, so a failed platform blocks the
   # release. Trusted publishing over OIDC, no stored token.
   publish:
     name: Publish
-    needs: [linux, macos]
+    needs: [validate, linux, macos]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     environment: pypi
@@ -130,15 +178,38 @@ jobs:
       id-token: write
       contents: write
     steps:
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           pattern: wheel-*
           path: dist
           merge-multiple: true
-      - run: ls -l dist/
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: libgeozl-*
+          path: lib-dist
+          merge-multiple: true
+      # The tagged Julia package fetches this from the release, since the
+      # tarball hashes do not exist when the tag is made. It is written before
+      # anything is published, so a release never goes out without it.
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+      - name: Write the Julia Artifacts.toml
+        run: |
+          set -euo pipefail
+          julia bindings/julia/make-artifacts-toml.jl \
+            "${{ needs.validate.outputs.version }}" lib-dist > Artifacts.toml
+          cat Artifacts.toml
+          mv Artifacts.toml lib-dist/
+      - run: ls -l dist/ lib-dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
       - uses: softprops/action-gh-release@v3
         with:
-          files: dist/*.whl
+          files: |
+            dist/*.whl
+            lib-dist/*.tar.gz
+            lib-dist/Artifacts.toml
+          fail_on_unmatched_files: true
           generate_release_notes: true
           prerelease: ${{ contains(github.ref, '-') }}

@@ -134,3 +134,36 @@ jobs:
         run: |
           source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
           make wasm-test
+
+  r-windows:
+    name: R (Windows x64)
+    runs-on: windows-2025
+    steps:
+      - run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          working-directory: bindings/r
+
+      # Rtools' gcc builds OpenZL here, through configure.win.
+      - name: Check the source package
+        shell: bash
+        run: |
+          python tools/sync_r_vendor.py
+          mkdir -p core/build-r && cd core/build-r
+          R CMD build ../../bindings/r
+          GEOZL_GOLDEN_DIR="$GITHUB_WORKSPACE/bindings/python/test/golden" \
+            _R_CHECK_CRAN_INCOMING_REMOTE_=false R CMD check --no-manual geozl_*.tar.gz
+          sh ../../tools/r_check_status.sh geozl.Rcheck/00check.log

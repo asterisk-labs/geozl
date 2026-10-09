@@ -195,3 +195,113 @@ jobs:
           import geozl
           print(json.dumps(geozl.simd_info()))
           EOF
+
+  r:
+    name: R (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Linux x86-64, runner: ubuntu-24.04 }
+          - { name: macOS arm64, runner: macos-15 }
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          working-directory: bindings/r
+          extra-packages: any::roxygen2
+
+      # Python's geozl, so the R tests can check both write the same frames.
+      - name: Build GeoZL for Python
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install cmake ninja numpy cffi
+          make python FULL=ON
+
+      - name: Test from the checkout
+        run: make r
+
+      - name: Check generated R docs
+        run: git diff --exit-code -- bindings/r/NAMESPACE bindings/r/man
+
+      # Builds the source package from its vendored copy, as r-universe does.
+      - name: Check the source package
+        run: make r-check
+
+  julia:
+    name: Julia (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Linux x86-64 / Julia 1.10, runner: ubuntu-24.04, julia: '1.10' }
+          - { name: Linux x86-64 / Julia latest, runner: ubuntu-24.04, julia: '1' }
+          - { name: macOS arm64 / Julia latest, runner: macos-15, julia: '1' }
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.julia }}
+
+      # Python's geozl too, so the tests can check both write the same frames.
+      - name: Build GeoZL
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install cmake ninja numpy cffi
+          make python FULL=ON
+
+      - name: Test
+        run: make julia
+
+      # Exercise the path a clean install uses, outside the checkout and without
+      # GEOZL_LIB_PATH. The generator installs the local tarball into a fresh
+      # depot, then the copied package resolves it through Artifacts.toml.
+      - name: Test release artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          case "${RUNNER_OS}-${RUNNER_ARCH}" in
+            Linux-X64) platform=linux-x86_64; library=libgeozl.so ;;
+            macOS-ARM64) platform=macos-arm64; library=libgeozl.dylib ;;
+            *) echo "unsupported artifact test platform" >&2; exit 1 ;;
+          esac
+          name="libgeozl-$version-$platform"
+          dist="$RUNNER_TEMP/geozl-artifact"
+          package="$RUNNER_TEMP/GeoZL-release"
+          mkdir -p "$dist/$name/lib"
+          cp "core/build/$library" "$dist/$name/lib/"
+          cp LICENSE "$dist/$name/"
+          COPYFILE_DISABLE=1 tar -C "$dist" -czf "$dist/$name.tar.gz" "$name"
+          cp -R bindings/julia "$package"
+          export JULIA_DEPOT_PATH="$RUNNER_TEMP/geozl-julia-depot"
+          julia bindings/julia/make-artifacts-toml.jl \
+            "$version" "$dist" "$platform" > "$package/Artifacts.toml"
+          unset GEOZL_LIB_PATH
+          julia --project="$package" -e '
+            using GeoZL
+            x = reshape(UInt16.(1:64), 8, 8)
+            frame = GeoZL.compress(x, GeoZL.graph(x, "planar>zigzag>pfor"))
+            @assert GeoZL.decompress(UInt16, frame, size(x)...) == x
+            @assert occursin("artifacts", GeoZL._lib_path())
+          '

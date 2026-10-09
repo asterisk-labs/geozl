@@ -6,6 +6,10 @@
 # make test-san   run both suites against an ASan and UBSan build
 # make wasm       build the wasm64 JavaScript module
 # make wasm-test  build wasm64 and run its Node tests
+# make r          test the R package from the checkout
+# make r-vendor   copy the native sources into the R source package
+# make r-check    vendor, build and R CMD check the R source package
+# make julia      test the Julia package against this checkout's libgeozl
 # make fuzz       build and run the fuzzers, report in fuzz/out (needs clang)
 # make fuzz-check same, but exits non-zero on any finding, for CI
 # make fuzz-replay replay the saved inputs once and exit
@@ -26,6 +30,7 @@ FULL   ?= ON
 SAN    ?= OFF
 EMCMAKE ?= emcmake
 CMAKE  ?= cmake
+JULIA  ?= julia
 
 # Seconds per fuzz target, and libFuzzer worker processes. FUZZ_JOBS=0 keeps it
 # in one process, which is what you want when reading the log.
@@ -41,6 +46,9 @@ FUZZ_TARGETS := roundtrip lossy_recipe quant_linear quant_log quant_sqrt pfor de
 OPENZL     := extern/openzl
 WASM_BUILD_DIR := core/build-wasm
 PY_DIR     := bindings/python
+R_DIR      := bindings/r
+JL_DIR     := bindings/julia
+R_BUILD    := core/build-r
 PY_LIB_DIR := $(PY_DIR)/geozl/_lib
 UNAME      := $(shell uname -s)
 
@@ -130,7 +138,7 @@ endif
 
 .PHONY: all build configure lib python test test-c test-san wasm wasm-test fuzz fuzz-build \
         fuzz-seed fuzz-report fuzz-check fuzz-replay clean-fuzz \
-        exhaustive \
+        exhaustive r r-vendor r-check julia \
         install submodules clean help
 
 all: python
@@ -219,6 +227,34 @@ wasm: $(OPENZL)/CMakeLists.txt
 wasm-test: wasm
 	GEOZL_GOLDEN_DIR=$(abspath $(PY_DIR)/test/golden) \
 		node --test $(WASM_BUILD_DIR)/wasm/tests/geozl_api.test.js
+
+# The R package builds GeoZL and OpenZL from source with their CMake files. From
+# a checkout it reads them in place; its source package carries a copy, which
+# r-vendor refreshes. The tests compare frames with Python's when $(PYTHON) has
+# geozl.
+BINDINGS_PYTHON = $$($(PYTHON) -c 'import geozl, sys; print(sys.executable)' 2>/dev/null)
+
+r: $(OPENZL)/CMakeLists.txt
+	Rscript -e 'roxygen2::roxygenise("$(R_DIR)")'
+	GEOZL_PYTHON=$(BINDINGS_PYTHON) GEOZL_GOLDEN_DIR=$(abspath $(PY_DIR)/test/golden) \
+		Rscript -e 'testthat::test_local("$(R_DIR)", reporter = "summary", stop_on_failure = TRUE)'
+
+# The Julia package loads the libgeozl `make lib` builds here; a release ships
+# it as an artifact.
+julia: lib
+	GEOZL_LIB_PATH=$(abspath $(BUILD_DIR)/$(FULLLIB)) GEOZL_PYTHON=$(BINDINGS_PYTHON) \
+		GEOZL_GOLDEN_DIR=$(abspath $(PY_DIR)/test/golden) \
+		$(JULIA) --project=$(JL_DIR) -e 'using Pkg; Pkg.test()'
+
+r-vendor: $(OPENZL)/CMakeLists.txt
+	$(PYTHON) tools/sync_r_vendor.py
+
+r-check: r-vendor
+	rm -rf $(R_BUILD) && mkdir -p $(R_BUILD)
+	cd $(R_BUILD) && R CMD build $(abspath $(R_DIR))
+	cd $(R_BUILD) && GEOZL_GOLDEN_DIR=$(abspath $(PY_DIR)/test/golden) \
+		_R_CHECK_CRAN_INCOMING_REMOTE_=false R CMD check --no-manual geozl_*.tar.gz
+	@sh tools/r_check_status.sh $(R_BUILD)/geozl.Rcheck/00check.log
 
 # Every bit pattern a float32 can hold. Fuzzing says nobody found a
 # counterexample, this says there is not one. The walks sit in the same test
@@ -339,7 +375,8 @@ install: build
 	cmake --install $(BUILD_DIR) --prefix $(PREFIX)
 
 clean: clean-fuzz
-	rm -rf core/build core/build-san $(WASM_BUILD_DIR)
+	rm -rf core/build core/build-san $(WASM_BUILD_DIR) $(R_BUILD)
+	cd $(R_DIR) && ./cleanup
 	rm -rf $(PY_DIR)/build $(PY_DIR)/*.egg-info .pytest_cache
 	rm -f $(PY_LIB_DIR)/libgeozl_kernels* $(PY_LIB_DIR)/geozl_kernels*.dll
 	rm -f $(PY_LIB_DIR)/libgeozl.dylib $(PY_LIB_DIR)/libgeozl.so* $(PY_LIB_DIR)/geozl.dll
@@ -355,6 +392,10 @@ help:
 	@echo "make test-san   run both suites against an ASan and UBSan build"
 	@echo "make wasm       build the wasm64 JavaScript module"
 	@echo "make wasm-test  build wasm64 and run its Node tests"
+	@echo "make r          test the R package from the checkout"
+	@echo "make r-vendor   copy the native sources into the R source package"
+	@echo "make r-check    vendor, build and R CMD check the R source package"
+	@echo "make julia      test the Julia package against this checkout's libgeozl"
 	@echo "make fuzz       build and run the fuzzers, report in fuzz/out (needs clang)"
 	@echo "make fuzz-check run the fuzzers and fail on a finding"
 	@echo "make fuzz-replay run each saved corpus once"

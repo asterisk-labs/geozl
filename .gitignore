@@ -73,6 +73,15 @@ bindings/python/__pycache__/
 
 bindings/python/geozl/__pycache__/
 
+# Written by the R package's configure. src/ext, the copy it builds outside a
+# checkout, is tracked.
+bindings/r/src/Makevars
+bindings/r/src/lib/
+bindings/r/src/gen/
+
+# Pkg writes it; the package keeps only Project.toml and Artifacts.toml.
+bindings/julia/Manifest.toml
+
 *.pyc
 
 demo.py

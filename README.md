@@ -73,6 +73,35 @@ rejected. `error=None` and `error=0` are lossless. Full `LINEAR`, `LOG`
 and `SQRT` recipes remain available for advanced use. A NoData sentinel must
 fit the array dtype.
 
+## R
+
+[bindings/r](bindings/r/README.md) holds an R package with the same graph,
+compress, decompress and profile calls. It builds GeoZL and OpenZL from source
+with CMake and writes the same frames as Python.
+
+```r
+library(geozl)
+
+tile <- outer(1:1024, 1:1024, function(x, y) 2000 + 5 * (x - 1) + 8 * (y - 1))
+g <- geozl_graph(tile, "planar>zigzag>pfor", datatype = "uint16")
+frame <- geozl_compress(tile, g)
+back <- geozl_decompress(frame, "uint16", dim = dim(tile))
+```
+
+## Julia
+
+[bindings/julia](bindings/julia/README.md) holds GeoZL.jl, with the same calls
+on Julia's native element types. It writes the same frames as Python and R.
+
+```julia
+using GeoZL
+
+tile = [UInt16(2000 + 5 * (x - 1) + 8 * (y - 1)) for x in 1:1024, y in 1:1024]
+g = GeoZL.graph(tile, "planar>zigzag>pfor")
+frame = GeoZL.compress(tile, g)
+back = GeoZL.decompress(UInt16, frame, size(tile)...)
+```
+
 ## Low-level API
 
 For custom graphs, use nodes from `geozl.lossless` and `geozl.lossy` with
@@ -122,6 +151,10 @@ mypy
 ```
 
 `make help` lists the other build variants.
+
+For R, `make r` tests the package from the checkout and `make r-check` runs
+`R CMD check` on its source package. For Julia, `make julia` tests GeoZL.jl
+against the library this checkout builds.
 
 For wasm64, activate Emscripten and run `make wasm-test`. The generated ES
 module and JavaScript API are documented in [tools/wasm](tools/wasm/README.md).
