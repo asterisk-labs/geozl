@@ -1,133 +1,79 @@
-<p align="center">
+<div align="center">
   <img src="docs/assets/svg/banner.svg" alt="GeoZL" width="750"/>
-</p>
+  <p>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-BSD--3--Clause-2b8a3e?style=flat-square" alt="License BSD-3-Clause"/></a>
+    <a href="https://github.com/asterisk-labs/geozl/actions/workflows/ci.yml"><img src="https://github.com/asterisk-labs/geozl/actions/workflows/ci.yml/badge.svg?event=push" alt="CI"/></a>
+    <img src="coverage.svg" alt="Coverage"/>
+    <a href="https://pypi.org/project/geozl"><img src="https://img.shields.io/pypi/v/geozl?label=python&logo=python&logoColor=white&color=3776AB&style=flat-square" alt="Python"/></a>
+    <a href="bindings/r/README.md"><img src="https://img.shields.io/badge/R-geozl-276DC3?logo=r&logoColor=white&style=flat-square" alt="R"/></a>
+    <a href="bindings/julia/README.md"><img src="https://img.shields.io/badge/julia-GeoZL.jl-9558B2?logo=julia&logoColor=white&style=flat-square" alt="Julia"/></a>
+    <a href="tools/wasm/README.md"><img src="https://img.shields.io/badge/wasm64-JavaScript-654FF0?logo=webassembly&logoColor=white&style=flat-square" alt="WebAssembly"/></a>
+    <a href="https://github.com/asterisk-labs/geozl/actions/workflows/platforms.yml"><img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-0078D6?style=flat-square" alt="Linux, macOS and Windows"/></a>
+    <a href="https://github.com/facebook/openzl"><img src="https://img.shields.io/badge/built%20on-OpenZL-6f42c1?style=flat-square" alt="Built on OpenZL"/></a>
+  </p>
+</div>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/license-BSD--3--Clause-2b8a3e.svg" alt="License: BSD-3-Clause"/>
-  <img src="coverage.svg" alt="Coverage"/>
-  <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-blue" alt="Platform"/>
-  <img src="https://img.shields.io/badge/C11-blue" alt="C11"/>
-  <a href="https://github.com/facebook/openzl">
-    <img src="https://img.shields.io/badge/built%20on-OpenZL-6f42c1" alt="Built on OpenZL"/>
-  </a>
-</p>
+---
 
-## What is GeoZL?
+GeoZL compresses raster tiles. [OpenZL](https://github.com/facebook/openzl)
+represents compression as a graph of codecs, and GeoZL adds the nodes Earth
+observation data needs: spatial predictors, NoData masks, a block bit packer and
+bounded-error quantizers.
 
-[OpenZL](https://github.com/facebook/openzl) represents compression as a graph of codecs. GeoZL adds raster-aware nodes for numeric tiles, like spatial predictors, NoData handling and bounded-error quantizers.
+Frames written by 0.14.0 are the compatibility baseline, and every binding reads
+and writes the same frames. See [compatibility](docs/compatibility.md).
 
-## Status
+## Bindings
 
-GeoZL codecs and frames are ready for production use. Frames written by 0.14.0
-are the compatibility baseline. The C source API is stable; the Python API and
-C ABI may evolve before 1.0. See [compatibility](docs/compatibility.md).
-
-Wheels are available for Linux x86-64 and macOS arm64.
-
-## Install
-
-```bash
-pip install geozl
-```
+| Language | Install | Role | Docs |
+|----------|---------|------|------|
+| Python | `pip install geozl` | full API and OpenZL nodes | [guide](docs/api-high.html) |
+| R | `remotes::install_github("asterisk-labs/geozl", subdir = "bindings/r")` | graph, compress, decompress, profile | [README](bindings/r/README.md) |
+| Julia | `Pkg.add(url = "https://github.com/asterisk-labs/geozl", subdir = "bindings/julia")` | graph, compress, decompress, profile | [README](bindings/julia/README.md) |
+| JavaScript | `make wasm` | compress, decompress | [README](tools/wasm/README.md) |
+| C | `make install` | the core | [C API](docs/c-api.md) |
 
 ## Quick start
-
-`profile` ranks candidate graphs. Build the best one once, then reuse it across
-tiles.
 
 ```python
 import numpy as np
 import geozl
 
 y, x = np.mgrid[0:1024, 0:1024]
-tile = (2000 + 8 * y + 5 * x).astype(np.uint16)      # a raster, not noise
+tile = (2000 + 8 * y + 5 * x).astype(np.uint16)
 
-rows = geozl.profile(tile)
-print(rows)
-best = rows[0]["graph"]
-
-g = geozl.graph(tile, best)
+best = geozl.profile(tile)[0]["graph"]        # rank recipes on a sample
+g = geozl.graph(tile, best)                   # build once, reuse per tile
 frame = geozl.compress(tile, graph=g)
-
-back = geozl.decompress(frame)
-back = back.view(np.uint16).reshape(1024, 1024)
+back = geozl.decompress(frame).view(np.uint16).reshape(tile.shape)
 ```
 
-`decompress` returns a flat `uint8` array; restore its dtype and shape as above.
-The [Python API guide](docs/api-high.html) covers graph options, lossy recipes
-and checksum control.
-
-### Lossy and NoData
-
-```python
-absolute = geozl.graph(tile, best, error=2)
-relative = geozl.graph(tile, best, error="1%")
-
-holed = tile.astype(np.float32)
-holed[::7, ::5] = -9999
-masked = geozl.graph(holed, best, nodata=-9999)
-```
-
-Build lossy graphs from representative data; tiles outside that range are
-rejected. `error=None` and `error=0` are lossless. Full `LINEAR`, `LOG`
-and `SQRT` recipes remain available for advanced use. A NoData sentinel must
-fit the array dtype.
-
-## R
-
-[bindings/r](bindings/r/README.md) holds an R package with the same graph,
-compress, decompress and profile calls. It builds GeoZL and OpenZL from source
-with CMake and writes the same frames as Python.
-
-```r
-library(geozl)
-
-tile <- outer(1:1024, 1:1024, function(x, y) 2000 + 5 * (x - 1) + 8 * (y - 1))
-g <- geozl_graph(tile, "planar>zigzag>pfor", datatype = "uint16")
-frame <- geozl_compress(tile, g)
-back <- geozl_decompress(frame, "uint16", dim = dim(tile))
-```
-
-## Julia
-
-[bindings/julia](bindings/julia/README.md) holds GeoZL.jl, with the same calls
-on Julia's native element types. It writes the same frames as Python and R.
-
-```julia
-using GeoZL
-
-tile = [UInt16(2000 + 5 * (x - 1) + 8 * (y - 1)) for x in 1:1024, y in 1:1024]
-g = GeoZL.graph(tile, "planar>zigzag>pfor")
-frame = GeoZL.compress(tile, g)
-back = GeoZL.decompress(UInt16, frame, size(tile)...)
-```
-
-## Low-level API
-
-For custom graphs, use nodes from `geozl.lossless` and `geozl.lossy` with
-`openzl.ext`. Call `geozl.register_decoders(dctx)` when managing your own
-OpenZL decoder.
+`error=2` bounds the absolute error, `error="1%"` the relative one, and
+`nodata=-9999` masks a sentinel. The [changelog](CHANGELOG.md) records each
+release.
 
 ## Codecs
 
-| codec           |       CTid | what it does                                                       |
-| --------------- | ---------: | ------------------------------------------------------------------ |
-| `delta_w`       | `0x72D701` | residual against the west neighbour                                |
-| `delta_n`       | `0x72D702` | residual against the north neighbour                               |
-| `planar`        | `0x72D703` | predicts each pixel from `W + N - NW`                              |
-| `deinterleave`  | `0x72D704` | separates a two-lane interleaved stream                            |
-| `med`           | `0x72D705` | median edge detector predictor                                     |
-| `average`       | `0x72D706` | floor average of the west and north neighbours                     |
-| `wp_static`     | `0x72D707` | fits a weighted predictor and stores its weights in the frame      |
-| `nodata`        | `0x72D70C` | moves missing samples into a validity mask and fills the holes     |
-| `pfor`          | `0x72D70D` | bit packs each block of 256 and patches the values that overflow   |
-| `planar_zigzag` | `0x72D70F` | fuses planar residuals and Zigzag without an intermediate stream   |
-| `planar_zigzag_pfor` | `0x72D710` | the whole planar, Zigzag and PFOR chain as one numeric-to-serial codec |
-| `med_zigzag`    | `0x72D711` | fuses MED residuals and Zigzag without an intermediate stream      |
-| `planar_zigzag_pivco` | `0x72D712` | planar and Zigzag, then PivCo Huffman or byte PFOR per residual byte lane |
-| `quant_linear`  | `0x72D781` | uniform grid with a fixed absolute bound: `LINEAR:MAX_ERROR=V`     |
-| `quant_log`     | `0x72D782` | logarithmic grid with a relative bound: `LOG:MAX_ERROR=P%`         |
-| `quant_sqrt`    | `0x72D783` | square-root grid whose bound grows with noise: `SQRT:MAX_ERROR=VN` |
+| codec | CTid | what it does |
+|-------|-----:|--------------|
+| `delta_w` | `0x72D701` | residual against the west neighbour |
+| `delta_n` | `0x72D702` | residual against the north neighbour |
+| `planar` | `0x72D703` | predicts each pixel from `W + N - NW` |
+| `deinterleave` | `0x72D704` | separates a two-lane interleaved stream |
+| `med` | `0x72D705` | median edge detector predictor |
+| `average` | `0x72D706` | floor average of the west and north neighbours |
+| `wp_static` | `0x72D707` | weighted predictor with its weights in the frame |
+| `nodata` | `0x72D70C` | missing samples to a validity mask, holes filled |
+| `pfor` | `0x72D70D` | bit packs blocks of 256 and patches overflows |
+| `planar_zigzag` | `0x72D70F` | planar residuals and Zigzag in one pass |
+| `planar_zigzag_pfor` | `0x72D710` | planar, Zigzag and PFOR as one codec |
+| `med_zigzag` | `0x72D711` | MED residuals and Zigzag in one pass |
+| `planar_zigzag_pivco` | `0x72D712` | planar and Zigzag, then PivCo or PFOR per byte lane |
+| `quant_linear` | `0x72D781` | absolute bound: `LINEAR:MAX_ERROR=V` |
+| `quant_log` | `0x72D782` | relative bound: `LOG:MAX_ERROR=P%` |
+| `quant_sqrt` | `0x72D783` | noise-scaled bound: `SQRT:MAX_ERROR=VN` |
+
+The [codec catalog](docs/docs.html) documents each wire format.
 
 ## AI agent skill
 
@@ -139,29 +85,15 @@ npx skills add asterisk-labs/geozl
 
 ## Development
 
-Local builds require Python 3.11+, a C11 compiler, Git, Make, CMake and Ninja.
-
 ```bash
-python -m pip install cmake ninja numpy cffi openzl pytest ruff mypy
 make submodules
-make python FULL=ON
-make test
-ruff check .
-mypy
+make test       # C tests and pytest
+make help       # R, Julia, wasm, sanitizers and fuzzing
 ```
-
-`make help` lists the other build variants.
-
-For R, `make r` tests the package from the checkout and `make r-check` runs
-`R CMD check` on its source package. For Julia, `make julia` tests GeoZL.jl
-against the library this checkout builds.
-
-For wasm64, activate Emscripten and run `make wasm-test`. The generated ES
-module and JavaScript API are documented in [tools/wasm](tools/wasm/README.md).
 
 ## License
 
-BSD-3-Clause
+BSD-3-Clause.
 
 <div align="center">
   <br>
