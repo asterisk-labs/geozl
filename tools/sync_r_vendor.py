@@ -62,6 +62,8 @@ def main() -> None:
         (PACKAGE / "DESCRIPTION", r"(?m)^Version: .*$", f"Version: {version}"),
         (ROOT / "bindings" / "julia" / "Project.toml",
          r'(?m)^version = ".*"$', f'version = "{version}"'),
+        (ROOT / "tools" / "wasm" / "js" / "package.json",
+         r'(?m)^  "version": ".*",$', f'  "version": "{version}",'),
     )
     for path, pattern, replacement in versions:
         text = path.read_text()

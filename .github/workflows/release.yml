@@ -32,6 +32,8 @@ jobs:
           file="$(tr -d '[:space:]' < VERSION)"
           jl="$(sed -n 's/^version = "\(.*\)"$/\1/p' bindings/julia/Project.toml)"
           [ "$jl" = "$file" ] || { echo "::error::bindings/julia/Project.toml $jl != VERSION $file"; exit 1; }
+          js="$(sed -n 's/^  "version": "\(.*\)",$/\1/p' tools/wasm/js/package.json)"
+          [ "$js" = "$file" ] || { echo "::error::tools/wasm/js/package.json $js != VERSION $file"; exit 1; }
           echo "version=$file" >> "$GITHUB_OUTPUT"
 
       # The R source package builds from the copy of the native sources it
@@ -166,11 +168,58 @@ jobs:
           path: lib-dist/*.tar.gz
           if-no-files-found: error
 
-  # Only on a tag. Both wheels must have built, so a failed platform blocks the
-  # release. Trusted publishing over OIDC, no stored token.
+  # The npm package is the wasm build directory, packed after the tests the
+  # platforms workflow runs. OpenZL needs a 64-bit size_t, so this is wasm64.
+  wasm:
+    name: npm package wasm64
+    needs: validate
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Install Emscripten
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install 4.0.19
+          "$RUNNER_TEMP/emsdk/emsdk" activate 4.0.19
+          python3 -m pip install cmake ninja
+          echo "CMAKE=$(command -v cmake)" >> "$GITHUB_ENV"
+      - name: Build and test GeoZL wasm64
+        run: |
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          make wasm-test
+      - name: Pack and check the package
+        run: |
+          set -euxo pipefail
+          mkdir -p npm-dist
+          (cd core/build-wasm/wasm && npm pack --pack-destination "$GITHUB_WORKSPACE/npm-dist")
+          # Installed from the tarball, so a file missing from `files` fails here.
+          mkdir "$RUNNER_TEMP/smoke" && cd "$RUNNER_TEMP/smoke"
+          npm init -y > /dev/null
+          npm install "$GITHUB_WORKSPACE"/npm-dist/*.tgz
+          node --input-type=module -e "
+            import {createGeoZL, DType} from '@asterisk-labs/geozl';
+            const geozl = await createGeoZL();
+            const data = new Uint8Array(256 * 256 * 2).map((_, i) => i % 97);
+            const frame = geozl.compress(data, {method: 'planar>zigzag>pfor', width: 256, dtype: DType.U16});
+            const back = geozl.decompress(frame, {maxOutputSize: data.length});
+            if (!back.every((v, i) => v === data[i])) throw new Error('round-trip mismatch');
+            console.log('compress', frame.length, 'bytes, round-trip ok');"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: npm-package
+          path: npm-dist/*.tgz
+          if-no-files-found: error
+
+  # Only on a tag. Every package must have built, so a failed platform blocks
+  # the release. Trusted publishing over OIDC, no stored token.
   publish:
     name: Publish
-    needs: [validate, linux, macos]
+    needs: [validate, linux, macos, wasm]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     environment: pypi
@@ -213,3 +262,44 @@ jobs:
           fail_on_unmatched_files: true
           generate_release_notes: true
           prerelease: ${{ contains(github.ref, '-') }}
+
+  # After PyPI and the GitHub release, so npm never gets a version the other
+  # registries lack. A rerun skips a version that is already there.
+  npm:
+    name: Publish to npm
+    needs: [wasm, publish]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@v8
+        with:
+          name: npm-package
+          path: npm-dist
+      - run: |
+          set -euo pipefail
+          package=$(node -p "require('./tools/wasm/js/package.json').name")
+          version=$(node -p "require('./tools/wasm/js/package.json').version")
+          if npm view "$package@$version" version > /dev/null 2>&1; then
+            echo "$package@$version is already published; skipping npm publish"
+            exit 0
+          fi
+          # Trusted publishing cannot move latest back to a lower version, and
+          # a prerelease is never latest.
+          latest=$(npm view "$package" dist-tags.latest 2>/dev/null || true)
+          tag=latest
+          case "$version" in *-*) tag=next ;; esac
+          if [ -n "$latest" ] && [ "$(printf '%s\n%s\n' "$version" "$latest" | sort -V | tail -1)" != "$version" ]; then
+            tag=next
+          fi
+          npm publish npm-dist/*.tgz --access public --tag "$tag"

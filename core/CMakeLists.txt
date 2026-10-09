@@ -224,10 +224,20 @@ if(GEOZL_BUILD_FULL)
             OUTPUT_NAME "geozl"
             SUFFIX ".js"
             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/wasm")
+        # The output directory is the npm package, so it also carries the
+        # README and the licences of what the module links.
         add_custom_target(geozl_wasm ALL
             COMMAND ${CMAKE_COMMAND} -E copy_directory
                     ${CMAKE_CURRENT_SOURCE_DIR}/../tools/wasm/js
                     $<TARGET_FILE_DIR:geozl_wasm_module>
+            COMMAND ${CMAKE_COMMAND} -E copy
+                    ${CMAKE_CURRENT_SOURCE_DIR}/../tools/wasm/README.md
+                    ${CMAKE_CURRENT_SOURCE_DIR}/../LICENSE
+                    ${CMAKE_CURRENT_SOURCE_DIR}/../NOTICE
+                    $<TARGET_FILE_DIR:geozl_wasm_module>
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    ${CMAKE_CURRENT_SOURCE_DIR}/../licenses
+                    $<TARGET_FILE_DIR:geozl_wasm_module>/licenses
             DEPENDS geozl_wasm_module)
 
         install(FILES

@@ -30,7 +30,7 @@ and writes the same frames. See [compatibility](docs/compatibility.md).
 | Python | `pip install geozl` | full API and OpenZL nodes | [guide](docs/api-high.html) |
 | R | `remotes::install_github("asterisk-labs/geozl", subdir = "bindings/r")` | graph, compress, decompress, profile | [README](bindings/r/README.md) |
 | Julia | `Pkg.add(url = "https://github.com/asterisk-labs/geozl", subdir = "bindings/julia")` | graph, compress, decompress, profile | [README](bindings/julia/README.md) |
-| JavaScript | `make wasm` | compress, decompress | [README](tools/wasm/README.md) |
+| JavaScript | `npm install @asterisk-labs/geozl` | compress, decompress | [README](tools/wasm/README.md) |
 | C | `make install` | the core | [C API](docs/c-api.md) |
 
 ## Quick start

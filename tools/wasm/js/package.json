@@ -1,4 +1,47 @@
 {
+  "name": "@asterisk-labs/geozl",
+  "version": "0.19.0",
+  "description": "GeoZL raster codecs for OpenZL as a wasm64 module.",
   "type": "module",
-  "types": "./geozl_api.d.ts"
+  "exports": {
+    ".": {
+      "types": "./geozl_api.d.ts",
+      "default": "./geozl_api.js"
+    },
+    "./geozl.wasm": "./geozl.wasm",
+    "./package.json": "./package.json"
+  },
+  "types": "./geozl_api.d.ts",
+  "files": [
+    "geozl.js",
+    "geozl.wasm",
+    "geozl_api.js",
+    "geozl_api.d.ts",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "licenses"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "geozl",
+    "openzl",
+    "compression",
+    "raster",
+    "earth-observation",
+    "webassembly"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/asterisk-labs/geozl.git",
+    "directory": "tools/wasm"
+  },
+  "homepage": "https://github.com/asterisk-labs/geozl/tree/main/tools/wasm#readme",
+  "bugs": "https://github.com/asterisk-labs/geozl/issues",
+  "license": "BSD-3-Clause"
 }
