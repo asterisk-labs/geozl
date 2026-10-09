@@ -164,6 +164,10 @@ jobs:
           python tools/sync_r_vendor.py
           mkdir -p core/build-r && cd core/build-r
           R CMD build ../../bindings/r
-          GEOZL_GOLDEN_DIR="$GITHUB_WORKSPACE/bindings/python/test/golden" \
-            _R_CHECK_CRAN_INCOMING_REMOTE_=false R CMD check --no-manual geozl_*.tar.gz
+          if ! GEOZL_GOLDEN_DIR="$GITHUB_WORKSPACE/bindings/python/test/golden" \
+            _R_CHECK_CRAN_INCOMING_REMOTE_=false \
+            R CMD check --no-manual geozl_*.tar.gz; then
+            test ! -f geozl.Rcheck/00install.out || cat geozl.Rcheck/00install.out
+            exit 1
+          fi
           sh ../../tools/r_check_status.sh geozl.Rcheck/00check.log
