@@ -19,7 +19,7 @@ from the raster passed in:
 
 | You pass | Mode | Notes |
 | --- | --- | --- |
-| `None`, float raster containing NaN now | NaN | every NaN becomes a hole |
+| `None`, float raster containing NaN now | NaN | lossless keeps each payload; lossy masks every NaN |
 | `None`, anything else | none | no nodata stage; a later NaN in a lossless graph still round-trips bit for bit, in a lossy graph it decodes as `0.0` |
 | `float("nan")`, `np.nan`, `np.float64("nan")` | NaN | Python `float` NaN, independent of the raster |
 | `np.float32("nan")` | **sentinel** | not a Python `float`, so it matches only that exact NaN bit pattern; other NaN payloads are not holes |
@@ -63,14 +63,14 @@ The graph builder records sides only within the quantizer's reach: 0 for lossles
 `MAX_ERROR` for LINEAR, `p|S|/(1-p)` for LOG, and the corresponding SQRT root. The
 low-level node records every side. NaN uses the plain form.
 
-NaN mode masks every NaN whatever its payload, but the header stores one pattern (the
-first NaN found), so all holes decode with that payload. On a **lossless** graph a tile
-with several payloads therefore writes a frame whose content checksum no longer matches:
-`geozl.decompress` raises `Content checksum mismatch` (only `verify=False` reads it), and
-`profile` does not notice because it times decode without verification. Normalize
-payloads first (`a[np.isnan(a)] = np.nan`), or, when payloads carry meaning, compress
-losslessly without NaN mode (pass a sentinel the data never holds, which disables the
-automatic NaN detection).
+The header stores the first NaN pattern. On a lossless graph only NaNs with that payload
+are masked; other payloads pass through the value stream, so every bit comes back exact.
+Before a quantizer every NaN must be masked, and all of them decode with the first
+payload because NaNs cannot pass through quantization.
+
+Frames written before the lossless payload fix may have masked every NaN and restored
+them all with the first payload. Their content checksum fails; `verify=False` reads the
+frame, but the discarded payloads cannot be recovered. Re-encode from the source data.
 
 `inf` and `-inf` are values, not holes, in every mode.
 

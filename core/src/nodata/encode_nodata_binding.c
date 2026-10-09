@@ -41,7 +41,6 @@ ZL_Report EI_geozl_nodata(ZL_Encoder *eictx, const ZL_Input *in) {
 
   // Sentinel mode compares typed values; NaN mode only compares bits.
   int dtype = -1;
-  double radius = GEOZL_F64_INF;
   if (mode == GEOZL_NODATA_VALUE) {
     ZL_IntParam dp =
         ZL_Encoder_getLocalIntParam(eictx, GEOZL_NODATA_PARAM_DTYPE);
@@ -49,13 +48,14 @@ ZL_Report EI_geozl_nodata(ZL_Encoder *eictx, const ZL_Input *in) {
         geozl_dtype_width(dp.paramValue) != eltWidth)
       return ZL_returnError(ZL_ErrorCode_node_invalid_input);
     dtype = dp.paramValue;
-    ZL_CopyParam rp =
-        ZL_Encoder_getLocalCopyParam(eictx, GEOZL_NODATA_PARAM_RADIUS);
-    if (rp.paramId == GEOZL_NODATA_PARAM_RADIUS) {
-      if (rp.paramSize != 8)
-        return ZL_returnError(ZL_ErrorCode_node_invalid_input);
-      radius = geozl_ld_le_f64((const uint8_t *)rp.paramPtr);
-    }
+  }
+  double radius = GEOZL_F64_INF;
+  ZL_CopyParam rp =
+      ZL_Encoder_getLocalCopyParam(eictx, GEOZL_NODATA_PARAM_RADIUS);
+  if (rp.paramId == GEOZL_NODATA_PARAM_RADIUS) {
+    if (rp.paramSize != 8)
+      return ZL_returnError(ZL_ErrorCode_node_invalid_input);
+    radius = geozl_ld_le_f64((const uint8_t *)rp.paramPtr);
   }
 
   // Output 0 keeps the sample width, output 1 is one byte of mask per sample.
@@ -68,10 +68,16 @@ ZL_Report EI_geozl_nodata(ZL_Encoder *eictx, const ZL_Input *in) {
   int guarded = 0;
   uint8_t *mp8 = (uint8_t *)ZL_Output_ptr(mask);
   if (mode == GEOZL_NODATA_NAN) {
-    // The marking is the NaN test itself, so a second payload is a hole too,
-    // and the pattern is the first one found.
-    nodata_find_nan(&pattern, ZL_Input_ptr(in), nbElts, eltWidth);
-    nodata_mark_nan(mp8, ZL_Input_ptr(in), nbElts, eltWidth);
+    // The pattern is the first NaN found, and the decoder writes it into every
+    // hole. A lossless path marks only that payload, so the others travel as
+    // values and come back exact; a quantizer has no answer for a NaN, so
+    // anything else marks every one. Without a NaN the mask is all valid.
+    const int found =
+        nodata_find_nan(&pattern, ZL_Input_ptr(in), nbElts, eltWidth);
+    if (found && radius == 0.0)
+      nodata_mark_value(mp8, ZL_Input_ptr(in), nbElts, eltWidth, pattern);
+    else
+      nodata_mark_nan(mp8, ZL_Input_ptr(in), nbElts, eltWidth);
   } else if (mode == GEOZL_NODATA_VALUE) {
     ZL_CopyParam vp =
         ZL_Encoder_getLocalCopyParam(eictx, GEOZL_NODATA_PARAM_VALUE);

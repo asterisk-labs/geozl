@@ -23,6 +23,7 @@
 #include "openzl/codecs/zl_zigzag.h"     // ZL_NODE_ZIGZAG
 #include "openzl/codecs/zl_zstd.h"       // ZL_GRAPH_ZSTD
 
+#include "common/fp.h"
 #include "common/half.h"
 #include "lossy/lossy_node.h"   // geozl_node_lossy
 #include "lossy/lossy_recipe.h" // geozl_lossy_parse and friends
@@ -607,8 +608,13 @@ static ZL_Report graph_open(geozl_2d_graph **out, const char *method,
   const uint64_t sentinelBits =
       (eltWidth == 8) ? nodataBits
                       : (nodataBits & (((uint64_t)1 << (8 * eltWidth)) - 1));
+  // A NaN hole has no neighbourhood for a bound to reach, so its radius only
+  // says whether the path is lossless.
   const double radius =
-      geozl_lossy_guard_radius(&recipe, sentinel_value(dtype, sentinelBits));
+      nodataMode == GEOZL_NODATA_NAN
+          ? (recipe.family == GEOZL_LOSSY_NONE ? 0.0 : GEOZL_F64_INF)
+          : geozl_lossy_guard_radius(&recipe,
+                                     sentinel_value(dtype, sentinelBits));
   ZL_GraphID g = build_graph(e->c, pred, term, width, planes, eltWidth, &plan, dtype,
                              nodataMode, nodataBits, radius);
   if (!ZL_GraphID_isValid(g)) {

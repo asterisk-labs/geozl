@@ -47,7 +47,7 @@
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D70C</dd>
           <dt>header</dt><dd>the nodata pattern, optionally followed by three replacement values</dd>
-          <dt>modes</dt><dd>every NaN &middot; one declared sentinel</dd>
+          <dt>modes</dt><dd>NaN payloads &middot; one declared sentinel</dd>
           <dt>widths</dt><dd>8 &middot; 16 &middot; 32 &middot; 64-bit samples</dd>
           <dt>decode</dt><dd>restore the nodata pattern where the mask marks a hole</dd>
         </dl>
@@ -57,7 +57,7 @@
             <span>Code</span>
             <svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
           </a>
-          <span class="usage mono">geozl.lossless.Nodata(width, value, dtype)</span>
+          <span class="usage mono">geozl.lossless.Nodata(width, value, dtype, radius)</span>
         </div>
       </div>
 

@@ -69,6 +69,49 @@ def test_a_second_nan_payload_is_a_hole_too():
     assert not np.isnan(out[0, 0])
 
 
+# A second payload, and the default NaN arithmetic produces.
+OTHER_NAN = np.array(0x7FA00042, dtype=np.uint32).view(np.float32)
+
+
+@pytest.mark.parametrize("method", [GRAPH_WIDE, "id>zstd",
+                                    "planar>zigzag>transpose>entropy",
+                                    "med>zigzag>transpose>entropy"])
+def test_lossless_keeps_every_nan_payload(method):
+    """Masking every NaN wrote them all back with the first payload, so the
+    content checksum refused the frame."""
+    tile = _smooth(np.float32)
+    tile[_holes()] = ODD_NAN
+    tile[3, 3] = OTHER_NAN
+    tile[40, 60] = np.float32(np.nan)
+    _, out = _roundtrip(tile, method=method)
+    assert np.array_equal(out.view(np.uint32), tile.view(np.uint32))
+
+
+@pytest.mark.parametrize("dtype, uint, first, second", [
+    (np.float16, np.uint16, 0x7E01, 0x7C10),
+    # R's NA beside the NaN arithmetic produces, as an R raster holds them.
+    (np.float64, np.uint64, 0x7FF00000000007A2, 0x7FF8000000000000),
+])
+def test_lossless_keeps_every_nan_payload_at_every_width(dtype, uint, first,
+                                                         second):
+    tile = _smooth(dtype)
+    tile[_holes()] = np.array(first, dtype=uint).view(dtype)
+    tile[3, 3] = np.array(second, dtype=uint).view(dtype)
+    _, out = _roundtrip(tile, method="id>zstd")
+    assert np.array_equal(out.view(uint), tile.view(uint))
+
+
+def test_a_declared_nan_hole_leaves_zeros_alone():
+    """With no NaN to take a pattern from, matching bits would mark +0.0. The
+    holes would still come back as +0.0, so only the mask shows it."""
+    pytest.importorskip("openzl.ext")
+    tile = _smooth(np.float32)
+    tile[:4] = 0.0
+    frame, out = _roundtrip(tile, method=GRAPH_WIDE, nodata=np.nan)
+    assert np.array_equal(out.view(np.uint32), tile.view(np.uint32))
+    assert (_nodata_streams(frame)[1] != 0).all()
+
+
 def test_a_clean_tile_round_trips():
     """Declaring a sentinel the tile does not contain is a mask of all valid.
     It costs a stream that codes to nothing, and it still round trips."""
@@ -186,6 +229,28 @@ def test_low_level_nan_round_trips():
     tile[_holes()] = ODD_NAN
     out = _low_level_roundtrip(geozl.lossless.Nodata(COLS), tile)
     assert np.array_equal(out.view(np.uint32), tile.reshape(-1).view(np.uint32))
+
+
+def test_low_level_lossless_radius_keeps_every_nan_payload():
+    pytest.importorskip("openzl.ext")
+    tile = _smooth(np.float32)
+    tile[_holes()] = ODD_NAN
+    tile[3, 3] = OTHER_NAN
+    out = _low_level_roundtrip(geozl.lossless.Nodata(COLS, radius=0), tile)
+    assert np.array_equal(out.view(np.uint32), tile.reshape(-1).view(np.uint32))
+
+
+def test_one_nan_payload_writes_the_frame_it_always_did():
+    """With a single payload both markings pick the same holes, and with none
+    both leave the mask all valid."""
+    pytest.importorskip("openzl.ext")
+    tile = _smooth(np.float32)
+    tile[_holes()] = ODD_NAN
+    clean = _smooth(np.float32)
+    clean[:4] = 0.0
+    for t in (tile, clean):
+        assert (_frame_from_node(t, geozl.lossless.Nodata(COLS)) ==
+                _frame_from_node(t, geozl.lossless.Nodata(COLS, radius=0)))
 
 
 def test_low_level_sentinel_round_trips():
@@ -373,7 +438,8 @@ def test_an_undeclared_nan_is_kept_off_the_sentinel():
     assert _bits(out)[2, 2] == 1  # the smallest positive subnormal
 
 
-def _nodata_header(frame):
+def _nodata_streams(frame):
+    """The nodata codec's header and mask, as its decoder receives them."""
     from openzl import ext as zl
 
     from geozl.lossless import _DECODERS as lossless_decoders
@@ -384,7 +450,8 @@ def _nodata_header(frame):
 
     class Spy(NodataDecoder):
         def decode(self, state):
-            seen.append(bytes(state.codec_header))
+            mask = state.singleton_inputs[1].content.as_nparray().copy()
+            seen.append((bytes(state.codec_header), mask))
             super().decode(state)
 
     d = zl.DCtx()
@@ -394,6 +461,10 @@ def _nodata_header(frame):
     d.decompress(frame)
     assert len(seen) == 1
     return seen[0]
+
+
+def _nodata_header(frame):
+    return _nodata_streams(frame)[0]
 
 
 def test_lossless_sentinel_is_guarded_too():

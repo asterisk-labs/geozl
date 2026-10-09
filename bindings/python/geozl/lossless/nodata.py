@@ -61,13 +61,17 @@ class _Encoder(_ext.CustomEncoder):
         mp = _ptr(mask.mut_content.as_nparray())
         guarded = False
         if self._pattern is None:
-            # No pattern given, so every NaN is a hole and the first one
-            # supplies the pattern the decoder writes back.
-            pattern = 0
+            # No pattern given, so the first NaN supplies the one the decoder
+            # writes back. A lossless path marks only that payload and the
+            # others come back exact; otherwise every NaN is a hole, since a
+            # quantizer has no answer for one.
             found = ffi.new("uint64_t*")
-            if lib.nodata_find_nan(found, src, n, elt):
-                pattern = int(found[0])
-            lib.nodata_mark_nan(mp, src, n, elt)
+            has_nan = lib.nodata_find_nan(found, src, n, elt)
+            pattern = int(found[0]) if has_nan else 0
+            if has_nan and self._radius == 0:
+                lib.nodata_mark_value(mp, src, n, elt, pattern)
+            else:
+                lib.nodata_mark_nan(mp, src, n, elt)
         else:
             pattern = self._pattern & ((1 << (8 * elt)) - 1)
             if self._dtype is None:
@@ -131,11 +135,14 @@ class Nodata:
     """Split missing samples into a validity mask and fill their positions.
 
     Omit this node for tiles without missing values. Sentinel mode prevents a
-    lossy stage from turning valid samples into NoData.
+    lossy stage from turning valid samples into NoData. ``radius`` is the
+    largest error of the stages after the node: 0 for a lossless graph, which
+    in NaN mode keeps every NaN payload, and unknown by default.
     """
 
-    def __init__(self, width, value=None, dtype=None):
+    def __init__(self, width, value=None, dtype=None, radius=None):
         self._width = int(width)
+        self._radius = radius
         self._dtype = None
         if value is None:
             self._pattern = None
@@ -152,5 +159,5 @@ class Nodata:
             succ.append(s if isinstance(s, _ext.GraphID)
                         else s.parameterize(compressor))
         node = compressor.register_custom_encoder(
-            _Encoder(self._width, self._pattern, self._dtype))
+            _Encoder(self._width, self._pattern, self._dtype, self._radius))
         return compressor.build_static_graph(node, succ, name=_NAME)

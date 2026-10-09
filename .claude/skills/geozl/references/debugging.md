@@ -72,9 +72,9 @@ Silent outcomes with no error, worth checking when results look wrong:
   the tile was predicted with the wrong rows. Tiles narrower than one graph row, and all
   `id` and `delta_1d` recipes, never trigger the width error at all.
 - A `-1000` became `64536`: `.view` with the wrong dtype after `decompress`.
-- A different NaN payload than the input after `verify=False`: NaN mode restores every
-  hole with the first payload found (on lossless graphs this also breaks the checksum,
-  see below).
+- A different NaN payload after lossy compression: a quantizer cannot carry NaN, so NaN
+  mode restores every hole with the first payload found. Lossless graphs preserve each
+  payload exactly.
 
 ### Decompressing
 
@@ -82,7 +82,7 @@ Silent outcomes with no error, worth checking when results look wrong:
 | --- | --- | --- |
 | `RuntimeError: geozl.decompress: unreadable frame` | not an OpenZL frame, or the size field is unreadable | check the bytes and offsets you stored |
 | `RuntimeError: geozl.decompress failed: Code: Source size too small` | truncated frame | fix storage or range reads |
-| `RuntimeError: geozl.decompress failed: Code: Content checksum mismatch` on a frame you just wrote | lossless graph in NaN mode over a tile with more than one NaN payload: every hole decodes with the first payload, so the content hash differs (`profile` still lists the recipe because it times decode with `verify=False`) | normalize payloads before compressing: `a[np.isnan(a)] = np.nan` |
+| `RuntimeError: geozl.decompress failed: Code: Content checksum mismatch` on an older mixed-NaN frame | the old writer restored every NaN with the first payload | `verify=False` reads it with that payload loss; re-encode from the source data |
 | `RuntimeError: geozl.decompress failed: ...` on flipped bytes | checksum or corruption detection | the frame is damaged; `verify=False` will not repair it |
 | `... Custom decoder transform 7526160 not found!` | the reader lacks that codec | section 2 |
 | `ValueError: geozl.decompress: the frame declares N bytes of output, above the M allowed` | `max_output_size` guard | raise the limit only for trusted frames |

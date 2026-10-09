@@ -174,7 +174,7 @@ ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width,
   };
   ZL_LocalParams lp = {
       .intParams = {.intParams = ip, .nbIntParams = guard ? 3u : 2u},
-      .copyParams = {.copyParams = cp, .nbCopyParams = guard ? 2 : 1},
+      .copyParams = {.copyParams = cp, .nbCopyParams = 2},
   };
   ZL_NodeParameters np = {.localParams = &lp};
   ZL_RESULT_OF(ZL_NodeID) r = ZL_Compressor_parameterizeNode(c, base, &np);

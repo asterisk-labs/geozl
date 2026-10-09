@@ -61,8 +61,9 @@ ZL_NodeID geozl_node_quant_log(ZL_Compressor *c, const quant_log_params *params,
 ZL_NodeID geozl_node_quant_sqrt(ZL_Compressor *c, const quant_sqrt_params *params, int dtype);
 
 typedef enum { GEOZL_NODATA_NONE = 0, GEOZL_NODATA_NAN = 1, GEOZL_NODATA_VALUE = 2 } geozl_nodata_mode;
-// VALUE mode needs the sample dtype and the maximum error of following stages.
-// Use radius 0 for lossless and INFINITY when that error is unknown.
+// VALUE mode needs the sample dtype. The radius is the maximum error of the
+// following stages: use 0 for lossless and INFINITY when it is unknown. In NAN
+// mode, 0 keeps distinct NaN payloads and any other value masks every NaN.
 ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width, geozl_nodata_mode mode, uint64_t valueBits, int dtype, double radius);
 ```
 

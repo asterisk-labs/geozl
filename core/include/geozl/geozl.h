@@ -85,7 +85,8 @@ typedef enum {
 
 // Build a nodata node. Sentinel mode uses dtype to guard values that lossy
 // stages may move onto valueBits. radius is their maximum error; use 0 for a
-// lossless path and INFINITY when it is unknown.
+// lossless path and INFINITY when it is unknown. In NaN mode a radius of 0
+// keeps every NaN's bits, and any other marks every NaN as a hole.
 GEOZL_API ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width,
                                       geozl_nodata_mode mode,
                                       uint64_t valueBits, int dtype,

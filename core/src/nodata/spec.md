@@ -57,8 +57,12 @@ exactly like the plain one.
 ## Comparisons
 
 Every comparison and restoration uses bit patterns. This distinguishes `-0.0`
-from `0.0` and preserves a NaN payload. Because the header stores one pattern,
-all masked NaNs are restored with the first stored payload.
+from `0.0` and preserves a NaN payload. The header stores one pattern, the
+first NaN's, and every masked NaN is restored with it. On a lossless path the
+encoder masks only the NaNs carrying that payload, so the others travel as
+values and every payload comes back exact. When a lossy stage follows, a NaN
+cannot pass through it, so every NaN is masked and comes back with the first
+payload.
 
 ## Encoding the guarded form
 
