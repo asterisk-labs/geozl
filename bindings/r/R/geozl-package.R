@@ -6,6 +6,7 @@
 #' [geozl_compress()], and read them back with [geozl_decompress()].
 #' [geozl_profile()] ranks recipes on a sample.
 #'
+#' @author Cesar Aybar \email{cesar@asterisk.coop}
 #' @keywords internal
 #' @useDynLib geozl, .registration = TRUE
 "_PACKAGE"

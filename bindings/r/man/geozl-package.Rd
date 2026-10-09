@@ -21,14 +21,6 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Cesar Aybar \email{cesar@asterisk.coop}
-
-Other contributors:
-\itemize{
-  \item Asterisk Labs [copyright holder]
-  \item Meta Platforms, Inc. and affiliates (OpenZL and Zstandard) [copyright holder]
-  \item Yann Collet (LZ4) [copyright holder]
-}
-
+Cesar Aybar \email{cesar@asterisk.coop}
 }
 \keyword{internal}
