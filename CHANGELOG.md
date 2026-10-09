@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The R package now reports that webR is unsupported instead of entering an
+  OpenZL build that cannot target wasm32.
+
 ## [0.19.0] - 2026-10-08
 
 ### Added

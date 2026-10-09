@@ -19,7 +19,8 @@ identical(back, tile)
 ## Install
 
 The package compiles GeoZL and OpenZL from source with their own CMake files,
-so it needs CMake 3.21 or newer and C and C++ compilers.
+so it needs a 64-bit platform, CMake 3.21 or newer, and C and C++ compilers.
+webR is not supported because it uses wasm32.
 
 ```r
 remotes::install_github("asterisk-labs/geozl", subdir = "bindings/r")

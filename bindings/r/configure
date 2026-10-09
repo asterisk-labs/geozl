@@ -3,6 +3,15 @@
 # then writes src/Makevars to link the static libraries into the package.
 set -eu
 
+for arg in "$@"; do
+    case $arg in
+        --host=wasm32-*|--host=wasm32)
+            echo "configure: GeoZL for R requires a 64-bit platform; webR is not supported" >&2
+            exit 1
+            ;;
+    esac
+done
+
 : "${R_HOME:=$(R RHOME)}"
 R_BIN="${R_HOME}/bin/R"
 
@@ -62,6 +71,16 @@ R_CXXFLAGS=$("$R_BIN" CMD config CXXFLAGS)
 R_CPPFLAGS=$("$R_BIN" CMD config CPPFLAGS)
 R_LDFLAGS=$("$R_BIN" CMD config LDFLAGS)
 
+# GCC 15 cannot see that OpenZL numeric streams have widths 1, 2, 4, or 8,
+# and warns that the 9-byte range-pack header may overflow.
+OPENZL_CFLAGS=
+if "$(program "$CC_LINE")" -dM -E - </dev/null 2>/dev/null \
+    | grep -q '__GNUC__' \
+    && ! "$(program "$CC_LINE")" -dM -E - </dev/null 2>/dev/null \
+        | grep -q '__clang__'; then
+    OPENZL_CFLAGS=-Wno-stringop-overflow
+fi
+
 OSX_TARGET=${MACOSX_DEPLOYMENT_TARGET:-}
 if [ -z "$OSX_TARGET" ] && [ "$(uname -s)" = Darwin ]; then
     OSX_TARGET=$(deployment_target "$CC_LINE $R_CFLAGS $R_CPPFLAGS $R_LDFLAGS")
@@ -81,7 +100,7 @@ cd src
 "$CMAKE" -S "$CORE" -B build ${GENERATOR:+-G "$GENERATOR"} \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_C_COMPILER="$(program "$CC_LINE")" \
-    -DCMAKE_C_FLAGS="$(flags "$CC_LINE") $R_CPPFLAGS $R_CFLAGS $OSX_FLAG" \
+    -DCMAKE_C_FLAGS="$(flags "$CC_LINE") $R_CPPFLAGS $R_CFLAGS $OSX_FLAG $OPENZL_CFLAGS" \
     -DCMAKE_CXX_COMPILER="$(program "$CXX_LINE")" \
     -DCMAKE_CXX_FLAGS="$(flags "$CXX_LINE") $R_CPPFLAGS $R_CXXFLAGS $OSX_FLAG" \
     -DCMAKE_EXE_LINKER_FLAGS="$R_LDFLAGS" \
@@ -89,6 +108,7 @@ cd src
     -DCMAKE_MODULE_LINKER_FLAGS="$R_LDFLAGS" \
     ${OSX_TARGET:+-DCMAKE_OSX_DEPLOYMENT_TARGET="$OSX_TARGET"} \
     -DBUILD_SHARED_LIBS=OFF \
+    -DZSTD_BUILD_DICTBUILDER=OFF \
     -DGEOZL_BUILD_KERNELS_SHARED=OFF \
     -DGEOZL_OPENZL_DIR="$(cd "$OPENZL" && pwd)"
 "$CMAKE" --build build --target geozl --parallel "$JOBS"
