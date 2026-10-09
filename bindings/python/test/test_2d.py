@@ -259,6 +259,12 @@ def test_max_output_size_allows_an_exact_fit():
     assert np.array_equal(out.view(arr.dtype).reshape(arr.shape), arr)
 
 
+@pytest.mark.parametrize("limit", [float("nan"), float("inf"), -1, "1024", True])
+def test_max_output_size_rejects_invalid_limits(limit):
+    with pytest.raises(ValueError, match="finite, non-negative"):
+        geozl.decompress(_frame(_tile(), method=GRAPH), max_output_size=limit)
+
+
 def test_no_ceiling_is_the_default():
     arr = _tile()
     assert geozl.decompress(_frame(arr, method=GRAPH)).nbytes == arr.nbytes
@@ -386,6 +392,11 @@ def test_store_lo_is_no_longer_a_recipe():
 def test_profile_rejects_an_unknown_prior():
     with pytest.raises(ValueError, match="not one of"):
         geozl.profile(_tile(), prior="not_a_predictor")
+
+
+def test_profile_rejects_an_empty_prior():
+    with pytest.raises(ValueError, match="not one of"):
+        geozl.profile(_tile(), prior="")
 
 
 def test_categorical_drops_out_past_two_bytes():

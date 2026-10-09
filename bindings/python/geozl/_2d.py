@@ -345,11 +345,20 @@ def decompress(frame: bytes, *, verify: bool = True,
 
     # Numeric output must be 8-byte aligned; a uint64 backing store guarantees it.
     dsize = int(dsize)
-    if max_output_size is not None and dsize > max_output_size:
-        raise ValueError(
-            f"geozl.decompress: the frame declares {dsize} bytes of output, "
-            f"above the {max_output_size} allowed"
-        )
+    if max_output_size is not None:
+        try:
+            valid_limit = (not isinstance(max_output_size, (bool, np.bool_)) and
+                           math.isfinite(max_output_size) and
+                           max_output_size >= 0)
+        except TypeError:
+            valid_limit = False
+        if not valid_limit:
+            raise ValueError("max_output_size must be a finite, non-negative number")
+        if dsize > max_output_size:
+            raise ValueError(
+                f"geozl.decompress: the frame declares {dsize} bytes of output, "
+                f"above the {max_output_size} allowed"
+            )
     out = np.empty((dsize + 7) // 8, np.uint64).view(np.uint8)[:dsize]
     out_size = ffi.new("size_t*")
     err_ctx = ffi.new("char[]", 256)
@@ -364,12 +373,14 @@ def decompress(frame: bytes, *, verify: bool = True,
 
 
 def _grid_names(prior: str | None, elt: int) -> list[str]:
+    if prior is not None and (not isinstance(prior, str) or not prior):
+        raise ValueError(f"prior {prior!r} is not one of {PRIORS} or None")
     lib = _load_lib_full()
     stride, cap = 48, 128
     names = ffi.new("char[]", stride * cap)
     count = ffi.new("size_t*")
-    rc = lib.geozl_2d_grid_c((prior or "").encode("utf-8"), elt, names, stride,
-                             cap, count)
+    arg = "" if prior is None else prior
+    rc = lib.geozl_2d_grid_c(arg.encode("utf-8"), elt, names, stride, cap, count)
     if rc != 0:
         raise ValueError(f"prior {prior!r} is not one of {PRIORS} or None")
     n = min(int(count[0]), cap)
