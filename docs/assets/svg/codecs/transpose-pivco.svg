@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220" width="360" height="220" role="img" aria-label="Numeric values split into byte lanes, each encoded with PivCo Huffman or PFOR">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&display=swap');
+    svg{--paper:#111721;--ink:#E6EDF3;--muted:#8F9AAA;--green:#91F2BC;background:transparent;font-family:"IBM Plex Mono",monospace}
+    .box{fill:var(--paper);stroke:var(--ink);stroke-width:1.2}.lane{fill:#17251F;stroke:var(--green);stroke-width:1.3}
+    .name{fill:var(--ink);font:700 12px "IBM Plex Mono",monospace;text-anchor:middle}.small{fill:var(--muted);font:500 10px "IBM Plex Mono",monospace;text-anchor:middle}
+    .arrow{fill:none;stroke:var(--muted);stroke-width:1.4;marker-end:url(#arrow)}
+  ]]></style>
+  <rect x="22" y="78" width="74" height="64" rx="3" class="box"/>
+  <text x="59" y="106" class="name">VALUES</text><text x="59" y="124" class="small">W bytes</text>
+  <path d="M97 110H130" class="arrow"/>
+  <rect x="134" y="42" width="72" height="34" rx="3" class="lane"/><text x="170" y="63" class="name">LANE 0</text>
+  <rect x="134" y="93" width="72" height="34" rx="3" class="lane"/><text x="170" y="114" class="name">LANE 1</text>
+  <rect x="134" y="144" width="72" height="34" rx="3" class="lane"/><text x="170" y="165" class="name">LANE W−1</text>
+  <path d="M207 59H239M207 110H239M207 161H239" class="arrow"/>
+  <rect x="243" y="35" width="94" height="48" rx="3" class="box"/><text x="290" y="56" class="name">PIVCO</text><text x="290" y="72" class="small">or PFOR</text>
+  <rect x="243" y="86" width="94" height="48" rx="3" class="box"/><text x="290" y="107" class="name">PIVCO</text><text x="290" y="123" class="small">or PFOR</text>
+  <rect x="243" y="137" width="94" height="48" rx="3" class="box"/><text x="290" y="158" class="name">PIVCO</text><text x="290" y="174" class="small">or PFOR</text>
+  <defs><marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z" fill="#8F9AAA"/></marker></defs>
+</svg>

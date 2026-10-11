@@ -7,10 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `transpose_pivco` (CTid `0x72D713`) gives non-planar `pivco` recipes a fixed,
+  GPU-readable lane format.
+
 ### Changed
 
 - The R package now reports that webR is unsupported instead of entering an
   OpenZL build that cannot target wasm32.
+- PivCo recipes now use GeoZL's fixed lane format: each lane is PivCo or byte
+  PFOR. They no longer depend on OpenZL choosing FSE, bit-pack or store from the
+  input values.
+- Renamed `planar_zigzag_pivco` to `planar_zigzag_transpose_pivco`. The old C
+  function and CTid names remain as aliases.
+
+### Breaking
+
+- `planar>zigzag>pivco` now accepts only one-byte elements. For wider elements,
+  use `planar>zigzag>transpose>pivco`. Existing CTid `0x72D712` frames remain
+  readable; only the recipe spelling changed.
+- Non-planar recipes ending in `pivco` or `transpose>pivco` now write CTid
+  `0x72D713`. Readers from 0.19 reject these new frames; current readers still
+  decode the standard-node frames written by 0.19.
 
 ## [0.19.0] - 2026-10-08
 

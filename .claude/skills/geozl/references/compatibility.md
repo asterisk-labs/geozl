@@ -27,7 +27,9 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
   package supports OpenZL 0.3.x (`openzl>=0.3,<0.4`). The high-level API writes OpenZL
   format 24, which OpenZL 0.2 readers accept, except `pivco`, `transpose>pivco` and
   `sparse`, which write 27 and need an OpenZL 0.3 reader; readers take formats up to 27.
-  Frames containing `planar_zigzag_pivco` also need a GeoZL 0.19 reader.
+  Frames containing `planar_zigzag_transpose_pivco` also need a GeoZL 0.19 reader.
+  Unreleased writers use `transpose_pivco` (`0x72D713`) for non-planar PivCo
+  recipes; 0.19 readers reject those frames.
 - Python API: semantic versioning, may grow before 1.0. C: stable source API from
   0.13.0, no ABI promise before 1.0.
 
@@ -45,6 +47,7 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
 
 | Version | Change | Consequence |
 | --- | --- | --- |
+| Unreleased | non-planar `pivco` recipes use `transpose_pivco` (`0x72D713`) | 0.19 readers reject new frames; current readers retain the 0.19 standard-node path |
 | 0.19.0 (2026-10-08) | new `planar_zigzag_pivco` codec and `sparse` terminal | those frames need a 0.19 reader; PivCo and sparse frames use OpenZL format 27 |
 | 0.19.0 (2026-10-08) | lossy recipes no longer accept `STORE`; stream layout is automatic | no wire change; readers still decode both layouts |
 | 0.18.0 (2026-09-20) | new fused codec `med_zigzag`; `med>zigzag>...` recipes select it | frames need a 0.18.0 reader; older frames with separate nodes still decode |

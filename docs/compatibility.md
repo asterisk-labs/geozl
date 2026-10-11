@@ -13,8 +13,9 @@ Released CTids are never reassigned. An incompatible codec layout receives a
 new CTid. Encoders may produce different bytes without breaking compatibility,
 and older readers may not understand codecs introduced later.
 
-Released frames in `bindings/python/test/golden` are decoded in CI on x86-64
-and arm64.
+Frozen frames in `bindings/python/test/golden` are decoded in CI on x86-64 and
+arm64. Entries marked `unreleased` are renamed to the release that ships them
+when that release is prepared.
 
 From 0.19, lossy codecs choose the stream layout and recipes no longer accept
 `STORE`. The wire format is unchanged, and readers still accept both layouts.
@@ -53,8 +54,17 @@ GeoZL writes OpenZL frame format 24, the newest one OpenZL 0.2 reads, so
 GeoZL 0.18 readers decode what later releases write. The exceptions are the
 `pivco`, `transpose>pivco` and `sparse` terminals. PivCo Huffman exists from
 format 27 and `sparse_num` from 26, so their frames need a reader on OpenZL
-0.3, and a 0.18 reader refuses them. `planar>zigzag>pivco` writes the
-`planar_zigzag_pivco` codec, new in 0.19, so its frames need a 0.19 reader. It
-calls the PivCo kernels of the pinned OpenZL, so a change to their bitstream
-would need a new CTid here.
+0.3, and a 0.18 reader refuses them. `planar>zigzag>pivco` writes CTid
+`0x72D712`, introduced as `planar_zigzag_pivco` in 0.19 and now named
+`planar_zigzag_transpose_pivco`. Its frames need a 0.19 reader.
+
+Unreleased writers use CTid `0x72D713` for every non-planar recipe ending in
+`pivco` or `transpose>pivco`. The affected predictors are `id`, `delta_1d`,
+`delta_w`, `delta_n`, `med`, `average` and `wp_static`. These recipe names
+already existed in 0.19, but that release wrote them as standard OpenZL nodes.
+Current readers still decode those frames. A 0.19 reader rejects the new CTid,
+so upgrade readers before enabling a new writer. Both PivCo codecs call the
+kernels of the pinned OpenZL, so a change to that bitstream would need another
+CTid here.
+
 Readers accept every format OpenZL 0.3 does, up to 27.

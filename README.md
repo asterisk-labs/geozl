@@ -61,7 +61,8 @@ back = geozl.decompress(frame).view(np.uint16).reshape(tile.shape)
 | `planar_zigzag` | `0x72D70F` | planar residuals and Zigzag in one pass |
 | `planar_zigzag_pfor` | `0x72D710` | planar, Zigzag and PFOR as one codec |
 | `med_zigzag` | `0x72D711` | MED residuals and Zigzag in one pass |
-| `planar_zigzag_pivco` | `0x72D712` | planar and Zigzag, then PivCo or PFOR per byte lane |
+| `planar_zigzag_transpose_pivco` | `0x72D712` | planar and Zigzag, then PivCo or PFOR per byte lane |
+| `transpose_pivco` | `0x72D713` | byte lanes encoded independently with PivCo or PFOR |
 | `quant_linear` | `0x72D781` | absolute bound: `LINEAR:MAX_ERROR=V` |
 | `quant_log` | `0x72D782` | relative bound: `LOG:MAX_ERROR=P%` |
 | `quant_sqrt` | `0x72D783` | noise-scaled bound: `SQRT:MAX_ERROR=VN` |

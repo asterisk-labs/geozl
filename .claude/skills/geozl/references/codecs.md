@@ -45,13 +45,14 @@ destroys data. Released CTids are never reassigned.
 | `planar_zigzag` | `0x72D70F` | fused | numeric -> numeric | `PlanarZigzag(width, planes)` | planar then Zigzag in one pass |
 | `planar_zigzag_pfor` | `0x72D710` | fused | numeric -> serial | `PlanarZigzagPfor(width, planes)` | planar, Zigzag and PFOR, one 256-value block at a time |
 | `med_zigzag` | `0x72D711` | fused | numeric -> numeric | `MedZigzag(width, planes)` | MED then Zigzag in one pass |
-| `planar_zigzag_pivco` | `0x72D712` | fused | numeric -> weights + serial | none, C only | planar and Zigzag, then PivCo Huffman or byte PFOR per residual byte lane |
+| `planar_zigzag_transpose_pivco` | `0x72D712` | fused | numeric -> weights + serial | none, C only | planar and Zigzag, then PivCo Huffman or byte PFOR per residual byte lane; `planar_zigzag_pivco` remains a C source alias |
+| `transpose_pivco` | `0x72D713` | terminal | numeric -> weights + serial | none, C only | byte lanes, each encoded with PivCo Huffman or byte PFOR |
 | `quant_linear` | `0x72D781` | lossy | numeric -> numeric | `QuantLinear(recipe, dtype)` | uniform grid, absolute bound |
 | `quant_log` | `0x72D782` | lossy | numeric -> numeric | `QuantLog(recipe, dtype)` | logarithmic grid, relative bound |
 | `quant_sqrt` | `0x72D783` | lossy | numeric -> numeric | `QuantSqrt(recipe, dtype)` | square-root grid, bound follows `sqrt(a + b*x)` |
 
-The README documents sixteen codecs: six predictors, four fused codecs,
-`deinterleave`, `nodata`, `pfor` and three quantizers.
+The README documents seventeen codecs: six predictors, four fused codecs,
+`transpose_pivco`, `deinterleave`, `nodata`, `pfor` and three quantizers.
 
 ## 3. Header layouts
 
@@ -64,7 +65,8 @@ The README documents sixteen codecs: six predictors, four fused codecs,
 | `nodata` | `w` or `4w` | plain: the NoData bit pattern; guarded: the pattern, then its neighbour above, below and the other signed zero |
 | `pfor` | 9 | `u64 count`, `u8 element width` |
 | `planar_zigzag_pfor` | 17 | `u64 count`, `u8 element width`, `u32 width`, `u32 planes` |
-| `planar_zigzag_pivco` | 21 + 7 per lane | `u64 count`, `u8 element width`, `u32 width`, `u32 planes`, `u32 PivCo block size`, then per byte lane `u8 mode` (0 PivCo, 1 PFOR), `u16 weights size`, `u32 payload size` |
+| `planar_zigzag_transpose_pivco` | 21 + 7 per lane | `u64 count`, `u8 element width`, `u32 width`, `u32 planes`, `u32 PivCo block size`, then per byte lane `u8 mode` (0 PivCo, 1 PFOR), `u16 weights size`, `u32 payload size` |
+| `transpose_pivco` | 13 + 7 per lane | `u64 count`, `u8 element width`, `u32 PivCo block size`, then the same per-lane records |
 | `blocked_transpose_zstd` | 16 | `u8 version (1)`, `u8 element width`, `u16 reserved`, `u32 block size`, `u64 count` |
 | `quant_linear`, `quant_log` | 10 | `u8 dtype`, `u8 flags`, `f64 step` |
 | `quant_sqrt` | 18 | `u8 dtype`, `u8 flags`, `f64 step`, `f64 offset` |
@@ -92,7 +94,8 @@ Arithmetic wraps at the element width unless stated.
 | `wp_static` | `out = r + W + ((cN*N + cNW*NW + cNE*NE + cNN*NN + round) >> shift)`, 32-bit accumulator for 1 and 2 byte samples, 64-bit otherwise |
 | `planar_zigzag` | `r = (z >> 1) ^ -(z & 1)`, then planar |
 | `med_zigzag` | `r = (z >> 1) ^ -(z & 1)`, then med |
-| `planar_zigzag_pivco` | decode each byte lane (PivCo or byte PFOR), `z = sum lane_k << 8k`, then as `planar_zigzag` |
+| `planar_zigzag_transpose_pivco` | decode each byte lane (PivCo or byte PFOR), `z = sum lane_k << 8k`, then as `planar_zigzag` |
+| `transpose_pivco` | decode each byte lane (PivCo or byte PFOR), then join the lanes little endian |
 | `pfor` | per block: unpack the `b`-bit body, then OR `exception_bits << b` into each listed position |
 | `nodata` | plain: `out = mask == 0 ? pattern : values`; guarded (mask 0 hole, 1 above, 2 below, 3 other zero): a hole takes `pattern`, a value equal to `pattern` takes the replacement its code names, anything else is copied; codes above 3 or a replacement equal to `pattern` are corrupt |
 | `quant_linear` | integer index: `q * step` in integer arithmetic; float index: `q * step`; values: copy or cast; clamp to dtype (and to 0 when `NONNEGATIVE`) |
