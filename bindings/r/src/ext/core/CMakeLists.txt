@@ -12,6 +12,7 @@ option(GEOZL_SANITIZE             "Build with ASan and UBSan, for tests and fuzz
 option(GEOZL_WERROR               "Turn geozl warnings into errors, for CI" OFF)
 option(GEOZL_BUILD_FUZZERS        "Build the libFuzzer harnesses, needs clang and FULL" OFF)
 option(GEOZL_BUILD_WASM           "Build the wasm64 JavaScript module" OFF)
+option(GEOZL_BUILD_GPU            "Build the internal Metal or CUDA runtime" OFF)
 set(GEOZL_OPENZL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../extern/openzl"
     CACHE PATH "Path to the OpenZL submodule source")
 
@@ -20,6 +21,9 @@ if(GEOZL_BUILD_WASM AND NOT EMSCRIPTEN)
 endif()
 if(GEOZL_BUILD_WASM AND NOT GEOZL_BUILD_FULL)
     message(FATAL_ERROR "GEOZL_BUILD_WASM requires GEOZL_BUILD_FULL=ON")
+endif()
+if(GEOZL_BUILD_GPU AND NOT GEOZL_BUILD_FULL)
+    message(FATAL_ERROR "GEOZL_BUILD_GPU requires GEOZL_BUILD_FULL=ON")
 endif()
 
 # Freeze geozl's linkage before OpenZL touches BUILD_SHARED_LIBS. A standalone
@@ -189,12 +193,42 @@ if(GEOZL_BUILD_FULL)
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/src)
     target_link_libraries(geozl PUBLIC ${GEOZL_OPENZL_TARGET})
-    # planar_zigzag_pivco calls PivCo's kernels, which OpenZL does not install.
+    # planar_zigzag_transpose_pivco calls PivCo's kernels, which OpenZL does not install.
     if(GEOZL_USE_SYSTEM_OPENZL)
         target_include_directories(geozl PRIVATE ${GEOZL_OPENZL_DIR}/src)
     endif()
     target_compile_definitions(geozl PRIVATE GEOZL_BUILD)
     target_compile_options(geozl PRIVATE ${GEOZL_WARN} ${GEOZL_FP})
+    if(GEOZL_BUILD_GPU)
+        find_package(Threads REQUIRED)
+        target_sources(geozl PRIVATE
+            src/gpu/frame_batch.c
+            src/gpu/pfor_capture.c
+            src/gpu/pfor_decode.c
+            src/gpu/pfor_plan.c
+            src/gpu/pfor_plan_parallel.c
+            src/gpu/pivco_capture.c
+            src/gpu/pivco_decode.c
+            src/gpu/pivco_plan.c
+            src/gpu/pivco_plan_parallel.c
+            src/gpu/planar_scan.c)
+        target_link_libraries(geozl PRIVATE Threads::Threads)
+        if(APPLE)
+            enable_language(OBJC)
+            target_sources(geozl PRIVATE src/gpu/runtime_metal.m)
+            target_compile_options(geozl PRIVATE
+                $<$<COMPILE_LANGUAGE:OBJC>:-fobjc-arc>
+                $<$<COMPILE_LANGUAGE:OBJC>:-fvisibility=hidden>)
+            target_link_libraries(geozl PRIVATE
+                "-framework Metal" "-framework Foundation")
+        elseif(UNIX)
+            target_sources(geozl PRIVATE src/gpu/runtime_cuda.c)
+            target_link_libraries(geozl PRIVATE ${CMAKE_DL_LIBS})
+        else()
+            message(FATAL_ERROR
+                "GEOZL_BUILD_GPU is not supported on this platform")
+        endif()
+    endif()
     if(GEOZL_LIBM)
         target_link_libraries(geozl PRIVATE ${GEOZL_LIBM})
     endif()
