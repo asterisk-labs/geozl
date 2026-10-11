@@ -16,10 +16,11 @@
 #include "planar/decode_planar_binding.h"
 #include "planar_zigzag/decode_planar_zigzag_binding.h"
 #include "planar_zigzag_pfor/decode_planar_zigzag_pfor_binding.h"
-#include "planar_zigzag_pivco/decode_planar_zigzag_pivco_binding.h"
+#include "planar_zigzag_transpose_pivco/decode_planar_zigzag_transpose_pivco_binding.h"
 #include "quant_linear/decode_quant_linear_binding.h"
 #include "quant_log/decode_quant_log_binding.h"
 #include "quant_sqrt/decode_quant_sqrt_binding.h"
+#include "transpose_pivco/decode_transpose_pivco_binding.h"
 #include "wp_static/decode_wp_static_binding.h"
 
 #include "openzl/zl_dtransform.h"
@@ -39,7 +40,9 @@ static const ZL_TypedDecoderDesc kDecoders[] = {
     REGISTER(GEOZL_CTID_PLANAR, DI_PLANAR),
     REGISTER(GEOZL_CTID_PLANAR_ZIGZAG, DI_PLANAR_ZIGZAG),
     REGISTER(GEOZL_CTID_PLANAR_ZIGZAG_PFOR, DI_PLANAR_ZIGZAG_PFOR),
-    REGISTER(GEOZL_CTID_PLANAR_ZIGZAG_PIVCO, DI_PLANAR_ZIGZAG_PIVCO),
+    REGISTER(GEOZL_CTID_PLANAR_ZIGZAG_TRANSPOSE_PIVCO,
+             DI_PLANAR_ZIGZAG_TRANSPOSE_PIVCO),
+    REGISTER(GEOZL_CTID_TRANSPOSE_PIVCO, DI_TRANSPOSE_PIVCO),
     REGISTER(GEOZL_CTID_MED, DI_MED),
     REGISTER(GEOZL_CTID_MED_ZIGZAG, DI_MED_ZIGZAG),
     REGISTER(GEOZL_CTID_AVERAGE, DI_AVERAGE),

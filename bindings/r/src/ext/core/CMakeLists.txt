@@ -137,6 +137,7 @@ foreach(binding IN LISTS GEOZL_DECODER_BINDINGS)
     list(APPEND GEOZL_BINDINGS src/${name}/decode_${name}_binding.c)
     list(APPEND GEOZL_KERNELS src/${name}/decode_${name}_kernel.c)
 endforeach()
+list(APPEND GEOZL_BINDINGS src/pivco_lanes/pivco_lanes.c)
 # The rest of the kernels library, which the glob above cannot find because none
 # of it is a codec. It is here so a Python caller reaches it without OpenZL: the
 # coefficient blob's serializer, the wp_static trainer, the recipe parsers that

@@ -11,10 +11,11 @@
 #include "planar/encode_planar_binding.h"
 #include "planar_zigzag/encode_planar_zigzag_binding.h"
 #include "planar_zigzag_pfor/encode_planar_zigzag_pfor_binding.h"
-#include "planar_zigzag_pivco/encode_planar_zigzag_pivco_binding.h"
+#include "planar_zigzag_transpose_pivco/encode_planar_zigzag_transpose_pivco_binding.h"
 #include "quant_linear/encode_quant_linear_binding.h"
 #include "quant_log/encode_quant_log_binding.h"
 #include "quant_sqrt/encode_quant_sqrt_binding.h"
+#include "transpose_pivco/encode_transpose_pivco_binding.h"
 #include "wp_static/encode_wp_static_binding.h"
 
 #include "common/endian.h"                   // geozl_st_le64
@@ -80,11 +81,23 @@ ZL_NodeID geozl_node_planar_zigzag_pfor(ZL_Compressor *c, uint32_t width,
       EI_PLANAR_ZIGZAG_PFOR(GEOZL_CTID_PLANAR_ZIGZAG_PFOR);
   return geometry_node(c, &desc, width, planes);
 }
+ZL_NodeID geozl_node_planar_zigzag_transpose_pivco(ZL_Compressor *c,
+                                                   uint32_t width,
+                                                   uint32_t planes) {
+  const ZL_TypedEncoderDesc desc = EI_PLANAR_ZIGZAG_TRANSPOSE_PIVCO(
+      GEOZL_CTID_PLANAR_ZIGZAG_TRANSPOSE_PIVCO);
+  return geometry_node(c, &desc, width, planes);
+}
+
 ZL_NodeID geozl_node_planar_zigzag_pivco(ZL_Compressor *c, uint32_t width,
                                          uint32_t planes) {
+  return geozl_node_planar_zigzag_transpose_pivco(c, width, planes);
+}
+
+ZL_NodeID geozl_node_transpose_pivco(ZL_Compressor *c) {
   const ZL_TypedEncoderDesc desc =
-      EI_PLANAR_ZIGZAG_PIVCO(GEOZL_CTID_PLANAR_ZIGZAG_PIVCO);
-  return geometry_node(c, &desc, width, planes);
+      EI_TRANSPOSE_PIVCO(GEOZL_CTID_TRANSPOSE_PIVCO);
+  return ZL_Compressor_registerTypedEncoder(c, &desc);
 }
 ZL_NodeID geozl_node_med(ZL_Compressor *c, uint32_t width,
                             uint32_t planes) {
