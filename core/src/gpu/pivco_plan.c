@@ -1,19 +1,19 @@
 #include "pivco_plan.h"
 
+#include "pfor_plan.h"
+
 #include "common/endian.h"
 #include "pfor/pfor_check.h"
 
 #include <limits.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 _Static_assert(sizeof(GpuTreeNode) == 8, "GpuTreeNode must match Slang");
 _Static_assert(sizeof(GpuNodeBits) == 12, "GpuNodeBits must match Slang");
-_Static_assert(sizeof(GpuPivcoBlock) == 24,
-               "GpuPivcoBlock must match Slang");
+_Static_assert(sizeof(GpuPivcoBlock) == 24, "GpuPivcoBlock must match Slang");
 _Static_assert(sizeof(GpuLaneBlock) == 8, "GpuLaneBlock must match Slang");
-_Static_assert(sizeof(GpuJoinTask) == 16, "GpuJoinTask must match Slang");
+_Static_assert(sizeof(GpuJoinTask) == 24, "GpuJoinTask must match Slang");
 
 typedef struct {
   GpuTreeNode nodes[ZL_PIVCO_MAX_TREE_NODES];
@@ -68,14 +68,14 @@ static int as_u32(size_t value, uint32_t *out) {
 static int topology_build(Topology *topology, const ZL_PivCoHuffmanTree *tree,
                           size_t level, size_t first, size_t end) {
   if (topology->count >= ZL_PIVCO_MAX_TREE_NODES || first >= end ||
-      first > UINT8_MAX || level > UINT8_MAX)
+      first > UINT8_MAX || level > 16)
     return -1;
   const size_t current = topology->count++;
   topology->bothChildrenConstant[current] = 0;
   if (ZL_PivCoHuffmanTree_rangeIsLeaf(tree, first, end)) {
     topology->nodes[current] = (GpuTreeNode){
         0, (uint32_t)first | ((uint32_t)tree->rankToFlatDepth[first] << 8) |
-               (1u << 16)};
+               (1u << 16) | ((uint32_t)level << 24)};
     return (int)current;
   }
 
@@ -90,7 +90,8 @@ static int topology_build(Topology *topology, const ZL_PivCoHuffmanTree *tree,
   if (left < 0 || right < 0)
     return -1;
   topology->nodes[current] =
-      (GpuTreeNode){(uint32_t)left | ((uint32_t)right << 16), (uint32_t)first};
+      (GpuTreeNode){(uint32_t)left | ((uint32_t)right << 16),
+                    (uint32_t)first | ((uint32_t)level << 24)};
   return (int)current;
 }
 
@@ -114,18 +115,57 @@ static int cursor_align_byte(BitCursor *cursor) {
   return cursor->bit > cursor->sizeBits;
 }
 
-// Records every node bitmap in one block and reserves its rank-directory
-// words. OpenZL has already validated this stream; the bounds below keep this
-// planner safe if it is later reused without that prerequisite.
+static unsigned popcount8(uint8_t value) {
+  value = (uint8_t)(value - ((value >> 1) & 0x55u));
+  value = (uint8_t)((value & 0x33u) + ((value >> 2) & 0x33u));
+  return (unsigned)((value + (value >> 4)) & 0x0Fu);
+}
+
+static unsigned popcount64(uint64_t value) {
+#if defined(__GNUC__) || defined(__clang__)
+  return (unsigned)__builtin_popcountll(value);
+#else
+  unsigned count = 0;
+  while (value != 0) {
+    ++count;
+    value &= value - 1;
+  }
+  return count;
+#endif
+}
+
+static size_t bitmap_ones(const uint8_t *bitmap, size_t bits) {
+  size_t ones = 0;
+  const size_t words = bits / 64;
+  for (size_t i = 0; i < words; ++i) {
+    uint64_t word;
+    memcpy(&word, bitmap + i * sizeof(word), sizeof(word));
+    ones += popcount64(word);
+  }
+  const size_t bytes = bits / 8;
+  for (size_t i = words * sizeof(uint64_t); i < bytes; ++i)
+    ones += popcount8(bitmap[i]);
+  const unsigned tail = (unsigned)(bits & 7);
+  if (tail != 0)
+    ones += popcount8((uint8_t)(bitmap[bytes] & ((1u << tail) - 1u)));
+  return ones;
+}
+
+// Records every node bitmap and the output range of its subtree. The GPU
+// rebuilds nodes bottom-up, alternating between the lane and output buffers.
+// This planner replaces the CPU decoder, so it also checks encoded child
+// counts against the bitmaps before a kernel sees them.
 static int walk_block(const Topology *topology, size_t node, size_t count,
                       BitCursor *cursor, size_t payloadOffset,
-                      GpuNodeBits *output, size_t *rankWords) {
-  if (node >= topology->count || count > UINT32_MAX)
+                      size_t outputBase, GpuNodeBits *output) {
+  uint32_t outputBase32;
+  if (node >= topology->count || count > UINT32_MAX ||
+      as_u32(outputBase, &outputBase32))
     return 1;
   const GpuTreeNode treeNode = topology->nodes[node];
-  output[node] = (GpuNodeBits){0, (uint32_t)count, 0};
+  output[node] = (GpuNodeBits){0, (uint32_t)count, outputBase32};
 
-  if (treeNode.leaf >> 16) {
+  if ((treeNode.leaf & (1u << 16)) != 0) {
     const unsigned depth = (treeNode.leaf >> 8) & 0xFFu;
     if (depth == 0)
       return 0;
@@ -140,34 +180,29 @@ static int walk_block(const Topology *topology, size_t node, size_t count,
 
   if (cursor_align_byte(cursor) != 0 ||
       count > cursor->sizeBits - cursor->bit ||
-      payloadOffset > UINT32_MAX - cursor->bit / 8 || *rankWords > UINT32_MAX)
+      payloadOffset > UINT32_MAX - cursor->bit / 8)
     return 1;
   output[node].offset = (uint32_t)(payloadOffset + cursor->bit / 8);
-  output[node].ranks = (uint32_t)*rankWords;
-  const size_t words = (count + 31) / 32;
-  if (words > SIZE_MAX - *rankWords)
-    return 1;
-  *rankWords += words;
+  const uint8_t *bitmap = cursor->data + cursor->bit / 8;
   cursor->bit += count;
 
-  size_t ones = 0;
+  const size_t ones = bitmap_ones(bitmap, count);
   if (!topology->bothChildrenConstant[node]) {
     unsigned countBits = 0;
     while (((size_t)1 << countBits) < count + 1)
       ++countBits;
     uint32_t encodedOnes = 0;
     if (cursor_read(cursor, countBits, &encodedOnes) != 0 ||
-        encodedOnes > count)
+        encodedOnes > count || ones != encodedOnes)
       return 1;
-    ones = encodedOnes;
   }
 
   const size_t left = treeNode.links & 0xFFFFu;
   const size_t right = treeNode.links >> 16;
-  return walk_block(topology, left, count - ones, cursor, payloadOffset, output,
-                    rankWords) ||
-         walk_block(topology, right, ones, cursor, payloadOffset, output,
-                    rankWords);
+  return walk_block(topology, left, count - ones, cursor, payloadOffset,
+                    outputBase, output) ||
+         walk_block(topology, right, ones, cursor, payloadOffset,
+                    outputBase + count - ones, output);
 }
 
 void pivco_gpu_plan_free(PivcoGpuPlan *plan) {
@@ -176,7 +211,6 @@ void pivco_gpu_plan_free(PivcoGpuPlan *plan) {
   free(plan->symbols);
   free(plan->trees);
   free(plan->nodes);
-  free(plan->internalNodes);
   free(plan->pivcoBlocks);
   free(plan->laneBlocks);
   free(plan->joins);
@@ -185,47 +219,56 @@ void pivco_gpu_plan_free(PivcoGpuPlan *plan) {
 
 static int fail(PivcoGpuPlan *plan, const char *message, size_t frame,
                 size_t lane) {
-  if (lane == SIZE_MAX)
-    fprintf(stderr, "%s in frame %zu\n", message, frame);
-  else
-    fprintf(stderr, "%s in lane %zu of frame %zu\n", message, lane, frame);
   pivco_gpu_plan_free(plan);
+  plan->error = message;
+  plan->errorFrame = frame;
+  plan->errorLane = lane;
   return 1;
 }
 
 int pivco_gpu_plan_build(PivcoGpuPlan *plan, const CapturedFrame *frames,
-                         const Shape *shapes, size_t frameCount,
+                         const GeozlGpuFrameShape *shapes, size_t frameCount,
                          const uint8_t *payload, size_t payloadSize,
                          size_t elementBytes) {
-  if (plan == NULL || frames == NULL || shapes == NULL || payload == NULL ||
-      frameCount == 0 || (elementBytes != 1 && elementBytes != 2))
+  if (plan == NULL)
     return 1;
   *plan = (PivcoGpuPlan){0};
+  if (frames == NULL || shapes == NULL || payload == NULL || frameCount == 0 ||
+      (elementBytes != 1 && elementBytes != 2)) {
+    plan->error = "invalid GPU plan input";
+    plan->errorFrame = SIZE_MAX;
+    plan->errorLane = SIZE_MAX;
+    return 1;
+  }
 
   size_t symbolCapacity = 0, treeCapacity = 0, nodeCapacity = 0;
-  size_t internalCapacity = 0, pivcoCapacity = 0, laneCapacity = 0;
-  plan->joins = calloc(frameCount, sizeof(*plan->joins));
-  if (plan->joins == NULL)
-    return 1;
+  size_t pivcoCapacity = 0, laneCapacity = 0, joinCapacity = 0;
 
   Topology topology;
   for (size_t frameIndex = 0; frameIndex < frameCount; ++frameIndex) {
     const CapturedFrame *captured = &frames[frameIndex];
-    const Shape *shape = &shapes[frameIndex];
+    const GeozlGpuFrameShape *shape = &shapes[frameIndex];
     const uint8_t *header = captured->header;
     const uint64_t encodedCount = geozl_ld_le64(header);
     if (encodedCount > SIZE_MAX)
       return fail(plan, "element count exceeds the host size", frameIndex,
                   SIZE_MAX);
     const size_t count = (size_t)encodedCount;
-    const size_t blockSize = geozl_ld_le32(header + 17);
+    const int planar = captured->kind == PIVCO_CAPTURE_KIND_PLANAR_ZIGZAG;
+    const size_t fixedHeader = planar
+                                   ? PLANAR_ZIGZAG_TRANSPOSE_PIVCO_HEADER_FIXED
+                                   : TRANSPOSE_PIVCO_HEADER_FIXED;
+    const size_t blockSize = geozl_ld_le32(header + (planar ? 17 : 9));
     const size_t expectedHeader =
-        PLANAR_ZIGZAG_PIVCO_HEADER_FIXED +
-        elementBytes * PLANAR_ZIGZAG_PIVCO_HEADER_LANE;
-    if (captured->headerSize != expectedHeader || header[8] != elementBytes ||
-        count != shape->nbElts || geozl_ld_le32(header + 9) != shape->width ||
-        geozl_ld_le32(header + 13) != shape->planes || blockSize == 0 ||
-        blockSize > ZL_PIVCO_MAX_BLOCK_SIZE)
+        fixedHeader + elementBytes * GEOZL_PIVCO_LANE_HEADER_SIZE;
+    if (count == 0 ||
+        (captured->kind != PIVCO_CAPTURE_KIND_ID &&
+         captured->kind != PIVCO_CAPTURE_KIND_PLANAR_ZIGZAG) ||
+        captured->headerSize != expectedHeader || header[8] != elementBytes ||
+        count != shape->nbElts ||
+        (planar && (geozl_ld_le32(header + 9) != shape->width ||
+                    geozl_ld_le32(header + 13) != shape->planes)) ||
+        blockSize == 0 || blockSize > ZL_PIVCO_MAX_BLOCK_SIZE)
       return fail(plan, "unexpected codec header", frameIndex, SIZE_MAX);
     if (captured->bitsOffset > payloadSize ||
         captured->bitsSize > payloadSize - captured->bitsOffset)
@@ -240,16 +283,24 @@ int pivco_gpu_plan_build(PivcoGpuPlan *plan, const CapturedFrame *frames,
     if (as_u32(plan->laneBytes, &laneBase) || as_u32(stride, &laneStride) ||
         as_u32(count, &frameCount32) || as_u32(shape->outOff, &outputBase))
       return fail(plan, "GPU offset exceeds 32 bits", frameIndex, SIZE_MAX);
-    plan->joins[frameIndex] =
-        (GpuJoinTask){laneBase, laneStride, frameCount32, outputBase};
-    if (count > plan->maxFrameLength)
-      plan->maxFrameLength = count;
+    const size_t joinGroups = (count + 1023) / 1024;
+    if (RESERVE(plan, joins, joinCapacity, plan->joinCount, joinGroups))
+      return fail(plan, "out of memory", frameIndex, SIZE_MAX);
+    for (size_t group = 0; group < joinGroups; ++group) {
+      uint32_t start;
+      if (as_u32(group * 1024, &start))
+        return fail(plan, "GPU offset exceeds 32 bits", frameIndex, SIZE_MAX);
+      plan->joins[plan->joinCount++] = (GpuJoinTask){
+          laneBase,     laneStride,
+          frameCount32, outputBase,
+          start,        captured->kind == PIVCO_CAPTURE_KIND_PLANAR_ZIGZAG};
+    }
 
     size_t weightsOffset = 0;
     size_t bitsOffset = captured->bitsOffset;
     for (size_t laneIndex = 0; laneIndex < elementBytes; ++laneIndex) {
-      const uint8_t *laneHeader = header + PLANAR_ZIGZAG_PIVCO_HEADER_FIXED +
-                                  laneIndex * PLANAR_ZIGZAG_PIVCO_HEADER_LANE;
+      const uint8_t *laneHeader =
+          header + fixedHeader + laneIndex * GEOZL_PIVCO_LANE_HEADER_SIZE;
       const size_t weightsSize = geozl_ld_le16(laneHeader + 1);
       const size_t bitsSize = geozl_ld_le32(laneHeader + 3);
       if (bitsOffset > frameBitsEnd || bitsSize > frameBitsEnd - bitsOffset ||
@@ -262,11 +313,11 @@ int pivco_gpu_plan_build(PivcoGpuPlan *plan, const CapturedFrame *frames,
                     laneIndex);
       const size_t laneOutput = plan->laneBytes + laneIndex * stride;
 
-      if (laneHeader[0] == PLANAR_ZIGZAG_PIVCO_LANE_PFOR) {
+      if (laneHeader[0] == PLANAR_ZIGZAG_TRANSPOSE_PIVCO_LANE_PFOR) {
         if (weightsSize != 0)
           return fail(plan, "PFOR lane has Huffman weights", frameIndex,
                       laneIndex);
-        ++plan->pfor_laneCount;
+        ++plan->pforLaneCount;
         const uint8_t *lanePayload = payload + bitsOffset;
         size_t blockOffset = 0;
         const size_t blocks = (count + GEOZL_PFOR_BLOCK - 1) / GEOZL_PFOR_BLOCK;
@@ -274,9 +325,9 @@ int pivco_gpu_plan_build(PivcoGpuPlan *plan, const CapturedFrame *frames,
                     blocks + 4) != 0)
           return fail(plan, "out of memory", frameIndex, laneIndex);
         for (size_t blockIndex = 0; blockIndex < blocks; ++blockIndex) {
-          PforBlockInfo block;
-          if (pfor_block_info(lanePayload + blockOffset, bitsSize - blockOffset,
-                              1, &block) != 0)
+          PforGpuBlockInfo block;
+          if (pfor_gpu_block_info(lanePayload + blockOffset,
+                                  bitsSize - blockOffset, 1, &block) != 0)
             return fail(plan, "invalid PFOR block", frameIndex, laneIndex);
           uint32_t payloadOffset32, outputOffset32;
           if (as_u32(bitsOffset + blockOffset, &payloadOffset32) ||
@@ -291,7 +342,7 @@ int pivco_gpu_plan_build(PivcoGpuPlan *plan, const CapturedFrame *frames,
         if (blockOffset != bitsSize)
           return fail(plan, "PFOR lane has trailing bytes", frameIndex,
                       laneIndex);
-      } else if (laneHeader[0] == PLANAR_ZIGZAG_PIVCO_LANE_PIVCO) {
+      } else if (laneHeader[0] == PLANAR_ZIGZAG_TRANSPOSE_PIVCO_LANE_PIVCO) {
         if (weightsSize == 0)
           return fail(plan, "PivCo lane has no weights", frameIndex, laneIndex);
         ++plan->pivcoLaneCount;
@@ -322,25 +373,22 @@ int pivco_gpu_plan_build(PivcoGpuPlan *plan, const CapturedFrame *frames,
               count - blockOffset < blockSize ? count - blockOffset : blockSize;
           if (RESERVE(plan, nodes, nodeCapacity, plan->nodeCount,
                       topology.count) ||
-              RESERVE(plan, internalNodes, internalCapacity,
-                      plan->internalNodeCount, topology.count + 4) ||
               RESERVE(plan, pivcoBlocks, pivcoCapacity, plan->pivcoBlockCount,
                       1))
             return fail(plan, "out of memory", frameIndex, laneIndex);
           if (walk_block(&topology, 0, blockLength, &cursor, bitsOffset,
-                         plan->nodes + plan->nodeCount,
-                         &plan->rankWordCount) != 0)
+                         laneOutput + blockOffset,
+                         plan->nodes + plan->nodeCount) != 0)
             return fail(plan, "invalid PivCo block", frameIndex, laneIndex);
 
+          size_t bitmapCount = 0;
           for (size_t i = 0; i < topology.count; ++i) {
-            if (!(topology.nodes[i].leaf >> 16)) {
-              uint32_t index;
-              if (as_u32(plan->nodeCount + i, &index))
-                return fail(plan, "GPU node index exceeds 32 bits", frameIndex,
-                            laneIndex);
-              plan->internalNodes[plan->internalNodeCount++] = index;
-            }
+            if ((topology.nodes[i].leaf & (1u << 16)) == 0)
+              ++bitmapCount;
           }
+          if (bitmapCount > SIZE_MAX - plan->bitmapCount)
+            return fail(plan, "bitmap count overflows", frameIndex, laneIndex);
+          plan->bitmapCount += bitmapCount;
 
           GpuPivcoBlock gpuBlock;
           if (as_u32(plan->nodeCount, &gpuBlock.nodeBase) ||
@@ -353,8 +401,6 @@ int pivco_gpu_plan_build(PivcoGpuPlan *plan, const CapturedFrame *frames,
                         laneIndex);
           plan->pivcoBlocks[plan->pivcoBlockCount++] = gpuBlock;
           plan->nodeCount += topology.count;
-          if (blockLength > plan->maxPivcoBlockLength)
-            plan->maxPivcoBlockLength = blockLength;
         }
         if ((cursor.bit + 7) / 8 != bitsSize)
           return fail(plan, "PivCo lane has trailing bytes", frameIndex,
@@ -375,16 +421,15 @@ int pivco_gpu_plan_build(PivcoGpuPlan *plan, const CapturedFrame *frames,
         elementBytes * stride > SIZE_MAX - plan->laneBytes)
       return fail(plan, "lane buffer size overflows", frameIndex, SIZE_MAX);
     plan->laneBytes += elementBytes * stride;
+    if (plan->laneBytes > (size_t)UINT32_MAX - 256)
+      return fail(plan, "lane buffer exceeds 32-bit GPU offsets", frameIndex,
+                  SIZE_MAX);
   }
 
-  // Four waves share a group. Rank tasks use a sentinel; PFOR padding repeats
-  // a valid block into a spare sink run after the lane buffer.
-  if (RESERVE(plan, internalNodes, internalCapacity, plan->internalNodeCount,
-              4) ||
-      RESERVE(plan, laneBlocks, laneCapacity, plan->laneBlockCount, 4))
+  // Four waves share a PFOR group. Padding repeats a valid block into a spare
+  // sink run after the lane buffer.
+  if (RESERVE(plan, laneBlocks, laneCapacity, plan->laneBlockCount, 4))
     return fail(plan, "out of memory", frameCount - 1, SIZE_MAX);
-  while (plan->internalNodeCount % 4)
-    plan->internalNodes[plan->internalNodeCount++] = UINT32_MAX;
   while (plan->laneBlockCount % 4 && plan->laneBlockCount > 0) {
     uint32_t sink;
     if (as_u32(plan->laneBytes, &sink))
@@ -398,10 +443,9 @@ int pivco_gpu_plan_build(PivcoGpuPlan *plan, const CapturedFrame *frames,
   if (RESERVE(plan, symbols, symbolCapacity, plan->symbolCount, 1) ||
       RESERVE(plan, trees, treeCapacity, plan->treeCount, 1) ||
       RESERVE(plan, nodes, nodeCapacity, plan->nodeCount, 1) ||
-      RESERVE(plan, internalNodes, internalCapacity, plan->internalNodeCount,
-              1) ||
       RESERVE(plan, pivcoBlocks, pivcoCapacity, plan->pivcoBlockCount, 1) ||
-      RESERVE(plan, laneBlocks, laneCapacity, plan->laneBlockCount, 1))
+      RESERVE(plan, laneBlocks, laneCapacity, plan->laneBlockCount, 1) ||
+      RESERVE(plan, joins, joinCapacity, plan->joinCount, 1))
     return fail(plan, "out of memory", frameCount - 1, SIZE_MAX);
   return 0;
 }
