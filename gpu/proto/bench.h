@@ -53,18 +53,6 @@ typedef struct {
   uint32_t maxWidth, maxRows;
 } Planes;
 
-// The fields the GPU planner needs from one PFOR block. `bytes` covers the
-// header, exception data and packed body.
-typedef struct {
-  size_t bytes;
-  unsigned exceptions;
-} PforBlockInfo;
-
-// Reads and validates one PFOR block header without decoding its values.
-// `available` is the number of readable bytes beginning at block.
-int pfor_block_info(const uint8_t *block, size_t available, size_t elementBytes,
-                    PforBlockInfo *info);
-
 Planes plane_tasks(const Shape *shapes, size_t nShapes);
 // Appends the inverse planar dispatches and returns how many.
 int scan_dispatches(const Planes *p, GpuDispatch *out);

@@ -1,14 +1,14 @@
-// A small host layer over Metal and the CUDA driver API: bind buffers in the
-// order the Slang module declares them, run a list of kernels, time them.
-// It stands in for slang-rhi in the prototype.
+// Benchmark adapter over GeoZL's internal GPU runtime.
 
 #ifndef GEOZL_GPU_PROTO_GPU_H
 #define GEOZL_GPU_PROTO_GPU_H
 
 #include <stddef.h>
 
-#define GPU_MAX_BUFFERS 16
-#define GPU_MAX_DISPATCHES 8
+#include "gpu/runtime.h"
+
+#define GPU_MAX_BUFFERS GEOZL_GPU_MAX_BUFFERS
+#define GPU_MAX_DISPATCHES GEOZL_GPU_MAX_KERNELS
 
 typedef struct {
   void *host; // NULL for device-only scratch
@@ -41,5 +41,7 @@ int gpu_run(const char *module, GpuBuffer *buffers, int nBuffers,
             GpuTimes *times);
 
 extern const char *gpu_backend_name;
+
+void *gpu_load_module(const char *path, size_t *size);
 
 #endif // GEOZL_GPU_PROTO_GPU_H

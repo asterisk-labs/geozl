@@ -1,7 +1,5 @@
 #include "bench.h"
 
-#include "pfor/pfor_check.h"
-
 #include <math.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -97,42 +95,6 @@ int flag(int argc, char **argv, const char *name) {
   for (int i = 1; i < argc; ++i)
     if (strcmp(argv[i], name) == 0)
       return 1;
-  return 0;
-}
-
-int pfor_block_info(const uint8_t *block, size_t available, size_t elementBytes,
-                    PforBlockInfo *info) {
-  if (block == NULL || info == NULL || !geozl_pfor_width_ok(elementBytes) ||
-      available < 2)
-    return 1;
-
-  const unsigned bits = block[0];
-  const unsigned exceptions = block[1];
-  if (bits > elementBytes * 8)
-    return 1;
-
-  size_t exceptionBytes = 0;
-  if (exceptions != 0) {
-    if (available < 3)
-      return 1;
-    const unsigned descriptor = block[2];
-    const unsigned exceptionBits = descriptor & 0x7Fu;
-    const unsigned mode = descriptor >> 7;
-    if (exceptionBits == 0 || bits + exceptionBits > elementBytes * 8 ||
-        mode > GEOZL_PFOR_MODE_LIST)
-      return 1;
-    exceptionBytes = geozl_pfor_exc_bytes(exceptions, exceptionBits, mode);
-  }
-
-  const size_t bodyBytes = geozl_pfor_body_bytes(bits);
-  if (exceptionBytes > SIZE_MAX - 2 ||
-      bodyBytes > SIZE_MAX - 2 - exceptionBytes)
-    return 1;
-  const size_t bytes = 2 + exceptionBytes + bodyBytes;
-  if (bytes > available)
-    return 1;
-
-  *info = (PforBlockInfo){bytes, exceptions};
   return 0;
 }
 
@@ -246,7 +208,8 @@ int scan_dispatches(const Planes *p, GpuDispatch *out) {
   out[0] = (GpuDispatch){"scan_planes", (unsigned)(p->n / 4), 1, 128};
   if (p->maxWidth <= 256)
     return 1;
-  out[1] = (GpuDispatch){"scan_rows", (unsigned)p->n, (p->maxRows + 3) / 4, 128};
+  out[1] =
+      (GpuDispatch){"scan_rows", (unsigned)p->n, (p->maxRows + 3) / 4, 128};
   out[2] = (GpuDispatch){"scan_columns", (unsigned)p->n,
                          (p->maxWidth + 127) / 128, 128};
   return 3;

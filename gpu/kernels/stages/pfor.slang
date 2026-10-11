@@ -33,10 +33,15 @@ void pfor_lane(uint base, uint t, out uint v[CPT]) {
         bitmap[w] = WaveReadLaneAt(mine, w);
       excStart = posStart + 32u;
     } else {
-      uint p = (t < nexc) ? load8(posStart + t) : 0xFFFFu;
-      [ForceUnroll]
-      for (uint w = 0; w < 8; ++w)
-        bitmap[w] = WaveActiveBitOr((p >> 5) == w ? (1u << (p & 31u)) : 0u);
+      uint chunks = (nexc + WAVE - 1u) / WAVE;
+      for (uint chunk = 0; chunk < chunks; ++chunk) {
+        uint i = chunk * WAVE + t;
+        uint p = (i < nexc) ? load8(posStart + i) : 0xFFFFu;
+        [ForceUnroll]
+        for (uint w = 0; w < 8; ++w)
+          bitmap[w] |=
+              WaveActiveBitOr((p >> 5) == w ? (1u << (p & 31u)) : 0u);
+      }
       excStart = posStart + nexc;
     }
     body = excStart + ((nexc * eb + 7u) >> 3);

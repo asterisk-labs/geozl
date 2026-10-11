@@ -32,8 +32,10 @@ def main() -> None:
         raise SystemExit("extern/openzl and its deps are missing, run make submodules")
     shutil.rmtree(VENDOR, ignore_errors=True)
 
-    for part in ("CMakeLists.txt", "include", "src"):
-        copy(ROOT / "core" / part, VENDOR / "core" / part)
+    copy(ROOT / "core" / "CMakeLists.txt", VENDOR / "core" / "CMakeLists.txt")
+    copy(ROOT / "core" / "include", VENDOR / "core" / "include")
+    # The R package never enables the optional GPU runtime or ships shaders.
+    copy(ROOT / "core" / "src", VENDOR / "core" / "src", "gpu")
 
     for part in ("CMakeLists.txt", "LICENSE", "build-scripts", "include", "src"):
         copy(OPENZL / part, VENDOR / "openzl" / part)

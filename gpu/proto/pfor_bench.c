@@ -4,8 +4,8 @@
 
 #include "bench.h"
 #include "gpu.h"
+#include "gpu/pfor_plan.h"
 
-#include "pfor/pfor_check.h"
 #include "planar_zigzag_pfor/decode_planar_zigzag_pfor_kernel.h"
 #include "planar_zigzag_pfor/encode_planar_zigzag_pfor_kernel.h"
 
@@ -13,13 +13,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-// Mirrors block_task in planar_zigzag_pfor.slang.
-typedef struct {
-  uint32_t payOff;
-  uint32_t outBase;
-  uint32_t count;
-} BlockTask;
 
 typedef struct {
   const Shape *shapes;
@@ -115,64 +108,58 @@ int main(int argc, char **argv) {
   // A block's size is known only from its header, so the host walks every
   // frame's blocks once.
   const double tp = now_seconds();
-  size_t nBlocks = 0;
-  for (size_t f = 0; f < nFrames; ++f)
-    nBlocks += (shapes[f].nbElts + GEOZL_PFOR_BLOCK - 1) / GEOZL_PFOR_BLOCK;
-  // Kernels run 4 blocks per group; the padding blocks write nothing.
-  BlockTask *blocks = calloc((nBlocks + 3) / 4 * 4, sizeof(BlockTask));
-  size_t nb = 0, withExc = 0, exceptions = 0;
+  PforGpuFrame *gpuFrames = calloc(nFrames, sizeof(*gpuFrames));
+  if (gpuFrames == NULL)
+    return 1;
   for (size_t f = 0; f < nFrames; ++f) {
     const Shape *s = &shapes[f];
-    const uint8_t *p = payload + payOff[f];
-    size_t at = 0;
-    for (size_t k = 0; k * GEOZL_PFOR_BLOCK < s->nbElts; ++k) {
-      const size_t left = s->nbElts - k * GEOZL_PFOR_BLOCK;
-      blocks[nb++] = (BlockTask){
-          (uint32_t)(payOff[f] + at),
-          (uint32_t)(s->outOff + k * GEOZL_PFOR_BLOCK),
-          (uint32_t)(left < GEOZL_PFOR_BLOCK ? left : GEOZL_PFOR_BLOCK)};
-      PforBlockInfo block;
-      if (pfor_block_info(p + at, paySize[f] - at, W, &block) != 0) {
-        fprintf(stderr, "invalid block %zu in frame %zu at byte %zu\n", k, f,
-                at);
-        return 1;
-      }
-      if (block.exceptions != 0) {
-        withExc++;
-        exceptions += block.exceptions;
-      }
-      at += block.bytes;
-    }
-    if (at != paySize[f]) {
-      fprintf(stderr, "block walk of frame %zu ended at byte %zu of %zu\n", f,
-              at, paySize[f]);
-      return 1;
-    }
+    gpuFrames[f] = (PforGpuFrame){{s->outOff, s->nbElts, s->width, s->planes},
+                                  payOff[f],
+                                  paySize[f],
+                                  PFOR_GPU_PLANAR_ZIGZAG};
   }
-  nBlocks = (nb + 3) / 4 * 4;
+  PforGpuPlan plan;
+  if (pfor_gpu_plan_build_parallel(&plan, gpuFrames, nFrames, payload, pos, W,
+                                   4) != 0) {
+    if (plan.errorFrame == SIZE_MAX)
+      fprintf(stderr, "%s\n", plan.error);
+    else if (plan.errorBlock == SIZE_MAX)
+      fprintf(stderr, "%s in frame %zu\n", plan.error, plan.errorFrame);
+    else
+      fprintf(stderr, "%s in block %zu of frame %zu\n", plan.error,
+              plan.errorBlock, plan.errorFrame);
+    free(gpuFrames);
+    return 1;
+  }
+  free(gpuFrames);
   const Planes planes = plane_tasks(shapes, nFrames);
   const double planS = now_seconds() - tp;
   printf("plan      %zu block tasks, %zu plane tasks, host walk %.2f ms\n",
-         nBlocks, planes.n, planS * 1e3);
+         plan.blockCount, planes.n, planS * 1e3);
   printf("blocks    %.1f%% with exceptions, %.2f%% of values are exceptions\n",
-         100.0 * (double)withExc / (double)nb,
-         100.0 * (double)exceptions / (double)outElts);
+         100.0 * (double)plan.blocksWithExceptions /
+             (double)plan.realBlockCount,
+         100.0 * (double)plan.exceptionCount / (double)outElts);
 
   size_t outAlloc;
   uint8_t *out = page_alloc(outElts * W, &outAlloc);
-  // In declaration order in planar_zigzag_pfor.slang.
+  uint32_t dummy[3] = {0};
+  // In declaration order in kernels/programs/pfor.slang.
   GpuBuffer buffers[] = {
       {payload, page_round(pos + 64), 1, 0, -1},
-      {blocks, nBlocks * sizeof(BlockTask), sizeof(BlockTask), 0, -1},
+      {plan.blocks, plan.blockCount * sizeof(GpuPforBlock),
+       sizeof(GpuPforBlock), 0, -1},
       {planes.tasks, planes.n * sizeof(PlaneTask), sizeof(PlaneTask), 0, -1},
       {out, outAlloc, W, 1, -1},
       {NULL, outAlloc, 1, 1, 3}, // the output again, as bytes
+      {dummy, 1, 1, 0, -1},
+      {dummy, sizeof(dummy), sizeof(dummy), 0, -1},
   };
   GpuDispatch dispatches[4] = {
-      {"unpack_blocks", (unsigned)(nBlocks / 4), 1, 128}};
+      {"unpack_blocks", (unsigned)(plan.blockCount / 4), 1, 128}};
   const int nd = 1 + scan_dispatches(&planes, dispatches + 1);
   GpuTimes gt = {0};
-  if (gpu_run(module, buffers, 5, dispatches, nd, reps, &gt) != 0) {
+  if (gpu_run(module, buffers, 7, dispatches, nd, reps, &gt) != 0) {
     fprintf(stderr, "GPU run failed\n");
     return 1;
   }

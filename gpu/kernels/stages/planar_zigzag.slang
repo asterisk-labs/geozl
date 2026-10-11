@@ -117,7 +117,9 @@ void scan_rows(uint3 group : SV_GroupID, uint3 thread : SV_GroupThreadID) {
     return;
   uint o0 = task.outBase + y * task.width;
   uint rowCarry = 0;
-  for (uint xs = t * CPT; xs < task.width; xs += SEGMENT) {
+  uint segments = (task.width + SEGMENT - 1u) / SEGMENT;
+  for (uint segment = 0; segment < segments; ++segment) {
+    uint xs = segment * SEGMENT + t * CPT;
     uint r[CPT];
     load_row(o0, xs, task.width, r);
     uint local = 0;
