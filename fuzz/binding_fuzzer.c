@@ -53,7 +53,8 @@ static const codec_slot kSlots[] = {
     {GEOZL_CTID_INTMULT, 2, 0},
     {GEOZL_CTID_FLOATQUANT, 2, 0},
     {GEOZL_CTID_FLOATMULT, 2, 0},
-    {GEOZL_CTID_PLANAR_ZIGZAG_PIVCO, 2, 2},
+    {GEOZL_CTID_PLANAR_ZIGZAG_TRANSPOSE_PIVCO, 2, 2},
+    {GEOZL_CTID_TRANSPOSE_PIVCO, 2, 2},
 };
 
 #define NB_SLOTS (sizeof(kSlots) / sizeof(kSlots[0]))

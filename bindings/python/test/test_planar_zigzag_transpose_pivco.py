@@ -1,4 +1,4 @@
-"""planar_zigzag_pivco: Planar, Zigzag and PivCo Huffman per residual byte lane,
+"""planar_zigzag_transpose_pivco: Planar, Zigzag and PivCo Huffman per residual byte lane,
 in one node. C only, since PivCo's kernels live inside OpenZL, so every frame
 here is written and read by libgeozl."""
 
@@ -15,7 +15,7 @@ except OSError:  # pragma: no cover - depends on how the build was configured
     pytest.skip("libgeozl not built, rebuild with FULL=ON",
                 allow_module_level=True)
 
-METHOD = "planar>zigzag>pivco"
+METHOD = "planar>zigzag>transpose>pivco"
 
 
 def _tile(shape=(48, 37), dtype=np.uint16, seed=0):

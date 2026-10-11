@@ -4,7 +4,7 @@ cases <- list(
   list(x = round(smooth_raster(64, 48, 0, 4000)), method = "planar>zigzag>pfor",
        datatype = "uint16"),
   list(x = array(round(smooth_raster(32, 24 * 3, 0, 900)), c(32, 24, 3)),
-       method = "planar>zigzag>pivco", datatype = "uint16"),
+       method = "planar>zigzag>transpose>pivco", datatype = "uint16"),
   list(x = round(smooth_raster(40, 40, 0, 255)), method = "med>zigzag>entropy",
        datatype = "uint8"),
   list(x = smooth_raster(48, 40, 0, 500), method = "planar>zigzag>transpose>entropy",

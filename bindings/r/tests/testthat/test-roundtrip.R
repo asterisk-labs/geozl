@@ -27,7 +27,12 @@ for (name in names(cases)) {
 test_that("one and two byte integers round trip through the fused codecs", {
   for (name in c("uint8", "int8", "uint16", "int16")) {
     x <- cases[[name]](base)
-    for (method in c("planar>zigzag>pfor", "planar>zigzag>pivco",
+    pivco <- if (name %in% c("uint8", "int8")) {
+      "planar>zigzag>pivco"
+    } else {
+      "planar>zigzag>transpose>pivco"
+    }
+    for (method in c("planar>zigzag>pfor", pivco,
                      "planar>zigzag>entropy", "med>zigzag>entropy")) {
       g <- geozl_graph(x, method, datatype = name)
       back <- geozl_decompress(geozl_compress(x, g), name, dim = dim(x))

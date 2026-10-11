@@ -1,4 +1,4 @@
-"""Decode frames frozen from released GeoZL versions."""
+"""Decode frozen GeoZL frames."""
 
 import hashlib
 import json
@@ -31,12 +31,13 @@ def test_manifest_matches_the_fixtures():
     assert present == expected
 
 
-def test_every_frame_names_the_release_that_wrote_it():
+def test_every_frame_names_its_writer():
     """A frame frozen after the baseline carries its own writer.
 
     The manifest-level ``written_by`` covers the original 0.13.0 set only, so
     anything added later has to say so itself or the corpus stops recording
-    which wire form each frame is evidence for.
+    which wire form each frame is evidence for. New frames say ``unreleased``
+    until their release is prepared.
     """
     for entry in FRAMES:
         assert entry.get("written_by", MANIFEST["written_by"]).startswith("geozl ")

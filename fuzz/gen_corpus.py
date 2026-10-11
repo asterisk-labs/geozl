@@ -23,6 +23,20 @@ def _compress(node, arr, *, lossy=False):
     return bytes(cc.compress([zl.Input(zl.Type.Numeric, flat)]))
 
 
+def _compress_recipe(arr, method):
+    graph = geozl.graph(arr, method)
+    return geozl.compress(arr, graph=graph)
+
+
+def _varint(value):
+    encoded = bytearray()
+    while value >= 0x80:
+        encoded.append((value & 0x7F) | 0x80)
+        value >>= 7
+    encoded.append(value)
+    return bytes(encoded)
+
+
 def _decodes(frame):
     """A seed the decoder rejects starts the fuzzer from an unreachable state,
     so it is worth a round trip here rather than a wasted run."""
@@ -39,6 +53,14 @@ def main(outdir):
     w = 16
     tile16 = rng.integers(0, 1000, size=(w, w), dtype=np.uint16)
     tile8 = rng.integers(0, 256, size=(w, w), dtype=np.uint8)
+
+    # Full frames for the two lane codecs. Keep these separate from the small
+    # node seeds above: their headers are what lets mutations reach the custom
+    # decoders. The eight-symbol tile makes PivCo win over PFOR for 0x72D713.
+    lane_rng = np.random.default_rng(4)
+    lane8 = lane_rng.integers(0, 8, size=(64, 64), dtype=np.uint8)
+    y, x = np.mgrid[:64, :64]
+    lane16 = (3 * x + 5 * y + (x * y) % 7).astype(np.uint16)
 
     # twelve decades, positive, because the warped curves are about a tolerance
     # that follows the value and a narrow tile would not tell them apart
@@ -78,7 +100,13 @@ def main(outdir):
         "quant_log_sub_f32": _compress(
             geozl.lossy.QuantLog("LOG:MAX_ERROR=1%", np.float32), tilesub,
             lossy=True),
+        "planar_zigzag_transpose_pivco": _compress_recipe(
+            lane16, "planar>zigzag>transpose>pivco"),
+        "transpose_pivco": _compress_recipe(lane8, "id>pivco"),
     }
+
+    assert _varint(0x72D712) in seeds["planar_zigzag_transpose_pivco"][:64]
+    assert _varint(0x72D713) in seeds["transpose_pivco"][:64]
 
     for name, data in seeds.items():
         _decodes(data)

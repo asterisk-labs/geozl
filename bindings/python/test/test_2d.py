@@ -183,6 +183,12 @@ def test_frames_stay_readable_by_openzl_0_2():
 @pytest.mark.parametrize(("method", "dtype"), [
     ("planar>zigzag>pivco", np.uint8),
     ("planar>zigzag>transpose>pivco", np.int16),
+    ("planar>zigzag>transpose>pivco", np.uint32),
+    ("planar>zigzag>transpose>pivco", np.float64),
+    ("id>pivco", np.uint8),
+    ("id>transpose>pivco", np.int16),
+    ("id>transpose>pivco", np.uint32),
+    ("id>transpose>pivco", np.float64),
 ])
 def test_pivco_frames_need_openzl_0_3_and_round_trip(method, dtype):
     # PivCo Huffman exists from format 27, the one recipe family that needs it
@@ -192,22 +198,44 @@ def test_pivco_frames_need_openzl_0_3_and_round_trip(method, dtype):
     assert np.array_equal(_roundtrip(arr, method=method), arr)
 
 
-def test_pivco_takes_one_byte_elements_unless_it_follows_planar():
-    with pytest.raises(RuntimeError, match="pivco needs 1"):
+@pytest.mark.parametrize(("method", "dtype", "ctid"), [
+    ("id>pivco", np.uint8, 0x72D713),
+    ("delta_1d>pivco", np.uint8, 0x72D713),
+    ("delta_w>zigzag>pivco", np.uint8, 0x72D713),
+    ("delta_n>zigzag>pivco", np.uint8, 0x72D713),
+    ("med>zigzag>pivco", np.uint8, 0x72D713),
+    ("average>zigzag>pivco", np.uint8, 0x72D713),
+    ("wp_static>zigzag>pivco", np.uint8, 0x72D713),
+    ("id>transpose>pivco", np.uint16, 0x72D713),
+    ("planar>zigzag>pivco", np.uint8, 0x72D712),
+    ("planar>zigzag>transpose>pivco", np.uint16, 0x72D712),
+])
+def test_pivco_recipes_write_their_fixed_ctid(method, dtype, ctid):
+    arr = np.zeros((256, 256), dtype=dtype)
+    arr[::17, ::19] = 3
+    frame = bytes(_frame(arr, method=method))
+    encoded = bytearray()
+    while ctid >= 0x80:
+        encoded.append((ctid & 0x7F) | 0x80)
+        ctid >>= 7
+    encoded.append(ctid)
+    assert bytes(encoded) in frame[:64]
+
+
+def test_pivco_without_transpose_takes_one_byte_elements():
+    with pytest.raises(RuntimeError, match="pivco without transpose needs 1"):
         geozl.graph(_tile(), "med>zigzag>pivco")
-    arr = _tile()
+    with pytest.raises(RuntimeError, match="pivco without transpose needs 1"):
+        geozl.graph(_tile(), "planar>zigzag>pivco")
+    arr = _tile(dtype=np.uint8)
     assert np.array_equal(_roundtrip(arr, method="planar>zigzag>pivco"), arr)
 
 
-def test_a_dominated_lane_goes_to_entropy_not_pivco():
-    # Huffman spends a bit per symbol, so a lane that is mostly one value would
-    # grow several times over under PivCo
+def test_a_dominated_lane_stays_in_the_gpu_codec():
     rng = np.random.default_rng(1)
     arr = np.where(rng.random((256, 256)) < 0.1, rng.integers(1, 9, (256, 256)),
                    0).astype(np.int16)
-    pivco = _frame(arr, method="id>transpose>pivco")
-    entropy = _frame(arr, method="id>transpose>entropy")
-    assert len(pivco) <= len(entropy) + 16
+    assert np.array_equal(_roundtrip(arr, method="id>transpose>pivco"), arr)
 
 
 @pytest.mark.parametrize(
@@ -366,8 +394,17 @@ def test_unbiased_prior_sweeps_more_graphs_than_a_named_one():
 
 
 def test_unbiased_prior_is_the_whole_grid():
-    # 8 predictors x 9 terminals, plus fused planar>zigzag>pivco.
-    assert len(geozl.profile(_tile(), prior=None, reps=1)) == 73
+    # 8 predictors x 9 terminals. The planar PivCo candidate is the explicit
+    # transpose terminal now, not a second hidden candidate.
+    assert len(geozl.profile(_tile(), prior=None, reps=1)) == 72
+
+
+@pytest.mark.parametrize("elt_width", [2, 4, 8])
+def test_wide_grid_uses_the_explicit_pivco_transpose(elt_width):
+    names = _2d._grid_names(None, elt_width)
+    assert "planar>zigzag>transpose>pivco" in names
+    assert not any(name.endswith(">pivco") and
+                   not name.endswith(">transpose>pivco") for name in names)
 
 
 def test_the_grid_at_one_byte_keeps_categorical_and_drops_the_rest():

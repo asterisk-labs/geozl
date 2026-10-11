@@ -36,10 +36,12 @@ roundtrip(x, method; kw...) =
         x = make(base)
         @test roundtrip(x, "id>zstd") == x
     end
-    for T in (UInt8, Int8, UInt16, Int16), method in ("planar>zigzag>pfor", "planar>zigzag>pivco",
-                                                      "planar>zigzag>entropy", "med>zigzag>entropy")
+    for T in (UInt8, Int8, UInt16, Int16)
         x = cases[T](base)
-        @test roundtrip(x, method) == x
+        pivco = sizeof(T) == 1 ? "planar>zigzag>pivco" : "planar>zigzag>transpose>pivco"
+        for method in ("planar>zigzag>pfor", pivco, "planar>zigzag>entropy", "med>zigzag>entropy")
+            @test roundtrip(x, method) == x
+        end
     end
     for T in (UInt32, Int32, UInt64, Int64)
         x = cases[T](base)
@@ -254,7 +256,7 @@ end
         withmissing[[4, 9]] .= missing
         compare = [
             (cases[UInt16](smooth(64, 48, 0.0, 0.06)), "planar>zigzag>pfor", nothing, nothing),
-            (reshape(cases[UInt16](smooth(32, 72, 0.0, 0.01)), 32, 24, 3), "planar>zigzag>pivco", nothing, nothing),
+            (reshape(cases[UInt16](smooth(32, 72, 0.0, 0.01)), 32, 24, 3), "planar>zigzag>transpose>pivco", nothing, nothing),
             (cases[UInt8](smooth(40, 40, 0.0, 1.0)), "med>zigzag>entropy", nothing, nothing),
             (Float32.(smooth(48, 40, 0.0, 500.0)), "planar>zigzag>transpose>entropy", 0.5, nothing),
             (smooth(48, 40, 1.0, 500.0), "planar>zigzag>transpose>entropy", "1%", nothing),
