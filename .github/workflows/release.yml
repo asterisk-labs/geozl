@@ -241,7 +241,7 @@ jobs:
       # The tagged Julia package fetches this from the release, since the
       # tarball hashes do not exist when the tag is made. It is written before
       # anything is published, so a release never goes out without it.
-      - uses: julia-actions/setup-julia@v2
+      - uses: julia-actions/setup-julia@v3
         with:
           version: '1'
       - name: Write the Julia Artifacts.toml
