@@ -44,6 +44,43 @@ static int check_inconsistent_count(PforCapture *capture,
   return 0;
 }
 
+// The CTid names the codec; a header of the other PFOR layout is corrupt.
+static int check_swapped_header(PforCapture *capture,
+                                CapturedPforFrame *captured, void *output,
+                                uint8_t *frame, size_t frameCapacity) {
+  uint8_t header[PLANAR_ZIGZAG_PFOR_HEADER_SIZE] = {0};
+  geozl_st_le64(header, 64);
+  header[8] = 1;
+  geozl_st_le32(header + 9, 8);
+  geozl_st_le32(header + 13, 1);
+  const struct {
+    uint32_t ctid;
+    size_t headerSize;
+  } cases[] = {
+      {GEOZL_CTID_PFOR, PLANAR_ZIGZAG_PFOR_HEADER_SIZE},
+      {GEOZL_CTID_PLANAR_ZIGZAG_PFOR, PFOR_HEADER_SIZE},
+  };
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+    const CaptureFramePlan plan = {
+        .ctid = cases[i].ctid,
+        .header = header,
+        .headerSize = cases[i].headerSize,
+        .outputCount = 1,
+        .outputBytes = {1, 0},
+    };
+    const size_t frameSize =
+        capture_test_build_frame(frame, frameCapacity, 64, &plan);
+    if (frameSize == 0)
+      return fail("could not build a swapped-header frame");
+    capture->payloadSize = 0;
+    if (pfor_capture_frame(capture, captured, output, 64, frame, frameSize) !=
+            PFOR_CAPTURE_ERROR ||
+        captured->seen != -1 || capture->payloadSize != 0)
+      return fail("a header of the other PFOR layout reached capture");
+  }
+  return 0;
+}
+
 int main(void) {
   enum { width = 8, planes = 2, count = width * 8 * planes };
   uint16_t input[count];
@@ -80,7 +117,9 @@ int main(void) {
   if (pfor_capture_init(&capture, payload, frameCapacity + 64) != 0)
     return fail("could not create capture context");
   if (check_inconsistent_count(&capture, &captured, output, 64,
-                               inconsistentFrame, frameCapacity) != 0)
+                               inconsistentFrame, frameCapacity) != 0 ||
+      check_swapped_header(&capture, &captured, output, inconsistentFrame,
+                           frameCapacity) != 0)
     return 1;
   if (pfor_capture_frame(&capture, &captured, output, sizeof(output), frame,
                          frameSize) != 0)

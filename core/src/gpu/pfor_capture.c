@@ -16,8 +16,8 @@
 
 #include <string.h>
 
-static ZL_Report capture_decoder(ZL_Decoder *decoder,
-                                 const ZL_Input *inputs[]) {
+static ZL_Report capture_decoder(ZL_Decoder *decoder, const ZL_Input *inputs[],
+                                 int kind) {
   PforCapture *capture = (PforCapture *)ZL_Decoder_getOpaquePtr(decoder);
   CapturedPforFrame *frame = capture == NULL ? NULL : capture->current;
   const ZL_RBuffer header = ZL_Decoder_getCodecHeader(decoder);
@@ -35,11 +35,11 @@ static ZL_Report capture_decoder(ZL_Decoder *decoder,
   const uint8_t *bytes = header.start;
   const uint64_t count = geozl_ld_le64(bytes);
   const size_t elementBytes = bytes[8];
-  frame->kind = header.size == PFOR_HEADER_SIZE ? PFOR_CAPTURE_KIND_ID
-                : header.size == PLANAR_ZIGZAG_PFOR_HEADER_SIZE
-                    ? PFOR_CAPTURE_KIND_PLANAR_ZIGZAG
-                    : PFOR_CAPTURE_KIND_NONE;
-  if (frame->kind == PFOR_CAPTURE_KIND_NONE || count == 0 ||
+  const size_t headerSize = kind == PFOR_CAPTURE_KIND_PLANAR_ZIGZAG
+                                ? PLANAR_ZIGZAG_PFOR_HEADER_SIZE
+                                : PFOR_HEADER_SIZE;
+  frame->kind = kind;
+  if (header.size != headerSize || count == 0 ||
       !geozl_pfor_width_ok(elementBytes) || count > SIZE_MAX / elementBytes) {
     frame->seen = -1;
     return ZL_returnError(ZL_ErrorCode_corruption);
@@ -99,6 +99,16 @@ static ZL_Report capture_decoder(ZL_Decoder *decoder,
   return ZL_returnError(ZL_ErrorCode_temporaryLibraryLimitation);
 }
 
+static ZL_Report capture_planar_decoder(ZL_Decoder *decoder,
+                                        const ZL_Input *inputs[]) {
+  return capture_decoder(decoder, inputs, PFOR_CAPTURE_KIND_PLANAR_ZIGZAG);
+}
+
+static ZL_Report capture_id_decoder(ZL_Decoder *decoder,
+                                    const ZL_Input *inputs[]) {
+  return capture_decoder(decoder, inputs, PFOR_CAPTURE_KIND_ID);
+}
+
 int pfor_capture_init(PforCapture *capture, uint8_t *payload,
                       size_t payloadCapacity) {
   if (capture == NULL || (payload == NULL && payloadCapacity != 0))
@@ -113,12 +123,12 @@ int pfor_capture_init(PforCapture *capture, uint8_t *payload,
 
   ZL_TypedDecoderDesc desc =
       DI_PLANAR_ZIGZAG_PFOR(GEOZL_CTID_PLANAR_ZIGZAG_PFOR);
-  desc.transform_f = capture_decoder;
+  desc.transform_f = capture_planar_decoder;
   desc.opaque.ptr = capture;
   ZL_Report report = ZL_DCtx_registerTypedDecoder(capture->dctx, &desc);
   if (!ZL_isError(report)) {
     desc = (ZL_TypedDecoderDesc)DI_PFOR(GEOZL_CTID_PFOR);
-    desc.transform_f = capture_decoder;
+    desc.transform_f = capture_id_decoder;
     desc.opaque.ptr = capture;
     report = ZL_DCtx_registerTypedDecoder(capture->dctx, &desc);
   }
