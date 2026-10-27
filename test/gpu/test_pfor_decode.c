@@ -264,8 +264,9 @@ static int run_case(const char *modulePath, size_t elementBytes) {
   }
   const char *deviceEnv = getenv("GPU");
   const int device = deviceEnv == NULL ? 0 : atoi(deviceEnv);
-  GeozlPforGpuDecoder *decoder = geozl_pfor_gpu_decoder_create(
-      module, moduleSize, elementBytes, device, error, sizeof(error));
+  GeozlPforGpuDecoder *decoder =
+      geozl_pfor_gpu_decoder_create(GPU_BACKEND, module, moduleSize,
+                                    elementBytes, device, error, sizeof(error));
   free(module);
   if (decoder == NULL) {
     fprintf(stderr, "test_pfor_decode: %s\n", error);

@@ -45,6 +45,13 @@ PIVCO_SRCS := pivco_bench.c $(CORE)/src/gpu/pivco_capture.c \
 	$(CORE)/src/gpu/planar_scan.c bench.c
 PIVCO_CFLAGS := -O3 -std=gnu11 -Wall -I$(CORE)/include -I$(CORE)/src \
 	-I$(STATIC)/openzl/include -I$(OPENZL)/include -I$(OPENZL)/src
+# Each binary links one backend; GPU_BACKEND names it for tests and benchmarks.
+METAL_RUNTIME_SRCS := $(CORE)/src/gpu/runtime.c $(CORE)/src/gpu/runtime_metal.m
+CUDA_RUNTIME_SRCS := $(CORE)/src/gpu/runtime.c $(CORE)/src/gpu/runtime_cuda.c
+METAL_RUNTIME := $(METAL_RUNTIME_SRCS) -DGEOZL_GPU_METAL \
+	-DGPU_BACKEND=GEOZL_GPU_BACKEND_METAL
+CUDA_RUNTIME := $(CUDA_RUNTIME_SRCS) -DGEOZL_GPU_CUDA \
+	-DGPU_BACKEND=GEOZL_GPU_BACKEND_CUDA
 GPU_COMMON := gpu.c gpu.h $(CORE)/src/gpu/runtime.h \
 	$(CORE)/src/gpu/runtime_internal.h
 CHECKS := build/test_bench build/test_pfor_capture build/test_pivco_capture \
@@ -122,13 +129,13 @@ build/pzv%.ptx: $(PIVCO_PROGRAM) $(SLANG_DEPS) $(SLANG_LAYOUT) | build
 	@touch $@
 
 build/pfor_metal: $(PFOR_SRCS) $(GPU_COMMON) \
-		$(CORE)/src/gpu/runtime_metal.m bench.h | build
-	clang $(CFLAGS) -fobjc-arc $(CORE)/src/gpu/runtime_metal.m gpu.c \
+		$(METAL_RUNTIME_SRCS) bench.h | build
+	clang $(CFLAGS) -fobjc-arc $(METAL_RUNTIME) gpu.c \
 		$(PFOR_SRCS) -framework Metal -framework Foundation -o $@
 
 build/pfor_cuda: $(PFOR_SRCS) $(GPU_COMMON) \
-		$(CORE)/src/gpu/runtime_cuda.c bench.h | build
-	cc $(CFLAGS) -D_GNU_SOURCE $(CORE)/src/gpu/runtime_cuda.c gpu.c \
+		$(CUDA_RUNTIME_SRCS) bench.h | build
+	cc $(CFLAGS) -D_GNU_SOURCE $(CUDA_RUNTIME) gpu.c \
 		$(PFOR_SRCS) -ldl -lpthread -lm -o $@
 
 build/test_bench: test_bench.c bench.c bench.h \
@@ -174,9 +181,9 @@ build/test_runtime_validation: ../../test/gpu/test_runtime_validation.c \
 	cc $(CFLAGS) ../../test/gpu/test_runtime_validation.c -o $@
 
 build/test_runtime_metal: ../../test/gpu/test_runtime_metal.m \
-		$(CORE)/src/gpu/runtime_metal.m $(CORE)/src/gpu/runtime.h \
+		$(METAL_RUNTIME_SRCS) $(CORE)/src/gpu/runtime.h \
 		$(CORE)/src/gpu/runtime_internal.h | build
-	clang $(CFLAGS) -fobjc-arc $(CORE)/src/gpu/runtime_metal.m \
+	clang $(CFLAGS) -fobjc-arc $(METAL_RUNTIME) \
 		../../test/gpu/test_runtime_metal.m \
 		-framework Metal -framework Foundation -o $@
 
@@ -184,9 +191,9 @@ build/test_pfor_decode_metal: ../../test/gpu/test_pfor_decode.c \
 		$(CORE)/src/gpu/pfor_decode.c $(CORE)/src/gpu/frame_batch.c \
 		$(CORE)/src/gpu/pfor_capture.c $(CORE)/src/gpu/pfor_plan.c \
 		$(CORE)/src/gpu/pfor_plan_parallel.c \
-		$(CORE)/src/gpu/planar_scan.c $(CORE)/src/gpu/runtime_metal.m \
+		$(CORE)/src/gpu/planar_scan.c $(METAL_RUNTIME_SRCS) \
 		geozl-static | build
-	clang $(PIVCO_CFLAGS) -fobjc-arc $(CORE)/src/gpu/runtime_metal.m \
+	clang $(PIVCO_CFLAGS) -fobjc-arc $(METAL_RUNTIME) \
 		$(CORE)/src/gpu/pfor_decode.c $(CORE)/src/gpu/frame_batch.c \
 		$(CORE)/src/gpu/pfor_capture.c $(CORE)/src/gpu/pfor_plan.c \
 		$(CORE)/src/gpu/pfor_plan_parallel.c \
@@ -194,15 +201,15 @@ build/test_pfor_decode_metal: ../../test/gpu/test_pfor_decode.c \
 		$(PIVCO_LIBS) -framework Metal -framework Foundation -o $@
 
 build/test_pfor_list_metal: ../../test/gpu/test_pfor_list.c \
-		$(CORE)/src/gpu/pfor_plan.c $(CORE)/src/gpu/runtime_metal.m | build
-	clang $(PIVCO_CFLAGS) -fobjc-arc $(CORE)/src/gpu/runtime_metal.m \
+		$(CORE)/src/gpu/pfor_plan.c $(METAL_RUNTIME_SRCS) | build
+	clang $(PIVCO_CFLAGS) -fobjc-arc $(METAL_RUNTIME) \
 		$(CORE)/src/gpu/pfor_plan.c ../../test/gpu/test_pfor_list.c \
 		-framework Metal -framework Foundation -o $@
 
 build/test_pivco_decode_metal: ../../test/gpu/test_pivco_decode.c \
 		$(CORE)/src/gpu/pivco_plan.c $(CORE)/src/gpu/pfor_plan.c \
-		$(CORE)/src/gpu/runtime_metal.m geozl-static | build
-	clang $(PIVCO_CFLAGS) -fobjc-arc $(CORE)/src/gpu/runtime_metal.m \
+		$(METAL_RUNTIME_SRCS) geozl-static | build
+	clang $(PIVCO_CFLAGS) -fobjc-arc $(METAL_RUNTIME) \
 		$(CORE)/src/gpu/pivco_plan.c $(CORE)/src/gpu/pfor_plan.c \
 		../../test/gpu/test_pivco_decode.c $(PIVCO_LIBS) \
 		-framework Metal -framework Foundation -o $@
@@ -211,9 +218,9 @@ build/test_pivco_e2e_metal: ../../test/gpu/test_pivco_e2e.c \
 		$(CORE)/src/gpu/pivco_decode.c $(CORE)/src/gpu/frame_batch.c \
 		$(CORE)/src/gpu/pivco_capture.c $(CORE)/src/gpu/pivco_plan.c \
 		$(CORE)/src/gpu/pivco_plan_parallel.c $(CORE)/src/gpu/pfor_plan.c \
-		$(CORE)/src/gpu/planar_scan.c $(CORE)/src/gpu/runtime_metal.m \
+		$(CORE)/src/gpu/planar_scan.c $(METAL_RUNTIME_SRCS) \
 		geozl-static | build
-	clang $(PIVCO_CFLAGS) -fobjc-arc $(CORE)/src/gpu/runtime_metal.m \
+	clang $(PIVCO_CFLAGS) -fobjc-arc $(METAL_RUNTIME) \
 		$(CORE)/src/gpu/pivco_decode.c $(CORE)/src/gpu/frame_batch.c \
 		$(CORE)/src/gpu/pivco_capture.c $(CORE)/src/gpu/pivco_plan.c \
 		$(CORE)/src/gpu/pivco_plan_parallel.c $(CORE)/src/gpu/pfor_plan.c \
@@ -224,9 +231,9 @@ build/test_pfor_decode_cuda: ../../test/gpu/test_pfor_decode.c \
 		$(CORE)/src/gpu/pfor_decode.c $(CORE)/src/gpu/frame_batch.c \
 		$(CORE)/src/gpu/pfor_capture.c $(CORE)/src/gpu/pfor_plan.c \
 		$(CORE)/src/gpu/pfor_plan_parallel.c \
-		$(CORE)/src/gpu/planar_scan.c $(CORE)/src/gpu/runtime_cuda.c \
+		$(CORE)/src/gpu/planar_scan.c $(CUDA_RUNTIME_SRCS) \
 		geozl-static | build
-	cc $(PIVCO_CFLAGS) -D_GNU_SOURCE $(CORE)/src/gpu/runtime_cuda.c \
+	cc $(PIVCO_CFLAGS) -D_GNU_SOURCE $(CUDA_RUNTIME) \
 		$(CORE)/src/gpu/pfor_decode.c $(CORE)/src/gpu/frame_batch.c \
 		$(CORE)/src/gpu/pfor_capture.c $(CORE)/src/gpu/pfor_plan.c \
 		$(CORE)/src/gpu/pfor_plan_parallel.c \
@@ -234,15 +241,15 @@ build/test_pfor_decode_cuda: ../../test/gpu/test_pfor_decode.c \
 		$(PIVCO_LIBS) -ldl -lpthread -lm -o $@
 
 build/test_pfor_list_cuda: ../../test/gpu/test_pfor_list.c \
-		$(CORE)/src/gpu/pfor_plan.c $(CORE)/src/gpu/runtime_cuda.c | build
-	cc $(PIVCO_CFLAGS) -D_GNU_SOURCE $(CORE)/src/gpu/runtime_cuda.c \
+		$(CORE)/src/gpu/pfor_plan.c $(CUDA_RUNTIME_SRCS) | build
+	cc $(PIVCO_CFLAGS) -D_GNU_SOURCE $(CUDA_RUNTIME) \
 		$(CORE)/src/gpu/pfor_plan.c ../../test/gpu/test_pfor_list.c \
 		-ldl -lpthread -lm -o $@
 
 build/test_pivco_decode_cuda: ../../test/gpu/test_pivco_decode.c \
 		$(CORE)/src/gpu/pivco_plan.c $(CORE)/src/gpu/pfor_plan.c \
-		$(CORE)/src/gpu/runtime_cuda.c geozl-static | build
-	cc $(PIVCO_CFLAGS) -D_GNU_SOURCE $(CORE)/src/gpu/runtime_cuda.c \
+		$(CUDA_RUNTIME_SRCS) geozl-static | build
+	cc $(PIVCO_CFLAGS) -D_GNU_SOURCE $(CUDA_RUNTIME) \
 		$(CORE)/src/gpu/pivco_plan.c $(CORE)/src/gpu/pfor_plan.c \
 		../../test/gpu/test_pivco_decode.c $(PIVCO_LIBS) \
 		-ldl -lpthread -lm -o $@
@@ -251,9 +258,9 @@ build/test_pivco_e2e_cuda: ../../test/gpu/test_pivco_e2e.c \
 		$(CORE)/src/gpu/pivco_decode.c $(CORE)/src/gpu/frame_batch.c \
 		$(CORE)/src/gpu/pivco_capture.c $(CORE)/src/gpu/pivco_plan.c \
 		$(CORE)/src/gpu/pivco_plan_parallel.c $(CORE)/src/gpu/pfor_plan.c \
-		$(CORE)/src/gpu/planar_scan.c $(CORE)/src/gpu/runtime_cuda.c \
+		$(CORE)/src/gpu/planar_scan.c $(CUDA_RUNTIME_SRCS) \
 		geozl-static | build
-	cc $(PIVCO_CFLAGS) -D_GNU_SOURCE $(CORE)/src/gpu/runtime_cuda.c \
+	cc $(PIVCO_CFLAGS) -D_GNU_SOURCE $(CUDA_RUNTIME) \
 		$(CORE)/src/gpu/pivco_decode.c $(CORE)/src/gpu/frame_batch.c \
 		$(CORE)/src/gpu/pivco_capture.c $(CORE)/src/gpu/pivco_plan.c \
 		$(CORE)/src/gpu/pivco_plan_parallel.c $(CORE)/src/gpu/pfor_plan.c \
@@ -267,17 +274,17 @@ geozl-static:
 	cmake --build $(STATIC) --target geozl
 
 build/pivco_metal: $(PIVCO_SRCS) $(GPU_COMMON) \
-		$(CORE)/src/gpu/runtime_metal.m bench.h \
+		$(METAL_RUNTIME_SRCS) bench.h \
 		$(CORE)/src/gpu/pivco_capture.h $(CORE)/src/gpu/pivco_plan.h \
 		$(CORE)/src/gpu/pivco_decode.h $(CORE)/src/gpu/planar_scan.h \
 		geozl-static | build
-	clang $(PIVCO_CFLAGS) -fobjc-arc $(CORE)/src/gpu/runtime_metal.m gpu.c \
+	clang $(PIVCO_CFLAGS) -fobjc-arc $(METAL_RUNTIME) gpu.c \
 		$(PIVCO_SRCS) $(PIVCO_LIBS) -framework Metal -framework Foundation -o $@
 
 build/pivco_cuda: $(PIVCO_SRCS) $(GPU_COMMON) \
-		$(CORE)/src/gpu/runtime_cuda.c bench.h \
+		$(CUDA_RUNTIME_SRCS) bench.h \
 		$(CORE)/src/gpu/pivco_capture.h $(CORE)/src/gpu/pivco_plan.h \
 		$(CORE)/src/gpu/pivco_decode.h $(CORE)/src/gpu/planar_scan.h \
 		geozl-static | build
-	cc $(PIVCO_CFLAGS) -D_GNU_SOURCE $(CORE)/src/gpu/runtime_cuda.c gpu.c \
+	cc $(PIVCO_CFLAGS) -D_GNU_SOURCE $(CUDA_RUNTIME) gpu.c \
 		$(PIVCO_SRCS) $(PIVCO_LIBS) -ldl -lpthread -lm -o $@

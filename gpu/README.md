@@ -19,7 +19,7 @@ input order.
 | `kernels/programs/pivco.slang` | PivCo-backed decoder program |
 | `kernels/stages/` | PFOR, PivCo and inverse planar/Zigzag stages |
 | `kernels/common/` | shared payload access and constants |
-| `../core/src/gpu/` | frame capture, GPU task planning and Metal/CUDA runtime |
+| `../core/src/gpu/` | frame capture, GPU task planning and the backend runtimes |
 | `../test/gpu/` | host-side frame preparation tests |
 | `proto/gpu.c`, `gpu.h` | benchmark timing adapter |
 | `proto/pfor_bench.c`, `proto/pivco_bench.c` | CPU/GPU benchmarks and verification |
@@ -28,8 +28,8 @@ input order.
 PFOR assigns one wave to each 256-value block. Inverse planar uses one pass for
 planes up to 256 columns and separate row and column passes for wider planes.
 
-PivCo rebuilds each Huffman block from the leaves to the root. A wave consumes
-one bitmap byte at a time and merges eight symbols; alternate tree levels use
+PivCo rebuilds each Huffman block from the leaves to the root. Each lane of a
+wave consumes one bitmap byte at a time and merges eight symbols; alternate tree levels use
 the lane and output allocations as ping-pong storage. It then decodes any PFOR
 byte lanes, joins the lanes and runs inverse planar.
 
@@ -38,10 +38,22 @@ batch. A device-only output marked `GEOZL_GPU_RESULT` can be moved into an
 owning `GeozlGpuMemory`. The result remains valid after its batch and program
 are destroyed; copying it back to the host is a separate operation.
 
+`runtime.c` validates every call, keeps the shared batch state and forwards to
+the backend chosen by `GeozlGpuBackendId`. `runtime_metal.m` and
+`runtime_cuda.c` hold only device code behind a `GeozlGpuBackendOps` table, and
+each compiles in under `GEOZL_GPU_METAL` or `GEOZL_GPU_CUDA`. A Vulkan or HIP
+backend adds one such file, an id and a Slang target; capture, planning and the
+decoders stay the same. The kernels assume 32-wide waves, so a backend must
+provide them or reject the device, as Metal does.
+
 A program may run only one batch at a time. CUDA stores its buffer pointers in
 module globals, so callers that need concurrent work must create one decoder
-per stream. Decoder creation also compiles the generated Metal source; reuse a
-decoder instead of creating one for every batch.
+per stream. Decoder creation also compiles the generated Metal source or JITs
+the PTX; reuse a decoder instead of creating one for every batch.
+
+The driver JITs PTX only up to its own PTX version, so build PTX with an NVRTC no
+newer than the oldest driver to support. PTX from NVRTC 12.8 (`.version 8.7`)
+fails on a 550 driver, which accepts 8.4; the runtime error carries the JIT log.
 
 `geozl_pfor_gpu_decode()` and `geozl_pivco_gpu_decode()` are complete paths over
 that runtime. They take complete GeoZL frames, check and plan them on the CPU,
@@ -76,6 +88,7 @@ make hosts-cuda                        # driver only, PTX built elsewhere
 make check                             # capture, planner and runtime tests
 make check-pfor-metal SLANGC=...       # full PFOR decode and wire edge cases
 make check-pivco-metal SLANGC=...      # PivCo block-tail regression
+make check-cuda SLANGC=...             # the same decode checks on CUDA
 BACKEND=metal ./run_all.sh
 ```
 

@@ -92,7 +92,8 @@ static int check_owned_gpu_decode(const char *modulePath, size_t elementBytes,
   const char *deviceEnv = getenv("GPU");
   const int device = deviceEnv == NULL ? 0 : atoi(deviceEnv);
   GeozlPivcoGpuDecoder *decoder = geozl_pivco_gpu_decoder_create(
-      module, moduleSize, elementBytes, device, error, sizeof(error));
+      GPU_BACKEND, module, moduleSize, elementBytes, device, error,
+      sizeof(error));
   free(module);
   if (decoder == NULL) {
     fprintf(stderr, "%s\n", error);

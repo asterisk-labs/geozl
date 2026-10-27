@@ -54,11 +54,10 @@ static size_t array_bytes_min(size_t count, size_t elementBytes,
   return bytes < minimum ? minimum : bytes;
 }
 
-GeozlPivcoGpuDecoder *geozl_pivco_gpu_decoder_create(const void *module,
-                                                     size_t moduleSize,
-                                                     size_t elementBytes,
-                                                     int device, char *error,
-                                                     size_t errorCapacity) {
+GeozlPivcoGpuDecoder *
+geozl_pivco_gpu_decoder_create(GeozlGpuBackendId backend, const void *module,
+                               size_t moduleSize, size_t elementBytes,
+                               int device, char *error, size_t errorCapacity) {
   if (elementBytes != 1 && elementBytes != 2) {
     geozl_gpu_error(error, errorCapacity,
                     "PivCo GPU decoding supports 1- or 2-byte elements");
@@ -70,8 +69,8 @@ GeozlPivcoGpuDecoder *geozl_pivco_gpu_decoder_create(const void *module,
     return NULL;
   }
   decoder->program = geozl_gpu_program_create(
-      module, moduleSize, device, kernels, sizeof(kernels) / sizeof(kernels[0]),
-      error, errorCapacity);
+      backend, module, moduleSize, device, kernels,
+      sizeof(kernels) / sizeof(kernels[0]), error, errorCapacity);
   if (decoder->program == NULL) {
     free(decoder);
     return NULL;

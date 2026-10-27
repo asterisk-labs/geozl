@@ -17,8 +17,15 @@ int main(void) {
       "uint i [[thread_position_in_grid]]) { out[i] = i * 3 + 1; }\n";
   const char *kernels[] = {"fill"};
   char error[256] = {0};
-  GeozlGpuProgram *program = geozl_gpu_program_create(
-      source, strlen(source), 0, kernels, 1, error, sizeof(error));
+  if (!geozl_gpu_backend_available(GEOZL_GPU_BACKEND_METAL) ||
+      geozl_gpu_backend_available(GEOZL_GPU_BACKEND_CUDA) ||
+      geozl_gpu_program_create(GEOZL_GPU_BACKEND_CUDA, source, strlen(source),
+                               0, kernels, 1, error, sizeof(error)) != NULL ||
+      strcmp(error, "GPU backend is not built in") != 0)
+    return fail("a backend that is not built in was accepted");
+  GeozlGpuProgram *program =
+      geozl_gpu_program_create(GEOZL_GPU_BACKEND_METAL, source, strlen(source),
+                               0, kernels, 1, error, sizeof(error));
   if (program == NULL)
     return fail(error);
 

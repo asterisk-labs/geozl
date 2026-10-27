@@ -12,6 +12,13 @@ enum {
   GEOZL_GPU_RESULT = 4u,
 };
 
+// Each backend compiles in only when its GEOZL_GPU_<NAME> macro is defined.
+// New backends append here; the values are not stored anywhere.
+typedef enum {
+  GEOZL_GPU_BACKEND_METAL,
+  GEOZL_GPU_BACKEND_CUDA,
+} GeozlGpuBackendId;
+
 typedef struct GeozlGpuProgram GeozlGpuProgram;
 typedef struct GeozlGpuBatch GeozlGpuBatch;
 typedef struct GeozlGpuMemory GeozlGpuMemory;
@@ -42,7 +49,12 @@ typedef struct {
 // device buffers and must be destroyed before their program. A program and its
 // batches may be reused between calls, but are not safe to run concurrently.
 
-GeozlGpuProgram *geozl_gpu_program_create(const void *module, size_t moduleSize,
+int geozl_gpu_backend_available(GeozlGpuBackendId backend);
+
+// module is Metal source for METAL and PTX for CUDA, compiled by Slang from
+// gpu/kernels. Returns NULL when the backend is not built in.
+GeozlGpuProgram *geozl_gpu_program_create(GeozlGpuBackendId backend,
+                                          const void *module, size_t moduleSize,
                                           int device,
                                           const char *const kernels[],
                                           size_t kernelCount, char *error,

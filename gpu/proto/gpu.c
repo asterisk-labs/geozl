@@ -61,7 +61,7 @@ int gpu_run(const char *modulePath, GpuBuffer *buffers, int bufferCount,
   const int device = deviceEnv == NULL ? 0 : atoi(deviceEnv);
   char error[512];
   GeozlGpuProgram *program =
-      geozl_gpu_program_create(module, moduleSize, device, kernels,
+      geozl_gpu_program_create(GPU_BACKEND, module, moduleSize, device, kernels,
                                (size_t)dispatchCount, error, sizeof(error));
   free(module);
   if (program == NULL) {

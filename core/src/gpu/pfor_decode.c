@@ -36,11 +36,10 @@ typedef struct {
   uint32_t count;
 } GpuRawCopy;
 
-GeozlPforGpuDecoder *geozl_pfor_gpu_decoder_create(const void *module,
-                                                   size_t moduleSize,
-                                                   size_t elementBytes,
-                                                   int device, char *error,
-                                                   size_t errorCapacity) {
+GeozlPforGpuDecoder *
+geozl_pfor_gpu_decoder_create(GeozlGpuBackendId backend, const void *module,
+                              size_t moduleSize, size_t elementBytes,
+                              int device, char *error, size_t errorCapacity) {
   if (elementBytes != 1 && elementBytes != 2) {
     geozl_gpu_error(error, errorCapacity,
                     "PFOR GPU decoding supports 1- or 2-byte elements");
@@ -52,8 +51,8 @@ GeozlPforGpuDecoder *geozl_pfor_gpu_decoder_create(const void *module,
     return NULL;
   }
   decoder->program = geozl_gpu_program_create(
-      module, moduleSize, device, kernels, sizeof(kernels) / sizeof(kernels[0]),
-      error, errorCapacity);
+      backend, module, moduleSize, device, kernels,
+      sizeof(kernels) / sizeof(kernels[0]), error, errorCapacity);
   if (decoder->program == NULL) {
     free(decoder);
     return NULL;

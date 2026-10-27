@@ -5,6 +5,83 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
+
+// Backends extend these headers by embedding them as their first member.
+// runtime.c validates every call and keeps the shared state before it reaches
+// a backend, so a backend checks only what is specific to its device.
+typedef struct GeozlGpuBackendOps GeozlGpuBackendOps;
+
+struct GeozlGpuProgram {
+  const GeozlGpuBackendOps *ops;
+  int device;
+  size_t kernelCount;
+};
+
+struct GeozlGpuBatch {
+  GeozlGpuProgram *program;
+  GeozlGpuBuffer buffers[GEOZL_GPU_MAX_BUFFERS];
+  size_t bufferCount;
+  int completed;
+  int detached;
+};
+
+struct GeozlGpuMemory {
+  const GeozlGpuBackendOps *ops;
+  int device;
+  size_t bytes;
+  size_t elementBytes;
+};
+
+struct GeozlGpuBackendOps {
+  const char *name;
+  GeozlGpuProgram *(*program_create)(const void *module, size_t moduleSize,
+                                     int device, const char *const kernels[],
+                                     size_t kernelCount, char *error,
+                                     size_t errorCapacity);
+  void (*program_destroy)(GeozlGpuProgram *program);
+  const char *(*program_device)(const GeozlGpuProgram *program);
+  GeozlGpuBatch *(*batch_create)(GeozlGpuProgram *program,
+                                 const GeozlGpuBuffer buffers[],
+                                 size_t bufferCount, char *error,
+                                 size_t errorCapacity);
+  void (*batch_destroy)(GeozlGpuBatch *batch);
+  // Checks device limits before batch_run, so a rejected call leaves the
+  // previous result in place.
+  int (*dispatches_fit)(const GeozlGpuProgram *program,
+                        const GeozlGpuDispatch dispatches[],
+                        size_t dispatchCount, char *error,
+                        size_t errorCapacity);
+  int (*batch_run)(GeozlGpuBatch *batch, const GeozlGpuDispatch dispatches[],
+                   size_t dispatchCount, GeozlGpuRunTimes *times, char *error,
+                   size_t errorCapacity);
+  int (*batch_download)(GeozlGpuBatch *batch, char *error,
+                        size_t errorCapacity);
+  // Returns the backend memory with only its own fields set.
+  GeozlGpuMemory *(*batch_take)(GeozlGpuBatch *batch, size_t buffer,
+                                char *error, size_t errorCapacity);
+  void (*memory_destroy)(GeozlGpuMemory *memory);
+  void *(*memory_data)(const GeozlGpuMemory *memory);
+  int (*memory_download)(const GeozlGpuMemory *memory, void *dst, size_t bytes,
+                         char *error, size_t errorCapacity);
+};
+
+#ifdef GEOZL_GPU_METAL
+extern const GeozlGpuBackendOps geozl_gpu_metal_ops;
+#endif
+#ifdef GEOZL_GPU_CUDA
+extern const GeozlGpuBackendOps geozl_gpu_cuda_ops;
+#endif
+
+// Backends call this first so their destroy path sees the buffer list.
+static inline void geozl_gpu_batch_init(GeozlGpuBatch *batch,
+                                        GeozlGpuProgram *program,
+                                        const GeozlGpuBuffer buffers[],
+                                        size_t bufferCount) {
+  batch->program = program;
+  memcpy(batch->buffers, buffers, bufferCount * sizeof(*buffers));
+  batch->bufferCount = bufferCount;
+}
 
 static inline int geozl_gpu_error(char *error, size_t capacity,
                                   const char *format, ...) {

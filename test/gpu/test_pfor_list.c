@@ -80,8 +80,8 @@ int main(int argc, char **argv) {
   GeozlGpuProgram *program =
       module == NULL
           ? NULL
-          : geozl_gpu_program_create(module, moduleSize, device, kernels, 1,
-                                     error, sizeof(error));
+          : geozl_gpu_program_create(GPU_BACKEND, module, moduleSize, device,
+                                     kernels, 1, error, sizeof(error));
   free(module);
   if (program == NULL) {
     pfor_gpu_plan_free(&plan);
@@ -110,6 +110,17 @@ int main(int argc, char **argv) {
   GeozlGpuRunTimes times;
   int failed = batch == NULL || geozl_gpu_batch_run(batch, &dispatch, 1, &times,
                                                     error, sizeof(error)) != 0;
+  // A dispatch the device rejects must leave the finished result takeable.
+  if (!failed) {
+    const GeozlGpuDispatch tooWide = {0, 1, 1, 4096};
+    if (geozl_gpu_batch_run(batch, &tooWide, 1, &times, error, sizeof(error)) ==
+        0) {
+      snprintf(error, sizeof(error), "a 4096-thread group was accepted");
+      failed = 1;
+    } else {
+      error[0] = '\0';
+    }
+  }
   if (!failed && strcmp(geozl_gpu_program_backend(program), "cuda") == 0) {
     const GeozlGpuDispatch tooTall = {0, 1, 65536, 128};
     if (geozl_gpu_batch_run(batch, &tooTall, 1, &times, error, sizeof(error)) ==

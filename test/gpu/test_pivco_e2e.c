@@ -261,8 +261,9 @@ static int run_case(const char *modulePath, size_t elementBytes) {
   GeozlPivcoGpuDecoder *decoder =
       module == NULL
           ? NULL
-          : geozl_pivco_gpu_decoder_create(module, moduleSize, elementBytes,
-                                           device, error, sizeof(error));
+          : geozl_pivco_gpu_decoder_create(GPU_BACKEND, module, moduleSize,
+                                           elementBytes, device, error,
+                                           sizeof(error));
   free(module);
   if (decoder == NULL) {
     fprintf(stderr, "test_pivco_e2e: %s\n",

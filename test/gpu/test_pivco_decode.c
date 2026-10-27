@@ -106,8 +106,8 @@ static int run_case(const char *modulePath, size_t blockSize) {
   GeozlGpuProgram *program =
       module == NULL
           ? NULL
-          : geozl_gpu_program_create(module, moduleSize, device, kernels, 1,
-                                     error, sizeof(error));
+          : geozl_gpu_program_create(GPU_BACKEND, module, moduleSize, device,
+                                     kernels, 1, error, sizeof(error));
   free(module);
   if (program == NULL) {
     pivco_gpu_plan_free(&plan);
@@ -117,7 +117,8 @@ static int run_case(const char *modulePath, size_t blockSize) {
   }
 
   const size_t laneBytes = plan.laneBytes + 256;
-  uint32_t dummy[5] = {0};
+  // Placeholder for unused bindings; the largest one is a GpuJoinTask.
+  uint32_t dummy[sizeof(GpuJoinTask) / sizeof(uint32_t)] = {0};
   GeozlGpuBuffer buffers[] = {
       {payload, payloadSize + 64, 1, GEOZL_GPU_COPY_IN, -1},
       {plan.symbols, array_bytes(plan.symbolCount, 1), 1, GEOZL_GPU_COPY_IN,
@@ -167,7 +168,7 @@ static int run_case(const char *modulePath, size_t blockSize) {
 
   uint8_t *output = malloc(laneBytes);
   failed = memory == NULL || output == NULL ||
-           geozl_gpu_memory_download(memory, output, laneBytes, error,
+           geozl_gpu_memory_download(memory, output, count, error,
                                      sizeof(error)) != 0 ||
            memcmp(output, input, count) != 0;
   if (failed) {

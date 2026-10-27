@@ -7,11 +7,10 @@
 
 typedef struct GeozlPforGpuDecoder GeozlPforGpuDecoder;
 
-GeozlPforGpuDecoder *geozl_pfor_gpu_decoder_create(const void *module,
-                                                   size_t moduleSize,
-                                                   size_t elementBytes,
-                                                   int device, char *error,
-                                                   size_t errorCapacity);
+GeozlPforGpuDecoder *
+geozl_pfor_gpu_decoder_create(GeozlGpuBackendId backend, const void *module,
+                              size_t moduleSize, size_t elementBytes,
+                              int device, char *error, size_t errorCapacity);
 void geozl_pfor_gpu_decoder_destroy(GeozlPforGpuDecoder *decoder);
 
 // Decodes frames into one contiguous device allocation, in input order. The

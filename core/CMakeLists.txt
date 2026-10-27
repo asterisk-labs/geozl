@@ -211,11 +211,13 @@ if(GEOZL_BUILD_FULL)
             src/gpu/pivco_decode.c
             src/gpu/pivco_plan.c
             src/gpu/pivco_plan_parallel.c
-            src/gpu/planar_scan.c)
+            src/gpu/planar_scan.c
+            src/gpu/runtime.c)
         target_link_libraries(geozl PRIVATE Threads::Threads)
         if(APPLE)
             enable_language(OBJC)
             target_sources(geozl PRIVATE src/gpu/runtime_metal.m)
+            target_compile_definitions(geozl PRIVATE GEOZL_GPU_METAL)
             target_compile_options(geozl PRIVATE
                 $<$<COMPILE_LANGUAGE:OBJC>:-fobjc-arc>
                 $<$<COMPILE_LANGUAGE:OBJC>:-fvisibility=hidden>)
@@ -223,6 +225,7 @@ if(GEOZL_BUILD_FULL)
                 "-framework Metal" "-framework Foundation")
         elseif(UNIX)
             target_sources(geozl PRIVATE src/gpu/runtime_cuda.c)
+            target_compile_definitions(geozl PRIVATE GEOZL_GPU_CUDA)
             target_link_libraries(geozl PRIVATE ${CMAKE_DL_LIBS})
         else()
             message(FATAL_ERROR
