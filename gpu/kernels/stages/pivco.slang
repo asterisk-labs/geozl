@@ -4,6 +4,7 @@
 
 static const uint PIVCO_BYTES = 8;
 // OpenZL caps the PivCo Huffman table log, and therefore the tree depth, at 12.
+// pivco_plan.c rejects deeper trees with ZL_PIVCO_MAX_TABLE_LOG.
 static const uint MAX_DEPTH = 12;
 
 struct tree_node {

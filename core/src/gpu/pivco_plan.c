@@ -68,7 +68,7 @@ static int as_u32(size_t value, uint32_t *out) {
 static int topology_build(Topology *topology, const ZL_PivCoHuffmanTree *tree,
                           size_t level, size_t first, size_t end) {
   if (topology->count >= ZL_PIVCO_MAX_TREE_NODES || first >= end ||
-      first > UINT8_MAX || level > 16)
+      first > UINT8_MAX || level > ZL_PIVCO_MAX_TABLE_LOG)
     return -1;
   const size_t current = topology->count++;
   topology->bothChildrenConstant[current] = 0;
