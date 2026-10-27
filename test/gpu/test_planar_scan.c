@@ -9,7 +9,7 @@ static int check_valid_plan(void) {
       {24, 12, 3, 1},
   };
   GeozlGpuPlanePlan plan;
-  if (geozl_gpu_plane_plan_build(&plan, frames, 2) != 0)
+  if (geozl_gpu_plane_plan_build(&plan, frames, 2, NULL) != 0)
     return 1;
   const int failed = plan.count != 4 || plan.maxWidth != 4 ||
                      plan.maxRows != 4 || plan.tasks[0].outBase != 0 ||
@@ -37,7 +37,7 @@ static int check_invalid_geometry(void) {
   };
   for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i) {
     GeozlGpuPlanePlan plan;
-    if (geozl_gpu_plane_plan_build(&plan, &invalid[i], 1) == 0) {
+    if (geozl_gpu_plane_plan_build(&plan, &invalid[i], 1, NULL) == 0) {
       fprintf(stderr, "invalid geometry %zu was accepted\n", i);
       geozl_gpu_plane_plan_free(&plan);
       return 1;

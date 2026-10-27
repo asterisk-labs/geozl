@@ -1,6 +1,7 @@
 #ifndef GEOZL_GPU_PFOR_PLAN_H
 #define GEOZL_GPU_PFOR_PLAN_H
 
+#include "host_alloc.h"
 #include "planar_scan.h"
 
 #include <stddef.h>
@@ -30,6 +31,7 @@ typedef struct {
   size_t realBlockCount;
   size_t blocksWithExceptions;
   size_t exceptionCount;
+  int borrowed; // blocks belong to the allocator the plan was built with
   const char *error;
   size_t errorFrame;
   size_t errorBlock;
@@ -46,10 +48,13 @@ int pfor_gpu_block_info(const uint8_t *block, size_t available,
 int pfor_gpu_plan_build(PforGpuPlan *plan, const PforGpuFrame *frames,
                         size_t frameCount, const uint8_t *payload,
                         size_t payloadSize, size_t elementBytes);
+// Plans contiguous frame ranges on up to threadCount threads, then merges them
+// in input order into blocks from alloc.
 int pfor_gpu_plan_build_parallel(PforGpuPlan *plan, const PforGpuFrame *frames,
                                  size_t frameCount, const uint8_t *payload,
                                  size_t payloadSize, size_t elementBytes,
-                                 size_t threadCount);
+                                 size_t threadCount,
+                                 const GeozlGpuHostAlloc *alloc);
 void pfor_gpu_plan_free(PforGpuPlan *plan);
 
 #endif // GEOZL_GPU_PFOR_PLAN_H

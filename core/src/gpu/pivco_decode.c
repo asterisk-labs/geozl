@@ -5,6 +5,7 @@
 #include "pivco_plan.h"
 #include "planar_scan.h"
 #include "runtime_internal.h"
+#include "staging_arena.h"
 
 #include "common/endian.h"
 
@@ -19,6 +20,7 @@
 struct GeozlPivcoGpuDecoder {
   GeozlGpuProgram *program;
   size_t elementBytes;
+  GeozlGpuArena staging;
 };
 
 enum {
@@ -42,18 +44,6 @@ typedef struct {
   uint32_t count;
 } GpuRawCopy;
 
-static size_t array_bytes(size_t count, size_t elementBytes) {
-  if (count == 0)
-    count = 1;
-  return count > SIZE_MAX / elementBytes ? 0 : count * elementBytes;
-}
-
-static size_t array_bytes_min(size_t count, size_t elementBytes,
-                              size_t minimum) {
-  const size_t bytes = array_bytes(count, elementBytes);
-  return bytes < minimum ? minimum : bytes;
-}
-
 GeozlPivcoGpuDecoder *
 geozl_pivco_gpu_decoder_create(GeozlGpuBackendId backend, const void *module,
                                size_t moduleSize, size_t elementBytes,
@@ -76,26 +66,29 @@ geozl_pivco_gpu_decoder_create(GeozlGpuBackendId backend, const void *module,
     return NULL;
   }
   decoder->elementBytes = elementBytes;
+  geozl_gpu_arena_init(&decoder->staging, decoder->program);
   return decoder;
 }
 
 void geozl_pivco_gpu_decoder_destroy(GeozlPivcoGpuDecoder *decoder) {
   if (decoder == NULL)
     return;
+  geozl_gpu_arena_destroy(&decoder->staging);
   geozl_gpu_program_destroy(decoder->program);
   free(decoder);
 }
 
-static int capture_frames(const GeozlPivcoGpuDecoder *decoder,
-                          const void *const frames[], const size_t frameSizes[],
-                          const size_t sizes[], size_t frameCount,
-                          CapturedFrame captured[], GeozlGpuFrameShape shapes[],
-                          GeozlGpuFrameShape scanShapes[], uint8_t *payload,
-                          size_t payloadCapacity, uint8_t *rawValues,
-                          GpuRawCopy rawCopies[], void *scratch, char *error,
-                          size_t errorCapacity, size_t *payloadSize,
-                          size_t *gpuCount, size_t *scanCount, size_t *rawCount,
-                          size_t *rawBytes) {
+// Raw frames are rare, so their staging is taken at the first one, sized for
+// the output still to come.
+static int
+capture_frames(GeozlPivcoGpuDecoder *decoder, const void *const frames[],
+               const size_t frameSizes[], const size_t sizes[],
+               size_t frameCount, size_t totalBytes, CapturedFrame captured[],
+               GeozlGpuFrameShape shapes[], GeozlGpuFrameShape scanShapes[],
+               uint8_t *payload, size_t payloadCapacity, uint8_t **rawValues,
+               GpuRawCopy rawCopies[], void *scratch, char *error,
+               size_t errorCapacity, size_t *payloadSize, size_t *gpuCount,
+               size_t *scanCount, size_t *rawCount, size_t *rawBytes) {
   PivcoCapture capture;
   if (pivco_capture_init(&capture, payload, payloadCapacity) != 0)
     return geozl_gpu_error(error, errorCapacity,
@@ -114,7 +107,15 @@ static int capture_frames(const GeozlPivcoGpuDecoder *decoder,
         return geozl_gpu_error(error, errorCapacity,
                                "frame %zu has a different element width", i);
       }
-      memcpy(rawValues + *rawBytes, scratch, sizes[i]);
+      if (*rawValues == NULL &&
+          (*rawValues = geozl_gpu_arena_alloc(
+               &decoder->staging,
+               totalBytes - outputElements * decoder->elementBytes)) == NULL) {
+        pivco_capture_destroy(&capture);
+        return geozl_gpu_error(error, errorCapacity, "%s",
+                               geozl_gpu_arena_error(&decoder->staging));
+      }
+      memcpy(*rawValues + *rawBytes, scratch, sizes[i]);
       rawCopies[(*rawCount)++] = (GpuRawCopy){
           (uint32_t)(*rawBytes / decoder->elementBytes),
           (uint32_t)outputElements,
@@ -227,61 +228,65 @@ GeozlGpuMemory *geozl_pivco_gpu_decode(GeozlPivcoGpuDecoder *decoder,
     return NULL;
   }
 
+  // Kernel inputs are built in staging, which the device reads in place.
+  GeozlGpuArena *staging = &decoder->staging;
+  geozl_gpu_arena_reset(staging);
+  const GeozlGpuHostAlloc alloc = geozl_gpu_arena_allocator(staging);
+  PivcoGpuPlan plan = {0};
+  GeozlGpuPlanePlan planes = {0};
+  GeozlGpuMemory *memory = NULL;
+  void *scratch = NULL;
   size_t *sizes = calloc(frameCount, sizeof(*sizes));
   CapturedFrame *captured = calloc(frameCount, sizeof(*captured));
   GeozlGpuFrameShape *shapes = calloc(frameCount, sizeof(*shapes));
   GeozlGpuFrameShape *scanShapes = calloc(frameCount, sizeof(*scanShapes));
-  GpuRawCopy *rawCopies = calloc(frameCount, sizeof(*rawCopies));
   if (sizes == NULL || captured == NULL || shapes == NULL ||
-      scanShapes == NULL || rawCopies == NULL) {
+      scanShapes == NULL) {
     geozl_gpu_error(error, errorCapacity, "out of memory");
-    goto fail_arrays;
+    goto done;
   }
 
   GeozlGpuFrameBatchInfo batchInfo;
   if (geozl_gpu_frame_batch_inspect(frames, frameSizes, frameCount,
                                     decoder->elementBytes, maxOutputBytes,
                                     sizes, &batchInfo, error, errorCapacity))
-    goto fail_arrays;
-  uint8_t *payload = malloc(batchInfo.payloadBytes);
-  uint8_t *rawValues = malloc(batchInfo.totalBytes);
-  void *scratch = malloc(batchInfo.maxFrameBytes);
-  if (payload == NULL || rawValues == NULL || scratch == NULL) {
+    goto done;
+  GpuRawCopy *rawCopies =
+      geozl_gpu_host_calloc(&alloc, frameCount, sizeof(*rawCopies));
+  uint64_t *dummy = geozl_gpu_host_calloc(&alloc, 4, sizeof(*dummy));
+  uint8_t *payload = geozl_gpu_arena_alloc(staging, batchInfo.payloadBytes);
+  if (rawCopies == NULL || dummy == NULL || payload == NULL) {
+    geozl_gpu_error(error, errorCapacity, "%s", geozl_gpu_arena_error(staging));
+    goto done;
+  }
+  scratch = malloc(batchInfo.maxFrameBytes);
+  if (scratch == NULL) {
     geozl_gpu_error(error, errorCapacity, "out of memory");
-    free(payload);
-    free(rawValues);
-    free(scratch);
-    goto fail_arrays;
+    goto done;
   }
 
+  uint8_t *rawValues = NULL;
   size_t payloadSize = 0;
   size_t gpuCount = 0;
   size_t scanCount = 0;
   size_t rawCount = 0;
   size_t rawBytes = 0;
-  if (capture_frames(decoder, frames, frameSizes, sizes, frameCount, captured,
-                     shapes, scanShapes, payload, batchInfo.payloadCapacity,
-                     rawValues, rawCopies, scratch, error, errorCapacity,
-                     &payloadSize, &gpuCount, &scanCount, &rawCount,
-                     &rawBytes)) {
-    free(payload);
-    free(rawValues);
-    free(scratch);
-    goto fail_arrays;
-  }
-  free(scratch);
+  if (capture_frames(decoder, frames, frameSizes, sizes, frameCount,
+                     batchInfo.totalBytes, captured, shapes, scanShapes,
+                     payload, batchInfo.payloadCapacity, &rawValues, rawCopies,
+                     scratch, error, errorCapacity, &payloadSize, &gpuCount,
+                     &scanCount, &rawCount, &rawBytes))
+    goto done;
   if (payloadSize > UINT32_MAX - GEOZL_GPU_PAYLOAD_PADDING) {
     geozl_gpu_error(error, errorCapacity, "GPU payload is too large");
-    free(payload);
-    free(rawValues);
-    goto fail_arrays;
+    goto done;
   }
   memset(payload + payloadSize, 0, GEOZL_GPU_PAYLOAD_PADDING);
 
-  PivcoGpuPlan plan = {0};
-  if (gpuCount != 0 && pivco_gpu_plan_build_parallel(
-                           &plan, captured, shapes, gpuCount, payload,
-                           payloadSize, decoder->elementBytes, 4) != 0) {
+  if (gpuCount != 0 &&
+      pivco_gpu_plan_build_parallel(&plan, captured, shapes, gpuCount, payload,
+                                    payloadSize, decoder->elementBytes, 4,
+                                    &alloc) != 0) {
     if (plan.errorFrame == SIZE_MAX)
       geozl_gpu_error(error, errorCapacity, "%s", plan.error);
     else if (plan.errorLane == SIZE_MAX)
@@ -290,116 +295,78 @@ GeozlGpuMemory *geozl_pivco_gpu_decode(GeozlPivcoGpuDecoder *decoder,
     else
       geozl_gpu_error(error, errorCapacity, "%s in lane %zu of frame %zu",
                       plan.error, plan.errorLane, plan.errorFrame);
-    free(payload);
-    free(rawValues);
-    goto fail_arrays;
+    goto done;
   }
-
-  GeozlGpuPlanePlan planes = {0};
   if (scanCount != 0 &&
-      geozl_gpu_plane_plan_build(&planes, scanShapes, scanCount) != 0) {
+      geozl_gpu_plane_plan_build(&planes, scanShapes, scanCount, &alloc) != 0) {
     geozl_gpu_error(error, errorCapacity, "invalid planar scan geometry");
-    pivco_gpu_plan_free(&plan);
-    free(payload);
-    free(rawValues);
-    goto fail_arrays;
+    goto done;
   }
 
-  const size_t laneBytes =
-      plan.laneBytes <= SIZE_MAX - 256 ? plan.laneBytes + 256 : 0;
-  const size_t payloadBytes = payloadSize + GEOZL_GPU_PAYLOAD_PADDING;
+  const size_t laneBytes = plan.laneBytes + 256;
   const size_t resultBytes =
       batchInfo.totalBytes > laneBytes ? batchInfo.totalBytes : laneBytes;
-  uint64_t dummy[4] = {0};
   GeozlGpuBuffer buffers[] = {
-      {payload, payloadBytes, 1, GEOZL_GPU_COPY_IN, -1},
-      {plan.symbols != NULL ? plan.symbols : (uint8_t *)dummy,
-       array_bytes_min(plan.symbolCount, 1, 4), 1, GEOZL_GPU_COPY_IN, -1},
-      {plan.trees != NULL ? plan.trees : (GpuTreeNode *)dummy,
-       array_bytes(plan.treeCount, sizeof(GpuTreeNode)), sizeof(GpuTreeNode),
-       GEOZL_GPU_COPY_IN, -1},
-      {plan.nodes != NULL ? plan.nodes : (GpuNodeBits *)dummy,
-       array_bytes(plan.nodeCount, sizeof(GpuNodeBits)), sizeof(GpuNodeBits),
-       GEOZL_GPU_COPY_IN, -1},
-      {plan.pivcoBlocks != NULL ? plan.pivcoBlocks : (GpuPivcoBlock *)dummy,
-       array_bytes(plan.pivcoBlockCount, sizeof(GpuPivcoBlock)),
-       sizeof(GpuPivcoBlock), GEOZL_GPU_COPY_IN, -1},
-      {NULL, laneBytes, 1, 0, -1},
-      {NULL, laneBytes, 1, 0, 5},
-      {plan.laneBlocks != NULL ? plan.laneBlocks : (GpuLaneBlock *)dummy,
-       array_bytes(plan.laneBlockCount, sizeof(GpuLaneBlock)),
-       sizeof(GpuLaneBlock), GEOZL_GPU_COPY_IN, -1},
-      {plan.joins != NULL ? plan.joins : (GpuJoinTask *)dummy,
-       array_bytes(plan.joinCount, sizeof(GpuJoinTask)), sizeof(GpuJoinTask),
-       GEOZL_GPU_COPY_IN, -1},
-      {planes.tasks != NULL ? planes.tasks : (GeozlGpuPlaneTask *)dummy,
-       array_bytes(planes.count, sizeof(GeozlGpuPlaneTask)),
-       sizeof(GeozlGpuPlaneTask), GEOZL_GPU_COPY_IN, -1},
-      {NULL, resultBytes, decoder->elementBytes, GEOZL_GPU_RESULT, -1},
-      {NULL, resultBytes, 1, 0, 10},
-      {NULL, resultBytes, 1, 0, 10},
-      {rawCount != 0 ? rawValues : (uint8_t *)dummy,
-       rawCount != 0 ? rawBytes : decoder->elementBytes, decoder->elementBytes,
-       GEOZL_GPU_COPY_IN, -1},
-      {rawCount != 0 ? rawCopies : (GpuRawCopy *)dummy,
-       rawCount != 0 ? rawCount * sizeof(*rawCopies) : sizeof(*rawCopies),
-       sizeof(*rawCopies), GEOZL_GPU_COPY_IN, -1},
+      geozl_gpu_arena_input(staging, payload,
+                            payloadSize + GEOZL_GPU_PAYLOAD_PADDING, 1),
+      geozl_gpu_arena_input(staging,
+                            plan.symbols != NULL ? (void *)plan.symbols : dummy,
+                            plan.symbolCount < 4 ? 4 : plan.symbolCount, 1),
+      geozl_gpu_arena_input(staging,
+                            plan.trees != NULL ? (void *)plan.trees : dummy,
+                            plan.treeCount, sizeof(GpuTreeNode)),
+      geozl_gpu_arena_input(staging,
+                            plan.nodes != NULL ? (void *)plan.nodes : dummy,
+                            plan.nodeCount, sizeof(GpuNodeBits)),
+      geozl_gpu_arena_input(
+          staging, plan.pivcoBlocks != NULL ? (void *)plan.pivcoBlocks : dummy,
+          plan.pivcoBlockCount, sizeof(GpuPivcoBlock)),
+      {NULL, laneBytes, 1, 0, -1, NULL},
+      {NULL, laneBytes, 1, 0, 5, NULL},
+      geozl_gpu_arena_input(
+          staging, plan.laneBlocks != NULL ? (void *)plan.laneBlocks : dummy,
+          plan.laneBlockCount, sizeof(GpuLaneBlock)),
+      geozl_gpu_arena_input(staging,
+                            plan.joins != NULL ? (void *)plan.joins : dummy,
+                            plan.joinCount, sizeof(GpuJoinTask)),
+      geozl_gpu_arena_input(staging,
+                            planes.tasks != NULL ? (void *)planes.tasks : dummy,
+                            planes.count, sizeof(GeozlGpuPlaneTask)),
+      {NULL, resultBytes, decoder->elementBytes, GEOZL_GPU_RESULT, -1, NULL},
+      {NULL, resultBytes, 1, 0, 10, NULL},
+      {NULL, resultBytes, 1, 0, 10, NULL},
+      geozl_gpu_arena_input(
+          staging, rawValues != NULL ? (void *)rawValues : dummy,
+          rawBytes / decoder->elementBytes, decoder->elementBytes),
+      geozl_gpu_arena_input(staging, rawCopies, rawCount, sizeof(*rawCopies)),
   };
-  if (laneBytes == 0) {
-    geozl_gpu_error(error, errorCapacity, "GPU buffer size overflows");
-    goto fail_plan;
-  }
-  for (size_t i = 0; i < sizeof(buffers) / sizeof(buffers[0]); ++i) {
-    if (buffers[i].bytes == 0) {
-      geozl_gpu_error(error, errorCapacity, "GPU buffer %zu has no storage", i);
-      goto fail_plan;
-    }
-  }
 
   GeozlGpuDispatch dispatches[GEOZL_GPU_MAX_KERNELS];
   size_t dispatchCount;
   if (build_dispatches(&plan, &planes, gpuCount, rawCount, dispatches,
                        &dispatchCount, error, errorCapacity))
-    goto fail_plan;
+    goto done;
 
   GeozlGpuBatch *batch = geozl_gpu_batch_create(
       decoder->program, buffers, sizeof(buffers) / sizeof(buffers[0]), error,
       errorCapacity);
   if (batch == NULL)
-    goto fail_plan;
+    goto done;
   GeozlGpuRunTimes times;
   if (geozl_gpu_batch_run(batch, dispatches, dispatchCount, &times, error,
-                          errorCapacity) != 0) {
-    geozl_gpu_batch_destroy(batch);
-    goto fail_plan;
-  }
-  GeozlGpuMemory *memory =
-      geozl_gpu_batch_take(batch, 10, error, errorCapacity);
+                          errorCapacity) == 0)
+    memory = geozl_gpu_batch_take(batch, 10, error, errorCapacity);
   geozl_gpu_batch_destroy(batch);
   if (memory != NULL && outputBytes != NULL)
     *outputBytes = batchInfo.totalBytes;
 
+done:
   geozl_gpu_plane_plan_free(&planes);
   pivco_gpu_plan_free(&plan);
-  free(payload);
-  free(rawValues);
-  free(rawCopies);
+  free(scratch);
   free(scanShapes);
   free(shapes);
   free(captured);
   free(sizes);
   return memory;
-
-fail_plan:
-  geozl_gpu_plane_plan_free(&planes);
-  pivco_gpu_plan_free(&plan);
-  free(payload);
-  free(rawValues);
-fail_arrays:
-  free(rawCopies);
-  free(scanShapes);
-  free(shapes);
-  free(captured);
-  free(sizes);
-  return NULL;
 }

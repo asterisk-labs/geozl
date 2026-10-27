@@ -9,13 +9,15 @@ _Static_assert(sizeof(GeozlGpuPlaneTask) == 12,
 void geozl_gpu_plane_plan_free(GeozlGpuPlanePlan *plan) {
   if (plan == NULL)
     return;
-  free(plan->tasks);
+  if (!plan->borrowed)
+    free(plan->tasks);
   *plan = (GeozlGpuPlanePlan){0};
 }
 
 int geozl_gpu_plane_plan_build(GeozlGpuPlanePlan *plan,
                                const GeozlGpuFrameShape *frames,
-                               size_t frameCount) {
+                               size_t frameCount,
+                               const GeozlGpuHostAlloc *alloc) {
   if (plan == NULL)
     return 1;
   *plan = (GeozlGpuPlanePlan){0};
@@ -35,11 +37,10 @@ int geozl_gpu_plane_plan_build(GeozlGpuPlanePlan *plan,
   if (count > SIZE_MAX - 3)
     return 1;
   const size_t padded = (count + 3) / 4 * 4;
-  if (padded > SIZE_MAX / sizeof(*plan->tasks))
-    return 1;
-  plan->tasks = calloc(padded, sizeof(*plan->tasks));
+  plan->tasks = geozl_gpu_host_calloc(alloc, padded, sizeof(*plan->tasks));
   if (plan->tasks == NULL)
     return 1;
+  plan->borrowed = alloc != NULL;
 
   for (size_t i = 0; i < frameCount; ++i) {
     const GeozlGpuFrameShape *frame = &frames[i];

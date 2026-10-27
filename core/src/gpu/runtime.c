@@ -1,5 +1,6 @@
 #include "runtime_internal.h"
 
+#include <stdint.h>
 #include <string.h>
 
 static const GeozlGpuBackendOps *backend_ops(GeozlGpuBackendId backend) {
@@ -66,6 +67,48 @@ const char *geozl_gpu_program_device(const GeozlGpuProgram *program) {
   return program == NULL ? NULL : program->ops->program_device(program);
 }
 
+GeozlGpuStaging *geozl_gpu_staging_create(GeozlGpuProgram *program,
+                                          size_t bytes, char *error,
+                                          size_t errorCapacity) {
+  if (program == NULL || bytes == 0) {
+    geozl_gpu_error(error, errorCapacity, "invalid GPU staging");
+    return NULL;
+  }
+  GeozlGpuStaging *staging =
+      program->ops->staging_create(program, bytes, error, errorCapacity);
+  if (staging != NULL) {
+    staging->program = program;
+    staging->bytes = bytes;
+  }
+  return staging;
+}
+
+void geozl_gpu_staging_destroy(GeozlGpuStaging *staging) {
+  if (staging != NULL)
+    staging->program->ops->staging_destroy(staging);
+}
+
+void *geozl_gpu_staging_data(const GeozlGpuStaging *staging) {
+  return staging == NULL ? NULL : staging->data;
+}
+
+size_t geozl_gpu_staging_capacity(const GeozlGpuStaging *staging) {
+  return staging == NULL ? 0 : staging->bytes;
+}
+
+static int staging_valid(const GeozlGpuProgram *program,
+                         const GeozlGpuBuffer *buffer) {
+  const GeozlGpuStaging *staging = buffer->staging;
+  if (staging == NULL)
+    return 1;
+  const uintptr_t start = (uintptr_t)staging->data;
+  const uintptr_t host = (uintptr_t)buffer->host;
+  return staging->program == program && buffer->flags == GEOZL_GPU_COPY_IN &&
+         host >= start && host - start <= staging->bytes &&
+         (host - start) % GEOZL_GPU_STAGING_ALIGNMENT == 0 &&
+         buffer->bytes <= staging->bytes - (host - start);
+}
+
 GeozlGpuBatch *geozl_gpu_batch_create(GeozlGpuProgram *program,
                                       const GeozlGpuBuffer buffers[],
                                       size_t bufferCount, char *error,
@@ -73,6 +116,13 @@ GeozlGpuBatch *geozl_gpu_batch_create(GeozlGpuProgram *program,
   if (program == NULL || !geozl_gpu_buffers_valid(buffers, bufferCount)) {
     geozl_gpu_error(error, errorCapacity, "invalid GPU buffers");
     return NULL;
+  }
+  for (size_t i = 0; i < bufferCount; ++i) {
+    if (!staging_valid(program, &buffers[i])) {
+      geozl_gpu_error(error, errorCapacity, "GPU buffer %zu is outside staging",
+                      i);
+      return NULL;
+    }
   }
   return program->ops->batch_create(program, buffers, bufferCount, error,
                                     errorCapacity);

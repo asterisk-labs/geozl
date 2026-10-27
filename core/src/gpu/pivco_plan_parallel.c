@@ -16,6 +16,7 @@ typedef struct {
   size_t elementBytes;
   PivcoGpuPlan plan;
   int failed;
+  int threaded;
 } PlanWorker;
 
 static void trim_lane_padding(PivcoGpuPlan *plan) {
@@ -51,27 +52,24 @@ static int add_size(size_t *total, size_t value) {
   return 0;
 }
 
-static int allocate_array(void **array, size_t count, size_t elementBytes) {
-  if (count == 0)
-    count = 1;
-  if (count > SIZE_MAX / elementBytes)
-    return 1;
-  *array = calloc(count, elementBytes);
+static int allocate_array(void **array, size_t count, size_t elementBytes,
+                          const GeozlGpuHostAlloc *alloc) {
+  *array = geozl_gpu_host_calloc(alloc, count == 0 ? 1 : count, elementBytes);
   return *array == NULL;
 }
 
-#define ALLOC(plan, member, count)                                             \
-  allocate_array((void **)&(plan)->member, (count), sizeof *(plan)->member)
+#define ALLOC(plan, member, count, alloc)                                      \
+  allocate_array((void **)&(plan)->member, (count), sizeof *(plan)->member,    \
+                 (alloc))
 
-static int allocate_plan(PivcoGpuPlan *plan) {
-  return allocate_array((void **)&plan->symbols,
-                        plan->symbolCount < 4 ? 4 : plan->symbolCount,
-                        sizeof(*plan->symbols)) ||
-         ALLOC(plan, trees, plan->treeCount) ||
-         ALLOC(plan, nodes, plan->nodeCount) ||
-         ALLOC(plan, pivcoBlocks, plan->pivcoBlockCount) ||
-         ALLOC(plan, laneBlocks, plan->laneBlockCount + 4) ||
-         ALLOC(plan, joins, plan->joinCount);
+static int allocate_plan(PivcoGpuPlan *plan, const GeozlGpuHostAlloc *alloc) {
+  return ALLOC(plan, symbols, plan->symbolCount < 4 ? 4 : plan->symbolCount,
+               alloc) ||
+         ALLOC(plan, trees, plan->treeCount, alloc) ||
+         ALLOC(plan, nodes, plan->nodeCount, alloc) ||
+         ALLOC(plan, pivcoBlocks, plan->pivcoBlockCount, alloc) ||
+         ALLOC(plan, laneBlocks, plan->laneBlockCount + 4, alloc) ||
+         ALLOC(plan, joins, plan->joinCount, alloc);
 }
 
 static int add_u32(uint32_t *value, size_t offset) {
@@ -82,8 +80,8 @@ static int add_u32(uint32_t *value, size_t offset) {
 }
 
 static int merge_plans(PivcoGpuPlan *plan, const PlanWorker workers[],
-                       size_t workerCount) {
-  *plan = (PivcoGpuPlan){0};
+                       size_t workerCount, const GeozlGpuHostAlloc *alloc) {
+  *plan = (PivcoGpuPlan){.borrowed = alloc != NULL};
   for (size_t i = 0; i < workerCount; ++i) {
     const PivcoGpuPlan *src = &workers[i].plan;
     if (add_size(&plan->symbolCount, src->symbolCount) ||
@@ -101,8 +99,15 @@ static int merge_plans(PivcoGpuPlan *plan, const PlanWorker workers[],
   if (plan->symbolCount > UINT32_MAX || plan->treeCount > UINT32_MAX ||
       plan->nodeCount > UINT32_MAX ||
       plan->laneBytes > (size_t)UINT32_MAX - 256 ||
-      plan->laneBlockCount > SIZE_MAX - 4 || allocate_plan(plan))
+      plan->laneBlockCount > SIZE_MAX - 4)
     goto overflow;
+  if (allocate_plan(plan, alloc)) {
+    pivco_gpu_plan_free(plan);
+    plan->error = "cannot allocate the PivCo plan";
+    plan->errorFrame = SIZE_MAX;
+    plan->errorLane = SIZE_MAX;
+    return 1;
+  }
 
   size_t symbolBase = 0, treeBase = 0, nodeBase = 0;
   size_t pivcoBase = 0, laneBlockBase = 0, joinBase = 0, laneBase = 0;
@@ -171,43 +176,47 @@ int pivco_gpu_plan_build_parallel(PivcoGpuPlan *plan,
                                   const GeozlGpuFrameShape *shapes,
                                   size_t frameCount, const uint8_t *payload,
                                   size_t payloadSize, size_t elementBytes,
-                                  size_t threadCount) {
-  if (threadCount < 2 || frameCount < 2)
+                                  size_t threadCount,
+                                  const GeozlGpuHostAlloc *alloc) {
+  if (plan == NULL || frames == NULL || shapes == NULL || frameCount == 0)
     return pivco_gpu_plan_build(plan, frames, shapes, frameCount, payload,
                                 payloadSize, elementBytes);
   if (threadCount > frameCount)
     threadCount = frameCount;
+  if (threadCount == 0)
+    threadCount = 1;
 
   PlanWorker *workers = calloc(threadCount, sizeof(*workers));
   pthread_t *threads = calloc(threadCount, sizeof(*threads));
   if (workers == NULL || threads == NULL) {
     free(workers);
     free(threads);
-    return pivco_gpu_plan_build(plan, frames, shapes, frameCount, payload,
-                                payloadSize, elementBytes);
+    *plan = (PivcoGpuPlan){.error = "out of memory",
+                           .errorFrame = SIZE_MAX,
+                           .errorLane = SIZE_MAX};
+    return 1;
   }
 
+  // A worker that cannot get a thread runs on this one.
   size_t first = 0;
-  size_t created = 0;
   for (size_t i = 0; i < threadCount; ++i) {
     const size_t count =
         (frameCount - first + threadCount - i - 1) / (threadCount - i);
     workers[i] = (PlanWorker){frames,      shapes,       first, count, payload,
-                              payloadSize, elementBytes, {0},   0};
+                              payloadSize, elementBytes, {0},   0,     0};
     first += count;
-    if (pthread_create(&threads[i], NULL, build_chunk, &workers[i]) != 0)
-      break;
-    ++created;
+    workers[i].threaded =
+        threadCount > 1 &&
+        pthread_create(&threads[i], NULL, build_chunk, &workers[i]) == 0;
+    if (!workers[i].threaded)
+      build_chunk(&workers[i]);
   }
-  for (size_t i = 0; i < created; ++i)
-    pthread_join(threads[i], NULL);
+  for (size_t i = 0; i < threadCount; ++i) {
+    if (workers[i].threaded)
+      pthread_join(threads[i], NULL);
+  }
   free(threads);
 
-  if (created != threadCount) {
-    free_workers(workers, threadCount);
-    return pivco_gpu_plan_build(plan, frames, shapes, frameCount, payload,
-                                payloadSize, elementBytes);
-  }
   for (size_t i = 0; i < threadCount; ++i) {
     if (workers[i].failed) {
       const char *message = workers[i].plan.error;
@@ -222,7 +231,7 @@ int pivco_gpu_plan_build_parallel(PivcoGpuPlan *plan,
     }
   }
 
-  const int failed = merge_plans(plan, workers, threadCount);
+  const int failed = merge_plans(plan, workers, threadCount, alloc);
   free_workers(workers, threadCount);
   return failed;
 }

@@ -208,12 +208,14 @@ static int walk_block(const Topology *topology, size_t node, size_t count,
 void pivco_gpu_plan_free(PivcoGpuPlan *plan) {
   if (plan == NULL)
     return;
-  free(plan->symbols);
-  free(plan->trees);
-  free(plan->nodes);
-  free(plan->pivcoBlocks);
-  free(plan->laneBlocks);
-  free(plan->joins);
+  if (!plan->borrowed) {
+    free(plan->symbols);
+    free(plan->trees);
+    free(plan->nodes);
+    free(plan->pivcoBlocks);
+    free(plan->laneBlocks);
+    free(plan->joins);
+  }
   *plan = (PivcoGpuPlan){0};
 }
 

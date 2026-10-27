@@ -5,6 +5,7 @@
 #include "pfor_plan.h"
 #include "planar_scan.h"
 #include "runtime_internal.h"
+#include "staging_arena.h"
 
 #include "common/endian.h"
 
@@ -16,6 +17,7 @@
 struct GeozlPforGpuDecoder {
   GeozlGpuProgram *program;
   size_t elementBytes;
+  GeozlGpuArena staging;
 };
 
 enum {
@@ -58,23 +60,30 @@ geozl_pfor_gpu_decoder_create(GeozlGpuBackendId backend, const void *module,
     return NULL;
   }
   decoder->elementBytes = elementBytes;
+  geozl_gpu_arena_init(&decoder->staging, decoder->program);
   return decoder;
 }
 
 void geozl_pfor_gpu_decoder_destroy(GeozlPforGpuDecoder *decoder) {
   if (decoder == NULL)
     return;
+  geozl_gpu_arena_destroy(&decoder->staging);
   geozl_gpu_program_destroy(decoder->program);
   free(decoder);
 }
 
-static int capture_frames(
-    const GeozlPforGpuDecoder *decoder, const void *const frames[],
-    const size_t frameSizes[], const size_t outputSizes[], size_t frameCount,
-    PforGpuFrame gpuFrames[], GeozlGpuFrameShape scanShapes[], uint8_t *payload,
-    size_t payloadCapacity, uint8_t *rawValues, GpuRawCopy rawCopies[],
-    void *scratch, char *error, size_t errorCapacity, size_t *payloadSize,
-    size_t *gpuCount, size_t *scanCount, size_t *rawCount, size_t *rawBytes) {
+// Raw frames are rare, so their staging is taken at the first one, sized for
+// the output still to come.
+static int capture_frames(GeozlPforGpuDecoder *decoder,
+                          const void *const frames[], const size_t frameSizes[],
+                          const size_t outputSizes[], size_t frameCount,
+                          size_t totalBytes, PforGpuFrame gpuFrames[],
+                          GeozlGpuFrameShape scanShapes[], uint8_t *payload,
+                          size_t payloadCapacity, uint8_t **rawValues,
+                          GpuRawCopy rawCopies[], void *scratch, char *error,
+                          size_t errorCapacity, size_t *payloadSize,
+                          size_t *gpuCount, size_t *scanCount, size_t *rawCount,
+                          size_t *rawBytes) {
   PforCapture capture;
   if (pfor_capture_init(&capture, payload, payloadCapacity) != 0)
     return geozl_gpu_error(error, errorCapacity,
@@ -93,7 +102,15 @@ static int capture_frames(
         return geozl_gpu_error(error, errorCapacity,
                                "frame %zu has a different element width", i);
       }
-      memcpy(rawValues + *rawBytes, scratch, outputSizes[i]);
+      if (*rawValues == NULL &&
+          (*rawValues = geozl_gpu_arena_alloc(
+               &decoder->staging,
+               totalBytes - outputElements * decoder->elementBytes)) == NULL) {
+        pfor_capture_destroy(&capture);
+        return geozl_gpu_error(error, errorCapacity, "%s",
+                               geozl_gpu_arena_error(&decoder->staging));
+      }
+      memcpy(*rawValues + *rawBytes, scratch, outputSizes[i]);
       rawCopies[(*rawCount)++] = (GpuRawCopy){
           (uint32_t)(*rawBytes / decoder->elementBytes),
           (uint32_t)outputElements,
@@ -196,59 +213,62 @@ GeozlGpuMemory *geozl_pfor_gpu_decode(GeozlPforGpuDecoder *decoder,
     return NULL;
   }
 
+  // Kernel inputs are built in staging, which the device reads in place.
+  GeozlGpuArena *staging = &decoder->staging;
+  geozl_gpu_arena_reset(staging);
+  const GeozlGpuHostAlloc alloc = geozl_gpu_arena_allocator(staging);
+  PforGpuPlan plan = {0};
+  GeozlGpuPlanePlan planes = {0};
+  GeozlGpuMemory *memory = NULL;
+  void *scratch = NULL;
   size_t *sizes = calloc(frameCount, sizeof(*sizes));
   PforGpuFrame *gpuFrames = calloc(frameCount, sizeof(*gpuFrames));
   GeozlGpuFrameShape *scanShapes = calloc(frameCount, sizeof(*scanShapes));
-  GpuRawCopy *rawCopies = calloc(frameCount, sizeof(*rawCopies));
-  if (sizes == NULL || gpuFrames == NULL || scanShapes == NULL ||
-      rawCopies == NULL) {
+  if (sizes == NULL || gpuFrames == NULL || scanShapes == NULL) {
     geozl_gpu_error(error, errorCapacity, "out of memory");
-    goto fail_arrays;
+    goto done;
   }
 
   GeozlGpuFrameBatchInfo batchInfo;
   if (geozl_gpu_frame_batch_inspect(frames, frameSizes, frameCount,
                                     decoder->elementBytes, maxOutputBytes,
                                     sizes, &batchInfo, error, errorCapacity))
-    goto fail_arrays;
-  uint8_t *payload = malloc(batchInfo.payloadBytes);
-  uint8_t *rawValues = malloc(batchInfo.totalBytes);
-  void *scratch = malloc(batchInfo.maxFrameBytes);
-  if (payload == NULL || rawValues == NULL || scratch == NULL) {
+    goto done;
+  GpuRawCopy *rawCopies =
+      geozl_gpu_host_calloc(&alloc, frameCount, sizeof(*rawCopies));
+  uint64_t *dummy = geozl_gpu_host_calloc(&alloc, 4, sizeof(*dummy));
+  uint8_t *payload = geozl_gpu_arena_alloc(staging, batchInfo.payloadBytes);
+  if (rawCopies == NULL || dummy == NULL || payload == NULL) {
+    geozl_gpu_error(error, errorCapacity, "%s", geozl_gpu_arena_error(staging));
+    goto done;
+  }
+  scratch = malloc(batchInfo.maxFrameBytes);
+  if (scratch == NULL) {
     geozl_gpu_error(error, errorCapacity, "out of memory");
-    free(payload);
-    free(rawValues);
-    free(scratch);
-    goto fail_arrays;
+    goto done;
   }
 
+  uint8_t *rawValues = NULL;
   size_t payloadSize = 0;
   size_t gpuCount = 0;
   size_t scanCount = 0;
   size_t rawCount = 0;
   size_t rawBytes = 0;
-  if (capture_frames(decoder, frames, frameSizes, sizes, frameCount, gpuFrames,
-                     scanShapes, payload, batchInfo.payloadCapacity, rawValues,
-                     rawCopies, scratch, error, errorCapacity, &payloadSize,
-                     &gpuCount, &scanCount, &rawCount, &rawBytes)) {
-    free(payload);
-    free(rawValues);
-    free(scratch);
-    goto fail_arrays;
-  }
-  free(scratch);
+  if (capture_frames(decoder, frames, frameSizes, sizes, frameCount,
+                     batchInfo.totalBytes, gpuFrames, scanShapes, payload,
+                     batchInfo.payloadCapacity, &rawValues, rawCopies, scratch,
+                     error, errorCapacity, &payloadSize, &gpuCount, &scanCount,
+                     &rawCount, &rawBytes))
+    goto done;
   if (payloadSize > UINT32_MAX - GEOZL_GPU_PAYLOAD_PADDING) {
     geozl_gpu_error(error, errorCapacity, "GPU payload is too large");
-    free(payload);
-    free(rawValues);
-    goto fail_arrays;
+    goto done;
   }
   memset(payload + payloadSize, 0, GEOZL_GPU_PAYLOAD_PADDING);
 
-  PforGpuPlan plan = {0};
   if (gpuCount != 0 && pfor_gpu_plan_build_parallel(
                            &plan, gpuFrames, gpuCount, payload, payloadSize,
-                           decoder->elementBytes, 4) != 0) {
+                           decoder->elementBytes, 4, &alloc) != 0) {
     if (plan.errorFrame == SIZE_MAX)
       geozl_gpu_error(error, errorCapacity, "%s", plan.error);
     else if (plan.errorBlock == SIZE_MAX)
@@ -257,83 +277,56 @@ GeozlGpuMemory *geozl_pfor_gpu_decode(GeozlPforGpuDecoder *decoder,
     else
       geozl_gpu_error(error, errorCapacity, "%s in block %zu of frame %zu",
                       plan.error, plan.errorBlock, plan.errorFrame);
-    free(payload);
-    free(rawValues);
-    goto fail_arrays;
+    goto done;
   }
-
-  GeozlGpuPlanePlan planes = {0};
   if (scanCount != 0 &&
-      geozl_gpu_plane_plan_build(&planes, scanShapes, scanCount) != 0) {
+      geozl_gpu_plane_plan_build(&planes, scanShapes, scanCount, &alloc) != 0) {
     geozl_gpu_error(error, errorCapacity, "invalid planar scan geometry");
-    pfor_gpu_plan_free(&plan);
-    free(payload);
-    free(rawValues);
-    goto fail_arrays;
+    goto done;
   }
 
-  uint64_t dummy[4] = {0};
   GeozlGpuBuffer buffers[] = {
-      {payload, payloadSize + GEOZL_GPU_PAYLOAD_PADDING, 1, GEOZL_GPU_COPY_IN,
-       -1},
-      {plan.blocks != NULL ? (void *)plan.blocks : (void *)dummy,
-       plan.blockCount != 0 ? plan.blockCount * sizeof(*plan.blocks)
-                            : sizeof(*plan.blocks),
-       sizeof(*plan.blocks), GEOZL_GPU_COPY_IN, -1},
-      {planes.tasks != NULL ? (void *)planes.tasks : (void *)dummy,
-       planes.count != 0 ? planes.count * sizeof(*planes.tasks)
-                         : sizeof(*planes.tasks),
-       sizeof(*planes.tasks), GEOZL_GPU_COPY_IN, -1},
-      {NULL, batchInfo.totalBytes, decoder->elementBytes, GEOZL_GPU_RESULT, -1},
-      {NULL, batchInfo.totalBytes, 1, 0, 3},
-      {rawCount != 0 ? rawValues : (uint8_t *)dummy,
-       rawCount != 0 ? rawBytes : decoder->elementBytes, decoder->elementBytes,
-       GEOZL_GPU_COPY_IN, -1},
-      {rawCount != 0 ? rawCopies : (GpuRawCopy *)dummy,
-       rawCount != 0 ? rawCount * sizeof(*rawCopies) : sizeof(*rawCopies),
-       sizeof(*rawCopies), GEOZL_GPU_COPY_IN, -1},
+      geozl_gpu_arena_input(staging, payload,
+                            payloadSize + GEOZL_GPU_PAYLOAD_PADDING, 1),
+      geozl_gpu_arena_input(staging,
+                            plan.blocks != NULL ? (void *)plan.blocks : dummy,
+                            plan.blockCount, sizeof(*plan.blocks)),
+      geozl_gpu_arena_input(staging,
+                            planes.tasks != NULL ? (void *)planes.tasks : dummy,
+                            planes.count, sizeof(*planes.tasks)),
+      {NULL, batchInfo.totalBytes, decoder->elementBytes, GEOZL_GPU_RESULT, -1,
+       NULL},
+      {NULL, batchInfo.totalBytes, 1, 0, 3, NULL},
+      geozl_gpu_arena_input(
+          staging, rawValues != NULL ? (void *)rawValues : dummy,
+          rawBytes / decoder->elementBytes, decoder->elementBytes),
+      geozl_gpu_arena_input(staging, rawCopies, rawCount, sizeof(*rawCopies)),
   };
   GeozlGpuDispatch dispatches[GEOZL_GPU_MAX_KERNELS];
   size_t dispatchCount;
   if (build_dispatches(&plan, &planes, rawCount, dispatches, &dispatchCount,
                        error, errorCapacity))
-    goto fail_plan;
+    goto done;
 
   GeozlGpuBatch *batch = geozl_gpu_batch_create(
       decoder->program, buffers, sizeof(buffers) / sizeof(buffers[0]), error,
       errorCapacity);
   if (batch == NULL)
-    goto fail_plan;
+    goto done;
   GeozlGpuRunTimes times;
   if (geozl_gpu_batch_run(batch, dispatches, dispatchCount, &times, error,
-                          errorCapacity) != 0) {
-    geozl_gpu_batch_destroy(batch);
-    goto fail_plan;
-  }
-  GeozlGpuMemory *memory = geozl_gpu_batch_take(batch, 3, error, errorCapacity);
+                          errorCapacity) == 0)
+    memory = geozl_gpu_batch_take(batch, 3, error, errorCapacity);
   geozl_gpu_batch_destroy(batch);
   if (memory != NULL && outputBytes != NULL)
     *outputBytes = batchInfo.totalBytes;
 
+done:
   geozl_gpu_plane_plan_free(&planes);
   pfor_gpu_plan_free(&plan);
-  free(payload);
-  free(rawValues);
-  free(rawCopies);
+  free(scratch);
   free(scanShapes);
   free(gpuFrames);
   free(sizes);
   return memory;
-
-fail_plan:
-  geozl_gpu_plane_plan_free(&planes);
-  pfor_gpu_plan_free(&plan);
-  free(payload);
-  free(rawValues);
-fail_arrays:
-  free(rawCopies);
-  free(scanShapes);
-  free(gpuFrames);
-  free(sizes);
-  return NULL;
 }

@@ -160,6 +160,12 @@ typedef struct {
   CUdeviceptr pointer;
 } CudaMemory;
 
+typedef struct {
+  GeozlGpuStaging base;
+  CUdevice device;
+  CUcontext context;
+} CudaStaging;
+
 static int push_context(CUcontext context, char *error, size_t errorCapacity) {
   return cuda_ok(cuCtxPushCurrent(context), "cuCtxPushCurrent", error,
                  errorCapacity);
@@ -309,6 +315,48 @@ static const char *cuda_program_device(const GeozlGpuProgram *program) {
   return ((const CudaProgram *)program)->deviceName;
 }
 
+static void cuda_staging_destroy(GeozlGpuStaging *base) {
+  CudaStaging *staging = (CudaStaging *)base;
+  if (staging->context != NULL) {
+    if (cuCtxPushCurrent(staging->context) == CUDA_SUCCESS) {
+      if (base->data != NULL)
+        cuMemFreeHost(base->data);
+      CUcontext context;
+      cuCtxPopCurrent(&context);
+    }
+    cuDevicePrimaryCtxRelease(staging->device);
+  }
+  free(staging);
+}
+
+static GeozlGpuStaging *cuda_staging_create(GeozlGpuProgram *base, size_t bytes,
+                                            char *error, size_t errorCapacity) {
+  const CudaProgram *program = (const CudaProgram *)base;
+  CudaStaging *staging = calloc(1, sizeof(*staging));
+  if (staging == NULL) {
+    geozl_gpu_error(error, errorCapacity, "out of memory");
+    return NULL;
+  }
+  staging->device = program->device;
+  if (!cuda_ok(cuDevicePrimaryCtxRetain(&staging->context, staging->device),
+               "cuDevicePrimaryCtxRetain", error, errorCapacity)) {
+    free(staging);
+    return NULL;
+  }
+  if (!push_context(staging->context, error, errorCapacity)) {
+    cuda_staging_destroy(&staging->base);
+    return NULL;
+  }
+  const int failed = !cuda_ok(cuMemHostAlloc(&staging->base.data, bytes, 0),
+                              "cuMemHostAlloc", error, errorCapacity);
+  if (!pop_context(failed ? NULL : error, failed ? 0 : errorCapacity) ||
+      failed) {
+    cuda_staging_destroy(&staging->base);
+    return NULL;
+  }
+  return &staging->base;
+}
+
 static void cuda_batch_destroy(GeozlGpuBatch *base) {
   CudaBatch *batch = (CudaBatch *)base;
   const CudaProgram *program = (const CudaProgram *)base->program;
@@ -356,8 +404,10 @@ static GeozlGpuBatch *cuda_batch_create(GeozlGpuProgram *base,
   for (size_t i = 0; i < bufferCount; ++i)
     batch->inputOffsets[i] = SIZE_MAX;
 
+  int unstaged = 0;
   for (size_t i = 0; i < bufferCount; ++i) {
     if (buffers[i].alias < 0 && (buffers[i].flags & GEOZL_GPU_COPY_IN) != 0) {
+      unstaged |= buffers[i].staging == NULL;
       if (buffers[i].bytes > SIZE_MAX - 255) {
         geozl_gpu_error(error, errorCapacity, "CUDA input %zu is too large", i);
         goto fail;
@@ -371,15 +421,15 @@ static GeozlGpuBatch *cuda_batch_create(GeozlGpuProgram *base,
       batch->inputBytes += padded;
     }
   }
-  if (batch->inputBytes != 0 &&
-      (!cuda_ok(cuMemHostAlloc(&batch->pinned, batch->inputBytes, 0),
-                "cuMemHostAlloc", error, errorCapacity) ||
+  // Staged inputs upload from their own pages; the rest pass through pinned
+  // memory laid out like the device copy.
+  if ((unstaged &&
+       !cuda_ok(cuMemHostAlloc(&batch->pinned, batch->inputBytes, 0),
+                "cuMemHostAlloc", error, errorCapacity)) ||
+      (batch->inputBytes != 0 &&
        !cuda_ok(cuMemAlloc(&batch->deviceInput, batch->inputBytes),
                 "cuMemAlloc", error, errorCapacity)))
     goto fail;
-  // Runs rewrite only the inputs, so the alignment gaps stay zero.
-  if (batch->inputBytes != 0)
-    memset(batch->pinned, 0, batch->inputBytes);
 
   for (size_t i = 0; i < bufferCount; ++i) {
     if (buffers[i].alias >= 0) {
@@ -414,9 +464,6 @@ fail:
   return NULL;
 }
 
-// Kernels read their buffer pointers from the module-wide SLANG_globalParams,
-// so the copy rides the batch stream ahead of the launches. The pageable source
-// is staged before cuMemcpyHtoDAsync returns.
 static int cuda_dispatches_fit(const GeozlGpuProgram *base,
                                const GeozlGpuDispatch dispatches[],
                                size_t dispatchCount, char *error,
@@ -434,6 +481,9 @@ static int cuda_dispatches_fit(const GeozlGpuProgram *base,
   return 0;
 }
 
+// Kernels read their buffer pointers from the module-wide SLANG_globalParams,
+// so the copy rides the batch stream ahead of the launches. The pageable source
+// is staged before cuMemcpyHtoDAsync returns.
 static int cuda_batch_run(GeozlGpuBatch *base,
                           const GeozlGpuDispatch dispatches[],
                           size_t dispatchCount, GeozlGpuRunTimes *times,
@@ -444,21 +494,32 @@ static int cuda_batch_run(GeozlGpuBatch *base,
     return 1;
 
   for (size_t i = 0; i < base->bufferCount; ++i) {
-    if (batch->inputOffsets[i] != SIZE_MAX)
-      memcpy((uint8_t *)batch->pinned + batch->inputOffsets[i],
-             base->buffers[i].host, base->buffers[i].bytes);
+    const GeozlGpuBuffer *buffer = &base->buffers[i];
+    if (batch->inputOffsets[i] != SIZE_MAX && buffer->staging == NULL)
+      memcpy((uint8_t *)batch->pinned + batch->inputOffsets[i], buffer->host,
+             buffer->bytes);
   }
   int failed = 1;
   if (!cuda_ok(cuEventRecord(batch->events[0], batch->stream), "cuEventRecord",
                error, errorCapacity) ||
       !cuda_ok(cuMemcpyHtoDAsync(program->params, batch->params,
                                  program->paramsSize, batch->stream),
-               "cuMemcpyHtoDAsync", error, errorCapacity) ||
-      (batch->inputBytes != 0 &&
-       !cuda_ok(cuMemcpyHtoDAsync(batch->deviceInput, batch->pinned,
-                                  batch->inputBytes, batch->stream),
-                "cuMemcpyHtoDAsync", error, errorCapacity)) ||
-      !cuda_ok(cuEventRecord(batch->events[1], batch->stream), "cuEventRecord",
+               "cuMemcpyHtoDAsync", error, errorCapacity))
+    goto done;
+  for (size_t i = 0; i < base->bufferCount; ++i) {
+    const GeozlGpuBuffer *buffer = &base->buffers[i];
+    if (batch->inputOffsets[i] == SIZE_MAX)
+      continue;
+    const void *source =
+        buffer->staging != NULL
+            ? buffer->host
+            : (const uint8_t *)batch->pinned + batch->inputOffsets[i];
+    if (!cuda_ok(cuMemcpyHtoDAsync(batch->pointers[i], source, buffer->bytes,
+                                   batch->stream),
+                 "cuMemcpyHtoDAsync", error, errorCapacity))
+      goto done;
+  }
+  if (!cuda_ok(cuEventRecord(batch->events[1], batch->stream), "cuEventRecord",
                error, errorCapacity))
     goto done;
 
@@ -493,7 +554,7 @@ static int cuda_batch_run(GeozlGpuBatch *base,
   failed = 0;
 
 done:
-  // Work queued before a failure still reads the pinned and device buffers.
+  // Work queued before a failure still reads host and device buffers.
   if (failed)
     cuStreamSynchronize(batch->stream);
   if (!pop_context(failed ? NULL : error, failed ? 0 : errorCapacity))
@@ -578,6 +639,8 @@ const GeozlGpuBackendOps geozl_gpu_cuda_ops = {
     .program_create = cuda_program_create,
     .program_destroy = cuda_program_destroy,
     .program_device = cuda_program_device,
+    .staging_create = cuda_staging_create,
+    .staging_destroy = cuda_staging_destroy,
     .batch_create = cuda_batch_create,
     .batch_destroy = cuda_batch_destroy,
     .dispatches_fit = cuda_dispatches_fit,

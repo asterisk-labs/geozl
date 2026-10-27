@@ -248,7 +248,7 @@ int main(int argc, char **argv) {
   }
   PivcoGpuPlan plan;
   if (pivco_gpu_plan_build_parallel(&plan, cap, gpuFrames, nFrames, payload,
-                                    payloadSize, W, 4) != 0) {
+                                    payloadSize, W, 4, NULL) != 0) {
     if (plan.errorFrame == SIZE_MAX)
       fprintf(stderr, "%s\n", plan.error);
     else if (plan.errorLane == SIZE_MAX)

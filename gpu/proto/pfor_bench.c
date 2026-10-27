@@ -120,7 +120,7 @@ int main(int argc, char **argv) {
   }
   PforGpuPlan plan;
   if (pfor_gpu_plan_build_parallel(&plan, gpuFrames, nFrames, payload, pos, W,
-                                   4) != 0) {
+                                   4, NULL) != 0) {
     if (plan.errorFrame == SIZE_MAX)
       fprintf(stderr, "%s\n", plan.error);
     else if (plan.errorBlock == SIZE_MAX)

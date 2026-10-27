@@ -66,6 +66,22 @@ static void test_pfor_block_info(void) {
   CHECK(pfor_gpu_block_info(block, sizeof(block), 1, &info) == 0);
 }
 
+typedef struct {
+  uint8_t *base;
+  size_t used;
+  size_t capacity;
+} Bump;
+
+static void *bump_alloc(void *context, size_t bytes) {
+  Bump *bump = context;
+  const size_t size = (bytes + 15) & ~(size_t)15;
+  if (size > bump->capacity - bump->used)
+    return NULL;
+  void *memory = bump->base + bump->used;
+  bump->used += size;
+  return memory;
+}
+
 static void test_parallel_plan(void) {
   enum { frameCount = 4 };
   const uint8_t payload[] = {0, 0};
@@ -82,7 +98,8 @@ static void test_parallel_plan(void) {
   CHECK(pfor_gpu_plan_build(&sequential, frames, frameCount, payload,
                             sizeof(payload), 1) == 0);
   CHECK(pfor_gpu_plan_build_parallel(&parallel, frames, frameCount, payload,
-                                     sizeof(payload), 1, frameCount) == 0);
+                                     sizeof(payload), 1, frameCount,
+                                     NULL) == 0);
   CHECK(sequential.blockCount == parallel.blockCount);
   CHECK(sequential.realBlockCount == parallel.realBlockCount);
   CHECK(sequential.blocksWithExceptions == parallel.blocksWithExceptions);
@@ -90,6 +107,23 @@ static void test_parallel_plan(void) {
   if (sequential.blockCount == parallel.blockCount)
     CHECK(memcmp(sequential.blocks, parallel.blocks,
                  sequential.blockCount * sizeof(*sequential.blocks)) == 0);
+
+  // The merged blocks land in the caller's memory, which free leaves alone.
+  static _Alignas(16) uint8_t arena[4096];
+  Bump bump = {arena, 0, sizeof(arena)};
+  const GeozlGpuHostAlloc alloc = {bump_alloc, &bump};
+  PforGpuPlan staged = {0};
+  CHECK(pfor_gpu_plan_build_parallel(&staged, frames, frameCount, payload,
+                                     sizeof(payload), 1, 2, &alloc) == 0);
+  CHECK(staged.borrowed && (uint8_t *)staged.blocks == arena);
+  if (staged.blockCount == sequential.blockCount)
+    CHECK(memcmp(sequential.blocks, staged.blocks,
+                 staged.blockCount * sizeof(*staged.blocks)) == 0);
+  pfor_gpu_plan_free(&staged);
+  bump = (Bump){arena, 0, 16};
+  CHECK(pfor_gpu_plan_build_parallel(&staged, frames, frameCount, payload,
+                                     sizeof(payload), 1, 2, &alloc) != 0);
+  CHECK(staged.blocks == NULL && staged.error != NULL);
   pfor_gpu_plan_free(&parallel);
   pfor_gpu_plan_free(&sequential);
 }

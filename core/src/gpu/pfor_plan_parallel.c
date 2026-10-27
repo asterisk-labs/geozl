@@ -14,6 +14,7 @@ typedef struct {
   size_t elementBytes;
   PforGpuPlan plan;
   int failed;
+  int threaded;
 } PlanWorker;
 
 static void *build_chunk(void *opaque) {
@@ -40,8 +41,8 @@ static int add_size(size_t *total, size_t value) {
 }
 
 static int merge_plans(PforGpuPlan *plan, const PlanWorker workers[],
-                       size_t workerCount) {
-  *plan = (PforGpuPlan){0};
+                       size_t workerCount, const GeozlGpuHostAlloc *alloc) {
+  *plan = (PforGpuPlan){.borrowed = alloc != NULL};
   for (size_t i = 0; i < workerCount; ++i) {
     const PforGpuPlan *src = &workers[i].plan;
     if (add_size(&plan->realBlockCount, src->realBlockCount) ||
@@ -52,11 +53,15 @@ static int merge_plans(PforGpuPlan *plan, const PlanWorker workers[],
   if (plan->realBlockCount > SIZE_MAX - 3)
     goto overflow;
   plan->blockCount = (plan->realBlockCount + 3) / 4 * 4;
-  if (plan->blockCount > SIZE_MAX / sizeof(*plan->blocks))
-    goto overflow;
-  plan->blocks = calloc(plan->blockCount, sizeof(*plan->blocks));
-  if (plan->blocks == NULL)
-    goto overflow;
+  plan->blocks =
+      geozl_gpu_host_calloc(alloc, plan->blockCount, sizeof(*plan->blocks));
+  if (plan->blocks == NULL) {
+    pfor_gpu_plan_free(plan);
+    plan->error = "cannot allocate the PFOR plan";
+    plan->errorFrame = SIZE_MAX;
+    plan->errorBlock = SIZE_MAX;
+    return 1;
+  }
 
   size_t at = 0;
   for (size_t i = 0; i < workerCount; ++i) {
@@ -78,43 +83,47 @@ overflow:
 int pfor_gpu_plan_build_parallel(PforGpuPlan *plan, const PforGpuFrame *frames,
                                  size_t frameCount, const uint8_t *payload,
                                  size_t payloadSize, size_t elementBytes,
-                                 size_t threadCount) {
-  if (threadCount < 2 || frameCount < 2)
+                                 size_t threadCount,
+                                 const GeozlGpuHostAlloc *alloc) {
+  if (plan == NULL || frames == NULL || frameCount == 0)
     return pfor_gpu_plan_build(plan, frames, frameCount, payload, payloadSize,
                                elementBytes);
   if (threadCount > frameCount)
     threadCount = frameCount;
+  if (threadCount == 0)
+    threadCount = 1;
 
   PlanWorker *workers = calloc(threadCount, sizeof(*workers));
   pthread_t *threads = calloc(threadCount, sizeof(*threads));
   if (workers == NULL || threads == NULL) {
     free(workers);
     free(threads);
-    return pfor_gpu_plan_build(plan, frames, frameCount, payload, payloadSize,
-                               elementBytes);
+    *plan = (PforGpuPlan){.error = "out of memory",
+                          .errorFrame = SIZE_MAX,
+                          .errorBlock = SIZE_MAX};
+    return 1;
   }
 
+  // A worker that cannot get a thread runs on this one.
   size_t first = 0;
-  size_t created = 0;
   for (size_t i = 0; i < threadCount; ++i) {
     const size_t count =
         (frameCount - first + threadCount - i - 1) / (threadCount - i);
-    workers[i] = (PlanWorker){frames,      first,        count, payload,
-                              payloadSize, elementBytes, {0},   0};
+    workers[i] = (PlanWorker){frames,       first, count, payload, payloadSize,
+                              elementBytes, {0},   0,     0};
     first += count;
-    if (pthread_create(&threads[i], NULL, build_chunk, &workers[i]) != 0)
-      break;
-    ++created;
+    workers[i].threaded =
+        threadCount > 1 &&
+        pthread_create(&threads[i], NULL, build_chunk, &workers[i]) == 0;
+    if (!workers[i].threaded)
+      build_chunk(&workers[i]);
   }
-  for (size_t i = 0; i < created; ++i)
-    pthread_join(threads[i], NULL);
+  for (size_t i = 0; i < threadCount; ++i) {
+    if (workers[i].threaded)
+      pthread_join(threads[i], NULL);
+  }
   free(threads);
 
-  if (created != threadCount) {
-    free_workers(workers, threadCount);
-    return pfor_gpu_plan_build(plan, frames, frameCount, payload, payloadSize,
-                               elementBytes);
-  }
   for (size_t i = 0; i < threadCount; ++i) {
     if (workers[i].failed) {
       const char *message = workers[i].plan.error;
@@ -129,7 +138,7 @@ int pfor_gpu_plan_build_parallel(PforGpuPlan *plan, const PforGpuFrame *frames,
     }
   }
 
-  const int failed = merge_plans(plan, workers, threadCount);
+  const int failed = merge_plans(plan, workers, threadCount, alloc);
   free_workers(workers, threadCount);
   return failed;
 }

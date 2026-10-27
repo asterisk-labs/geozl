@@ -56,6 +56,27 @@ static void make_frame(CapturedFrame *frame, size_t count, size_t blockSize,
   frame->seen = 1;
 }
 
+typedef struct {
+  uint8_t *base;
+  size_t used;
+  size_t capacity;
+} Bump;
+
+static void *bump_alloc(void *context, size_t bytes) {
+  Bump *bump = context;
+  const size_t size = (bytes + 15) & ~(size_t)15;
+  if (size > bump->capacity - bump->used)
+    return NULL;
+  void *memory = bump->base + bump->used;
+  bump->used += size;
+  return memory;
+}
+
+static int inside(const Bump *bump, const void *memory) {
+  return (const uint8_t *)memory >= bump->base &&
+         (const uint8_t *)memory < bump->base + bump->used;
+}
+
 static int same_plan(const PivcoGpuPlan *a, const PivcoGpuPlan *b) {
   return a->symbolCount == b->symbolCount && a->treeCount == b->treeCount &&
          a->nodeCount == b->nodeCount && a->bitmapCount == b->bitmapCount &&
@@ -127,7 +148,8 @@ int main(void) {
   if (pivco_gpu_plan_build(&sequential, frames, shapes, frameCount, payload,
                            payloadSize, 1) ||
       pivco_gpu_plan_build_parallel(&parallel, frames, shapes, frameCount,
-                                    payload, payloadSize, 1, frameCount)) {
+                                    payload, payloadSize, 1, frameCount,
+                                    NULL)) {
     pivco_gpu_plan_free(&sequential);
     pivco_gpu_plan_free(&parallel);
     free(scratch);
@@ -143,8 +165,38 @@ int main(void) {
     free(input);
     return fail("parallel and sequential plans differ");
   }
-  pivco_gpu_plan_free(&sequential);
   pivco_gpu_plan_free(&parallel);
+
+  // The merged arrays land in the caller's memory, which free leaves alone.
+  enum { arenaBytes = 1 << 20 };
+  Bump bump = {malloc(arenaBytes), 0, arenaBytes};
+  const GeozlGpuHostAlloc alloc = {bump_alloc, &bump};
+  const int staged =
+      bump.base != NULL &&
+      pivco_gpu_plan_build_parallel(&parallel, frames, shapes, frameCount,
+                                    payload, payloadSize, 1, 2, &alloc) == 0 &&
+      parallel.borrowed && same_plan(&sequential, &parallel) &&
+      inside(&bump, parallel.symbols) && inside(&bump, parallel.trees) &&
+      inside(&bump, parallel.nodes) && inside(&bump, parallel.pivcoBlocks) &&
+      inside(&bump, parallel.laneBlocks) && inside(&bump, parallel.joins);
+  pivco_gpu_plan_free(&parallel);
+  bump.used = 0;
+  bump.capacity = 64;
+  const int refused =
+      bump.base != NULL &&
+      pivco_gpu_plan_build_parallel(&parallel, frames, shapes, frameCount,
+                                    payload, payloadSize, 1, 2, &alloc) != 0 &&
+      parallel.symbols == NULL && parallel.error != NULL;
+  pivco_gpu_plan_free(&parallel);
+  free(bump.base);
+  pivco_gpu_plan_free(&sequential);
+  if (!staged || !refused) {
+    free(scratch);
+    free(payload);
+    free(input);
+    return fail(!staged ? "a plan was not built in the caller's memory"
+                        : "a failed allocation was not reported");
+  }
 
   payload[0] ^= 1;
   if (pivco_gpu_plan_build(&plan, &frame, &shape, 1, payload, payloadSize, 1) ==

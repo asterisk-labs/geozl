@@ -5,6 +5,9 @@
 
 #define GEOZL_GPU_MAX_BUFFERS 16
 #define GEOZL_GPU_MAX_KERNELS 8
+// Buffers bound from staging start at multiples of this, which meets the
+// offset rules of Metal, CUDA and Vulkan.
+#define GEOZL_GPU_STAGING_ALIGNMENT 256
 
 enum {
   GEOZL_GPU_COPY_IN = 1u,
@@ -22,15 +25,18 @@ typedef enum {
 typedef struct GeozlGpuProgram GeozlGpuProgram;
 typedef struct GeozlGpuBatch GeozlGpuBatch;
 typedef struct GeozlGpuMemory GeozlGpuMemory;
+typedef struct GeozlGpuStaging GeozlGpuStaging;
 
 typedef struct {
   // host is required by COPY_IN/COPY_OUT and otherwise must be NULL. RESULT
-  // marks a device allocation that can be moved out with batch_take.
+  // marks a device allocation that can be moved out with batch_take. A COPY_IN
+  // buffer whose host lies in staging uploads without a host copy.
   void *host;
   size_t bytes;
   size_t elementBytes;
   unsigned flags;
   int alias;
+  GeozlGpuStaging *staging;
 } GeozlGpuBuffer;
 
 typedef struct {
@@ -63,6 +69,16 @@ void geozl_gpu_program_destroy(GeozlGpuProgram *program);
 
 const char *geozl_gpu_program_backend(const GeozlGpuProgram *program);
 const char *geozl_gpu_program_device(const GeozlGpuProgram *program);
+
+// Host memory the device reads directly, page-locked on CUDA and shared on
+// Metal. Inputs written here skip the copy into a batch. Like a batch, staging
+// belongs to its program, and it must outlive the batches that read it.
+GeozlGpuStaging *geozl_gpu_staging_create(GeozlGpuProgram *program,
+                                          size_t bytes, char *error,
+                                          size_t errorCapacity);
+void geozl_gpu_staging_destroy(GeozlGpuStaging *staging);
+void *geozl_gpu_staging_data(const GeozlGpuStaging *staging);
+size_t geozl_gpu_staging_capacity(const GeozlGpuStaging *staging);
 
 GeozlGpuBatch *geozl_gpu_batch_create(GeozlGpuProgram *program,
                                       const GeozlGpuBuffer buffers[],

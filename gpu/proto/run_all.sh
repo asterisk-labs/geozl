@@ -17,5 +17,6 @@ for input in synthetic "$REAL"; do
     run "$codec uint16, rumi tiles 176, $name" ./build/${codec}_$B --input "$input" --cells 24 --module build/${m}2.$EXT --reps 30
     run "$codec uint16, whole cells 1056, $name" ./build/${codec}_$B --input "$input" --cells 24 --mode cell --module build/${m}2.$EXT --reps 30
     run "$codec uint8, rumi tiles 176, $name" ./build/${codec}_$B --input "$input" --cells 24 --u8 --module build/${m}1.$EXT --reps 30
+    run "$codec uint16 decoder from frames, rumi tiles 176, $name" ./build/decode_$B --codec $codec --input "$input" --cells 24 --module build/${m}2.$EXT --reps 30
   done
 done

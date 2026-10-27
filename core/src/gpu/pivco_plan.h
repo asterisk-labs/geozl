@@ -1,6 +1,7 @@
 #ifndef GEOZL_GPU_PIVCO_PLAN_H
 #define GEOZL_GPU_PIVCO_PLAN_H
 
+#include "host_alloc.h"
 #include "pivco_capture.h"
 #include "planar_scan.h"
 
@@ -47,6 +48,7 @@ typedef struct {
   size_t laneBytes;
   size_t pivcoLaneCount;
   size_t pforLaneCount;
+  int borrowed; // the arrays belong to the allocator the plan was built with
 
   const char *error;
   size_t errorFrame;
@@ -61,15 +63,15 @@ int pivco_gpu_plan_build(PivcoGpuPlan *plan, const CapturedFrame *frames,
                          const uint8_t *payload, size_t payloadSize,
                          size_t elementBytes);
 
-// Splits contiguous frame ranges between workers, then merges their plans in
-// input order. It falls back to the sequential planner if threads are
-// unavailable.
+// Plans contiguous frame ranges on up to threadCount threads, then merges them
+// in input order into arrays from alloc.
 int pivco_gpu_plan_build_parallel(PivcoGpuPlan *plan,
                                   const CapturedFrame *frames,
                                   const GeozlGpuFrameShape *shapes,
                                   size_t frameCount, const uint8_t *payload,
                                   size_t payloadSize, size_t elementBytes,
-                                  size_t threadCount);
+                                  size_t threadCount,
+                                  const GeozlGpuHostAlloc *alloc);
 
 void pivco_gpu_plan_free(PivcoGpuPlan *plan);
 

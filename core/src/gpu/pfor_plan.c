@@ -67,7 +67,8 @@ int pfor_gpu_block_info(const uint8_t *block, size_t available,
 void pfor_gpu_plan_free(PforGpuPlan *plan) {
   if (plan == NULL)
     return;
-  free(plan->blocks);
+  if (!plan->borrowed)
+    free(plan->blocks);
   *plan = (PforGpuPlan){0};
 }
 

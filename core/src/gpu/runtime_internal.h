@@ -33,6 +33,12 @@ struct GeozlGpuMemory {
   size_t elementBytes;
 };
 
+struct GeozlGpuStaging {
+  GeozlGpuProgram *program;
+  void *data;
+  size_t bytes;
+};
+
 struct GeozlGpuBackendOps {
   const char *name;
   GeozlGpuProgram *(*program_create)(const void *module, size_t moduleSize,
@@ -41,6 +47,10 @@ struct GeozlGpuBackendOps {
                                      size_t errorCapacity);
   void (*program_destroy)(GeozlGpuProgram *program);
   const char *(*program_device)(const GeozlGpuProgram *program);
+  // Returns staging with data set; runtime.c fills the other fields.
+  GeozlGpuStaging *(*staging_create)(GeozlGpuProgram *program, size_t bytes,
+                                     char *error, size_t errorCapacity);
+  void (*staging_destroy)(GeozlGpuStaging *staging);
   GeozlGpuBatch *(*batch_create)(GeozlGpuProgram *program,
                                  const GeozlGpuBuffer buffers[],
                                  size_t bufferCount, char *error,

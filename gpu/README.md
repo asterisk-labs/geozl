@@ -43,8 +43,10 @@ the backend chosen by `GeozlGpuBackendId`. `runtime_metal.m` and
 `runtime_cuda.c` hold only device code behind a `GeozlGpuBackendOps` table, and
 each compiles in under `GEOZL_GPU_METAL` or `GEOZL_GPU_CUDA`. A Vulkan or HIP
 backend adds one such file, an id and a Slang target; capture, planning and the
-decoders stay the same. The kernels assume 32-wide waves, so a backend must
-provide them or reject the device, as Metal does.
+decoders stay the same. Each backend also provides staging, host memory its
+device reads in place, which is page-locked on CUDA and a shared buffer on
+Metal. The kernels assume 32-wide waves, so a backend must provide them or
+reject the device, as Metal does.
 
 A program may run only one batch at a time. CUDA stores its buffer pointers in
 module globals, so callers that need concurrent work must create one decoder
@@ -63,6 +65,11 @@ recognizes `id>pfor`, `planar>zigzag>pfor`, `id>pivco`,
 capture is keyed by the fixed GeoZL CTids `0x72D713` and `0x72D712`; it does not
 depend on OpenZL's choice of standard entropy nodes. The planar codec already
 splits each residual element into byte lanes internally.
+
+Capture and planning write the kernel inputs into staging that the decoder
+keeps between calls, so a run uploads them without a host copy. The first call
+sizes that staging. It stays at the largest batch seen, including the capture
+bound of frame plus output bytes, until the decoder is destroyed.
 
 If OpenZL stores a frame raw because compression does not make it smaller,
 capture decodes that frame on the CPU and copies it into the device result

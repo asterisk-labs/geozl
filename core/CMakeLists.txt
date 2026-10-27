@@ -212,7 +212,8 @@ if(GEOZL_BUILD_FULL)
             src/gpu/pivco_plan.c
             src/gpu/pivco_plan_parallel.c
             src/gpu/planar_scan.c
-            src/gpu/runtime.c)
+            src/gpu/runtime.c
+            src/gpu/staging_arena.c)
         target_link_libraries(geozl PRIVATE Threads::Threads)
         if(APPLE)
             enable_language(OBJC)
