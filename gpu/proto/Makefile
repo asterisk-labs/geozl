@@ -69,6 +69,7 @@ CHECKS += build/test_runtime_metal
 endif
 
 .PHONY: metal cuda hosts-cuda check check-metal check-cuda check-slang check-pfor-metal \
+	check-gpu-decode \
 	check-pivco-metal check-pfor-cuda check-pivco-cuda geozl-static
 metal: check-slang build/pfor_metal build/pzp1.metal build/pzp2.metal build/pivco_metal build/pzv1.metal build/pzv2.metal build/decode_metal
 cuda: check-slang build/pfor_cuda build/pzp1.ptx build/pzp2.ptx build/pivco_cuda build/pzv1.ptx build/pzv2.ptx build/decode_cuda
@@ -98,8 +99,10 @@ check-pfor-cuda: build/test_pfor_decode_cuda build/test_pfor_list_cuda build/pzp
 check-pivco-cuda: build/test_pivco_decode_cuda build/test_pivco_e2e_cuda build/pzv1.ptx build/pzv2.ptx
 	./build/test_pivco_decode_cuda build/pzv1.ptx
 	./build/test_pivco_e2e_cuda build/pzv1.ptx build/pzv2.ptx
-check-metal: check-slang check-pfor-metal check-pivco-metal
-check-cuda: check-slang check-pfor-cuda check-pivco-cuda
+check-metal: check-slang check-pfor-metal check-pivco-metal check-gpu-decode
+check-cuda: check-slang check-pfor-cuda check-pivco-cuda check-gpu-decode
+check-gpu-decode: build/test_gpu_decode
+	./build/test_gpu_decode
 
 build:
 	mkdir -p build
@@ -287,7 +290,7 @@ build/test_pivco_e2e_cuda: ../../test/gpu/test_pivco_e2e.c \
 # cmake decides whether the library is out of date.
 geozl-static:
 	@test -f $(STATIC)/CMakeCache.txt || cmake -S $(CORE) -B $(STATIC) -DCMAKE_BUILD_TYPE=Release \
-		-DBUILD_SHARED_LIBS=OFF -DGEOZL_BUILD_KERNELS_SHARED=OFF
+		-DBUILD_SHARED_LIBS=OFF -DGEOZL_BUILD_KERNELS_SHARED=OFF -DGEOZL_BUILD_GPU=ON
 	cmake --build $(STATIC) --target geozl
 
 build/pivco_metal: $(PIVCO_SRCS) $(GPU_COMMON) \
@@ -315,3 +318,12 @@ build/decode_cuda: $(DECODE_SRCS) $(GPU_COMMON) $(CUDA_RUNTIME_SRCS) bench.h \
 		$(wildcard $(CORE)/src/gpu/*.h) geozl-static | build
 	cc $(PIVCO_CFLAGS) -D_GNU_SOURCE $(CUDA_RUNTIME) $(DECODE_SRCS) \
 		$(PIVCO_LIBS) -ldl -lpthread -lm -o $@
+
+# The public decoder, with its kernels inside the static library.
+build/test_gpu_decode: ../../test/gpu/test_gpu_decode.c geozl-static | build
+ifeq ($(UNAME),Darwin)
+	clang $(PIVCO_CFLAGS) $< $(PIVCO_LIBS) -lpthread -lm \
+		-framework Metal -framework Foundation -o $@
+else
+	cc $(PIVCO_CFLAGS) -D_GNU_SOURCE $< $(PIVCO_LIBS) -ldl -lpthread -lm -o $@
+endif

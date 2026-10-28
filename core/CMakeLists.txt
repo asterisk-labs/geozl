@@ -213,8 +213,30 @@ if(GEOZL_BUILD_FULL)
             src/gpu/pivco_plan_parallel.c
             src/gpu/planar_scan.c
             src/gpu/runtime.c
-            src/gpu/staging_arena.c)
+            src/gpu/staging_arena.c
+            src/gpu/decode.c)
         target_link_libraries(geozl PRIVATE Threads::Threads)
+        # The kernels ship inside the library, PTX on CUDA and Metal source on
+        # Metal, so neither building nor running needs Slang.
+        if(APPLE)
+            set(GEOZL_GPU_MODULE_KIND metal)
+        else()
+            set(GEOZL_GPU_MODULE_KIND ptx)
+        endif()
+        set(GEOZL_GPU_MODULE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/gpu/modules)
+        set(GEOZL_GPU_MODULES_C ${CMAKE_CURRENT_BINARY_DIR}/gpu_modules.c)
+        file(GLOB GEOZL_GPU_MODULE_FILES CONFIGURE_DEPENDS
+             ${GEOZL_GPU_MODULE_DIR}/*.${GEOZL_GPU_MODULE_KIND})
+        add_custom_command(
+            OUTPUT ${GEOZL_GPU_MODULES_C}
+            COMMAND ${CMAKE_COMMAND} -DMODULE_DIR=${GEOZL_GPU_MODULE_DIR}
+                    -DEXTENSION=${GEOZL_GPU_MODULE_KIND}
+                    -DOUTPUT=${GEOZL_GPU_MODULES_C}
+                    -P ${CMAKE_CURRENT_SOURCE_DIR}/src/gpu/embed_modules.cmake
+            DEPENDS ${GEOZL_GPU_MODULE_FILES}
+                    ${CMAKE_CURRENT_SOURCE_DIR}/src/gpu/embed_modules.cmake
+            VERBATIM)
+        target_sources(geozl PRIVATE ${GEOZL_GPU_MODULES_C})
         if(APPLE)
             enable_language(OBJC)
             target_sources(geozl PRIVATE src/gpu/runtime_metal.m)
@@ -232,6 +254,8 @@ if(GEOZL_BUILD_FULL)
             message(FATAL_ERROR
                 "GEOZL_BUILD_GPU is not supported on this platform")
         endif()
+    else()
+        target_sources(geozl PRIVATE src/gpu/unavailable.c)
     endif()
     if(GEOZL_LIBM)
         target_link_libraries(geozl PRIVATE ${GEOZL_LIBM})

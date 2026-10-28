@@ -30,6 +30,7 @@ LAYOUTS = {
         "rawValues",
         "rawCopies",
     ],
+    "place": ["source", "copies", "target"],
 }
 
 
@@ -50,7 +51,7 @@ def binding_index(binding: dict[str, object]) -> int:
 
 def main() -> int:
     if len(sys.argv) != 3 or sys.argv[2] not in LAYOUTS:
-        print("usage: check_slang_layout.py reflection.json pfor|pivco")
+        print("usage: check_slang_layout.py reflection.json pfor|pivco|place")
         return 2
 
     with open(sys.argv[1], encoding="utf-8") as file:

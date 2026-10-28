@@ -24,6 +24,7 @@ struct GeozlGpuBatch {
   size_t bufferCount;
   int completed;
   int detached;
+  int queued;
 };
 
 struct GeozlGpuMemory {
@@ -65,11 +66,21 @@ struct GeozlGpuBackendOps {
   int (*batch_run)(GeozlGpuBatch *batch, const GeozlGpuDispatch dispatches[],
                    size_t dispatchCount, GeozlGpuRunTimes *times, char *error,
                    size_t errorCapacity);
+  int (*batch_enqueue)(GeozlGpuBatch *batch,
+                       const GeozlGpuDispatch dispatches[],
+                       size_t dispatchCount, void *stream, char *error,
+                       size_t errorCapacity);
+  int (*batch_wait)(GeozlGpuBatch *batch, char *error, size_t errorCapacity);
   int (*batch_download)(GeozlGpuBatch *batch, char *error,
                         size_t errorCapacity);
   // Returns the backend memory with only its own fields set.
   GeozlGpuMemory *(*batch_take)(GeozlGpuBatch *batch, size_t buffer,
                                 char *error, size_t errorCapacity);
+  GeozlGpuMemory *(*memory_create)(GeozlGpuProgram *program, size_t bytes,
+                                   char *error, size_t errorCapacity);
+  GeozlGpuMemory *(*memory_wrap)(GeozlGpuProgram *program, void *data,
+                                 size_t bytes, char *error,
+                                 size_t errorCapacity);
   void (*memory_destroy)(GeozlGpuMemory *memory);
   void *(*memory_data)(const GeozlGpuMemory *memory);
   int (*memory_download)(const GeozlGpuMemory *memory, void *dst, size_t bytes,
@@ -104,6 +115,17 @@ static inline int geozl_gpu_error(char *error, size_t capacity,
   return 1;
 }
 
+static inline int geozl_gpu_external_valid(const GeozlGpuBuffer *buffer) {
+  if ((buffer->flags & GEOZL_GPU_EXTERNAL) == 0)
+    return buffer->memory == NULL && buffer->memoryOffset == 0;
+  return buffer->flags == GEOZL_GPU_EXTERNAL && buffer->memory != NULL &&
+         buffer->host == NULL && buffer->staging == NULL &&
+         buffer->alias == -1 &&
+         buffer->memoryOffset % buffer->elementBytes == 0 &&
+         buffer->memoryOffset <= buffer->memory->bytes &&
+         buffer->bytes <= buffer->memory->bytes - buffer->memoryOffset;
+}
+
 static inline int geozl_gpu_buffers_valid(const GeozlGpuBuffer buffers[],
                                           size_t count) {
   if (buffers == NULL || count == 0 || count > GEOZL_GPU_MAX_BUFFERS)
@@ -112,9 +134,9 @@ static inline int geozl_gpu_buffers_valid(const GeozlGpuBuffer buffers[],
     const GeozlGpuBuffer *buffer = &buffers[i];
     if (buffer->bytes == 0 || buffer->elementBytes == 0 ||
         buffer->bytes % buffer->elementBytes != 0 || buffer->alias < -1 ||
-        buffer->alias >= (int)i ||
-        (buffer->flags &
-         ~(GEOZL_GPU_COPY_IN | GEOZL_GPU_COPY_OUT | GEOZL_GPU_RESULT)) != 0 ||
+        buffer->alias >= (int)i || !geozl_gpu_external_valid(buffer) ||
+        (buffer->flags & ~(GEOZL_GPU_COPY_IN | GEOZL_GPU_COPY_OUT |
+                           GEOZL_GPU_RESULT | GEOZL_GPU_EXTERNAL)) != 0 ||
         ((buffer->flags & (GEOZL_GPU_COPY_IN | GEOZL_GPU_COPY_OUT)) != 0 &&
          buffer->host == NULL) ||
         (buffer->host != NULL &&

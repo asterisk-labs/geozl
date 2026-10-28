@@ -2,8 +2,16 @@
 #define GEOZL_GPU_FRAME_BATCH_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 #define GEOZL_GPU_PAYLOAD_PADDING 64
+
+// Mirrors raw_copy in the pfor and pivco programs. Counts are elements.
+typedef struct {
+  uint32_t source;
+  uint32_t destination;
+  uint32_t count;
+} GeozlGpuRawCopy;
 
 typedef struct {
   size_t totalBytes;

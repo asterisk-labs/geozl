@@ -270,7 +270,8 @@ int pivco_gpu_plan_build(PivcoGpuPlan *plan, const CapturedFrame *frames,
         count != shape->nbElts ||
         (planar && (geozl_ld_le32(header + 9) != shape->width ||
                     geozl_ld_le32(header + 13) != shape->planes)) ||
-        blockSize == 0 || blockSize > ZL_PIVCO_MAX_BLOCK_SIZE)
+        blockSize == 0 || blockSize > ZL_PIVCO_MAX_BLOCK_SIZE ||
+        (blockSize < GEOZL_GPU_PIVCO_MIN_BLOCK && blockSize < count))
       return fail(plan, "unexpected codec header", frameIndex, SIZE_MAX);
     if (captured->bitsOffset > payloadSize ||
         captured->bitsSize > payloadSize - captured->bitsOffset)

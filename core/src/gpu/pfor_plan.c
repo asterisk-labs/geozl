@@ -4,13 +4,15 @@
 
 #include <limits.h>
 #include <stdlib.h>
+#include <string.h>
 
 _Static_assert(sizeof(GpuPforBlock) == 16, "GpuPforBlock must match Slang");
 
-static unsigned popcount8(uint8_t value) {
-  value = (uint8_t)(value - ((value >> 1) & 0x55u));
-  value = (uint8_t)((value & 0x33u) + ((value >> 2) & 0x33u));
-  return (unsigned)((value + (value >> 4)) & 0x0Fu);
+static unsigned popcount64(uint64_t value) {
+  value -= (value >> 1) & 0x5555555555555555u;
+  value = (value & 0x3333333333333333u) + ((value >> 2) & 0x3333333333333333u);
+  value = (value + (value >> 4)) & 0x0F0F0F0F0F0F0F0Fu;
+  return (unsigned)((value * 0x0101010101010101u) >> 56);
 }
 
 int pfor_gpu_block_info(const uint8_t *block, size_t available,
@@ -49,8 +51,11 @@ int pfor_gpu_block_info(const uint8_t *block, size_t available,
     const unsigned mode = block[2] >> 7;
     if (mode == GEOZL_PFOR_MODE_BITMAP) {
       unsigned count = 0;
-      for (size_t i = 0; i < 32; ++i)
-        count += popcount8(positions[i]);
+      for (size_t i = 0; i < 32; i += 8) {
+        uint64_t word;
+        memcpy(&word, positions + i, sizeof(word));
+        count += popcount64(word);
+      }
       if (count != exceptions)
         return 1;
     } else {

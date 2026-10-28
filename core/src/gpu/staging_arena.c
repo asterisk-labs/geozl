@@ -57,14 +57,22 @@ void *geozl_gpu_arena_alloc(GeozlGpuArena *arena, size_t bytes) {
              "GPU staging needs too many chunks");
     return NULL;
   }
-  size_t capacity = size > arena->reserve ? size : arena->reserve;
+  // A quarter more than a large request leaves room for the plans that follow
+  // it, so a call fits one chunk and the next reset has nothing to merge.
+  size_t capacity = size <= SIZE_MAX - size / 4 ? size + size / 4 : size;
+  if (capacity < arena->reserve)
+    capacity = arena->reserve;
   if (capacity < MIN_CHUNK)
     capacity = MIN_CHUNK;
   GeozlGpuStaging *chunk = geozl_gpu_staging_create(
       arena->program, capacity, arena->error, sizeof(arena->error));
+  // A reserve the host cannot pin must not fail every later call.
+  if (chunk == NULL && capacity > size && size >= MIN_CHUNK)
+    chunk = geozl_gpu_staging_create(arena->program, size, arena->error,
+                                     sizeof(arena->error));
+  arena->reserve = 0;
   if (chunk == NULL)
     return NULL;
-  arena->reserve = 0;
   arena->chunks[arena->count] = chunk;
   arena->used[arena->count++] = size;
   return geozl_gpu_staging_data(chunk);

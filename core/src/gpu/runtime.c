@@ -103,8 +103,10 @@ static int staging_valid(const GeozlGpuProgram *program,
     return 1;
   const uintptr_t start = (uintptr_t)staging->data;
   const uintptr_t host = (uintptr_t)buffer->host;
-  return staging->program == program && buffer->flags == GEOZL_GPU_COPY_IN &&
-         host >= start && host - start <= staging->bytes &&
+  return staging->program->ops == program->ops &&
+         staging->program->device == program->device &&
+         buffer->flags == GEOZL_GPU_COPY_IN && host >= start &&
+         host - start <= staging->bytes &&
          (host - start) % GEOZL_GPU_STAGING_ALIGNMENT == 0 &&
          buffer->bytes <= staging->bytes - (host - start);
 }
@@ -123,21 +125,32 @@ GeozlGpuBatch *geozl_gpu_batch_create(GeozlGpuProgram *program,
                       i);
       return NULL;
     }
+    const GeozlGpuMemory *memory = buffers[i].memory;
+    if (memory != NULL &&
+        (memory->ops != program->ops || memory->device != program->device)) {
+      geozl_gpu_error(error, errorCapacity,
+                      "GPU buffer %zu is on another device", i);
+      return NULL;
+    }
   }
   return program->ops->batch_create(program, buffers, bufferCount, error,
                                     errorCapacity);
 }
 
+// A queued batch may still be reading its buffers, so it finishes first.
 void geozl_gpu_batch_destroy(GeozlGpuBatch *batch) {
-  if (batch != NULL)
-    batch->program->ops->batch_destroy(batch);
+  if (batch == NULL)
+    return;
+  if (batch->queued)
+    batch->program->ops->batch_wait(batch, NULL, 0);
+  batch->program->ops->batch_destroy(batch);
 }
 
 int geozl_gpu_batch_run(GeozlGpuBatch *batch,
                         const GeozlGpuDispatch dispatches[],
                         size_t dispatchCount, GeozlGpuRunTimes *times,
                         char *error, size_t errorCapacity) {
-  if (batch == NULL || batch->detached || times == NULL ||
+  if (batch == NULL || batch->detached || batch->queued || times == NULL ||
       !geozl_gpu_dispatches_valid(dispatches, dispatchCount,
                                   batch->program->kernelCount))
     return geozl_gpu_error(error, errorCapacity, "invalid GPU dispatches");
@@ -149,6 +162,36 @@ int geozl_gpu_batch_run(GeozlGpuBatch *batch,
   if (batch->program->ops->batch_run(batch, dispatches, dispatchCount, times,
                                      error, errorCapacity) != 0)
     return 1;
+  batch->completed = 1;
+  return 0;
+}
+
+int geozl_gpu_batch_enqueue(GeozlGpuBatch *batch,
+                            const GeozlGpuDispatch dispatches[],
+                            size_t dispatchCount, void *stream, char *error,
+                            size_t errorCapacity) {
+  if (batch == NULL || batch->detached || batch->queued ||
+      !geozl_gpu_dispatches_valid(dispatches, dispatchCount,
+                                  batch->program->kernelCount))
+    return geozl_gpu_error(error, errorCapacity, "invalid GPU dispatches");
+  if (batch->program->ops->dispatches_fit(
+          batch->program, dispatches, dispatchCount, error, errorCapacity) != 0)
+    return 1;
+  batch->completed = 0;
+  if (batch->program->ops->batch_enqueue(batch, dispatches, dispatchCount,
+                                         stream, error, errorCapacity) != 0)
+    return 1;
+  batch->queued = 1;
+  return 0;
+}
+
+int geozl_gpu_batch_wait(GeozlGpuBatch *batch, char *error,
+                         size_t errorCapacity) {
+  if (batch == NULL || !batch->queued)
+    return geozl_gpu_error(error, errorCapacity, "invalid GPU batch");
+  if (batch->program->ops->batch_wait(batch, error, errorCapacity) != 0)
+    return 1;
+  batch->queued = 0;
   batch->completed = 1;
   return 0;
 }
@@ -181,6 +224,41 @@ GeozlGpuMemory *geozl_gpu_batch_take(GeozlGpuBatch *batch, size_t bufferIndex,
   memory->elementBytes = batch->buffers[bufferIndex].elementBytes;
   batch->detached = 1;
   return memory;
+}
+
+static GeozlGpuMemory *memory_init(GeozlGpuMemory *memory,
+                                   const GeozlGpuProgram *program,
+                                   size_t bytes) {
+  if (memory != NULL) {
+    memory->ops = program->ops;
+    memory->device = program->device;
+    memory->bytes = bytes;
+    memory->elementBytes = 1;
+  }
+  return memory;
+}
+
+GeozlGpuMemory *geozl_gpu_memory_create(GeozlGpuProgram *program, size_t bytes,
+                                        char *error, size_t errorCapacity) {
+  if (program == NULL || bytes == 0) {
+    geozl_gpu_error(error, errorCapacity, "invalid GPU memory");
+    return NULL;
+  }
+  return memory_init(
+      program->ops->memory_create(program, bytes, error, errorCapacity),
+      program, bytes);
+}
+
+GeozlGpuMemory *geozl_gpu_memory_wrap(GeozlGpuProgram *program, void *data,
+                                      size_t bytes, char *error,
+                                      size_t errorCapacity) {
+  if (program == NULL || data == NULL || bytes == 0) {
+    geozl_gpu_error(error, errorCapacity, "invalid GPU memory");
+    return NULL;
+  }
+  return memory_init(
+      program->ops->memory_wrap(program, data, bytes, error, errorCapacity),
+      program, bytes);
 }
 
 void geozl_gpu_memory_destroy(GeozlGpuMemory *memory) {

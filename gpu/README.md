@@ -1,7 +1,8 @@
-# GPU decode prototype
+# GPU decode
 
-Experimental decode-only implementation for the PFOR- and PivCo-backed lossless
-graphs. It supports 1- and 2-byte elements without changing their frame format.
+Decode-only implementation for the PFOR- and PivCo-backed lossless graphs. It
+supports 1- and 2-byte elements without changing their frame format, and
+`core/include/geozl/gpu.h` exposes it for readers such as Rumi.
 
 The kernels are written in [Slang](https://shader-slang.org) and compiled to
 Metal source or CUDA PTX. OpenZL checks the outer frame and its compressed
@@ -17,6 +18,9 @@ input order.
 |---|---|
 | `kernels/programs/pfor.slang` | PFOR-backed decoder program |
 | `kernels/programs/pivco.slang` | PivCo-backed decoder program |
+| `kernels/programs/place.slang` | copies decoded rectangles into the caller's memory |
+| `../core/src/gpu/modules/` | compiled programs the library embeds, from `tools/build_gpu_modules.py` |
+| `../core/src/gpu/decode.c` | the `geozl/gpu.h` batch decoder |
 | `kernels/stages/` | PFOR, PivCo and inverse planar/Zigzag stages |
 | `kernels/common/` | shared payload access and constants |
 | `../core/src/gpu/` | frame capture, GPU task planning and the backend runtimes |
@@ -80,10 +84,30 @@ for untrusted input; zero means no caller limit.
 The compressed-frame checksum is checked before capture. The content checksum
 is not checked because the reconstructed samples remain on the device.
 
-The recognized lossless codec must still be the final data transform. Frames
-with a quantizer or NoData codec around it are rejected because those outer
-codecs do not have GPU kernels yet. The interface remains internal while
-kernel packaging and DLPack ownership are being designed.
+## Decoding into device memory
+
+`geozl_gpu_decode` takes compressed frames, the bytes each decodes to, and
+copies of strided sample rectangles into a CUDA pointer or Metal buffer. A
+frame goes to the device when the last codec in its header is PFOR or PivCo
+and its elements match the sample size, which is one or two bytes. Every other
+frame, including quantized, NoData and zstd frames, decodes on the host with
+OpenZL into page-locked staging. A device frame whose capture fails falls back
+the same way, so routing only decides speed. Host threads capture and decode
+frames from a shared counter; planning then splits each codec's frames over
+the same threads.
+
+Device frames decode into scratch the decoder keeps, and `place` copies every
+requested rectangle into the target. On CUDA the work joins the caller's
+stream and the call returns once it is queued. The next call, synchronization
+or destruction waits for it before reusing staging. Metal finishes each batch
+before returning. Programs keep finished device allocations for the next batch,
+so steady calls neither allocate nor free device memory.
+
+The kernels ship in the library as PTX and Metal source, embedded at build
+time from `core/src/gpu/modules`. Regenerate them with
+`tools/build_gpu_modules.py` after a kernel change: Metal source anywhere
+slangc runs, PTX with the NVRTC of the oldest CUDA to support. The checked-in
+PTX comes from NVRTC 12.2.
 
 ## Running
 
@@ -96,6 +120,7 @@ make check                             # capture, planner and runtime tests
 make check-pfor-metal SLANGC=...       # full PFOR decode and wire edge cases
 make check-pivco-metal SLANGC=...      # PivCo block-tail regression
 make check-cuda SLANGC=...             # the same decode checks on CUDA
+make check-gpu-decode                  # geozl/gpu.h with mixed codecs and copies
 BACKEND=metal ./run_all.sh
 ```
 

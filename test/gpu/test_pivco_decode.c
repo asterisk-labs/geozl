@@ -196,7 +196,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "usage: test_pivco_decode pzv1.metal|ptx\n");
     return 2;
   }
-  if (run_case(argv[1], 1001) || run_case(argv[1], 1004))
+  if (run_case(argv[1], 1025) || run_case(argv[1], 1028))
     return 1;
   puts("test_pivco_decode: ok");
   return 0;

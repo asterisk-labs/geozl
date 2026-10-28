@@ -13,6 +13,8 @@
 @property(nonatomic, strong) id<MTLDevice> device;
 @property(nonatomic, strong) id<MTLCommandQueue> queue;
 @property(nonatomic, copy) NSArray<id<MTLComputePipelineState>> *pipelines;
+// Private buffers kept from finished batches for the next ones.
+@property(nonatomic, strong) NSMutableArray<id<MTLBuffer>> *spares;
 @end
 
 @implementation GeozlMetalProgram
@@ -45,6 +47,7 @@ typedef struct {
   GeozlGpuBatch base;
   void *metal;
   size_t offsets[GEOZL_GPU_MAX_BUFFERS];
+  int spare[GEOZL_GPU_MAX_BUFFERS];
 } MetalBatch;
 
 typedef struct {
@@ -77,6 +80,42 @@ static const char *metal_message(NSError *error) {
 // Blits on macOS move whole 4-byte words, so device-only buffers are padded.
 static size_t blit_size(size_t bytes) {
   return bytes <= SIZE_MAX - 3 ? (bytes + 3) & ~(size_t)3 : 0;
+}
+
+#define METAL_SPARES 4
+
+// A spare serves a request at most four times smaller.
+static id<MTLBuffer> acquire_private(GeozlMetalProgram *program,
+                                     size_t length) {
+  NSUInteger best = NSNotFound;
+  for (NSUInteger i = 0; i < program.spares.count; ++i) {
+    const size_t spare = program.spares[i].length;
+    if (spare >= length &&
+        (spare / 4 <= length || spare <= ((size_t)1 << 20)) &&
+        (best == NSNotFound || spare < program.spares[best].length))
+      best = i;
+  }
+  if (best == NSNotFound)
+    return [program.device newBufferWithLength:length
+                                       options:MTLResourceStorageModePrivate];
+  id<MTLBuffer> buffer = program.spares[best];
+  [program.spares removeObjectAtIndex:best];
+  return buffer;
+}
+
+// Keeps the largest buffers.
+static void release_private(GeozlMetalProgram *program, id<MTLBuffer> buffer) {
+  if (program.spares.count < METAL_SPARES) {
+    [program.spares addObject:buffer];
+    return;
+  }
+  NSUInteger smallest = 0;
+  for (NSUInteger i = 1; i < program.spares.count; ++i) {
+    if (program.spares[i].length < program.spares[smallest].length)
+      smallest = i;
+  }
+  if (program.spares[smallest].length < buffer.length)
+    program.spares[smallest] = buffer;
 }
 
 static double seconds_now(void) {
@@ -158,6 +197,7 @@ metal_program_create(const void *module, size_t moduleSize, int deviceIndex,
     metal.device = device;
     metal.queue = queue;
     metal.pipelines = pipelines;
+    metal.spares = [NSMutableArray array];
 
     MetalProgram *program = calloc(1, sizeof(*program));
     if (program == NULL) {
@@ -231,18 +271,17 @@ static GeozlGpuBatch *metal_batch_create(GeozlGpuProgram *program,
       if (buffer->alias >= 0) {
         metalBuffer = metalBuffers[(NSUInteger)buffer->alias];
         batch->offsets[i] = batch->offsets[buffer->alias];
+      } else if ((buffer->flags & GEOZL_GPU_EXTERNAL) != 0) {
+        metalBuffer = metal_memory(buffer->memory).buffer;
+        batch->offsets[i] = buffer->memoryOffset;
       } else if (buffer->staging != NULL) {
         metalBuffer = staging_buffer(buffer->staging);
         batch->offsets[i] = (size_t)((uint8_t *)buffer->host -
                                      (uint8_t *)buffer->staging->data);
       } else if (buffer->host == NULL) {
         const size_t length = blit_size(buffer->bytes);
-        metalBuffer =
-            length == 0
-                ? nil
-                : [metalProgram.device
-                      newBufferWithLength:length
-                                  options:MTLResourceStorageModePrivate];
+        metalBuffer = length == 0 ? nil : acquire_private(metalProgram, length);
+        batch->spare[i] = metalBuffer != nil;
       } else if ((uintptr_t)buffer->host % pageSize == 0 &&
                  buffer->bytes % pageSize == 0) {
         metalBuffer = [metalProgram.device
@@ -258,6 +297,10 @@ static GeozlGpuBatch *metal_batch_create(GeozlGpuProgram *program,
       if (metalBuffer == nil) {
         geozl_gpu_error(errorBuffer, errorCapacity,
                         "Metal buffer %zu allocation failed", i);
+        for (size_t b = 0; b < i; ++b) {
+          if (batch->spare[b])
+            release_private(metalProgram, metalBuffers[b]);
+        }
         free(batch);
         return NULL;
       }
@@ -275,6 +318,13 @@ static GeozlGpuBatch *metal_batch_create(GeozlGpuProgram *program,
 
 static void metal_batch_destroy(GeozlGpuBatch *base) {
   MetalBatch *batch = (MetalBatch *)base;
+  @autoreleasepool {
+    GeozlMetalBatch *metal = metal_batch(base);
+    for (size_t i = 0; i < base->bufferCount; ++i) {
+      if (batch->spare[i])
+        release_private(metal.program, metal.buffers[i]);
+    }
+  }
   CFBridgingRelease(batch->metal);
   free(batch);
 }
@@ -302,6 +352,19 @@ static int metal_dispatches_fit(const GeozlGpuProgram *program,
   }
 }
 
+static void upload_inputs(GeozlGpuBatch *batch) {
+  GeozlMetalBatch *metal = metal_batch(batch);
+  const size_t *offsets = ((const MetalBatch *)batch)->offsets;
+  for (size_t i = 0; i < batch->bufferCount; ++i) {
+    const GeozlGpuBuffer *buffer = &batch->buffers[i];
+    if (buffer->alias >= 0 || (buffer->flags & GEOZL_GPU_COPY_IN) == 0)
+      continue;
+    uint8_t *contents = (uint8_t *)metal.buffers[i].contents + offsets[i];
+    if (contents != buffer->host)
+      memcpy(contents, buffer->host, buffer->bytes);
+  }
+}
+
 static int metal_batch_run(GeozlGpuBatch *batch,
                            const GeozlGpuDispatch dispatches[],
                            size_t dispatchCount, GeozlGpuRunTimes *times,
@@ -310,16 +373,10 @@ static int metal_batch_run(GeozlGpuBatch *batch,
     GeozlMetalBatch *metal = metal_batch(batch);
     const size_t *offsets = ((const MetalBatch *)batch)->offsets;
     const double uploadStart = seconds_now();
-    for (size_t i = 0; i < batch->bufferCount; ++i) {
-      const GeozlGpuBuffer *buffer = &batch->buffers[i];
-      if (buffer->alias >= 0 || (buffer->flags & GEOZL_GPU_COPY_IN) == 0)
-        continue;
-      uint8_t *contents = (uint8_t *)metal.buffers[i].contents + offsets[i];
-      if (contents != buffer->host)
-        memcpy(contents, buffer->host, buffer->bytes);
-    }
+    upload_inputs(batch);
     times->upload = seconds_now() - uploadStart;
 
+    // One command buffer per dispatch gives each kernel its own GPU time.
     id<MTLCommandBuffer> commands[GEOZL_GPU_MAX_KERNELS];
     for (size_t i = 0; i < dispatchCount; ++i) {
       const GeozlGpuDispatch *dispatch = &dispatches[i];
@@ -352,6 +409,54 @@ static int metal_batch_run(GeozlGpuBatch *batch,
     }
     return 0;
   }
+}
+
+// Programs have queues of their own, so a batch finishes before enqueue
+// returns and the next batch, on any queue, sees its output.
+static int metal_batch_enqueue(GeozlGpuBatch *batch,
+                               const GeozlGpuDispatch dispatches[],
+                               size_t dispatchCount, void *stream,
+                               char *errorBuffer, size_t errorCapacity) {
+  (void)stream;
+  @autoreleasepool {
+    GeozlMetalBatch *metal = metal_batch(batch);
+    const size_t *offsets = ((const MetalBatch *)batch)->offsets;
+    upload_inputs(batch);
+    id<MTLCommandBuffer> command = [metal.program.queue commandBuffer];
+    if (command == nil)
+      return geozl_gpu_error(errorBuffer, errorCapacity,
+                             "Metal command allocation failed");
+    for (size_t i = 0; i < dispatchCount; ++i) {
+      const GeozlGpuDispatch *dispatch = &dispatches[i];
+      id<MTLComputeCommandEncoder> encoder = [command computeCommandEncoder];
+      if (encoder == nil)
+        return geozl_gpu_error(errorBuffer, errorCapacity,
+                               "Metal command allocation failed");
+      [encoder
+          setComputePipelineState:metal.program.pipelines[dispatch->kernel]];
+      for (size_t b = 0; b < batch->bufferCount; ++b)
+        [encoder setBuffer:metal.buffers[b] offset:offsets[b] atIndex:b];
+      [encoder dispatchThreadgroups:MTLSizeMake(dispatch->groupsX,
+                                                dispatch->groupsY, 1)
+              threadsPerThreadgroup:MTLSizeMake(dispatch->threads, 1, 1)];
+      [encoder endEncoding];
+    }
+    [command commit];
+    [command waitUntilCompleted];
+    if (command.status != MTLCommandBufferStatusCompleted)
+      return geozl_gpu_error(errorBuffer, errorCapacity,
+                             "Metal kernels failed: %s",
+                             metal_message(command.error));
+    return 0;
+  }
+}
+
+static int metal_batch_wait(GeozlGpuBatch *batch, char *errorBuffer,
+                            size_t errorCapacity) {
+  (void)batch;
+  (void)errorBuffer;
+  (void)errorCapacity;
+  return 0;
 }
 
 static int metal_batch_download(GeozlGpuBatch *batch, char *errorBuffer,
@@ -387,7 +492,60 @@ static GeozlGpuMemory *metal_batch_take(GeozlGpuBatch *batch,
       return NULL;
     }
     memory->metal = (__bridge_retained void *)metalMemory;
+    ((MetalBatch *)batch)->spare[bufferIndex] = 0;
     return &memory->base;
+  }
+}
+
+static GeozlGpuMemory *new_memory(GeozlMetalProgram *program,
+                                  id<MTLBuffer> buffer, char *errorBuffer,
+                                  size_t errorCapacity) {
+  GeozlMetalMemory *metalMemory = [GeozlMetalMemory new];
+  metalMemory.device = program.device;
+  metalMemory.queue = program.queue;
+  metalMemory.buffer = buffer;
+  MetalMemory *memory = calloc(1, sizeof(*memory));
+  if (memory == NULL) {
+    geozl_gpu_error(errorBuffer, errorCapacity, "out of memory");
+    return NULL;
+  }
+  memory->metal = (__bridge_retained void *)metalMemory;
+  return &memory->base;
+}
+
+static GeozlGpuMemory *metal_memory_create(GeozlGpuProgram *program,
+                                           size_t bytes, char *errorBuffer,
+                                           size_t errorCapacity) {
+  @autoreleasepool {
+    const size_t length = blit_size(bytes);
+    id<MTLBuffer> buffer =
+        length == 0 ? nil
+                    : [metal_program(program).device
+                          newBufferWithLength:length
+                                      options:MTLResourceStorageModePrivate];
+    if (buffer == nil) {
+      geozl_gpu_error(errorBuffer, errorCapacity,
+                      "Metal memory allocation failed");
+      return NULL;
+    }
+    return new_memory(metal_program(program), buffer, errorBuffer,
+                      errorCapacity);
+  }
+}
+
+static GeozlGpuMemory *metal_memory_wrap(GeozlGpuProgram *program, void *data,
+                                         size_t bytes, char *errorBuffer,
+                                         size_t errorCapacity) {
+  @autoreleasepool {
+    id<MTLBuffer> buffer = (__bridge id<MTLBuffer>)data;
+    if (buffer.length < bytes ||
+        buffer.device != metal_program(program).device) {
+      geozl_gpu_error(errorBuffer, errorCapacity,
+                      "Metal buffer does not fit the wrapped memory");
+      return NULL;
+    }
+    return new_memory(metal_program(program), buffer, errorBuffer,
+                      errorCapacity);
   }
 }
 
@@ -446,8 +604,12 @@ const GeozlGpuBackendOps geozl_gpu_metal_ops = {
     .batch_destroy = metal_batch_destroy,
     .dispatches_fit = metal_dispatches_fit,
     .batch_run = metal_batch_run,
+    .batch_enqueue = metal_batch_enqueue,
+    .batch_wait = metal_batch_wait,
     .batch_download = metal_batch_download,
     .batch_take = metal_batch_take,
+    .memory_create = metal_memory_create,
+    .memory_wrap = metal_memory_wrap,
     .memory_destroy = metal_memory_destroy,
     .memory_data = metal_memory_data,
     .memory_download = metal_memory_download,

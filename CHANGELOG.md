@@ -11,9 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `transpose_pivco` (CTid `0x72D713`) gives non-planar `pivco` recipes a fixed,
   GPU-readable lane format.
+- `geozl/gpu.h` decodes a batch of frames into CUDA or Metal memory. Frames
+  whose last codec is PFOR or PivCo, with one- or two-byte elements, decode on
+  the device; the rest decode on the host into page-locked memory. Copies then
+  place strided rectangles of samples into the caller's memory. Builds with
+  `GEOZL_BUILD_GPU` carry their kernels, so they need no Slang.
 
 ### Changed
 
+- The GPU path refuses PivCo frames with blocks under 1024 symbols, which would
+  plan far more than they decode. GeoZL writes 32768-symbol blocks.
 - The R package now reports that webR is unsupported instead of entering an
   OpenZL build that cannot target wasm32.
 - PivCo recipes now use GeoZL's fixed lane format: each lane is PivCo or byte

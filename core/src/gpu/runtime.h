@@ -13,6 +13,7 @@ enum {
   GEOZL_GPU_COPY_IN = 1u,
   GEOZL_GPU_COPY_OUT = 2u,
   GEOZL_GPU_RESULT = 4u,
+  GEOZL_GPU_EXTERNAL = 8u,
 };
 
 // Each backend compiles in only when its GEOZL_GPU_<NAME> macro is defined.
@@ -30,13 +31,16 @@ typedef struct GeozlGpuStaging GeozlGpuStaging;
 typedef struct {
   // host is required by COPY_IN/COPY_OUT and otherwise must be NULL. RESULT
   // marks a device allocation that can be moved out with batch_take. A COPY_IN
-  // buffer whose host lies in staging uploads without a host copy.
+  // buffer whose host lies in staging uploads without a host copy. EXTERNAL
+  // binds bytes of memory at memoryOffset instead of allocating them.
   void *host;
   size_t bytes;
   size_t elementBytes;
   unsigned flags;
   int alias;
   GeozlGpuStaging *staging;
+  const GeozlGpuMemory *memory;
+  size_t memoryOffset;
 } GeozlGpuBuffer;
 
 typedef struct {
@@ -71,8 +75,8 @@ const char *geozl_gpu_program_backend(const GeozlGpuProgram *program);
 const char *geozl_gpu_program_device(const GeozlGpuProgram *program);
 
 // Host memory the device reads directly, page-locked on CUDA and shared on
-// Metal. Inputs written here skip the copy into a batch. Like a batch, staging
-// belongs to its program, and it must outlive the batches that read it.
+// Metal. Inputs written here skip the copy into a batch. Any program on the
+// staging program's device may read it, and it must outlive those batches.
 GeozlGpuStaging *geozl_gpu_staging_create(GeozlGpuProgram *program,
                                           size_t bytes, char *error,
                                           size_t errorCapacity);
@@ -91,6 +95,17 @@ int geozl_gpu_batch_run(GeozlGpuBatch *batch,
                         size_t dispatchCount, GeozlGpuRunTimes *times,
                         char *error, size_t errorCapacity);
 
+// Queues the upload and dispatches without timing them. On CUDA they run on
+// stream, a CUstream where NULL is the legacy default stream, and the call
+// returns once they are queued; Metal ignores stream and returns when they
+// finish. Inputs and the batch must stay alive until batch_wait returns.
+int geozl_gpu_batch_enqueue(GeozlGpuBatch *batch,
+                            const GeozlGpuDispatch dispatches[],
+                            size_t dispatchCount, void *stream, char *error,
+                            size_t errorCapacity);
+int geozl_gpu_batch_wait(GeozlGpuBatch *batch, char *error,
+                         size_t errorCapacity);
+
 // Copies buffers marked GEOZL_GPU_COPY_OUT to their host pointers. A caller
 // that wants to keep the result on the device simply does not call this.
 int geozl_gpu_batch_download(GeozlGpuBatch *batch, char *error,
@@ -103,6 +118,14 @@ int geozl_gpu_batch_download(GeozlGpuBatch *batch, char *error,
 GeozlGpuMemory *geozl_gpu_batch_take(GeozlGpuBatch *batch, size_t buffer,
                                      char *error, size_t errorCapacity);
 
+// Device memory on the program's device, owned by the caller.
+GeozlGpuMemory *geozl_gpu_memory_create(GeozlGpuProgram *program, size_t bytes,
+                                        char *error, size_t errorCapacity);
+// Wraps device memory owned elsewhere, a CUdeviceptr on CUDA or an
+// id<MTLBuffer> on Metal. Destroying the wrapper leaves the memory alone.
+GeozlGpuMemory *geozl_gpu_memory_wrap(GeozlGpuProgram *program, void *data,
+                                      size_t bytes, char *error,
+                                      size_t errorCapacity);
 void geozl_gpu_memory_destroy(GeozlGpuMemory *memory);
 const char *geozl_gpu_memory_backend(const GeozlGpuMemory *memory);
 int geozl_gpu_memory_device(const GeozlGpuMemory *memory);

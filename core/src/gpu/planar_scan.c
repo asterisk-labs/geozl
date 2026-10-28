@@ -63,7 +63,7 @@ int geozl_gpu_plane_plan_build(GeozlGpuPlanePlan *plan,
                                   (uint32_t)rows};
       if (task->width > plan->maxWidth)
         plan->maxWidth = task->width;
-      if (task->rows > plan->maxRows)
+      if (task->width > GEOZL_GPU_SCAN_SEGMENT && task->rows > plan->maxRows)
         plan->maxRows = task->rows;
     }
   }

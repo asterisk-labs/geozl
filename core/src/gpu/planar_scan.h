@@ -6,6 +6,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// Planes wider than one segment of the scan kernels take the row and column
+// passes instead of scan_planes.
+#define GEOZL_GPU_SCAN_SEGMENT 256
+
 typedef struct {
   size_t outOff;
   size_t nbElts;
@@ -24,8 +28,8 @@ typedef struct {
   GeozlGpuPlaneTask *tasks;
   size_t count;
   uint32_t maxWidth;
-  uint32_t maxRows;
-  int borrowed; // tasks belong to the allocator the plan was built with
+  uint32_t maxRows; // over planes wider than GEOZL_GPU_SCAN_SEGMENT
+  int borrowed;     // tasks belong to the allocator the plan was built with
 } GeozlGpuPlanePlan;
 
 // Puts the tasks in memory from alloc; NULL means calloc.

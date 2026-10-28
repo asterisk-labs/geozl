@@ -55,6 +55,10 @@ typedef struct {
   size_t errorLane;
 } PivcoGpuPlan;
 
+// Smaller blocks would let a tiny payload plan far more nodes than it decodes.
+// GeoZL writes 32768-symbol blocks.
+#define GEOZL_GPU_PIVCO_MIN_BLOCK 1024
+
 // Builds the immutable task lists consumed by gpu/kernels/programs/pivco.slang.
 // The capture step validates the outer frame, but this planner is responsible
 // for validating the PivCo and PFOR streams that the CPU decoder did not run.

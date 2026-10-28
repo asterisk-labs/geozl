@@ -12,7 +12,7 @@ static int check_valid_plan(void) {
   if (geozl_gpu_plane_plan_build(&plan, frames, 2, NULL) != 0)
     return 1;
   const int failed = plan.count != 4 || plan.maxWidth != 4 ||
-                     plan.maxRows != 4 || plan.tasks[0].outBase != 0 ||
+                     plan.maxRows != 0 || plan.tasks[0].outBase != 0 ||
                      plan.tasks[0].width != 4 || plan.tasks[0].rows != 3 ||
                      plan.tasks[1].outBase != 12 ||
                      plan.tasks[2].outBase != 24 || plan.tasks[2].width != 3 ||

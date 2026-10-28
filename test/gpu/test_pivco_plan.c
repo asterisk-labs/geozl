@@ -96,7 +96,7 @@ static int same_plan(const PivcoGpuPlan *a, const PivcoGpuPlan *b) {
 }
 
 int main(void) {
-  enum { count = 4099, blockSize = 1001 };
+  enum { count = 4099, blockSize = 1031 };
   static const uint8_t weights[] = {2, 1, 1};
   uint8_t *input = malloc(count);
   if (input == NULL)
@@ -123,7 +123,7 @@ int main(void) {
     free(scratch);
     free(payload);
     free(input);
-    return fail("a valid 1001-byte block was rejected");
+    return fail("a valid 1031-byte block was rejected");
   }
   const size_t expectedBlocks = (count + blockSize - 1) / blockSize;
   if (plan.pivcoBlockCount != expectedBlocks ||
@@ -136,6 +136,18 @@ int main(void) {
     return fail("the block plan has the wrong lengths");
   }
   pivco_gpu_plan_free(&plan);
+
+  CapturedFrame tiny;
+  make_frame(&tiny, count, 16, weights, sizeof(weights), payloadSize);
+  const int tinyPlanned = pivco_gpu_plan_build(&plan, &tiny, &shape, 1, payload,
+                                               payloadSize, 1) == 0;
+  pivco_gpu_plan_free(&plan);
+  if (tinyPlanned) {
+    free(scratch);
+    free(payload);
+    free(input);
+    return fail("16-symbol blocks were accepted");
+  }
 
   enum { frameCount = 4 };
   CapturedFrame frames[frameCount];
