@@ -162,6 +162,8 @@ jobs:
         shell: bash
         run: |
           python tools/sync_r_vendor.py
+          status="$(git status --porcelain --ignored -- bindings/r/src/ext bindings/r/inst/licenses bindings/r/DESCRIPTION)"
+          [ -z "$status" ] || { echo "::error::bindings/r is out of date, run make r-vendor"; echo "$status"; exit 1; }
           mkdir -p core/build-r && cd core/build-r
           R CMD build ../../bindings/r
           if ! GEOZL_GOLDEN_DIR="$GITHUB_WORKSPACE/bindings/python/test/golden" \

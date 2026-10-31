@@ -151,6 +151,34 @@ jobs:
       - name: Build the full library and bindings
         run: make build FULL=ON CMAKE_FLAGS=-DGEOZL_WERROR=ON
 
+  gpu:
+    name: GPU build (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Linux x86-64, runner: ubuntu-24.04 }
+          - { name: macOS arm64, runner: macos-15 }
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install build tools
+        run: python -m pip install --upgrade pip cmake
+
+      # No usable GPU here, so only the tests that need no device run.
+      - name: Build the GPU runtime and run the host tests
+        run: make -C gpu/proto check build/test_gpu_decode CMAKE_FLAGS=-DGEOZL_WERROR=ON
+
+      - name: Check the embedded kernels against their Slang sources
+        run: python tools/build_gpu_modules.py --check
+
   isa:
     name: ISA ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
@@ -234,6 +262,12 @@ jobs:
           echo "GEOZL_CI_PYTHON=$venv/bin/python" >> "$GITHUB_ENV"
           PATH="$venv/bin:$PATH" make python FULL=ON PYTHON="$venv/bin/python"
           "$venv/bin/python" -c "import geozl, numpy"
+
+      - name: Check vendored R sources
+        run: |
+          python tools/sync_r_vendor.py
+          status="$(git status --porcelain --ignored -- bindings/r/src/ext bindings/r/inst/licenses bindings/r/DESCRIPTION)"
+          [ -z "$status" ] || { echo "::error::bindings/r is out of date, run make r-vendor"; echo "$status"; exit 1; }
 
       - name: Test from the checkout
         run: make r PYTHON="$GEOZL_CI_PYTHON"
