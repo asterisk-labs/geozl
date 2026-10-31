@@ -61,7 +61,8 @@ jobs:
           # The manylinux x86_64 tag promises the base ISA. Faster kernels are
           # selected at runtime.
           cmake -S core -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-                -DGEOZL_BUILD_FULL=ON -DGEOZL_BUILD_KERNELS_SHARED=ON
+                -DGEOZL_BUILD_FULL=ON -DGEOZL_BUILD_KERNELS_SHARED=ON \
+                -DGEOZL_BUILD_GPU=ON
           cmake --build build
           mkdir -p bindings/python/geozl/_lib
           cp -v build/libgeozl_kernels*.so bindings/python/geozl/_lib/

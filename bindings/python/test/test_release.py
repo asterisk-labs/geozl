@@ -2,6 +2,8 @@ import re
 import subprocess
 from pathlib import Path
 
+from tools.sync_r_vendor import r_package_version
+
 ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -22,7 +24,7 @@ def test_binding_versions_match_version():
     r = (ROOT / "bindings/r/DESCRIPTION").read_text(encoding="utf-8")
     julia = (ROOT / "bindings/julia/Project.toml").read_text(encoding="utf-8")
 
-    assert re.search(r"(?m)^Version: (.*)$", r).group(1) == version
+    assert re.search(r"(?m)^Version: (.*)$", r).group(1) == r_package_version(version)
     assert re.search(r'(?m)^version = "(.*)"$', julia).group(1) == version
 
 

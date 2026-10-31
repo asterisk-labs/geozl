@@ -16,6 +16,28 @@ VENDOR = PACKAGE / "src" / "ext"
 OPENZL = ROOT / "extern" / "openzl"
 
 
+def r_package_version(version: str) -> str:
+    """Map a SemVer prerelease to an R version below its final release."""
+    base, separator, prerelease = version.partition("-")
+    if not separator:
+        return base
+    match = re.fullmatch(r"(alpha|beta|rc)\.(\d+)", prerelease)
+    if match is None:
+        raise SystemExit(f"cannot map prerelease {version!r} to an R version")
+    major, minor, patch = map(int, base.split("."))
+    if patch:
+        patch -= 1
+    elif minor:
+        minor -= 1
+    elif major:
+        major -= 1
+    else:
+        raise SystemExit(f"cannot map prerelease {version!r} to an R version")
+    phase = {"alpha": 0, "beta": 100, "rc": 200}[match.group(1)]
+    build = 9000 + phase + int(match.group(2))
+    return f"{major}.{minor}.{patch}.{build}"
+
+
 def copy(source: Path, destination: Path, *skip: str) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     if source.is_dir():
@@ -63,7 +85,8 @@ def main() -> None:
     # Binding package versions follow VERSION, like the wheel's.
     version = (ROOT / "VERSION").read_text().strip()
     versions = (
-        (PACKAGE / "DESCRIPTION", r"(?m)^Version: .*$", f"Version: {version}"),
+        (PACKAGE / "DESCRIPTION", r"(?m)^Version: .*$",
+         f"Version: {r_package_version(version)}"),
         (ROOT / "bindings" / "julia" / "Project.toml",
          r'(?m)^version = ".*"$', f'version = "{version}"'),
         (ROOT / "tools" / "wasm" / "js" / "package.json",

@@ -679,7 +679,7 @@
         64,
         64
       ],
-      "written_by": "geozl unreleased",
+      "written_by": "geozl 0.20.0-alpha.1",
       "sha256_decoded": "f6bd65009c2372e321b672b03c84ca8294558481182899fbdb7442181bdb3f43",
       "sha256_frame": "f8202b28c2a847baf88e5c3c9128b6cec5f48df9c828e444f7c104fc213efa99"
     },
@@ -694,7 +694,7 @@
         64,
         64
       ],
-      "written_by": "geozl unreleased",
+      "written_by": "geozl 0.20.0-alpha.1",
       "sha256_decoded": "011dc993e7a2e1cf2d181824a6605bf8be75e6489b9d8f78a4f498a8421e1d97",
       "sha256_frame": "ac0f24625adf6028486b844d54f61138a381a80663125334704584654d901a24"
     },
@@ -709,7 +709,7 @@
         64,
         64
       ],
-      "written_by": "geozl unreleased",
+      "written_by": "geozl 0.20.0-alpha.1",
       "sha256_decoded": "dc37677ed99d09c674d9c7987feb55ee8d999657abb27edfe81e190db1cb9b30",
       "sha256_frame": "c3b7952e7619b149ac319c99b016a4eee687e88ec724871f30951c9987c6b3a3"
     },
@@ -724,7 +724,7 @@
         64,
         64
       ],
-      "written_by": "geozl unreleased",
+      "written_by": "geozl 0.20.0-alpha.1",
       "sha256_decoded": "885fc00686632a2dc64e23032b4f675d8d3c220251d57cf203cb387d7e364d68",
       "sha256_frame": "fee42521c6e6cd7a3e6bf01c8c778a7793d863c10c84b18675d63bf26b4af684"
     },
@@ -739,7 +739,7 @@
         64,
         64
       ],
-      "written_by": "geozl unreleased",
+      "written_by": "geozl 0.20.0-alpha.1",
       "sha256_decoded": "402d0f26d7d5f74c6f90a6a2ded767b1190b778e74c35850cefa7bdd238b4791",
       "sha256_frame": "84c347e5cdc5bd648d88bfc1f477e52bd3c5ab912bc1e66eaf9821514f2a3d19"
     }
