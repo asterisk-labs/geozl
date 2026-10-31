@@ -3,7 +3,12 @@ name: Release
 on:
   push:
     tags: ['v*']
-  workflow_dispatch:        # build and import the wheels without publishing
+  workflow_dispatch:
+    inputs:
+      publish_npm:
+        description: Publish the current version to npm
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -47,6 +52,7 @@ jobs:
   linux:
     name: Wheel linux-x86_64
     needs: validate
+    if: github.event_name != 'workflow_dispatch' || !inputs.publish_npm
     runs-on: ubuntu-24.04
     container: quay.io/pypa/manylinux_2_28_x86_64
     steps:
@@ -109,6 +115,7 @@ jobs:
   macos:
     name: Wheel macos-arm64
     needs: validate
+    if: github.event_name != 'workflow_dispatch' || !inputs.publish_npm
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v7
@@ -269,7 +276,11 @@ jobs:
   npm:
     name: Publish to npm
     needs: [wasm, publish]
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: >-
+      always() &&
+      needs.wasm.result == 'success' &&
+      ((startsWith(github.ref, 'refs/tags/v') && needs.publish.result == 'success') ||
+       (github.event_name == 'workflow_dispatch' && inputs.publish_npm))
     runs-on: ubuntu-24.04
     environment: npm
     permissions:
@@ -303,4 +314,4 @@ jobs:
           if [ -n "$latest" ] && [ "$(printf '%s\n%s\n' "$version" "$latest" | sort -V | tail -1)" != "$version" ]; then
             tag=next
           fi
-          npm publish npm-dist/*.tgz --access public --tag "$tag"
+          npm publish ./npm-dist/*.tgz --access public --tag "$tag"
