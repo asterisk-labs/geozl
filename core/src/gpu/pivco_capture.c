@@ -112,7 +112,7 @@ static ZL_Report capture_decoder(ZL_Decoder *decoder, const ZL_Input *inputs[],
   // A root codec writes into the caller's destination. A different pointer
   // means another codec still has to consume this output on the CPU.
   if (ZL_Output_ptr(output) != capture->destination) {
-    frame->seen = -1;
+    frame->seen = 2;
     return ZL_returnError(ZL_ErrorCode_graph_invalid);
   }
   return ZL_returnError(ZL_ErrorCode_temporaryLibraryLimitation);
@@ -200,5 +200,7 @@ PivcoCaptureResult pivco_capture_frame(PivcoCapture *capture,
     frame->rawElementBytes = outputInfo.fixedWidth;
     return PIVCO_CAPTURE_RAW;
   }
+  if (frame->seen == 0 || frame->seen == 2)
+    return PIVCO_CAPTURE_FALLBACK;
   return PIVCO_CAPTURE_ERROR;
 }

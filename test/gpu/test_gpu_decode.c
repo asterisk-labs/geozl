@@ -5,7 +5,13 @@
 #include "geozl/geozl.h"
 #include "geozl/gpu.h"
 
+#include "capture_frame_builder.h"
+
+#include "common/endian.h"
 #include "gpu/runtime.h"
+#include "pfor/graph_pfor.h"
+#include "pivco_lanes/pivco_lanes.h"
+#include "transpose_pivco/graph_transpose_pivco.h"
 
 #include "openzl/zl_compress.h"
 
@@ -312,19 +318,95 @@ static int check_refusals(GeozlGpu *gpu) {
   return failed;
 }
 
+static int check_capture_errors(GeozlGpu *gpu) {
+  uint8_t frame[1024];
+  uint8_t header[TRANSPOSE_PIVCO_HEADER_FIXED + GEOZL_PIVCO_LANE_HEADER_SIZE] =
+      {0};
+  geozl_st_le64(header, 1024);
+  header[8] = 1;
+  geozl_st_le32(header + 9, 32768);
+  header[13] = GEOZL_PIVCO_LANE_PIVCO;
+  geozl_st_le16(header + 14, 1);
+  const CaptureFramePlan plans[] = {
+      {.ctid = GEOZL_CTID_TRANSPOSE_PIVCO,
+       .header = header,
+       .headerSize = sizeof(header),
+       .outputCount = 2,
+       .numericOutputs = 1,
+       .outputBytes = {1, 0}},
+      {.ctid = GEOZL_CTID_PFOR,
+       .header = header,
+       .headerSize = PFOR_HEADER_SIZE,
+       .outputCount = 1,
+       .outputBytes = {1, 0}},
+  };
+  char error[512];
+  GeozlGpuMemory *memory = geozl_gpu_alloc(gpu, 64, error, sizeof(error));
+  if (memory == NULL)
+    return 1;
+  const GeozlGpuTarget target = {geozl_gpu_pointer(memory), 0, 64, NULL};
+  const GeozlGpuCopy copy = {0, 0, 0, 1, 0, 0, 1, 64, 1};
+  int failed = 0;
+  for (size_t i = 0; i < sizeof(plans) / sizeof(plans[0]); ++i) {
+    const size_t frameSize =
+        capture_test_build_frame(frame, sizeof(frame), 64, &plans[i]);
+    const GeozlGpuFrame input = {frame, frameSize, 64};
+    error[0] = '\0';
+    if (frameSize == 0 ||
+        geozl_gpu_decode(gpu, &input, 1, &copy, 1, 1, 1, &target, error,
+                         sizeof(error)) == 0 ||
+        strstr(error, "invalid compressed frame") == NULL) {
+      fprintf(stderr, "an inconsistent GPU codec header was accepted: %s\n",
+              error);
+      failed = 1;
+      break;
+    }
+  }
+  geozl_gpu_free(memory);
+  return failed;
+}
+
+static int check_batch_limit(GeozlGpu *gpu) {
+  Batch batch = {0};
+  const Shape shape = {1, 16, 32};
+  if (add_frame(&batch, "planar>zigzag>pfor", &shape, 2) != 0)
+    return 1;
+  GeozlGpuFrame frames[2] = {batch.frames[0], batch.frames[0]};
+  frames[0].decodedBytes = 600 * 1024;
+  frames[1].decodedBytes = 600 * 1024;
+  const GeozlGpuCopy copy = {0, 0, 0, 2, 0, 0, 2, 1, 1};
+  char error[512];
+  GeozlGpuMemory *memory = geozl_gpu_alloc(gpu, 2, error, sizeof(error));
+  if (memory == NULL) {
+    clear(&batch);
+    return 1;
+  }
+  const GeozlGpuTarget target = {geozl_gpu_pointer(memory), 0, 2, NULL};
+  const int failed = geozl_gpu_decode(gpu, frames, 2, &copy, 1, 2, 2, &target,
+                                      error, sizeof(error)) == 0 ||
+                     strstr(error, "batch limit") == NULL;
+  if (failed)
+    fprintf(stderr, "an oversized GPU batch was accepted: %s\n", error);
+  geozl_gpu_free(memory);
+  clear(&batch);
+  return failed;
+}
+
 int main(void) {
   if (!geozl_gpu_available(DEVICE)) {
     puts("test_gpu_decode: skipped, no GPU backend");
     return 0;
   }
   char error[512];
-  GeozlGpu *gpu = geozl_gpu_create(DEVICE, 0, 4, 1, error, sizeof(error));
+  GeozlGpu *gpu =
+      geozl_gpu_create(DEVICE, 0, 4, 1 << 20, 1, error, sizeof(error));
   if (gpu == NULL) {
     fprintf(stderr, "test_gpu_decode: %s\n", error);
     return 1;
   }
   const int failed = check_mixed(gpu, 2) || check_mixed(gpu, 1) ||
-                     check_host_widths(gpu) || check_refusals(gpu);
+                     check_host_widths(gpu) || check_refusals(gpu) ||
+                     check_capture_errors(gpu) || check_batch_limit(gpu);
   geozl_gpu_destroy(gpu);
   if (failed) {
     fprintf(stderr, "test_gpu_decode: failed\n");

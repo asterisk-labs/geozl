@@ -171,13 +171,13 @@ int main(void) {
   if (pivco_capture_init(&capture, payload, frameCapacity + 64) != 0)
     return fail("could not recreate capture context");
   if (pivco_capture_frame(&capture, &captured, output, sizeof(output), frame,
-                          frameSize) != PIVCO_CAPTURE_ERROR)
-    return fail("wrapped frame was accepted");
+                          frameSize) != PIVCO_CAPTURE_FALLBACK)
+    return fail("wrapped frame did not fall back");
   pivco_capture_destroy(&capture);
 
   if (check_transpose_codec("id>transpose>pivco", PIVCO_CAPTURE_CODEC) != 0 ||
       check_transpose_codec("delta_w>zigzag>transpose>pivco",
-                            PIVCO_CAPTURE_ERROR) != 0)
+                            PIVCO_CAPTURE_FALLBACK) != 0)
     return 1;
 
   free(payload);

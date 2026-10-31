@@ -20,6 +20,8 @@ typedef struct {
     PFOR_CAPTURE_KIND_ID,
     PFOR_CAPTURE_KIND_PLANAR_ZIGZAG,
   } kind;
+  // 0 before the codec, 1 at the root, 2 when another host transform follows,
+  // and -1 for invalid codec metadata.
   int seen;
 } CapturedPforFrame;
 
@@ -27,6 +29,7 @@ typedef enum {
   PFOR_CAPTURE_ERROR = -1,
   PFOR_CAPTURE_CODEC = 0,
   PFOR_CAPTURE_RAW = 1,
+  PFOR_CAPTURE_FALLBACK = 2,
 } PforCaptureResult;
 
 typedef struct {

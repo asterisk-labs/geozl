@@ -46,6 +46,7 @@ struct GeozlGpu {
   GeozlGpuBackendId backend;
   int device;
   size_t threads;
+  size_t maxDecodedBytes;
   int verify;
   GeozlGpuProgram *place[PLACE_WIDTHS];
   GeozlPforGpuDecoder *pfor[2];
@@ -203,8 +204,8 @@ int geozl_gpu_available(int deviceType) {
 }
 
 GeozlGpu *geozl_gpu_create(int deviceType, int device, size_t threads,
-                           int verifyChecksums, char *error,
-                           size_t errorCapacity) {
+                           size_t maxDecodedBytes, int verifyChecksums,
+                           char *error, size_t errorCapacity) {
   if (error != NULL && errorCapacity != 0)
     error[0] = '\0';
   GeozlGpuBackendId backend;
@@ -216,6 +217,10 @@ GeozlGpu *geozl_gpu_create(int deviceType, int device, size_t threads,
     geozl_gpu_error(error, errorCapacity, "invalid GPU device");
     return NULL;
   }
+  if (maxDecodedBytes == 0) {
+    geozl_gpu_error(error, errorCapacity, "invalid decoded byte limit");
+    return NULL;
+  }
   GeozlGpu *gpu = calloc(1, sizeof(*gpu));
   if (gpu == NULL) {
     geozl_gpu_error(error, errorCapacity, "out of memory");
@@ -224,6 +229,7 @@ GeozlGpu *geozl_gpu_create(int deviceType, int device, size_t threads,
   gpu->backend = backend;
   gpu->device = device;
   gpu->threads = threads == 0 ? 1 : threads;
+  gpu->maxDecodedBytes = maxDecodedBytes;
   gpu->verify = verifyChecksums != 0;
   gpu->workers = calloc(gpu->threads, sizeof(*gpu->workers));
   // The one-byte place program opens the device now, so a missing driver
@@ -436,7 +442,8 @@ static void fail_frame(Pass *pass, size_t frame, const char *message) {
   pthread_mutex_unlock(&pass->lock);
 }
 
-// A capture that does not end in its codec leaves the frame to the host.
+// Valid frames that need more host transforms fall back. A capture error is a
+// malformed frame and must not be handed to a different decoder path.
 static void capture_frame(Pass *pass, Worker *worker, size_t i) {
   const GeozlGpuFrame *frame = &pass->frames[i];
   const size_t slotBytes = round_up(frame->size, 16);
@@ -450,26 +457,29 @@ static void capture_frame(Pass *pass, Worker *worker, size_t i) {
     }
     worker->scratchBytes = frame->decodedBytes;
   }
-  int captured;
   if (pass->routes[i] == ROUTE_PFOR) {
     worker->pfor.payload = pass->pforPayload + pass->slots[i];
     worker->pfor.payloadSize = 0;
     worker->pfor.payloadCapacity = slotBytes;
-    captured =
-        pfor_capture_frame(&worker->pfor, &pass->pforCaptured[i],
-                           worker->scratch, frame->decodedBytes, frame->data,
-                           frame->size) == PFOR_CAPTURE_CODEC;
+    const PforCaptureResult result = pfor_capture_frame(
+        &worker->pfor, &pass->pforCaptured[i], worker->scratch,
+        frame->decodedBytes, frame->data, frame->size);
+    if (result == PFOR_CAPTURE_FALLBACK || result == PFOR_CAPTURE_RAW)
+      pass->routes[i] = ROUTE_FALLBACK;
+    else if (result != PFOR_CAPTURE_CODEC)
+      fail_frame(pass, i, "invalid compressed frame");
   } else {
     worker->pivco.payload = pass->pivcoPayload + pass->slots[i];
     worker->pivco.payloadSize = 0;
     worker->pivco.payloadCapacity = slotBytes;
-    captured =
-        pivco_capture_frame(&worker->pivco, &pass->pivcoCaptured[i],
-                            worker->scratch, frame->decodedBytes, frame->data,
-                            frame->size) == PIVCO_CAPTURE_CODEC;
+    const PivcoCaptureResult result = pivco_capture_frame(
+        &worker->pivco, &pass->pivcoCaptured[i], worker->scratch,
+        frame->decodedBytes, frame->data, frame->size);
+    if (result == PIVCO_CAPTURE_FALLBACK || result == PIVCO_CAPTURE_RAW)
+      pass->routes[i] = ROUTE_FALLBACK;
+    else if (result != PIVCO_CAPTURE_CODEC)
+      fail_frame(pass, i, "invalid compressed frame");
   }
-  if (!captured)
-    pass->routes[i] = ROUTE_FALLBACK;
 }
 
 static void *run_pass(void *opaque) {
@@ -621,14 +631,26 @@ int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
   if (frames == NULL || frameCount == 0 || frameCount > UINT32_MAX ||
       (copies == NULL && copyCount != 0) || place_slot(sampleBytes) < 0 ||
       elementBytes == 0 || sampleBytes % elementBytes != 0 || target == NULL ||
-      target->memory == NULL || target->bytes == 0 ||
-      ((uintptr_t)target->memory + target->offset) % sampleBytes != 0)
+      target->memory == NULL || target->bytes == 0)
     return geozl_gpu_error(error, errorCapacity, "invalid GPU decode input");
+  int aligned = target->offset % sampleBytes == 0;
+  if (gpu->backend == GEOZL_GPU_BACKEND_CUDA) {
+    const uintptr_t memory = (uintptr_t)target->memory;
+    aligned = target->offset <= UINTPTR_MAX - memory &&
+              (memory + target->offset) % sampleBytes == 0;
+  }
+  if (!aligned)
+    return geozl_gpu_error(error, errorCapacity, "unaligned GPU target");
+  size_t decodedBytes = 0;
   for (size_t i = 0; i < frameCount; ++i) {
     if (frames[i].data == NULL || frames[i].size == 0 ||
         frames[i].decodedBytes == 0 ||
         frames[i].decodedBytes % sampleBytes != 0)
       return geozl_gpu_error(error, errorCapacity, "invalid frame %zu", i);
+    if (add_size(&decodedBytes, frames[i].decodedBytes) ||
+        decodedBytes > gpu->maxDecodedBytes)
+      return geozl_gpu_error(error, errorCapacity,
+                             "decoded output exceeds the batch limit");
   }
   const size_t targetBytes = target->bytes / sampleBytes * sampleBytes;
   if (!copies_valid(frames, frameCount, copies, copyCount, sampleBytes,

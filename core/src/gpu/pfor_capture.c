@@ -93,7 +93,7 @@ static ZL_Report capture_decoder(ZL_Decoder *decoder, const ZL_Input *inputs[],
   // A root codec writes into the caller's destination. A different pointer
   // means another codec still has to consume this output on the CPU.
   if (ZL_Output_ptr(output) != capture->destination) {
-    frame->seen = -1;
+    frame->seen = 2;
     return ZL_returnError(ZL_ErrorCode_graph_invalid);
   }
   return ZL_returnError(ZL_ErrorCode_temporaryLibraryLimitation);
@@ -180,5 +180,7 @@ PforCaptureResult pfor_capture_frame(PforCapture *capture,
     frame->rawElementBytes = outputInfo.fixedWidth;
     return PFOR_CAPTURE_RAW;
   }
+  if (frame->seen == 0 || frame->seen == 2)
+    return PFOR_CAPTURE_FALLBACK;
   return PFOR_CAPTURE_ERROR;
 }

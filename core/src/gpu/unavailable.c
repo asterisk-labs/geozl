@@ -13,11 +13,12 @@ int geozl_gpu_available(int deviceType) {
 }
 
 GeozlGpu *geozl_gpu_create(int deviceType, int device, size_t threads,
-                           int verifyChecksums, char *error,
-                           size_t errorCapacity) {
+                           size_t maxDecodedBytes, int verifyChecksums,
+                           char *error, size_t errorCapacity) {
   (void)deviceType;
   (void)device;
   (void)threads;
+  (void)maxDecodedBytes;
   (void)verifyChecksums;
   unavailable(error, errorCapacity);
   return NULL;

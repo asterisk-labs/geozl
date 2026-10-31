@@ -23,6 +23,8 @@ typedef struct {
     PIVCO_CAPTURE_KIND_ID,
     PIVCO_CAPTURE_KIND_PLANAR_ZIGZAG,
   } kind;
+  // 0 before the codec, 1 at the root, 2 when another host transform follows,
+  // and -1 for invalid codec metadata.
   int seen;
 } CapturedFrame;
 
@@ -30,6 +32,7 @@ typedef enum {
   PIVCO_CAPTURE_ERROR = -1,
   PIVCO_CAPTURE_CODEC = 0,
   PIVCO_CAPTURE_RAW = 1,
+  PIVCO_CAPTURE_FALLBACK = 2,
 } PivcoCaptureResult;
 
 typedef struct {

@@ -4,6 +4,8 @@
 
 SLANGC ?= slangc
 PYTHON ?= python3
+# Extra cmake options for the static GeoZL, e.g. -DGEOZL_WERROR=ON.
+CMAKE_FLAGS ?=
 SLANG_VERSION := 2026.19
 UNAME := $(shell uname -s)
 CORE := ../../core
@@ -62,14 +64,12 @@ CUDA_RUNTIME := $(CUDA_RUNTIME_SRCS) -DGEOZL_GPU_CUDA \
 	-DGPU_BACKEND=GEOZL_GPU_BACKEND_CUDA
 GPU_COMMON := gpu.c gpu.h $(CORE)/src/gpu/runtime.h \
 	$(CORE)/src/gpu/runtime_internal.h
+# check needs no GPU; check-metal and check-cuda need a device.
 CHECKS := build/test_bench build/test_pfor_capture build/test_pivco_capture \
 	build/test_pivco_plan build/test_planar_scan build/test_runtime_validation
-ifeq ($(UNAME),Darwin)
-CHECKS += build/test_runtime_metal
-endif
 
 .PHONY: metal cuda hosts-cuda check check-metal check-cuda check-slang check-pfor-metal \
-	check-gpu-decode \
+	check-gpu-decode check-runtime-metal \
 	check-pivco-metal check-pfor-cuda check-pivco-cuda geozl-static
 metal: check-slang build/pfor_metal build/pzp1.metal build/pzp2.metal build/pivco_metal build/pzv1.metal build/pzv2.metal build/decode_metal
 cuda: check-slang build/pfor_cuda build/pzp1.ptx build/pzp2.ptx build/pivco_cuda build/pzv1.ptx build/pzv2.ptx build/decode_cuda
@@ -84,9 +84,6 @@ check: $(CHECKS)
 	./build/test_pivco_plan
 	./build/test_planar_scan
 	./build/test_runtime_validation
-ifeq ($(UNAME),Darwin)
-	./build/test_runtime_metal
-endif
 check-pfor-metal: build/test_pfor_decode_metal build/test_pfor_list_metal build/pzp1.metal build/pzp2.metal
 	./build/test_pfor_decode_metal build/pzp1.metal build/pzp2.metal
 	./build/test_pfor_list_metal build/pzp1.metal
@@ -99,7 +96,10 @@ check-pfor-cuda: build/test_pfor_decode_cuda build/test_pfor_list_cuda build/pzp
 check-pivco-cuda: build/test_pivco_decode_cuda build/test_pivco_e2e_cuda build/pzv1.ptx build/pzv2.ptx
 	./build/test_pivco_decode_cuda build/pzv1.ptx
 	./build/test_pivco_e2e_cuda build/pzv1.ptx build/pzv2.ptx
-check-metal: check-slang check-pfor-metal check-pivco-metal check-gpu-decode
+check-metal: check-slang check-runtime-metal check-pfor-metal check-pivco-metal \
+	check-gpu-decode
+check-runtime-metal: build/test_runtime_metal
+	./build/test_runtime_metal
 check-cuda: check-slang check-pfor-cuda check-pivco-cuda check-gpu-decode
 check-gpu-decode: build/test_gpu_decode
 	./build/test_gpu_decode
@@ -290,7 +290,8 @@ build/test_pivco_e2e_cuda: ../../test/gpu/test_pivco_e2e.c \
 # cmake decides whether the library is out of date.
 geozl-static:
 	@test -f $(STATIC)/CMakeCache.txt || cmake -S $(CORE) -B $(STATIC) -DCMAKE_BUILD_TYPE=Release \
-		-DBUILD_SHARED_LIBS=OFF -DGEOZL_BUILD_KERNELS_SHARED=OFF -DGEOZL_BUILD_GPU=ON
+		-DBUILD_SHARED_LIBS=OFF -DGEOZL_BUILD_KERNELS_SHARED=OFF -DGEOZL_BUILD_GPU=ON \
+		$(CMAKE_FLAGS)
 	cmake --build $(STATIC) --target geozl
 
 build/pivco_metal: $(PIVCO_SRCS) $(GPU_COMMON) \
@@ -320,10 +321,15 @@ build/decode_cuda: $(DECODE_SRCS) $(GPU_COMMON) $(CUDA_RUNTIME_SRCS) bench.h \
 		$(PIVCO_LIBS) -ldl -lpthread -lm -o $@
 
 # The public decoder, with its kernels inside the static library.
-build/test_gpu_decode: ../../test/gpu/test_gpu_decode.c geozl-static | build
+build/test_gpu_decode: ../../test/gpu/test_gpu_decode.c \
+		../../test/gpu/capture_frame_builder.c \
+		../../test/gpu/capture_frame_builder.h geozl-static | build
 ifeq ($(UNAME),Darwin)
-	clang $(PIVCO_CFLAGS) $< $(PIVCO_LIBS) -lpthread -lm \
+	clang $(PIVCO_CFLAGS) ../../test/gpu/test_gpu_decode.c \
+		../../test/gpu/capture_frame_builder.c $(PIVCO_LIBS) -lpthread -lm \
 		-framework Metal -framework Foundation -o $@
 else
-	cc $(PIVCO_CFLAGS) -D_GNU_SOURCE $< $(PIVCO_LIBS) -ldl -lpthread -lm -o $@
+	cc $(PIVCO_CFLAGS) -D_GNU_SOURCE ../../test/gpu/test_gpu_decode.c \
+		../../test/gpu/capture_frame_builder.c $(PIVCO_LIBS) \
+		-ldl -lpthread -lm -o $@
 endif
