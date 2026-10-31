@@ -47,10 +47,10 @@ the backend chosen by `GeozlGpuBackendId`. `runtime_metal.m` and
 `runtime_cuda.c` hold only device code behind a `GeozlGpuBackendOps` table, and
 each compiles in under `GEOZL_GPU_METAL` or `GEOZL_GPU_CUDA`. A Vulkan or HIP
 backend adds one such file, an id and a Slang target; capture, planning and the
-decoders stay the same. Each backend also provides staging, host memory its
-device reads in place, which is page-locked on CUDA and a shared buffer on
-Metal. The kernels assume 32-wide waves, so a backend must provide them or
-reject the device, as Metal does.
+decoders stay the same. Each backend also provides staging: page-locked host
+memory uploaded to CUDA without another host copy, and a shared Metal buffer
+the device reads directly. The kernels assume 32-wide waves, so a backend must
+provide them or reject the device, as Metal does.
 
 A program may run only one batch at a time. CUDA stores its buffer pointers in
 module globals, so callers that need concurrent work must create one decoder
@@ -77,9 +77,8 @@ bound of frame plus output bytes, until the decoder is destroyed.
 
 If OpenZL stores a frame raw because compression does not make it smaller,
 capture decodes that frame on the CPU and copies it into the device result
-without changing the rest of the batch. The caller supplies a maximum output
-size, which is checked before host or device allocation. Pass a nonzero limit
-for untrusted input; zero means no caller limit.
+without changing the rest of the batch. These lower-level PFOR and PivCo
+decoders take a maximum output size, checked before host or device allocation.
 
 The compressed-frame checksum is checked before capture. The content checksum
 is not checked because the reconstructed samples remain on the device.
@@ -91,10 +90,16 @@ copies of strided sample rectangles into a CUDA pointer or Metal buffer. A
 frame goes to the device when the last codec in its header is PFOR or PivCo
 and its elements match the sample size, which is one or two bytes. Every other
 frame, including quantized, NoData and zstd frames, decodes on the host with
-OpenZL into page-locked staging. A device frame whose capture fails falls back
-the same way, so routing only decides speed. Host threads capture and decode
-frames from a shared counter; planning then splits each codec's frames over
-the same threads.
+OpenZL into page-locked staging. A valid device frame that needs another host
+transform falls back the same way; malformed codec metadata rejects the call.
+Host threads capture and decode frames from a shared counter; planning then
+splits each codec's frames over the same threads.
+
+The decoder is created with a nonzero limit for the sum of decoded frame bytes
+in one call. Copies may interleave samples, but no two copies may write the
+same target sample. On CUDA the target allocation stays alive on the selected
+device until later work in the same stream, synchronization, the next decode
+or decoder destruction has completed.
 
 Device frames decode into scratch the decoder keeps, and `place` copies every
 requested rectangle into the target. On CUDA the work joins the caller's
@@ -107,7 +112,9 @@ The kernels ship in the library as PTX and Metal source, embedded at build
 time from `core/src/gpu/modules`. Regenerate them with
 `tools/build_gpu_modules.py` after a kernel change: Metal source anywhere
 slangc runs, PTX with the NVRTC of the oldest CUDA to support. The checked-in
-PTX comes from NVRTC 12.2.
+PTX comes from NVRTC 12.2. The script records the compiler inputs and hashes of
+every generated module in `modules/sources.sha256`; CI checks both the sources
+and the embedded outputs.
 
 ## Running
 
@@ -116,7 +123,8 @@ cd proto
 make metal SLANGC=/path/to/slangc      # macOS, Slang 2026.19
 make cuda SLANGC=/path/to/slangc       # Linux, Slang 2026.19
 make hosts-cuda                        # driver only, PTX built elsewhere
-make check                             # capture, planner and runtime tests
+make check                             # capture, planner and validation, no GPU
+make check-runtime-metal               # Metal runtime and staging
 make check-pfor-metal SLANGC=...       # full PFOR decode and wire edge cases
 make check-pivco-metal SLANGC=...      # PivCo block-tail regression
 make check-cuda SLANGC=...             # the same decode checks on CUDA
