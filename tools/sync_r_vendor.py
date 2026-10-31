@@ -34,8 +34,10 @@ def main() -> None:
 
     copy(ROOT / "core" / "CMakeLists.txt", VENDOR / "core" / "CMakeLists.txt")
     copy(ROOT / "core" / "include", VENDOR / "core" / "include")
-    # The R package never enables the optional GPU runtime or ships shaders.
+    # The R package builds without the GPU runtime but still needs its stub.
     copy(ROOT / "core" / "src", VENDOR / "core" / "src", "gpu")
+    copy(ROOT / "core" / "src" / "gpu" / "unavailable.c",
+         VENDOR / "core" / "src" / "gpu" / "unavailable.c")
 
     for part in ("CMakeLists.txt", "LICENSE", "build-scripts", "include", "src"):
         copy(OPENZL / part, VENDOR / "openzl" / part)
