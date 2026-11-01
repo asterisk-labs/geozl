@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking
+
+- Frame compatibility starts with 0.20.0. The retired
+  `blocked_transpose_zstd` experiment and its decoder were removed; CTid
+  `0x72D70E` remains reserved.
+
 ## [0.20.0-alpha.1] - 2026-10-31
 
 ### Added

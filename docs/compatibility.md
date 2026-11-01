@@ -2,19 +2,19 @@
 
 ## Frames
 
-**0.14.0 is the baseline.** This release and every later release will read
-frames written by 0.14.0. Later readers will also read frames produced by
-intervening compatible releases. The 0.13.x line predates this baseline, so its
-integer lossy frames are not covered by that promise: 0.14.0 changed what an
-integer `quant_linear` frame carries, and a 0.13.x reader refuses such a frame
-rather than misreading it, which is the failure this policy exists to guarantee.
+**0.20.0 is the first compatibility baseline.** Releases before it were
+development releases and their frames are not part of the compatibility
+contract. During the 0.20 prerelease series, readers and writers may still
+change together. Starting with 0.20.0, later readers will continue to read
+frames written by that release and by compatible releases after it.
 
 Released CTids are never reassigned. An incompatible codec layout receives a
 new CTid. Encoders may produce different bytes without breaking compatibility,
 and older readers may not understand codecs introduced later.
 
 Frozen frames in `bindings/python/test/golden` are decoded in CI on x86-64 and
-arm64. Golden frames record the first release that wrote each wire form.
+arm64. Frames from before 0.20 are regression fixtures, not a compatibility
+promise.
 
 From 0.19, lossy codecs choose the stream layout and recipes no longer accept
 `STORE`. The wire format is unchanged, and readers still accept both layouts.

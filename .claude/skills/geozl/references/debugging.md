@@ -94,7 +94,7 @@ Silent outcomes with no error, worth checking when results look wrong:
 | `RuntimeError: OpenZL error code: 61` on `compress` | `CParam.FormatVersion` not set |
 | `RuntimeError: OpenZL error code: 1` with `disable ContentChecksum on the CCtx` in the traceback | quantizer under the default content checksum |
 | `RuntimeError: OpenZL error code: 1` from `QuantSqrt` | recipe without `A` and `B` |
-| `RuntimeError: OpenZL error code: 30`, `Custom decoder transform ... not found!` | `geozl.register_decoders(dctx)` missing, or a codec without a Python decoder (legacy pcodec family, `blocked_transpose_zstd`); decode with `geozl.decompress` instead |
+| `RuntimeError: OpenZL error code: 30`, `Custom decoder transform ... not found!` | `geozl.register_decoders(dctx)` missing, or a codec without a Python decoder (legacy pcodec family); decode with `geozl.decompress` instead |
 | `ValueError: geozl.lossless.delta_w does not support planes` | `DeltaW(width, planes=...)` |
 
 ## 2. Unknown codec IDs in a frame

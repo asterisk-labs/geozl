@@ -14,10 +14,9 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
 
 ## 1. The policy
 
-- **0.14.0 is the baseline.** Every release from 0.14.0 on reads frames written by
-  0.14.0 and by the compatible releases between 0.14.0 and itself (not newer ones).
-- 0.13.x integer lossy frames are outside that promise; a 0.13.x reader refuses a
-  0.14.0 integer `quant_linear` frame rather than misreading it.
+- **0.20.0 is the first compatibility baseline.** Earlier releases were development
+  releases and their frames are not covered by the compatibility contract.
+- During the 0.20 prerelease series, readers and writers may still change together.
 - **Released CTids are never reassigned.** An incompatible layout gets a new CTid, so an
   old reader fails to find a decoder instead of decoding garbage.
 - **Encoders may produce different bytes** in later releases without breaking
@@ -54,7 +53,7 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
 | 0.16.0 (2026-09-01) | new fused codecs `planar_zigzag` and `planar_zigzag_pfor`; `planar>zigzag>...` recipes select them | frames need a 0.16.0 reader; older frames with separate nodes still decode |
 | 0.15.1 | `quant_linear` accepts all-zero domains | no format change |
 | 0.15.0 | coefficient vectors in the frame header comment | frames without coeffs unchanged |
-| 0.14.0 | integer `quant_linear` stores the grid index by default (`STORE=VALUES` keeps the old contents); integer frames need a whole step; `STORE=INDEX` for integer `quant_sqrt`; integer LOG `STORE=INDEX` refused; `pfor` codec added | compatibility baseline; a flag bit that used to be implied is now meaningful, so only the checksum catches its corruption |
+| 0.14.0 | integer `quant_linear` stores the grid index by default (`STORE=VALUES` keeps the old contents); integer frames need a whole step; `STORE=INDEX` for integer `quant_sqrt`; integer LOG `STORE=INDEX` refused; `pfor` codec added | pre-baseline wire change; a flag bit that used to be implied by another field became meaningful |
 | 0.12.0 | predictor headers gain an optional trailing `u32 planes` | 4-byte (13 for `wp_static`) headers still mean one plane |
 | 0.11.0 | `nodata` header is the bit pattern only; `all valid` and `all hole` codes removed; empty tiles refused | 0.10.0 nodata frames using those codes no longer decode |
 | 0.8.1 | predictor readers refuse row width 0 or wider than the tile | forged or low-level frames with such widths from 0.8.0 are refused |

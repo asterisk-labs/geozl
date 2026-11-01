@@ -41,7 +41,6 @@ destroys data. Released CTids are never reassigned.
 | `floatmult` | `0x72D70B` | legacy | numeric -> numeric x 2 | none | retired pcodec port; decoder only |
 | `nodata` | `0x72D70C` | split | numeric -> values + mask | `Nodata(width, value, dtype)` | holes into a validity mask, filled values onward |
 | `pfor` | `0x72D70D` | terminal | numeric -> serial | `Pfor()` | 256-value blocks bit packed with patched exceptions |
-| `blocked_transpose_zstd` | `0x72D70E` | legacy | numeric -> serial | none | retired experiment; decoder only |
 | `planar_zigzag` | `0x72D70F` | fused | numeric -> numeric | `PlanarZigzag(width, planes)` | planar then Zigzag in one pass |
 | `planar_zigzag_pfor` | `0x72D710` | fused | numeric -> serial | `PlanarZigzagPfor(width, planes)` | planar, Zigzag and PFOR, one 256-value block at a time |
 | `med_zigzag` | `0x72D711` | fused | numeric -> numeric | `MedZigzag(width, planes)` | MED then Zigzag in one pass |
@@ -67,7 +66,6 @@ The README documents seventeen codecs: six predictors, four fused codecs,
 | `planar_zigzag_pfor` | 17 | `u64 count`, `u8 element width`, `u32 width`, `u32 planes` |
 | `planar_zigzag_transpose_pivco` | 21 + 7 per lane | `u64 count`, `u8 element width`, `u32 width`, `u32 planes`, `u32 PivCo block size`, then per byte lane `u8 mode` (0 PivCo, 1 PFOR), `u16 weights size`, `u32 payload size` |
 | `transpose_pivco` | 13 + 7 per lane | `u64 count`, `u8 element width`, `u32 PivCo block size`, then the same per-lane records |
-| `blocked_transpose_zstd` | 16 | `u8 version (1)`, `u8 element width`, `u16 reserved`, `u32 block size`, `u64 count` |
 | `quant_linear`, `quant_log` | 10 | `u8 dtype`, `u8 flags`, `f64 step` |
 | `quant_sqrt` | 18 | `u8 dtype`, `u8 flags`, `f64 step`, `f64 offset` |
 | coefficient blob (not a codec) | 6 + 4 per vector + 4 per value | `"GZC1"`, `u8 version (1)`, `u8 vector count`, then per vector `u32 n` and `n` x `i32`; in the frame header comment |
@@ -128,4 +126,5 @@ Part of the wire format (quantizer headers) and of the C API (`geozl_dtype` in `
   frame fails to find a decoder instead of being misread.
 - The pcodec family (`0x72D708` to `0x72D70B`) keeps C decoders registered so old frames
   still decode.
-- `blocked_transpose_zstd` (`0x72D70E`) is retired as a writer; its C decoder remains.
+- `0x72D70E` belonged to a pre-baseline blocked-transpose experiment. It is
+  reserved and has no decoder.
