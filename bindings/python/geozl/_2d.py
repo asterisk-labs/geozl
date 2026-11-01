@@ -335,7 +335,8 @@ def decompress(frame: bytes, *, verify: bool = True,
     Restore the dtype and shape with ``.view(dtype).reshape(shape)``. Set
     ``verify=False`` to skip checksum verification.
 
-    Use ``max_output_size`` to limit allocations when reading untrusted frames.
+    ``max_output_size`` limits the frame's declared final output. OpenZL may
+    allocate additional memory for intermediate streams while decoding.
     """
     lib = _load_lib_full()
     buf = np.frombuffer(frame, np.uint8)

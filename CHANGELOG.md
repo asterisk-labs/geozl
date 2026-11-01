@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Removed the decoder check that compared intermediate stream sizes with final
+  frame outputs. OpenZL graphs may legitimately make an intermediate stream
+  larger than every output.
+
 ## [0.20.0-alpha.2] - 2026-11-01
 
 ### Fixed

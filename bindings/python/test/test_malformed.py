@@ -131,24 +131,6 @@ def _case_quant_offset():
         geozl.lossy.QuantSqrtDecoder, 10, lambda h: struct.pack("<d", -1.0))
 
 
-def _case_lane_count(method):
-    def build(i):
-        arr = (np.arange(257, dtype=np.uint16) + i).reshape(1, 257)
-        return geozl.compress(arr, graph=geozl.graph(arr, method))
-
-    frame, at = _place(build, struct.pack("<Q", 257))
-    frame[at:at + 8] = struct.pack("<Q", 1 << 31)
-    geozl.decompress(bytes(frame), verify=False, max_output_size=514)
-
-
-def _case_transpose_pivco_count():
-    _case_lane_count("id>transpose>pivco")
-
-
-def _case_planar_pivco_count():
-    _case_lane_count("planar>zigzag>transpose>pivco")
-
-
 _CASES = {
     "width_encode": _case_width_encode,
     "width_decode": _case_width_decode,
@@ -156,8 +138,6 @@ _CASES = {
     "quant_dtype": _case_quant_dtype,
     "quant_flags": _case_quant_flags,
     "quant_offset": _case_quant_offset,
-    "transpose_pivco_count": _case_transpose_pivco_count,
-    "planar_pivco_count": _case_planar_pivco_count,
 }
 
 

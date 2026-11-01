@@ -195,6 +195,23 @@ def test_a_python_pfor_frame_reads_in_the_c_decoders(dtype):
     assert np.array_equal(out.view(dtype).reshape(-1, _W), arr)
 
 
+def test_pfor_can_regenerate_an_intermediate_larger_than_the_final_output():
+    # Bitunpack expands each input byte to eight numeric elements before PFOR.
+    # On decode PFOR therefore recreates 2400 bytes on the way to a 300-byte
+    # final stream. Intermediate streams are not bounded by the frame output.
+    src = bytes(300)
+    c = zl.Compressor()
+    tail = geozl.lossless.Pfor()(c, zl.graphs.Store())
+    graph = zl.nodes.Bitunpack(1)(c, tail)
+    c.select_starting_graph(graph)
+    cc = zl.CCtx()
+    cc.ref_compressor(c)
+    cc.set_parameter(zl.CParam.FormatVersion, zl.MAX_FORMAT_VERSION)
+    frame = bytes(cc.compress([zl.Input(zl.Type.Serial, src)]))
+
+    assert geozl.decompress(frame).tobytes() == src
+
+
 @pytest.mark.parametrize("dtype", _PFOR_DTYPES)
 @pytest.mark.parametrize("shape", [(_W, _W), (1, 129), (13, 17)],
                          ids=["square", "tail", "ragged"])
