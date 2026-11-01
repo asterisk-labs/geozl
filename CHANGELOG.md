@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0-alpha.3] - 2026-11-01
+
 ### Changed
 
 - Removed the decoder check that compared intermediate stream sizes with final
@@ -545,7 +547,8 @@ First release.
   `register_decoders` for reading frames back.
 - A libFuzzer harness over the decode path.
 
-[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.20.0-alpha.2...HEAD
+[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.20.0-alpha.3...HEAD
+[0.20.0-alpha.3]: https://github.com/asterisk-labs/geozl/compare/v0.20.0-alpha.2...v0.20.0-alpha.3
 [0.20.0-alpha.2]: https://github.com/asterisk-labs/geozl/compare/v0.20.0-alpha.1...v0.20.0-alpha.2
 [0.20.0-alpha.1]: https://github.com/asterisk-labs/geozl/compare/v0.19.0...v0.20.0-alpha.1
 [0.19.0]: https://github.com/asterisk-labs/geozl/compare/v0.18.0...v0.19.0
