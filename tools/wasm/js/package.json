@@ -1,6 +1,6 @@
 {
   "name": "@asterisk-labs/geozl",
-  "version": "0.20.0-alpha.1",
+  "version": "0.20.0-alpha.2",
   "description": "JavaScript bindings to libgeozl, the geospatial codec extensions for OpenZL.",
   "type": "module",
   "exports": {
