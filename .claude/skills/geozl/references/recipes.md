@@ -103,8 +103,8 @@ Since 0.16.0 the planar recipes do not build separate `planar` and `zigzag` node
 | every other predictor | predictor node, then OpenZL `zigzag`, then the terminal |
 
 Old frames written with separate nodes still decode. The planar PivCo fusion
-needs a 0.19.0 reader. The unreleased `transpose_pivco` codec needs a newer
-reader; 0.19 wrote the same recipe names with standard OpenZL nodes. The other
+needs a 0.19.0 reader. The `transpose_pivco` codec needs a 0.20.0 reader; 0.19
+wrote the same recipe names with standard OpenZL nodes. The other
 fused planar codecs need 0.16.0 or later (`compatibility.md`).
 
 ## 6. Reading a profile and picking a row

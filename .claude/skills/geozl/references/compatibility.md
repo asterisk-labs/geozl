@@ -27,7 +27,7 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
   format 24, which OpenZL 0.2 readers accept, except `pivco`, `transpose>pivco` and
   `sparse`, which write 27 and need an OpenZL 0.3 reader; readers take formats up to 27.
   Frames containing `planar_zigzag_transpose_pivco` also need a GeoZL 0.19 reader.
-  GeoZL 0.20 prerelease writers use `transpose_pivco` (`0x72D713`) for non-planar PivCo
+  GeoZL 0.20 writers use `transpose_pivco` (`0x72D713`) for non-planar PivCo
   recipes; 0.19 readers reject those frames.
 - Python API: semantic versioning, may grow before 1.0. C: stable source API from
   0.13.0, no ABI promise before 1.0.

@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-01
+
+### Added
+
+- A CUDA and Metal batch decoder for one- and two-byte PFOR and PivCo frames,
+  with per-frame host fallback for other codecs.
+- Fixed lane formats for planar and non-planar PivCo recipes, so their layout
+  no longer depends on OpenZL's codec selection.
+
+### Breaking
+
+- Frame compatibility starts with this release. Earlier frames remain useful
+  as regression fixtures but are outside the compatibility contract.
+- Removed the development-only `blocked_transpose_zstd` codec. Its CTid remains
+  reserved.
+- `planar>zigzag>pivco` accepts one-byte elements. Wider elements use
+  `planar>zigzag>transpose>pivco`.
+
 ## [0.20.0-alpha.3] - 2026-11-01
 
 ### Changed
@@ -547,7 +565,8 @@ First release.
   `register_decoders` for reading frames back.
 - A libFuzzer harness over the decode path.
 
-[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.20.0-alpha.3...HEAD
+[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/asterisk-labs/geozl/compare/v0.19.0...v0.20.0
 [0.20.0-alpha.3]: https://github.com/asterisk-labs/geozl/compare/v0.20.0-alpha.2...v0.20.0-alpha.3
 [0.20.0-alpha.2]: https://github.com/asterisk-labs/geozl/compare/v0.20.0-alpha.1...v0.20.0-alpha.2
 [0.20.0-alpha.1]: https://github.com/asterisk-labs/geozl/compare/v0.19.0...v0.20.0-alpha.1

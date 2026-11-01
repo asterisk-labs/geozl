@@ -57,7 +57,7 @@ format 27 and `sparse_num` from 26, so their frames need a reader on OpenZL
 `0x72D712`, introduced as `planar_zigzag_pivco` in 0.19 and now named
 `planar_zigzag_transpose_pivco`. Its frames need a 0.19 reader.
 
-GeoZL 0.20 prerelease writers use CTid `0x72D713` for every non-planar recipe ending in
+GeoZL 0.20 writers use CTid `0x72D713` for every non-planar recipe ending in
 `pivco` or `transpose>pivco`. The affected predictors are `id`, `delta_1d`,
 `delta_w`, `delta_n`, `med`, `average` and `wp_static`. These recipe names
 already existed in 0.19, but that release wrote them as standard OpenZL nodes.
