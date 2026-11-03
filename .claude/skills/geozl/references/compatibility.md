@@ -15,8 +15,8 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
 ## 1. The policy
 
 - **0.20.0 is the first compatibility baseline.** Earlier releases were development
-  releases and their frames are not covered by the compatibility contract.
-- During the 0.20 prerelease series, readers and writers may still change together.
+  releases and their frames are not covered by the compatibility contract. Later readers
+  keep reading frames written by 0.20.0 and by compatible releases after it.
 - **Released CTids are never reassigned.** An incompatible layout gets a new CTid, so an
   old reader fails to find a decoder instead of decoding garbage.
 - **Encoders may produce different bytes** in later releases without breaking
@@ -30,7 +30,7 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
   GeoZL 0.20 writers use `transpose_pivco` (`0x72D713`) for non-planar PivCo
   recipes; 0.19 readers reject those frames.
 - Python API: semantic versioning, may grow before 1.0. C: stable source API from
-  0.13.0, no ABI promise before 1.0.
+  0.13.0 apart from the breaks in section 4, no ABI promise before 1.0.
 
 ## 2. Deploying readers and writers
 
@@ -46,6 +46,8 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
 
 | Version | Change | Consequence |
 | --- | --- | --- |
+| after 0.20.0 | decoders for `0x72D708` to `0x72D70B` removed | frames using them no longer decode; the CTids stay reserved |
+| 0.20.0-alpha.2 (2026-11-01) | `blocked_transpose_zstd` decoder removed | frames using `0x72D70E` no longer decode; the CTid stays reserved |
 | 0.20.0-alpha.1 (2026-10-31) | non-planar `pivco` recipes use `transpose_pivco` (`0x72D713`) | 0.19 readers reject new frames; current readers retain the 0.19 standard-node path |
 | 0.19.0 (2026-10-08) | new `planar_zigzag_pivco` codec and `sparse` terminal | those frames need a 0.19 reader; PivCo and sparse frames use OpenZL format 27 |
 | 0.19.0 (2026-10-08) | lossy recipes no longer accept `STORE`; stream layout is automatic | no wire change; readers still decode both layouts |
@@ -63,7 +65,11 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
 
 | Version | Old | New |
 | --- | --- | --- |
+| after 0.20.0 | `geozl_node_binoffset`, `geozl_node_intmult`, `geozl_node_floatquant`, `geozl_node_floatmult`, and their `GEOZL_CTID_*` enumerators | removed |
+| 0.20.0 | `GEOZL_CTID_BLOCKED_TRANSPOSE_ZSTD` | removed |
+| 0.19.0 | `geozl_node_blocked_transpose_zstd` | removed |
 | 0.19.0 | lossy recipe `STORE=...`; `Noise.recipe(..., store=...)` | removed; layout is automatic |
+| 0.17.0 | `geozl_node_nodata(c, width, mode, valueBits)` | `dtype` and `radius` added |
 | 0.14.0 | `store_lo` terminal | removed; `unknown method` |
 | 0.10.0 | `geozl.compress(tile, method=..., error=..., nodata=...)` | `g = geozl.graph(tile, method, error=..., nodata=...)`, then `geozl.compress(tile, graph=g)` |
 | 0.10.0 | `geozl.decompress(frame, dtype, width)` | `geozl.decompress(frame).view(dtype).reshape(shape)` |
@@ -81,12 +87,12 @@ Code or docs mentioning `max_error=` as a Python argument, `method=` on `compres
 
 ## 5. Golden frames
 
-- `bindings/python/test/golden/frames/*.zl` are released frames: 28 written by 0.13.0
+- `bindings/python/test/golden/frames/*.zl` are 49 released frames: 28 written by 0.13.0
   (all six predictors at 1 and 3 planes, `id`, `deinterleave`, `nodata` with an int32
-  sentinel and float32 NaN, float quantizers) and 6 by 0.14.0 (integer quantizer frames in
+  sentinel and float32 NaN, float quantizers), 6 by 0.14.0 (integer quantizer frames in
   both storage modes, including `planar>zigzag>pfor`, then written with separate nodes),
-  plus 9 value-layout float frames written by 0.18.0.
-  As of 0.16.0 no golden frame uses the fused `0x72D70F` or `0x72D710` CTids.
+  9 value-layout float frames by 0.18.0 (fused `0x72D70F`), 1 by 0.19.0 (`0x72D712`) and
+  5 by 0.20.0-alpha.1 (`0x72D713`). No golden frame uses `0x72D710` or `0x72D711`.
 - `manifest.json` records per frame: `graph`, `error`, `nodata`, `dtype`, `shape`,
   `sha256_frame`, `sha256_decoded`, `frame_bytes` (0.13.0 entries only), and `written_by`
   for frames added after the 0.13.0 set. The manifest is frozen on purpose.
@@ -101,8 +107,7 @@ Checklist from `docs/compatibility.md`:
 
 1. Freeze a golden frame in every wire form the change touches, including the one being
    retired, before the change lands.
-2. Confirm an older reader **refuses** the new frame rather than misreading it. Trace the
-   actual predicate; do not assume.
+2. Confirm an older reader **refuses** the new frame rather than misreading it.
 3. Decide whether the change needs a new CTid or only widens which flag values are legal,
    and record the reasoning in `docs/compatibility.md`, not only in the changelog.
 4. State in the changelog entry which direction of compatibility survives.

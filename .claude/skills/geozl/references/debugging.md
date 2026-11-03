@@ -1,7 +1,6 @@
 # Debugging
 
-Messages below were captured from GeoZL 0.19.0 with OpenZL 0.3. Numeric
-`ZL error code` values come from OpenZL and may move; match on the text.
+Numeric `ZL error code` values come from OpenZL and may move; match on the text.
 
 ## Contents
 
@@ -16,11 +15,9 @@ Messages below were captured from GeoZL 0.19.0 with OpenZL 0.3. Numeric
 
 ### Building a graph
 
-`geozl.profile` raises the Python-side `ValueError` and `OverflowError` rows below, but
-never the `RuntimeError` rows that come from C (full recipe grammar, SQRT fit, grid
-limits, element width): it skips every recipe that fails, prints `no compatible graphs`
-when none survive, and returns an empty list. Call `geozl.graph` with the same arguments
-to see the reason.
+`geozl.profile` raises the Python-side `ValueError` and `OverflowError` rows below. A
+recipe that fails in C (full recipe grammar, SQRT fit, grid limits, element width) is
+skipped. When none survive, `profile` raises `RuntimeError` with the last reason.
 
 | Message (excerpt) | Cause | Fix |
 | --- | --- | --- |
@@ -30,7 +27,7 @@ to see the reason.
 | `ValueError: N planes do not split M elements into whole rows of W` | bad `planes` or `width` | fix the geometry |
 | `ValueError: method must be a recipe name` | `method` is not a non-empty `str` | pass a recipe string |
 | `RuntimeError: geozl.graph failed (...): unknown method "planar>entropy"` | misspelled recipe | copy from `profile` rows; predictors need `>zigzag>`; `id` and `delta_1d` must not have it; `store_lo` is gone |
-| `RuntimeError: ... does not apply to 1-byte elements; the transpose terminals need 2 to 8, categorical needs 1 or 2, pivco needs 1` | terminal vs element width | choose another terminal (`recipes.md` section 4) |
+| `RuntimeError: ... does not apply to 1-byte elements; the transpose terminals need 2 to 8, categorical needs 1 or 2, and pivco without transpose needs 1` | terminal vs element width | choose another terminal (`recipes.md` section 4) |
 | `ValueError: prior 'x' is not one of (...) or None` | bad `prior` | `planar med delta_w delta_n average wp_static delta_1d none` or `None` |
 | `ValueError: reps must be at least 1` | `reps=0` | use `reps >= 1` |
 | `ValueError: the quantizers do not support dtype bool` | lossy on an unsupported dtype | cast to one of the 11 geozl dtypes |
@@ -41,7 +38,7 @@ to see the reason.
 | `RuntimeError: ... the local variance does not grow with the signal, so this is not shot noise` | SQRT fit on data without signal-dependent noise | use LINEAR or LOG, or give `A` and `B` |
 | `RuntimeError: ... a shot bound is defined at or above -A/B, which is -4, and this raster reaches -10` | data below the SQRT model's domain | shift data or choose another family |
 | `RuntimeError: ... is at or below what this type rebuilds to, which bottoms out near ...%` | LOG bound finer than float precision | loosen the bound or go lossless |
-| `OverflowError: Python integer -9999 out of bounds for uint16` | sentinel outside the dtype | choose a representable sentinel |
+| `OverflowError: nodata does not fit the dtype` | sentinel outside the dtype | choose a representable sentinel |
 | `ValueError: nodata 3.5 is not a whole number, it cannot be a sentinel on int16` | fractional sentinel on integers | use an integer sentinel |
 | `ValueError: a half float carries no sentinel, NaN still works on one` | sentinel on `float16` | use NaN, or store as float32 |
 | `ValueError: nodata needs a dtype geozl knows` | sentinel on `bool` and similar | cast first |
@@ -63,7 +60,8 @@ to see the reason.
 
 Silent outcomes with no error, worth checking when results look wrong:
 
-- NaN turned into `0.0`: lossy graph without NaN mode (pass `nodata=float("nan")`).
+- NaN turned into `0.0`: lossy graph without NaN mode (pass `nodata=float("nan")`). SQRT
+  gives `-A/B`, clamped to 0 without negatives in the build raster.
 - `inf` turned into a large finite number: lossy graphs never treat infinity as a hole,
   NaN mode included; replace it with a declared sentinel.
 - Lossy tiles with real negatives or out-of-range values accepted: the build raster
@@ -94,7 +92,7 @@ Silent outcomes with no error, worth checking when results look wrong:
 | `RuntimeError: OpenZL error code: 61` on `compress` | `CParam.FormatVersion` not set |
 | `RuntimeError: OpenZL error code: 1` with `disable ContentChecksum on the CCtx` in the traceback | quantizer under the default content checksum |
 | `RuntimeError: OpenZL error code: 1` from `QuantSqrt` | recipe without `A` and `B` |
-| `RuntimeError: OpenZL error code: 30`, `Custom decoder transform ... not found!` | `geozl.register_decoders(dctx)` missing, or the frame uses a retired CTid |
+| `RuntimeError: OpenZL error code: 30`, `Custom decoder transform ... not found!` | `geozl.register_decoders(dctx)` missing, a C-only codec (read it with `geozl.decompress`), or a retired CTid |
 | `ValueError: geozl.lossless.delta_w does not support planes` | `DeltaW(width, planes=...)` |
 
 ## 2. Unknown codec IDs in a frame

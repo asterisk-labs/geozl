@@ -20,11 +20,12 @@ the test suites.
 
 ```text
 core/
-  include/geozl/        public headers: geozl.h, ctids.h, dtype.h, coeffs.h, export.h, quant_*_params.h
+  include/geozl/        public headers: geozl.h, ctids.h, dtype.h, coeffs.h, export.h, gpu.h, quant_*_params.h
   src/<codec>/          encode_<codec>_{kernel,binding}.{c,h}, decode_..., spec.md
   src/2d/2d.c           recipe grammar, graph builder, geozl_2d_* entry points, bench
+  src/gpu/              GPU decode runtime (GEOZL_BUILD_GPU)
   src/lossy/            recipe parse, SQRT fit, resolve, domain check
-  src/common/           simd.c/h, scan.h, vprefix.h, vshift.h, raster.h, endian.h, half.h, recipe_parse.h, graph_num1to{1,2}.h
+  src/common/           simd.c/h, scan.h, vprefix.h, vshift.h, raster.h, endian.h, fp.h, half.h, recipe_parse.h, graph_num1to{1,2}.h
   src/encoder_registry.c  geozl_node_* builders
   src/decoder_registry.c  kDecoders table, geozl_register_decoders
   CMakeLists.txt        codec discovery by folder convention
@@ -36,6 +37,9 @@ bindings/python/
   geozl/lossless/ lossy/  one module per exposed codec
   test/                 pytest suites, golden/ frames and manifest
   pyproject.toml        hatchling, version from ../../VERSION
+bindings/r/ bindings/julia/  R and Julia packages
+tools/wasm/             wasm64 JavaScript package
+gpu/                    Slang kernels for the GPU decoder
 test/*.c                standalone C kernel tests (no OpenZL)
 fuzz/                   libFuzzer harnesses, replay/ inputs kept in git
 docs/                   static site (no build step), compatibility.md, c-api.md, adding-a-codec.md, notebooks/
@@ -67,6 +71,7 @@ mypy
 | `make test-san` | both suites under ASan and UBSan in `core/build-san` |
 | `make exhaustive` | C tests over every value of a type (`GEOZL_EXHAUSTIVE=1`, minutes) |
 | `make fuzz`, `fuzz-check`, `fuzz-replay`, `fuzz-build`, `clean-fuzz` | libFuzzer runs, CI-style check, replay of `fuzz/replay` and cached corpora |
+| `make wasm`, `wasm-test`, `r`, `r-vendor`, `r-check`, `julia` | the other bindings (`make help`) |
 | `make install PREFIX=/opt/x` | `cmake --install` |
 | `make clean` | remove builds, staged libraries, caches |
 
@@ -97,7 +102,7 @@ otherwise Python keeps loading the previously staged libraries.
 | `test_golden.py` | frozen released frames still decode to the recorded hashes |
 | `test_malformed.py`, `test_headers.py` | decoders refuse forged headers and streams |
 | `test_catalog.py` | the codec catalog agrees across `ctids.h`, README, `docs/docs.html`, `docs/assets/js/main.js`, `docs/codecs/*.html` |
-| `test_docs.py` | `docs/api-high.html` signatures equal the source signatures; notebook mentions `profile`, `graph`, `compress`, `decompress`; no `max_error` or `api-low` in maintained docs; local links resolve |
+| `test_docs.py` | `docs/api-high.html` signatures equal the source signatures; notebook mentions `profile`, `graph`, `compress`, `decompress`; no `max_error` or `api-low` in maintained docs; local links resolve; `SKILL.md` names `VERSION` and its links resolve |
 | `test_release.py` | `VERSION` has a `## [X.Y.Z] - date` entry and compare links in `CHANGELOG.md` |
 | `test_licenses.py` | `licenses/` copies equal the vendored upstream texts and `NOTICE` lists them |
 | `test_simd.py`, `test_ffi.py` | SIMD capping via `GEOZL_SIMD` in fresh processes; library lookup errors |
@@ -136,7 +141,7 @@ Checklist (from `docs/adding-a-codec.md`):
 - [ ] `core/CMakeLists.txt` only for sources outside the naming convention (after the
       loop, next to the `wp_static` trainer, spec parsers, SQRT fit and `common/simd.c`).
 - [ ] `spec.md`: enough for a reader to invert the codec without the encoder
-      (`### Inputs`, `### Codec Header`, `### Decoding`, `### Outputs` for simple codecs).
+      (`## Inputs`, `## Codec header`, `## Decoding`, `## Output` for simple codecs).
 - [ ] Codec header: the only channel from encoder to decoder. Write it with
       `ZL_Encoder_sendCodecHeader`, read with `ZL_Decoder_getCodecHeader`, keep it minimal,
       little endian (`common/endian.h`).
@@ -197,7 +202,7 @@ packing, so the cross-reader test can compare two independent bindings.
 
 - `docs/` contains directly maintained static HTML, CSS and JavaScript. The
   landing page has its own styles; the other pages share `style.css` and
-  `migration.css`. Pages open from disk. Preview with
+  `dark.css`. Pages open from disk. Preview with
   `python3 -m http.server 8000 --directory docs`.
 - The codec catalog appears five times: `ctids.h` (checked one way, a codec may exist in
   C before it is documented), the README codec table, the cards in `docs/docs.html`, the
@@ -224,7 +229,8 @@ packing, so the cross-reader test can compare two independent bindings.
   `add fused planar Zigzag codecs`, `fix FULL=OFF planar PFOR tests`.
 - `CHANGELOG.md` follows Keep a Changelog with `Added`, `Changed`, `Fixed`, `Removed`,
   `Breaking`; wire-format entries say which compatibility direction survives.
-- `VERSION` is the only version source; `.githooks/pre-commit` validates its format.
+- `VERSION` is the only version source; `.githooks/pre-commit` validates its format once
+  `git config core.hooksPath .githooks` is set.
 
 ## 9. CI, fuzzing and releases
 
@@ -237,6 +243,9 @@ CI (`.github/workflows/ci.yml`) on every push and pull request:
 - Strict build with warnings as errors.
 - ISA matrix: scalar (`-DGEOZL_NO_SIMD`), sse2 and avx2 (runtime cap `GEOZL_SIMD`), neon (macOS).
 
+Platforms (`platforms.yml`, alpha): Linux arm64, macOS x86-64 and Windows, where OpenZL
+publishes no Python wheel, plus wasm and R on Windows.
+
 Fuzzing (`fuzz.yml`): replay of `fuzz/replay` on relevant pushes and pull requests; nightly
 `make fuzz-check` at 420 seconds per target with a cached corpus. Targets: `decode`,
 `binding` (valid frames around fuzzed headers), `roundtrip`, `lossy_recipe`,
@@ -245,8 +254,8 @@ Fuzzing (`fuzz.yml`): replay of `fuzz/replay` on relevant pushes and pull reques
 Releases (`release.yml`) on tags `v*`: the tag must equal `VERSION`; wheels for
 manylinux 2.28 x86-64 and macOS 11 arm64 are built, repaired, smoke tested (import, SIMD
 report, profile, graph, compress, decompress round trip) and published to PyPI with
-trusted publishing, plus a GitHub release. Record the release in `CHANGELOG.md` and
-`VERSION` first.
+trusted publishing, plus a GitHub release with the wheels and native `libgeozl` archives;
+the wasm package then goes to npm. Record the release in `CHANGELOG.md` and `VERSION` first.
 
 Security: malformed frames that crash, hang or exhaust resources are vulnerabilities.
 Report privately to `hello@asterisk.coop` with `[geozl security]` in the subject.

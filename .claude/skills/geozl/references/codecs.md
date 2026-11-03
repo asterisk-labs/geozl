@@ -11,7 +11,7 @@ The CTid is a codec's only identity on the wire; names never travel. Every CTid 
 3. Header layouts
 4. Decoding formulas
 5. dtype codes
-6. Retired and legacy CTids
+6. Retired CTids
 
 ## 1. CTid bands and helpers
 
@@ -67,7 +67,7 @@ The README documents seventeen codecs: six predictors, four fused codecs,
 | coefficient blob (not a codec) | 6 + 4 per vector + 4 per value | `"GZC1"`, `u8 version (1)`, `u8 vector count`, then per vector `u32 n` and `n` x `i32`; in the frame header comment |
 
 Quantizer flags: bit 0 `NONNEGATIVE` (clamp at zero); bit 1 `STORE_VALUES`
-(integer LOG, integer SQRT when the index does not fit, and legacy frames); and,
+(integer LOG, integer SQRT when the index does not fit, and 0.14 to 0.18 frames); and,
 for `quant_sqrt`, bit 2 `DECODE_F32` (rebuild f32 indices in binary32).
 
 Width and planes must be nonzero and each plane must hold whole rows, or the frame is
@@ -114,7 +114,7 @@ Part of the wire format (quantizer headers) and of the C API (`geozl_dtype` in `
 | 4 | `int8` | 10 | `float64` |
 | 5 | `int16` | | |
 
-## 6. Retired and legacy CTids
+## 6. Retired CTids
 
 - `0x72D780` was the first lossy CTid: `quant_linear` with a 9-byte header in 0.7.x
   (the `ctids.h` comment calls it the combined `quant` codec). In 0.8.0 the quantizers

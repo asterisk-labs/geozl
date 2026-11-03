@@ -70,10 +70,10 @@ bit for bit through their integer representation.
 | `field_lz` | OpenZL field-aware LZ on the numeric stream | 1, 2, 4, 8 | catches repetition entropy misses |
 | `zstd` | numeric to serial little endian, then Zstandard | 1, 2, 4, 8 | |
 | `categorical` | one pass counts the dominant value's share: all equal goes to `constant`, above 0.95 to `field_lz`, else `entropy`; the frame records the arm | 1, 2 (refused above at build) | cloud masks sit near 0.97, land cover near 0.50 |
-| `transpose>entropy` | split elements into byte lanes (low byte first), entropy per lane | 2, 4, 8 (refused at 1) | the byte shuffle of blosc and EOPF |
-| `transpose>zstd` | byte lanes, Zstandard per lane | 2, 4, 8 (refused at 1) | `id>transpose>zstd` is the EOPF-style baseline |
+| `transpose>entropy` | split elements into byte lanes (low byte first), entropy per lane | 2, 4, 8 (refused at 1) | the byte shuffle of blosc |
+| `transpose>zstd` | byte lanes, Zstandard per lane | 2, 4, 8 (refused at 1) | `id>transpose>zstd` is the blosc-style baseline |
 | `pivco` | the fixed GeoZL lane codec on one byte: PivCo Huffman, or byte PFOR when it is smaller | 1 only (refused above at build) | writes CTid `0x72D713`, except the fused planar recipe; writes OpenZL format 27 |
-| `transpose>pivco` | split elements into byte lanes and choose PivCo or byte PFOR per lane | 2, 4, 8 (refused at 1) | the layout does not depend on OpenZL selecting FSE, bit-pack or store; writes OpenZL format 27 |
+| `transpose>pivco` | split elements into byte lanes and choose PivCo or byte PFOR per lane | 2, 4, 8 (refused at 1, except `planar>zigzag>transpose>pivco`, which compresses 1-byte elements but is not in the grid) | the layout does not depend on OpenZL selecting FSE, bit-pack or store; writes OpenZL format 27 |
 | `sparse` | `sparse_num` when one value has a strict majority; otherwise `entropy`, or the numeric graph above 2 bytes | 1, 2, 4, 8 | useful for class maps; writes OpenZL format 27 |
 | `pfor` | blocks of 256 packed at the bit width with the smallest estimated size, overflowing values patched as exceptions | 1, 2, 4, 8 | very fast decode; cost grows with residual magnitude, so it pairs well with integer quantizer indices |
 
@@ -132,8 +132,8 @@ for row in front(rows):
 - Use `reps` of 3 to 5 and compare speeds within one run on one machine.
 - Any row's `graph` string is valid for `geozl.graph`.
 - Reference point from the project docs: a 512 x 512 int16 Copernicus GLO-30 tile
-  (Mont Blanc) reaches 4.50x lossless with `planar>zigzag>transpose>entropy`, and
-  9.93x with `error=4`.
+  (French Alps near Albertville) reaches 4.50x lossless with `planar>zigzag>transpose>entropy`, and
+  11.12x with `error=4`.
 
 ## 7. Heuristics
 

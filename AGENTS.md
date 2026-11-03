@@ -10,7 +10,7 @@ submodule in `extern/openzl`.
   explicitly requires an OpenZL upgrade.
 - Treat files under `core/build*`, Python caches, and staged native libraries
   under `bindings/python/geozl/_lib` as build artifacts, not source. The HTML,
-  CSS, JavaScript, and media under `docs/` are hand-maintained source files.
+  CSS, JavaScript, and media under `docs/` are source files.
 - Preserve frame compatibility. Never renumber or reuse a shipped CTid. A wire
   format change needs a new CTid or an explicitly compatible decoder path, plus
   an updated codec spec, compatibility documentation, and golden-frame coverage.

@@ -68,8 +68,9 @@ change. Frames from 0.14 to 0.18 may hold values where the table says index (the
 - Integers: `step = floor(2V)`, minimum 1. The real integer bound is `floor(step / 2)`:
   `error=2.7` gives step 5 and a worst error of 2; any `V < 0.5` gives step 1, which is
   lossless. Integers rebuild in integer arithmetic, exact up to `uint64` and `int64`.
-- Floats: `step = 2 * (V - 2 * eps * maxAbs)`, with `eps` of `2^-11`, `2^-24`,
-  `2^-53` for f16, f32, f64. The step depends on the largest magnitude of the build
+- Floats: `step = 2 * (V - 2 * eps * maxAbs - sub)`, with `eps` of `2^-11`, `2^-24`,
+  `2^-53` for f16, f32, f64, and `sub` of `2^-25`, `2^-150`, 0 for the flat rounding of
+  subnormals. The step depends on the largest magnitude of the build
   raster, so graphs built from different rasters can land on different grids (each
   still within the bound). Refused when the step is not positive (`V` below the type's
   rounding at that magnitude) or the index would overflow the stream.
@@ -95,7 +96,8 @@ change. Frames from 0.14 to 0.18 may hold values where the table says index (the
   `step` and `offset`; `a` and `b` cannot be recovered from a frame.
 - Integers: `step = c / 2`, independent of the raster.
 - Floats: `step` is `c` minus rounding charges measured over the raster range;
-  f32 may decode in binary32 arithmetic when that costs at most a quarter of the budget.
+  f32 may decode in binary32 arithmetic when that costs at most a quarter of the budget;
+  f16 always does, and the resolver charges it.
 - Refused when the raster reaches below `-A/B` (`a shot bound is defined at or above
   -A/B ...`) or needs more levels than the arithmetic or element can resolve.
 
@@ -117,7 +119,7 @@ A declared sentinel (`nodata=value`) is ignored by the check in later tiles, **b
 when the plan is resolved**: a sentinel inside the build raster widens LINEAR and LOG
 domains, drops the non-negative clamp, and makes SQRT refuse values below `-A/B`. Build
 from valid samples (`nodata-and-planes.md` section 3). Non-finite values are ignored by
-the check too, and that is the NaN trap in section 6.
+the check too (only LOG counts `-inf` as a negative), and that is the NaN trap in section 6.
 
 Build patterns that satisfy the domain:
 
@@ -139,19 +141,20 @@ curve fitted on misaligned rows).
 
 - **Zero** reconstructs exactly in LINEAR and LOG (LOG loses the sign of `-0.0`). SQRT has
   no special case for zero: it lands on the nearest level, within the bound but not
-  necessarily zero (float32 with `A=11,B=1` rebuilt `0` as `1.2496`; the zero clamp for
-  non-negative rasters only removes negative reconstructions).
+  necessarily zero (float32 with `SQRT:MAX_ERROR=0.5N,A=11,B=1` rebuilds `0` near `1.25`;
+  the zero clamp for non-negative rasters only removes negative reconstructions).
 - **Non-negative data** stays non-negative: when the build raster has no negatives the
   decoder clamps at zero (the SQRT grid is anchored at `-offset` and would otherwise dip
   below zero near the bottom).
-- **NaN** is outside every guarantee. Without a `nodata` stage all three families
-  reconstruct NaN as `0.0`, silently (verified on float32). NaN handling is decided from
-  the build raster: if it contained NaN the graph routes NaN through the mask
-  automatically; if not, pass `nodata=float("nan")` explicitly.
-- **Infinity** is not refused either, and NaN mode does not cover it: a float32 `+inf`
-  came back as a large finite value in every family, the exact value depending on the
-  recipe. Replace infinities with a sentinel declared as `nodata=`, or keep them out of
-  lossy graphs.
+- **NaN** is outside every guarantee. A later tile holding NaN or infinity under a lossy
+  graph with no `nodata` stage is not refused. LINEAR and LOG reconstruct NaN as `0.0`;
+  SQRT gives `-A/B`, clamped to 0 without negatives in the build raster. NaN handling is
+  decided from the build raster: if it contained NaN the graph routes NaN through the
+  mask automatically; if not, pass `nodata=float("nan")` explicitly.
+- **Infinity** is not covered by NaN mode: `+inf` comes back as a large finite value in
+  every family, the exact value depending on the recipe, and `-inf` comes back finite
+  too. The one refusal is `-inf` under LOG on a graph built without negatives. Replace
+  infinities with a sentinel declared as `nodata=`, or keep them out of lossy graphs.
 - **Subnormal floats** (LOG): encoded, but no relative bound is guaranteed.
 - **NoData sentinels** are protected from lossy collisions. See
   `nodata-and-planes.md` section 2.

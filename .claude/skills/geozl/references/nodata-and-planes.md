@@ -20,7 +20,7 @@ from the raster passed in:
 | You pass | Mode | Notes |
 | --- | --- | --- |
 | `None`, float raster containing NaN now | NaN | lossless keeps each payload; lossy masks every NaN |
-| `None`, anything else | none | no nodata stage; a later NaN in a lossless graph still round-trips bit for bit, in a lossy graph it decodes as `0.0` |
+| `None`, anything else | none | no nodata stage; a later NaN in a lossless graph still round-trips bit for bit; in a lossy graph it is not refused and decodes as `0.0` (SQRT gives `-A/B`, clamped to 0 without negatives) |
 | `float("nan")`, `np.nan`, `np.float64("nan")` | NaN | Python `float` NaN, independent of the raster |
 | `np.float32("nan")` | **sentinel** | not a Python `float`, so it matches only that exact NaN bit pattern; other NaN payloads are not holes |
 | a number | sentinel | compared by bit pattern at the raster dtype |
@@ -34,9 +34,12 @@ Sentinel rules (`nodata_bits`):
 - It crosses into C as bits, so `int64` and `uint64` sentinels above `2^53` work.
 - Floats compare bits: `-0.0` and `0.0` are different sentinels.
 
-Declaring a sentinel that a tile does not contain costs almost nothing: the mask is all
-valid and codes to a few bytes. For lossless graphs declaring it for a whole product is
-safe; for lossy graphs keep the sentinel out of the build raster (section 3).
+On a lossless graph, a declared sentinel that a tile does not contain costs almost
+nothing: the mask is all valid and codes to a few bytes, so declaring it for a whole
+product is safe. On a lossy graph, valid samples within the quantizer's reach of the
+sentinel write side codes into the mask, so a sentinel inside the data range can add real
+size even when no sample equals it. A sentinel far outside the data stays cheap. Keep it
+out of the build raster (section 3).
 
 ## 2. What the nodata codec does
 
@@ -83,7 +86,7 @@ The codec refuses an empty tile. It runs before the quantizer and the predictor.
   sentinel included: a `-9999` sentinel widens LINEAR and LOG domains, removes the
   non-negative clamp (so tiles with real negatives are accepted), and makes SQRT refuse
   (`a shot bound is defined at or above -A/B ...`). Build from the valid samples, which
-  keeps holes exact and the domain honest (verified for all three families):
+  keeps holes exact and the domain to valid samples:
 
   ```python
   valid = raster[raster != -9999.0]      # 1-D, sentinel free
@@ -100,7 +103,8 @@ The codec refuses an empty tile. It runs before the quantizer and the predictor.
   g = geozl.graph(product, best, error=0.5, nodata=float("nan"))
   ```
 
-  Without it, a product whose build raster has no NaN will turn later NaNs into `0.0`.
+  Without it, a later NaN under a build raster with no NaN is not refused. It decodes as
+  `0.0`; SQRT gives `-A/B`, clamped to 0 without negatives.
 - Filled values stay inside the grid because the fill copies valid neighbours.
 
 ## 4. Low-level `Nodata` node

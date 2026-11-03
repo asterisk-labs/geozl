@@ -62,7 +62,7 @@ recipes that fail. Treat these as starting points, not fixed recommendations.
 | Decode speed matters most | `planar>zigzag>pfor` (fused codec), `delta_1d>pfor` |
 | 4 or 8 byte ints and floats | `...>transpose>entropy`, `...>transpose>zstd`, `...>zstd`, `...>field_lz`, `...>pfor`, never plain `>entropy` |
 | Masks, classes, land cover (1 or 2 bytes) | `id>categorical` or a predictor plus `categorical` |
-| blosc or EOPF style baseline to beat | `id>transpose>zstd` |
+| blosc style baseline to beat | `id>transpose>zstd` |
 | `(B, Y, X)` cube | pass the cube, `planes=B` is inferred; `width=Y*X, planes=1` predicts across bands |
 | Absolute tolerance in data units | `error=V` (LINEAR) |
 | Values spanning decades | `error="P%"` (LOG) |
@@ -74,22 +74,25 @@ recipes that fail. Treat these as starting points, not fixed recommendations.
 - `decompress` returns flat `uint8`; dtype and shape are external metadata. Restore them
   with `.view(dtype).reshape(shape)` and do not guess either value.
 - Recipe spelling is exact. Copy a recipe from `profile`, but remember that it skips
-  failures. `transpose>*` needs 2- to 8-byte elements, `categorical` accepts at most
-  2-byte elements, and plain `entropy` fails during compression above 2 bytes.
+  failures. `transpose>*` needs 2- to 8-byte elements (only `planar>zigzag>transpose>pivco`
+  also runs at 1 byte), `categorical` accepts at most 2-byte elements, and plain `entropy`
+  fails during compression above 2 bytes.
 - A `Graph` fixes the exact dtype and predictor geometry, while `compress` does not check
   the ndarray shape. Keep one graph per intended column count and plane layout. A graph
   is neither thread-safe nor picklable.
 - Lossy parameters and their accepted domain are resolved from the raster passed to
   `graph`. Build from representative valid data, pass the same `error` to `profile` and
   `graph`, and declare NoData explicitly for product-wide use. NaN and infinity are
-  outside the lossy guarantees unless handled before compression.
+  outside the lossy guarantees, and a later tile holding them is not refused, apart from
+  LOG refusing `-inf` on a graph built without negatives. Handle them
+  before compression.
 - Released CTids and wire layouts are compatibility contracts. GeoZL 0.16 planar recipes
   use fused CTids that older readers do not know, so upgrade readers before writers.
   Do not use frame-byte hashes as cross-version content identity.
 - Low-level `openzl.ext` compression needs the current format version and must disable
   the content checksum for quantizers. `geozl.register_decoders` registers only codecs
   exposed by the Python packages; the high-level C-backed `geozl.decompress` also knows
-  legacy and C-only codecs.
+  the C-only `planar_zigzag_transpose_pivco` and `transpose_pivco`.
 - Keep checksum verification enabled and set `max_output_size` for untrusted frames.
 
 ## Reference map
@@ -104,7 +107,7 @@ files in the repository and is scoped to GeoZL 0.20.0.
 | Bounded error: LINEAR, LOG, SQRT, what the stream stores, domains, `fit_noise` | [references/lossy.md](references/lossy.md) |
 | NoData, NaN, sentinels, planes and cubes | [references/nodata-and-planes.md](references/nodata-and-planes.md) |
 | `openzl.ext` graphs with geozl nodes, complex rasters, raw PFOR | [references/low-level-graphs.md](references/low-level-graphs.md) |
-| Codec catalog: CTids, streams, header layouts, legacy codecs | [references/codecs.md](references/codecs.md) |
+| Codec catalog: CTids, streams, header layouts, retired CTids | [references/codecs.md](references/codecs.md) |
 | C API (`geozl.h`), linking, compiled examples | [references/c-api.md](references/c-api.md) |
 | Frame compatibility, version history, golden frames, wire changes | [references/compatibility.md](references/compatibility.md) |
 | Repository layout, build, tests, fuzzing, adding a codec, CI, release | [references/contributing.md](references/contributing.md) |

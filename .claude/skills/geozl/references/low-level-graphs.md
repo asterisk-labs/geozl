@@ -12,10 +12,9 @@ an `openzl.ext` graph yourself. Sources: `bindings/python/geozl/lossless/`,
 1. How composition works
 2. geozl nodes
 3. Compression context settings you must set
-4. Examples (all verified on 0.18.0)
+4. Examples
 5. Decoding
 6. Raw payload helpers
-7. Codecs without a Python node
 
 ## 1. How composition works
 
@@ -42,6 +41,7 @@ parameterizes unbound ones for you. OpenZL built-ins follow the same pattern:
 | `geozl.lossless.PlanarZigzag(width, planes=1)` | numeric | numeric | already zigzagged |
 | `geozl.lossless.PlanarZigzagPfor(width, planes=1)` | numeric | **serial** | successor must accept serial, e.g. `zl.graphs.Store()` |
 | `geozl.lossless.Med(width, planes=1)` | numeric | numeric | |
+| `geozl.lossless.MedZigzag(width, planes=1)` | numeric | numeric | already zigzagged |
 | `geozl.lossless.Average(width, planes=1)` | numeric | numeric | |
 | `geozl.lossless.WpStatic(width, planes=1)` | numeric | numeric | trains weights per stream |
 | `geozl.lossless.Deinterleave()` | numeric | numeric x 2 | even and odd positions; both lanes go to the one successor |
@@ -52,8 +52,8 @@ parameterizes unbound ones for you. OpenZL built-ins follow the same pattern:
 | `geozl.lossy.QuantSqrt(recipe, dtype)` | numeric | numeric | recipe **must** carry `A=` and `B=` (use `fit_noise(...).recipe(k)`) |
 
 Low-level quantizers resolve their grid from each stream they encode. There is no
-frozen domain and no cross-tile check as in `geozl.graph`; float LINEAR `INDEX` grids
-can differ between tiles while every tile keeps its bound.
+frozen domain and no cross-tile check as in `geozl.graph`; float LINEAR grids can differ
+between tiles while every tile keeps its bound.
 
 Each node class has a matching decoder (`PlanarDecoder`, `QuantLinearDecoder`, ...),
 all registered by `geozl.register_decoders`.
@@ -73,7 +73,7 @@ Decoding without `geozl.register_decoders(dctx)` fails with error code 30.
 
 Input goes in as one numeric stream: `zl.Input(zl.Type.Numeric, np.ascontiguousarray(arr).reshape(-1))`.
 
-## 4. Examples (all verified on 0.18.0)
+## 4. Examples
 
 ### Helpers used below
 

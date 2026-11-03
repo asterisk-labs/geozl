@@ -1,8 +1,6 @@
 # Python API
 
-Everything here is `geozl` 0.19.0 as implemented in `bindings/python/geozl/_2d.py`,
-`_coeffs.py`, `_dtype.py` and `_simd.py`. The examples and error behaviours were run
-against a 0.19.0 build.
+Sources: `bindings/python/geozl/_2d.py`, `_coeffs.py`, `_dtype.py` and `_simd.py`.
 
 ## Contents
 
@@ -23,8 +21,8 @@ against a 0.19.0 build.
 pip install geozl
 ```
 
-- Python 3.11 to 3.14. Runtime dependencies: `numpy>=1.24`, `cffi>=1.17`,
-  `openzl>=0.3,<0.4`.
+- Python 3.11 to 3.14. Runtime dependencies: `numpy>=1.24`, `cffi>=1.17`, and on
+  Linux x86-64 and macOS arm64 `openzl>=0.3,<0.4`.
 - Wheels exist for Linux x86-64 (manylinux 2.28) and macOS arm64. Elsewhere, build
   from a checkout (`make python FULL=ON`, see `contributing.md`).
 - Two native libraries ship inside the wheel under `geozl/_lib/`:
@@ -48,7 +46,7 @@ one row per recipe that succeeded, sorted by `ratio` descending.
 | `prior` | `"planar"` (default), `"med"`, `"delta_w"`, `"delta_n"`, `"average"`, `"wp_static"` or `"delta_1d"`: that predictor plus the `id` branch. `None`: all 8 predictors. `"none"` (or `"id"`): no predictor. Anything else raises `ValueError(... is not one of ...)`. |
 | `width`, `planes`, `error`, `nodata` | Same as `graph`. Profile with the settings you will build with. |
 | `reps` | Timed round trips per recipe; the fastest rep is reported. `reps < 1` raises `ValueError`. |
-| `verify` | Checksum verification during timed decode only. The benchmark writes the same checksum configuration as `compress`—compressed checksum always, content checksum only for lossless—so `bytes` does not change. |
+| `verify` | Checksum verification during timed decode only. The benchmark writes the same checksums as `compress` (compressed checksum always, content checksum only for lossless), so `bytes` does not change. |
 
 Each row is a `dict`:
 
@@ -72,14 +70,14 @@ input
   profile  1 plane · row width 256 · all predictors · 1 rep · lossless
 
 graph                             ratio  enc MB/s  dec MB/s  shan%
-average>zigzag>entropy             6.91     431.2     469.8    569
 ...
 ```
 
-Rows whose recipe fails on this tile are skipped silently, which is why a float32
-profile with `prior=None` returns 65 rows while the grid lists 73 names (every
-plain `>entropy` recipe fails at 4 bytes). Speeds depend on the machine and the
-SIMD path; compare rows from one run only.
+Rows whose recipe fails on this tile are skipped, which is why a float32
+profile with `prior=None` returns 56 rows while the grid lists 64 names (every
+plain `>entropy` recipe fails at 4 bytes). If every recipe fails, `profile` raises the
+last reason. Speeds depend on the machine and the SIMD path; compare rows from one
+run only.
 
 ## 3. `graph` and `Graph`
 
@@ -102,7 +100,7 @@ What `graph()` fixes, and what it means later:
 - **dtype.** `compress` refuses any other dtype, even at the same width
   (`uint16` graph, `int16` tile raises `ValueError`).
 - **Row width and planes.** Encoded into predictor headers. `compress` does not check
-  the tile shape against them (trap 4 in `SKILL.md`).
+  the tile shape against them (`nodata-and-planes.md` section 6).
 - **Lossy plan.** The quantizer parameters are resolved from this raster, and the
   raster's statistics become the domain `compress` enforces (`lossy.md`).
 - **NoData mode.** Decided here, not per tile.
@@ -125,7 +123,8 @@ geozl.compress(tile, *, graph, coeffs=None) -> bytes
   its own: frames from one graph do not depend on each other.
 - Lossy graphs check the tile against the build domain first and raise
   `RuntimeError(... build the graph from the full product)` when it falls outside.
-  A declared sentinel is excluded from that check.
+  A declared sentinel is excluded from that check. NaN and infinity are not checked,
+  apart from LOG refusing `-inf` on a graph built without negatives.
 - The output buffer is sized to `1024 + 1.5 * tile.nbytes`, enough for incompressible data.
 - `coeffs` attaches integer metadata to this frame only (section 6).
 
@@ -139,9 +138,8 @@ geozl.decompress(frame, *, verify=True, max_output_size=None) -> np.ndarray
 - Returns a **flat `uint8` array** backed by 8-byte aligned memory. Restore with
   `.view(dtype).reshape(shape)`; the frame does not record either.
 - No decoder registration is needed; the C path registers every geozl codec.
-- `verify=False` skips both frame checksums, worth roughly 1 to 30 percent of decode
-  time. A flipped payload bit may then decode into a different raster without error
-  (codecs' own structural checks can still raise).
+- `verify=False` skips both frame checksums. A flipped payload bit may then decode into
+  a different raster without error (codecs' own structural checks can still raise).
 - `max_output_size` refuses a frame whose declared output exceeds it, before
   allocating (`ValueError`). Use it for untrusted input.
 - Errors: `RuntimeError("geozl.decompress: unreadable frame")` when the size cannot
@@ -218,10 +216,9 @@ def tile_frames(product, method, size, error=None):
     return out
 ```
 
-Verified: a 300 x 200 float32 product cut into 128-sample tiles with `error=0.25`
-round-trips with a worst error of 0.24998. With a sentinel, build from the valid samples
-instead of `product` (`nodata-and-planes.md` section 3); with SQRT, use a recipe that
-carries `A` and `B`, because a fit needs `width` to divide the build raster.
+With a sentinel, build from the valid samples instead of `product`
+(`nodata-and-planes.md` section 3); with SQRT, use a recipe that carries `A` and `B`,
+because a fit needs `width` to divide the build raster.
 
 ### Keeping dtype and shape
 
