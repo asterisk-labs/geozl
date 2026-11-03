@@ -12,7 +12,6 @@
 #include <inttypes.h>
 #include <locale.h>
 #include <math.h>
-#include <stdlib.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -165,23 +164,82 @@ static void an_integer_decode_is_a_byte_copy(void) {
 }
 
 // The table is a cache, so it has to give the same bits as the path that does
-// not use it. Cutting the tile into single elements forces the other branch.
+// not use it. The table budget is 16384 float32 levels, so one index 20000 past
+// the first sends the same tile the long way.
 static void the_table_and_the_long_way_agree(void) {
   printf("the level table gives the same bits as the path without it\n");
-  qt_tile t = qt_make("humidity");
-  const size_t w = quant_log_width(t.dtype);
-  void *st = alloc_for(t.dtype, t.n);
-  void *a = alloc_for(t.dtype, t.n), *b = alloc_for(t.dtype, t.n);
-  quant_log_params p;
-  CHECK(trip("LOG:MAX_ERROR=1%", t.dtype, t.data, st, a, t.n, &p) == 0);
-  for (size_t i = 0; i < t.n; ++i)
-    CHECK(quant_log_decode((char *)b + i * w, (const char *)st + i * w, &p,
-                           t.dtype, 1) == 0);
-  CHECK(memcmp(a, b, t.n * w) == 0);
-  free(st);
-  free(a);
-  free(b);
-  qt_free(&t);
+  const char *names[] = {"humidity", "anomaly"};
+  for (int k = 0; k < 2; ++k) {
+    qt_tile t = qt_make(names[k]);
+    const size_t w = quant_log_width(t.dtype);
+    int32_t *st = alloc_for(t.dtype, t.n + 1);
+    void *a = alloc_for(t.dtype, t.n), *b = alloc_for(t.dtype, t.n + 1);
+    quant_log_params p;
+    CHECK(trip("LOG:MAX_ERROR=1%", t.dtype, t.data, st, a, t.n, &p) == 0);
+
+    int32_t lo = st[0], hi = st[0];
+    for (size_t i = 1; i < t.n; ++i) {
+      lo = st[i] < lo ? st[i] : lo;
+      hi = st[i] > hi ? st[i] : hi;
+    }
+    CHECK((int64_t)hi - lo < 16384);
+
+    st[t.n] = lo + 20000;
+    CHECK((int64_t)st[t.n] - lo >= 16384);
+    CHECK(quant_log_decode(b, st, &p, t.dtype, t.n + 1) == 0);
+    CHECK(memcmp(a, b, t.n * w) == 0);
+    free(st);
+    free(a);
+    free(b);
+    qt_free(&t);
+  }
+}
+
+// The stream sets the ends of the table, so a forged one can put them anywhere
+// in the index type and every element still has to land in it.
+static void a_forged_stream_sets_the_ends_of_the_table(void) {
+  printf("a forged stream cannot read past the ends of the table\n");
+  quant_log_params p = {0, 0.02};
+  {
+    const int16_t s[4][3] = {{INT16_MIN, INT16_MIN + 2, INT16_MIN + 1},
+                             {INT16_MAX, INT16_MAX - 2, INT16_MAX - 1},
+                             {-1, 1, 0},
+                             {INT16_MIN, INT16_MIN, INT16_MIN}};
+    uint16_t a[3], b;
+    for (int k = 0; k < 4; ++k) {
+      CHECK(quant_log_decode(a, s[k], &p, QLOG_F16, 3) == 0);
+      for (int i = 0; i < 3; ++i) {
+        CHECK(quant_log_decode(&b, &s[k][i], &p, QLOG_F16, 1) == 0);
+        CHECK(a[i] == b);
+      }
+    }
+  }
+  {
+    const int32_t s[3][3] = {{INT32_MIN, INT32_MIN + 2, INT32_MIN + 1},
+                             {INT32_MAX, INT32_MAX - 2, INT32_MAX - 1},
+                             {-1, 1, 0}};
+    float a[3], b;
+    for (int k = 0; k < 3; ++k) {
+      CHECK(quant_log_decode(a, s[k], &p, QLOG_F32, 3) == 0);
+      for (int i = 0; i < 3; ++i) {
+        CHECK(quant_log_decode(&b, &s[k][i], &p, QLOG_F32, 1) == 0);
+        CHECK(memcmp(&a[i], &b, sizeof(b)) == 0);
+      }
+    }
+  }
+  {
+    const int64_t s[3][3] = {{INT64_MIN, INT64_MIN + 2, INT64_MIN + 1},
+                             {INT64_MAX, INT64_MAX - 2, INT64_MAX - 1},
+                             {-1, 1, 0}};
+    double a[3], b;
+    for (int k = 0; k < 3; ++k) {
+      CHECK(quant_log_decode(a, s[k], &p, QLOG_F64, 3) == 0);
+      for (int i = 0; i < 3; ++i) {
+        CHECK(quant_log_decode(&b, &s[k][i], &p, QLOG_F64, 1) == 0);
+        CHECK(memcmp(&a[i], &b, sizeof(b)) == 0);
+      }
+    }
+  }
 }
 
 // A reconstruction fed back in lands on the level it came from, or a tile
@@ -301,10 +359,9 @@ static void the_parser_is_strict(void) {
     CHECK(quant_log_parse(bad[i], &sp, err, sizeof err) != 0);
 }
 
-// Each refusal is a case where serving the request quietly would break the bound
-// instead of reporting it.
+// Each refusal is a case where serving the request would break the bound.
 static void the_refusals(void) {
-  printf("each refusal reports rather than quietly breaking the bound\n");
+  printf("a recipe that would break the bound is refused\n");
   quant_log_spec sp;
   quant_log_params p;
   quant_log_stats sc;
@@ -327,8 +384,43 @@ static void the_refusals(void) {
   printf("  f32 too tight: %s\n", err);
 }
 
-// There is no decode binding yet, so the kernels are the only thing between a
-// frame and the transform. Every field the header carries gets forged here.
+// Past 2^53 levels the index cannot name every level, the grid pins short of the
+// top of the type and 255 comes back as 13. Whatever is accepted on the way down
+// to that point has to hold.
+static void a_bound_past_the_level_count_is_refused(void) {
+  printf("a bound that needs more levels than an index names is refused\n");
+  static uint8_t in[256], st[256], out[256];
+  for (int i = 0; i < 256; ++i)
+    in[i] = (uint8_t)i;
+  quant_log_spec sp;
+  quant_log_stats sc;
+  quant_log_params p;
+  char err[256], recipe[64];
+  CHECK(quant_log_scan(in, QLOG_U8, 256, &sc) == 0);
+  CHECK(quant_log_parse("LOG:MAX_ERROR=1.9873291358347114e-12%", &sp, err,
+                        sizeof err) == 0);
+  CHECK(quant_log_resolve(&sp, QLOG_U8, &sc, &p, err, sizeof err) != 0);
+
+  size_t accepted = 0;
+  for (double pct = 1e-9; pct > 1e-13; pct *= 0.97) {
+    snprintf(recipe, sizeof recipe, "LOG:MAX_ERROR=%.17g%%", pct);
+    CHECK(quant_log_parse(recipe, &sp, err, sizeof err) == 0);
+    if (quant_log_resolve(&sp, QLOG_U8, &sc, &p, err, sizeof err) != 0)
+      continue;
+    ++accepted;
+    CHECK(quant_log_value_span(QLOG_U8) / p.step < GEOZL_F64_EXACT_INT);
+    CHECK(quant_log_encode(st, in, &p, QLOG_U8, 256) == 0);
+    CHECK(quant_log_decode(out, st, &p, QLOG_U8, 256) == 0);
+    double worst = 0.0;
+    CHECK(quant_log_verify(in, out, &sp, QLOG_U8, 256, &worst, NULL) == 0);
+    if (worst > 1.0)
+      printf("  %s: worst %.4f of the bound\n", recipe, worst);
+    CHECK(worst <= 1.0);
+  }
+  CHECK(accepted > 0);
+}
+
+// Forge every field the header carries and call the kernels directly.
 static void a_forged_header_is_refused(void) {
   printf("the kernels refuse a parameter block the resolver cannot produce\n");
   enum { N = 64 };
@@ -436,18 +528,18 @@ static void the_encoder_checks_its_own_work(void) {
 
 // The encoder caches the value grid while the table is small enough and builds
 // each level on the spot when it is not. Both bounds below walk every uint16
-// against the level spec.md states, worked out here instead of read from the
-// kernel, so the two paths landing on different levels shows up as a wrong one.
-static double spec_level(double a, double step, int dtype) {
-  const double cap = quant_log_value_hi(dtype);
-  const double top = quant_log_value_top(step, dtype);
-  double j = qlog_log2_over(a, 0) / step + 0.5;
+// against the level spec.md states, worked out here from libm instead of read
+// from the kernel, so the two paths landing on different levels shows up as a
+// wrong one.
+static double spec_level(double a, double step) {
+  const double top = floor(16.0 / step) + 1.0;
+  double j = log2(a) / step + 0.5;
   if (!(j > 0.0))
     j = 0.0;
   else if (!(j < top))
     j = top;
-  const double v = qlog_value_level((double)(int64_t)j, step);
-  return v > cap ? cap : v;
+  const double v = floor(exp2(floor(j) * step) + 0.5);
+  return v > 65535.0 ? 65535.0 : v;
 }
 
 static void the_value_grid_matches_the_spec(void) {
@@ -468,7 +560,7 @@ static void the_value_grid_matches_the_spec(void) {
     CHECK(quant_log_encode(st, in, &p, QLOG_U16, 65536) == 0);
     size_t wrong = 0;
     for (int i = 1; i < 65536; ++i)
-      if ((double)st[i] != spec_level((double)in[i], p.step, QLOG_U16))
+      if ((double)st[i] != spec_level((double)in[i], p.step))
         ++wrong;
     if (wrong != 0)
       printf("  %s: %zu of 65535 off the level the spec puts down\n", rec[r],
@@ -798,7 +890,7 @@ static void every_value_holds_the_bound(void) {
       sc.maxAbs = 1.0;
       CHECK(quant_log_parse(recipes[r], &sp, err, sizeof err) == 0);
       if (quant_log_resolve(&sp, dt, &sc, &p, err, sizeof err) != 0)
-        continue; // a refusal is an answer, and the refusals have their own case
+        continue; // the_refusals covers a recipe the type cannot serve
 
       double worst = 0.0;
       uint64_t counted = 0, over = 0, sum = 0, at = 0;
@@ -814,7 +906,7 @@ static void every_value_holds_the_bound(void) {
           const double x = geozl_walk_get(in, dt, i);
           const double y = geozl_walk_get(out, dt, i);
           if (!isfinite(x))
-            continue; // the nodata codec owns these
+            continue; // non-finite samples belong to nodata
           if (x == 0.0) {
             CHECK(y == 0.0);
             continue;
@@ -857,8 +949,10 @@ int main(void) {
   the_parser_takes_only_decimals();
   a_comma_locale_reads_the_same_recipe();
   the_refusals();
+  a_bound_past_the_level_count_is_refused();
   a_forged_header_is_refused();
   a_forged_stream_stays_in_range();
+  a_forged_stream_sets_the_ends_of_the_table();
   the_encoder_checks_its_own_work();
   the_value_grid_matches_the_spec();
   the_wide_integers_hold();

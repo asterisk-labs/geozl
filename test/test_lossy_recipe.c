@@ -83,8 +83,8 @@ static void test_fit_geometry(void) {
   }
 }
 
-// The one branch the fuzzer cannot reach, since the fit wants a raster larger
-// than a fuzz input.
+// The fit end to end, on a raster large enough that the curve it finds sits near
+// the one that was drawn.
 static void test_blind_fit(void) {
   geozl_lossy_recipe r;
   char err[256] = {0};
@@ -130,7 +130,7 @@ static void test_resolve(void) {
   }
 
   // A SQRT recipe that carries no curve and was never fitted has nothing to cut
-  // a grid from, and says so rather than guessing.
+  // a grid from, so resolve refuses it.
   geozl_lossy_recipe r;
   geozl_lossy_plan p;
   char err[256] = {0};
@@ -186,6 +186,20 @@ static void test_reuse_domain(void) {
   CHECK(geozl_lossy_check_domain(&plan, negative, GEOZL_DT_F32, 2, 0, 0,
                                  err, sizeof(err)) != 0);
 
+  // The floor would rebuild -inf as 0 where spec.md promises the largest finite
+  // reconstruction, so it counts as negative with or without a sentinel, unless
+  // it is the sentinel and never reaches the quantizer.
+  const float negInf[] = {-INFINITY, 25.0f};
+  uint32_t negInfBits;
+  memcpy(&negInfBits, &negInf[0], sizeof(negInfBits));
+  CHECK(geozl_lossy_check_domain(&plan, negInf, GEOZL_DT_F32, 2, 0, 0, err,
+                                 sizeof(err)) != 0);
+  CHECK(geozl_lossy_check_domain(&plan, negInf, GEOZL_DT_F32, 2, 1, sentinelBits,
+                                 err, sizeof(err)) != 0);
+  CHECK(strstr(err, "negative samples") != NULL);
+  CHECK(geozl_lossy_check_domain(&plan, negInf, GEOZL_DT_F32, 2, 1, negInfBits,
+                                 err, sizeof(err)) == 0);
+
   CHECK(plan_for("SQRT:MAX_ERROR=0.5N,A=100,B=1", base, GEOZL_DT_F32,
                  3, &plan, err, sizeof(err)) == 0);
   CHECK(geozl_lossy_check_domain(&plan, inside, GEOZL_DT_F32, 3, 0, 0,
@@ -194,14 +208,17 @@ static void test_reuse_domain(void) {
                                  err, sizeof(err)) != 0);
   CHECK(strstr(err, "values from") != NULL);
 
-  // Integer LINEAR stores reconstructed values and spans the dtype. Only a
+  // Integer LINEAR carries the grid index, which spans the dtype. Only a
   // signedness change relative to the opening raster needs a guard.
   const int16_t ibase[] = {1, 2, 3};
   const int16_t ibig[] = {30000};
+  const int16_t ineg[] = {-1};
   CHECK(plan_for("LINEAR:MAX_ERROR=2", ibase, GEOZL_DT_I16, 3, &plan,
                  err, sizeof(err)) == 0);
   CHECK(geozl_lossy_check_domain(&plan, ibig, GEOZL_DT_I16, 1, 0, 0,
                                  err, sizeof(err)) == 0);
+  CHECK(geozl_lossy_check_domain(&plan, ineg, GEOZL_DT_I16, 1, 0, 0,
+                                 err, sizeof(err)) != 0);
 }
 
 int main(void) {

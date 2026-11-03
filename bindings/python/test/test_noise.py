@@ -82,6 +82,13 @@ def test_a_raster_too_small_to_hold_a_block_is_refused():
         geozl.lossy.fit_noise(np.zeros((4, 4), np.float32))
 
 
+@pytest.mark.parametrize("empty", [np.zeros((0, 16, 16), np.float32), []],
+                         ids=["stack", "sequence"])
+def test_nothing_to_fit_against_is_refused(empty):
+    with pytest.raises(ValueError, match="no rasters"):
+        geozl.lossy.fit_noise(empty)
+
+
 def test_rasters_of_different_shapes_pool():
     small, large = _scene(64, 50, 4000, seed=3), _scene(256, 50, 4000, seed=4)
     assert geozl.lossy.fit_noise([small, large]).blocks > 0

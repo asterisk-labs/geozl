@@ -46,13 +46,13 @@ def _rasters(data):
                 f"give a 2d raster or a 3d stack, got {data.ndim} dimensions")
     else:
         out = [np.asarray(r) for r in data]
-        if not out:
-            raise ValueError("no rasters to fit against")
         for r in out:
             if r.ndim != 2:
                 raise ValueError(
                     f"every raster in a sequence is 2d, got {r.ndim} dimensions")
 
+    if not out:
+        raise ValueError("no rasters to fit against")
     dt = out[0].dtype
     for r in out:
         if r.dtype != dt:

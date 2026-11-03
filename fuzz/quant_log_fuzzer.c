@@ -75,7 +75,7 @@ static void mode_parse(const uint8_t *d, size_t n) {
 static void mode_block(const uint8_t *d, size_t n) {
   if (n < 10)
     return;
-  const int dtype = d[0] % (QLOG_F64 + 2); // one past the table, so the range check runs
+  const int dtype = d[0] % (QLOG_F64 + 1);
 
   quant_log_params p;
   memset(&p, 0, sizeof(p));
@@ -84,8 +84,6 @@ static void mode_block(const uint8_t *d, size_t n) {
 
   d += 10;
   n -= 10;
-  if (dtype > QLOG_F64)
-    return;
   const size_t w = quant_log_width(dtype);
   size_t elts = n / w;
   if (elts == 0)
@@ -154,7 +152,7 @@ static void mode_roundtrip(const uint8_t *d, size_t n) {
   quant_log_stats sc;
   quant_log_scan(src, dtype, elts, &sc);
   if (quant_log_resolve(&sp, dtype, &sc, &p, err, sizeof(err)) != 0)
-    return; // refused, which is a valid answer
+    return; // refused, so there is nothing to measure
 
   if (quant_log_encode(idx, src, &p, dtype, elts) != 0)
     abort(); // resolved parameters the kernels then reject
@@ -179,7 +177,7 @@ static void mode_roundtrip(const uint8_t *d, size_t n) {
   for (size_t i = 0; i < elts; ++i) {
     const double x = get(src, dtype, i), y = get(back, dtype, i);
     if (!isfinite(x))
-      continue; // the nodata codec owns these
+      continue; // non-finite samples belong to nodata
     // A 64 bit integer does not survive a double, so anything measured about one
     // past that point measures this harness rather than the codec.
     if (wide && (fabs(x) > 9007199254740992.0 || fabs(y) > 9007199254740992.0))

@@ -113,8 +113,8 @@ static void mode_fit(const uint8_t *d, size_t n) {
     return;
   }
 
-  // quant_sqrt_fit wants a few hundred blocks, more than a fuzzer input carries,
-  // so a unit test is what reaches this in practice.
+  // quant_sqrt_fit wants 48 blocks spread over four intensity bins, which a
+  // mutated input rarely is. fuzz/replay/lossy_recipe/fit_curve starts here.
   if (!r.as.sqrt.have_ab)
     abort();
   if (!isfinite(r.as.sqrt.a) || r.as.sqrt.a < 0.0)
@@ -130,7 +130,7 @@ static void mode_fit(const uint8_t *d, size_t n) {
     abort();
 }
 
-// The chain compress_impl runs, same order, same arguments.
+// The chain graph_open runs, same order, same arguments.
 static void mode_chain(const uint8_t *d, size_t n) {
   if (n < 4)
     return;
@@ -154,9 +154,9 @@ static void mode_chain(const uint8_t *d, size_t n) {
   if (geozl_lossy_parse(rec, &r, err, sizeof(err)) != 0)
     abort();
   if (geozl_lossy_fit(&r, src, dtype, width, elts, err, sizeof(err)) != 0)
-    return; // no geometry or no curve, both valid answers
+    return; // no geometry or no curve, so there is nothing to resolve
   if (geozl_lossy_resolve(&r, src, dtype, elts, &p, err, sizeof(err)) != 0)
-    return; // refused, which is also a valid answer
+    return; // refused, so there is nothing to measure
 
   // Routing in and dispatching out are two switches. This catches them
   // disagreeing.

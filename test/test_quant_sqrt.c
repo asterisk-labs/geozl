@@ -246,6 +246,7 @@ static void the_parser_takes_only_valid_recipes(void) {
       {"SQRT:MAX_ERROR=0.5N,A=-1,B=1", 0},
       {"SQRT:MAX_ERROR=0.5N,A=1,B=0", 0},
       {"SQRT:MAX_ERROR=0.5N,A=1,B=-1", 0},
+      {"SQRT:MAX_ERROR=0.5N,A=0x1p-1030,B=1", 0}, // subnormal
       {"SQRT:MAX_ERROR=0.5N,STORE=BOTH", 0},
       {"SQRT:MAX_ERROR=0.5N,", 0},
       {"SQRT:MAX_ERROR=0.5N,,A=1", 0},
@@ -310,7 +311,7 @@ static void the_curve_is_read_at_signed_x(void) {
   CHECKF(fabs(worst - 3.0) < 1e-9, "worst %g against 3", worst);
 }
 
-// Topping it at the element capped a u8 grid at 255 levels, worst 57.6x.
+// A u8 grid can need more internal levels than the element holds.
 static void an_internal_index_is_not_capped_by_the_element(void) {
   puts("an internal index is not capped by the element width");
 
@@ -356,9 +357,31 @@ static void a_degenerate_grid_is_refused_at_the_resolver(void) {
 
   CHECK(quant_sqrt_parse("SQRT:MAX_ERROR=1e-300N,A=0,B=1", &sp, NULL, 0) == 0);
   CHECK(quant_sqrt_resolve(&sp, QSQ_U16, &sc, NULL, &p, err, sizeof(err)) == 1);
+
+  // A raster of zeros needs no levels at all, so the level count refuses nothing
+  // and the step has to be checked for what it is.
+  uint16_t zeros[6] = {0};
+  float fzeros[6] = {0.0f};
+  int32_t fstream[6];
+  CHECK(quant_sqrt_parse("SQRT:MAX_ERROR=1e-170N,A=0,B=1", &sp, NULL, 0) == 0);
+  CHECK(quant_sqrt_scan(zeros, QSQ_U16, 6, &sc) == 0);
+  CHECK(quant_sqrt_resolve(&sp, QSQ_U16, &sc, NULL, &p, err, sizeof(err)) == 1);
+  CHECK(strstr(err, "too small") != NULL);
+  CHECK(quant_sqrt_scan(fzeros, QSQ_F32, 6, &sc) == 0);
+  CHECK(quant_sqrt_resolve(&sp, QSQ_F32, &sc, NULL, &p, err, sizeof(err)) == 1);
+  CHECK(strstr(err, "too small") != NULL);
+
+  // On either side of the limit, what resolves is what the kernels take.
+  for (double k = 1e-150; k > 1e-160; k /= 1.5) {
+    char recipe[64];
+    snprintf(recipe, sizeof(recipe), "SQRT:MAX_ERROR=%.17gN,A=0,B=1", k);
+    CHECK(quant_sqrt_parse(recipe, &sp, NULL, 0) == 0);
+    if (quant_sqrt_resolve(&sp, QSQ_F32, &sc, NULL, &p, err, sizeof(err)) == 0)
+      CHECK(quant_sqrt_encode(fstream, fzeros, &p, QSQ_F32, 6) == 0);
+  }
 }
 
-// Budgeting only the reconstruction let an f64 grid run 1.40x over its bound.
+// Budgeting only the reconstruction lets an f64 grid run 1.40x over its bound.
 static void the_budget_covers_the_index_arithmetic(void) {
   puts("the budget covers the arithmetic that finds the level");
 
@@ -376,7 +399,7 @@ static void the_budget_covers_the_index_arithmetic(void) {
     double codecWorst = -1.0;
     const double r = round_trip(QSQ_F64, recipe, field, N, &codecWorst);
     if (r < 0.0)
-      continue; // refused, which is the other correct answer
+      continue; // refused, so there is nothing to measure
     ++accepted;
     CHECKF(r <= 1.0, "k=%g worst %.6f", k, r);
     CHECKF(codecWorst <= 1.0, "k=%g codec worst %.6f", k, codecWorst);
@@ -553,6 +576,129 @@ static void the_charge_is_read_at_the_worst_end(void) {
   CHECKF(r >= 0.0 && r <= 1.0, "worst %.6f", r);
 }
 
+// The decoder rebuilds f16 in float whatever the flags say, and the rounding to
+// half lands on a reconstruction up to a whole bound from the sample.
+static void the_f16_rebuild_is_charged(void) {
+  puts("the float arithmetic of an f16 rebuild is charged");
+
+  const double one[2] = {137.375, 137.375};
+  double codecWorst = -1.0;
+  const double r =
+      round_trip(QSQ_F16, "SQRT:MAX_ERROR=0.110799N,A=5.50825e+07,B=2.32051", one,
+                 2, &codecWorst);
+  CHECKF(r >= 0.0 && r <= 1.0, "worst %.6f", r);
+  CHECKF(codecWorst >= 0.0 && codecWorst <= 1.0, "codec worst %.6f", codecWorst);
+}
+
+// Binary32 rounds offset before the subtraction, and near -offset the bound has
+// shrunk past that rounding.
+static void the_binary32_rebuild_is_charged_below_zero(void) {
+  puts("the binary32 rebuild is charged below zero");
+
+  enum { N = 4096 };
+  double *field = malloc(N * sizeof(double));
+  for (int i = 0; i < N; ++i)
+    field[i] = -100.0 + (double)i * 1e-3 + 3e-5;
+  report_refusals = 0;
+  double codecWorst = -1.0;
+  double r = round_trip(QSQ_F32, "SQRT:MAX_ERROR=0.0001N,A=100,B=1", field, N,
+                        &codecWorst);
+  CHECKF(r <= 1.0, "worst %.6f", r); // below zero is a refusal
+
+  // A raster reaching -A/B itself stays accepted.
+  for (int i = 0; i < N; ++i)
+    field[i] = -50.0 + 200.0 * (double)i / (double)N;
+  r = round_trip(QSQ_F32, "SQRT:MAX_ERROR=0.5N,A=4,B=0.08", field, N, &codecWorst);
+  CHECKF(r >= 0.0 && r <= 1.0, "at -A/B worst %.6f", r);
+
+  // Closer to the edge and tighter, whichever arithmetic the resolver settles on.
+  size_t accepted = 0;
+  for (double gap = 1e-4; gap < 200.0; gap *= 7.0) {
+    for (int i = 0; i < N; ++i)
+      field[i] = -100.0 + gap + 300.0 * (double)i / (double)N;
+    for (double k = 3.0; k > 1e-5; k /= 4.0) {
+      char recipe[64];
+      snprintf(recipe, sizeof(recipe), "SQRT:MAX_ERROR=%.17gN,A=100,B=1", k);
+      codecWorst = -1.0;
+      r = round_trip(QSQ_F32, recipe, field, N, &codecWorst);
+      if (r < 0.0)
+        continue;
+      ++accepted;
+      CHECKF(r <= 1.0, "gap %g k=%g worst %.6f", gap, k, r);
+      CHECKF(codecWorst <= 1.0, "gap %g k=%g codec worst %.6f", gap, k, codecWorst);
+    }
+  }
+  report_refusals = 1;
+  CHECK(accepted > 0);
+  free(field);
+
+  // The charge stays out of a raster above zero, and a slightly negative one can
+  // still afford binary32.
+  char err[256] = {0};
+  quant_sqrt_spec sp;
+  quant_sqrt_stats sc;
+  quant_sqrt_params p;
+  CHECK(quant_sqrt_parse("SQRT:MAX_ERROR=0.5N,A=100,B=1", &sp, NULL, 0) == 0);
+  const float above[2] = {0.0f, 4000.0f}, below[2] = {-50.0f, 4000.0f};
+  CHECK(quant_sqrt_scan(above, QSQ_F32, 2, &sc) == 0);
+  CHECK(quant_sqrt_resolve(&sp, QSQ_F32, &sc, NULL, &p, err, sizeof(err)) == 0);
+  CHECK((p.flags & QUANT_SQRT_FLAG_DECODE_F32) != 0);
+  CHECK(quant_sqrt_scan(below, QSQ_F32, 2, &sc) == 0);
+  CHECK(quant_sqrt_resolve(&sp, QSQ_F32, &sc, NULL, &p, err, sizeof(err)) == 0);
+  CHECK((p.flags & QUANT_SQRT_FLAG_DECODE_F32) != 0);
+}
+
+// A frame that declares the floor gets it whatever the element type is, and no
+// encoder writes a negative under the flag, so a valid frame is unchanged.
+static void the_floor_reaches_a_stored_integer(void) {
+  puts("the floor reaches a stored integer");
+
+  quant_sqrt_params p;
+  memset(&p, 0, sizeof(p));
+  p.step = 1.0;
+  p.flags = QUANT_SQRT_FLAG_NONNEGATIVE | QUANT_SQRT_FLAG_STORE_VALUES;
+
+  const int8_t s8[4] = {INT8_MIN, -1, 0, INT8_MAX};
+  int8_t d8[4];
+  CHECK(quant_sqrt_decode(d8, s8, &p, QSQ_I8, 4) == 0);
+  CHECK(d8[0] == 0 && d8[1] == 0 && d8[2] == 0 && d8[3] == INT8_MAX);
+
+  const int16_t s16[4] = {INT16_MIN, -1, 0, INT16_MAX};
+  int16_t d16[4];
+  CHECK(quant_sqrt_decode(d16, s16, &p, QSQ_I16, 4) == 0);
+  CHECK(d16[0] == 0 && d16[1] == 0 && d16[2] == 0 && d16[3] == INT16_MAX);
+
+  const int32_t s32[4] = {INT32_MIN, -1, 0, INT32_MAX};
+  int32_t d32[4];
+  CHECK(quant_sqrt_decode(d32, s32, &p, QSQ_I32, 4) == 0);
+  CHECK(d32[0] == 0 && d32[1] == 0 && d32[2] == 0 && d32[3] == INT32_MAX);
+
+  const int64_t s64[4] = {INT64_MIN, -1, 0, INT64_MAX};
+  int64_t d64[4];
+  CHECK(quant_sqrt_decode(d64, s64, &p, QSQ_I64, 4) == 0);
+  CHECK(d64[0] == 0 && d64[1] == 0 && d64[2] == 0 && d64[3] == INT64_MAX);
+
+  // An unsigned type cannot hold a negative, so the flag changes nothing there.
+  const uint16_t su[4] = {0, 1, 500, UINT16_MAX};
+  uint16_t du[4];
+  CHECK(quant_sqrt_decode(du, su, &p, QSQ_U16, 4) == 0);
+  CHECK(memcmp(du, su, sizeof(su)) == 0);
+
+  // Without the flag the same stream comes back untouched.
+  p.flags = QUANT_SQRT_FLAG_STORE_VALUES;
+  CHECK(quant_sqrt_decode(d16, s16, &p, QSQ_I16, 4) == 0);
+  CHECK(memcmp(d16, s16, sizeof(s16)) == 0);
+
+  // What the encoder writes under the flag decodes to itself.
+  const int16_t in[6] = {0, 1, 90, 400, 3000, 32767};
+  int16_t stream[6], back[6];
+  p.step = 0.125;
+  p.flags = QUANT_SQRT_FLAG_NONNEGATIVE | QUANT_SQRT_FLAG_STORE_VALUES;
+  CHECK(quant_sqrt_encode(stream, in, &p, QSQ_I16, 6) == 0);
+  CHECK(quant_sqrt_decode(back, stream, &p, QSQ_I16, 6) == 0);
+  CHECK(memcmp(back, stream, sizeof(back)) == 0);
+}
+
 static void an_empty_raster_is_not_a_crash(void) {
   puts("an empty raster is not a crash");
 
@@ -611,7 +757,7 @@ static void every_value_holds_the_bound(void) {
           const double x = geozl_walk_get(in, dt, i);
           const double y = geozl_walk_get(out, dt, i);
           if (!isfinite(x))
-            continue; // the nodata codec owns these
+            continue; // non-finite samples belong to nodata
           // The curve is only defined at or above -A/B, and the grid was cut
           // for a range a raster holds rather than for the whole domain.
           if (x < 0.0 || x > tops[t])
@@ -656,7 +802,7 @@ static void an_integer_raster_carries_the_index_where_it_fits(void) {
   CHECK(quant_sqrt_resolve(&si, QSQ_U16, &sc, NULL, &pi, err, sizeof(err)) == 0);
   CHECK((pi.flags & QUANT_SQRT_FLAG_STORE_VALUES) == 0);
 
-  // Legacy values frames rebuild the same samples.
+  // A values frame on the same grid rebuilds the same samples.
   pv = pi;
   pv.flags |= QUANT_SQRT_FLAG_STORE_VALUES;
 
@@ -717,6 +863,9 @@ int main(void) {
   the_resolver_refuses_what_the_curve_cannot_cover();
   the_integer_grid_does_not_move_with_the_tile();
   the_charge_is_read_at_the_worst_end();
+  the_f16_rebuild_is_charged();
+  the_binary32_rebuild_is_charged_below_zero();
+  the_floor_reaches_a_stored_integer();
   an_empty_raster_is_not_a_crash();
   an_integer_raster_carries_the_index_where_it_fits();
   every_value_holds_the_bound();

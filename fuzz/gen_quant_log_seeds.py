@@ -18,8 +18,7 @@ def rng(seed):
 
 
 def counts_u16(n):
-    """Unsigned optical counts with a floor of
-    zeros where the scene is masked."""
+    """Unsigned optical counts, zero where the scene is masked."""
     r = rng(1)
     out = []
     for _ in range(n):

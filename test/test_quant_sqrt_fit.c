@@ -81,7 +81,7 @@ static void test_refusals(void) {
 }
 
 // The reason the accumulator exists. One end of the range on its own gives a
-// plausible curve that is not the sensor's, and only colin says so.
+// plausible curve that is not the sensor's, which only colin separates.
 static void test_pooling_beats_its_parts(void) {
   quant_sqrt_noise alone, pooled;
   char err[256] = {0};
@@ -130,6 +130,32 @@ static void test_free_of_an_empty_accum(void) {
   quant_sqrt_accum_free(&acc); // twice, since a caller unwinding may do that
 }
 
+static void test_solve_refuses_null(void) {
+  char err[256];
+  quant_sqrt_noise n;
+  CHECK(quant_sqrt_accum_solve(NULL, &n, err, sizeof(err)) != 0);
+  CHECK(quant_sqrt_accum_solve(NULL, NULL, err, sizeof(err)) != 0);
+  CHECK(quant_sqrt_fit(wide, GEOZL_DT_F32, SIDE, SIDE, NULL, err, sizeof(err)) !=
+        0);
+}
+
+// Past the cap the buffer thins itself out, and blocks still counts every block
+// measured rather than the ones kept.
+static void test_blocks_counts_what_was_measured(void) {
+  quant_sqrt_accum acc;
+  quant_sqrt_noise n;
+  char err[256] = {0};
+  const size_t perRaster = ((SIDE - 2) / 8) * ((SIDE - 2) / 8);
+  const size_t pushes = (1u << 18) / perRaster + 2;
+  quant_sqrt_accum_init(&acc);
+  for (size_t i = 0; i < pushes; ++i)
+    CHECK(quant_sqrt_accum_push(&acc, wide, GEOZL_DT_F32, SIDE, SIDE) == 0);
+  CHECK(acc.n < pushes * perRaster);
+  CHECK(quant_sqrt_accum_solve(&acc, &n, err, sizeof(err)) == 0);
+  CHECK((size_t)n.blocks == pushes * perRaster);
+  quant_sqrt_accum_free(&acc);
+}
+
 int main(void) {
   build();
   test_recovers_the_curve();
@@ -137,6 +163,8 @@ int main(void) {
   test_pooling_beats_its_parts();
   test_accum_matches_fit_on_one_raster();
   test_free_of_an_empty_accum();
+  test_solve_refuses_null();
+  test_blocks_counts_what_was_measured();
 
   if (failures) {
     printf("test_quant_sqrt_fit: %d failed\n", failures);

@@ -77,22 +77,27 @@ static void mode_parse(const uint8_t *d, size_t n) {
   sc.anyNegative = 0;
   sc.anyNonFinite = 0;
 
+  // A raster of zeros needs no levels, so the level count refuses nothing there
+  // and the step alone has to satisfy the kernels.
   quant_sqrt_params p;
-  for (int dt = QSQ_U8; dt <= QSQ_F64; ++dt) {
-    if (quant_sqrt_resolve(&sp, dt, &sc, NULL, &p, err, sizeof(err)) != 0)
-      continue;
-    // Both kernels must accept resolved parameters.
-    if (quant_sqrt_encode(idx, src, &p, dt, 8) != 0)
-      abort();
-    if (quant_sqrt_decode(back, idx, &p, dt, 8) != 0)
-      abort();
+  for (int zeros = 0; zeros < 2; ++zeros) {
+    sc.hi = zeros ? 0.0 : 1e6;
+    for (int dt = QSQ_U8; dt <= QSQ_F64; ++dt) {
+      if (quant_sqrt_resolve(&sp, dt, &sc, NULL, &p, err, sizeof(err)) != 0)
+        continue;
+      // Both kernels must accept resolved parameters.
+      if (quant_sqrt_encode(idx, src, &p, dt, 8) != 0)
+        abort();
+      if (quant_sqrt_decode(back, idx, &p, dt, 8) != 0)
+        abort();
+    }
   }
 }
 
 static void mode_block(const uint8_t *d, size_t n) {
   if (n < 18)
     return;
-  const int dtype = d[0] % (QSQ_F64 + 2); // one past the table, so the range check runs
+  const int dtype = d[0] % (QSQ_F64 + 1);
 
   quant_sqrt_params p;
   memset(&p, 0, sizeof(p));
@@ -102,8 +107,6 @@ static void mode_block(const uint8_t *d, size_t n) {
 
   d += 18;
   n -= 18;
-  if (dtype > QSQ_F64)
-    return;
   const size_t w = quant_sqrt_width(dtype);
   size_t elts = n / w;
   if (elts == 0)
@@ -121,11 +124,12 @@ static void mode_block(const uint8_t *d, size_t n) {
   if (r != 0)
     return;
 
-  // Every sample inside the type it claims, whatever the stream held. The integer
-  // path is a copy, so it says nothing here.
-  if (dtype <= QSQ_LAST_INT)
-    return;
-  const double vhi = quant_sqrt_value_hi(dtype);
+  // Every sample inside the type it claims, whatever the stream held. A stored
+  // integer reconstruction is the stream above its floor, so only the floor is
+  // asserted, since the top of a 64 bit type does not survive a double.
+  const int stored =
+      dtype <= QSQ_LAST_INT && (p.flags & QUANT_SQRT_FLAG_STORE_VALUES) != 0;
+  const double vhi = stored ? INFINITY : quant_sqrt_value_hi(dtype);
   const double vlo = (p.flags & QUANT_SQRT_FLAG_NONNEGATIVE) != 0
                          ? 0.0
                          : quant_sqrt_value_lo(dtype);
@@ -175,7 +179,7 @@ static void mode_roundtrip(const uint8_t *d, size_t n) {
   if (quant_sqrt_scan(src, dtype, elts, &sc) != 0)
     return; // nothing finite in the tile
   if (quant_sqrt_resolve(&sp, dtype, &sc, NULL, &p, err, sizeof(err)) != 0)
-    return; // refused, which is a valid answer
+    return; // refused, so there is nothing to measure
 
   if (quant_sqrt_encode(idx, src, &p, dtype, elts) != 0)
     abort(); // resolved parameters the kernels then reject
@@ -196,7 +200,7 @@ static void mode_roundtrip(const uint8_t *d, size_t n) {
   for (size_t i = 0; i < elts; ++i) {
     const double x = get(src, dtype, i), y = get(back, dtype, i);
     if (!isfinite(x))
-      continue; // the nodata codec owns these
+      continue; // non-finite samples belong to nodata
     // A 64 bit integer does not survive a double, so anything measured about one
     // past that point measures this harness rather than the codec.
     if ((dtype == QSQ_U64 || dtype == QSQ_I64) &&

@@ -8,10 +8,12 @@
 #include <string.h>
 
 // Every reconstruction folded into one number. Addition, so the order it is fed
-// in cannot change the result. Two builds that agree here came back with the
-// same bits on every value, which matching worst cases alone does not say.
+// in cannot change the result, with the position mixed in before the multiply so
+// a value that moved to another position does. Two builds that agree here came
+// back with the same bits on every value, which matching worst cases alone does
+// not say.
 #define GEOZL_FOLD(sum, bits, pos)                                             \
-  ((sum) += (uint64_t)(bits) * 1099511628211ull + (uint64_t)(pos))
+  ((sum) += ((uint64_t)(bits) ^ (uint64_t)(pos)) * 1099511628211ull)
 
 #define GEOZL_WALK_BLK 65536
 

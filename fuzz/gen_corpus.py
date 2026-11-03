@@ -67,7 +67,7 @@ def main(outdir):
     tilef = (10.0 ** rng.uniform(-6, 6, size=(w, w))).astype(np.float32)
 
     # first row subnormal, where no grid meets a relative bound and the log
-    # curve has to carry the values exactly
+    # curve rebuilds each value on its nearest level
     tilesub = tilef.copy()
     tilesub[0] = np.arange(w, dtype=np.float64) * 1.40129846432481707e-45
 

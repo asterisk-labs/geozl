@@ -129,14 +129,14 @@ static void the_float_index_path_reads_the_tile(void) {
   CHECK(a.step != b.step); // the documented limitation of this path
   CHECK((a.flags & QUANT_LINEAR_FLAG_STORE_VALUES) == 0);
 
-  // A bound below what the output type resolves is refused rather than silently
-  // returning the data untouched. At a million a float32 only resolves 0.0625.
+  // A bound below what the output type resolves is refused rather than returning
+  // the data untouched. At 1e5 a float32 only resolves 0.0078125.
   CHECK(quant_linear_parse("LINEAR:MAX_ERROR=1e-5", &sp, err, sizeof(err)) == 0);
   CHECK(quant_linear_resolve(&sp, QL_F32, &(quant_linear_stats){1e5, 0}, &a,
                              err, sizeof(err)) != 0);
 }
 
-// STORE is no longer part of the recipe syntax.
+// STORE is not part of the recipe syntax.
 static void store_is_refused(void) {
   printf("a recipe that names STORE is refused\n");
   char err[256];
@@ -159,6 +159,13 @@ static void an_unrepresentable_step_is_refused(void) {
         0);
   CHECK(quant_linear_resolve(&sp, QL_U16, &sc, &p, err, sizeof(err)) != 0);
   CHECK(quant_linear_resolve(&sp, QL_F32, &sc, &p, err, sizeof(err)) != 0);
+
+  // A normal bound can leave a subnormal step once the rounding is charged, and
+  // the kernels refuse a subnormal step.
+  CHECK(quant_linear_parse("LINEAR:MAX_ERROR=2.3e-308", &sp, err, sizeof(err)) ==
+        0);
+  CHECK(quant_linear_resolve(&sp, QL_F64, &(quant_linear_stats){6e-293, 0}, &p,
+                             err, sizeof(err)) != 0);
 }
 
 static void non_negative_stays_non_negative(void) {
@@ -185,8 +192,7 @@ static void non_negative_stays_non_negative(void) {
   CHECK(zeros >= 256);
   CHECK(exact == zeros);
 
-  // A tile that does hold negatives keeps them, or the floor would be a guess
-  // about the data rather than a measurement of it.
+  // A tile that does hold negatives keeps them, since the floor follows the scan.
   static int16_t s2[N], d2[N];
   for (size_t i = 0; i < N; ++i)
     s2[i] = (int16_t)((int)(i % 800) - 420);
@@ -291,8 +297,8 @@ static void the_edges(void) {
   CHECK(trip("LINEAR:MAX_ERROR=0.5", QL_F32, &one, &done, 1, &p) == 0);
   CHECK(fabs((double)done - 7.5) <= 0.5);
 
-  // The nodata codec in front of a lossy graph owns these, so all this has to do
-  // is not fall over.
+  // Non-finite samples belong to the nodata codec in front of a lossy graph, so
+  // this only has to complete.
   for (size_t i = 0; i < N; ++i)
     f[i] = NAN;
   CHECK(trip("LINEAR:MAX_ERROR=0.5", QL_F32, f, df, N, &p) == 0);
@@ -321,6 +327,7 @@ static void the_parser_takes_only_decimals(void) {
   BAD("LINEAR:MAX_ERROR=1_000");
   BAD("LINEAR:MAX_ERROR=1e999");
   BAD("LINEAR:MAX_ERROR=1e-320"); // underflows to subnormal
+  BAD("LINEAR:MAX_ERROR=0x1p-1030"); // subnormal, and strtod converts it exactly
 
 #undef GOOD
 #undef BAD
@@ -440,11 +447,94 @@ static void verify_sees_the_bound_break(void) {
   CHECK(worst == 0.0); // the non-finite sample belongs to nodata
 }
 
-// The branchless half conversions against the reference, over their whole
-// domain. The first draft of ql_f32_to_half was wrong on two of the 2^32, both
-// where the subnormal rounding carries into the smallest normal, and no sampled
-// test would have found them.
-//
+// Two samples of a 64 bit type can sit inside one double, or a single unit apart
+// on either side of a double's tie, so verify has to subtract before it converts.
+static void verify_subtracts_the_wide_integers_first(void) {
+  puts("verify subtracts a 64 bit sample before converting it");
+  quant_linear_spec sp;
+  memset(&sp, 0, sizeof(sp));
+  sp.max_error = 1.0;
+  double worst = -1.0;
+  const uint64_t top = (uint64_t)1 << 63;
+
+  const uint64_t oneA[1] = {top + 1024u}, oneB[1] = {top + 1025u};
+  CHECK(quant_linear_verify(oneA, oneB, &sp, QL_U64, 1, &worst) == 0);
+  CHECKF(worst == 1.0, "u64 one apart reported %g", worst);
+
+  const uint64_t farA[1] = {top + 1u}, farB[1] = {top + 1001u};
+  CHECK(quant_linear_verify(farA, farB, &sp, QL_U64, 1, &worst) == 0);
+  CHECKF(worst == 1000.0, "u64 a thousand apart reported %g", worst);
+
+  const int64_t lowA[1] = {INT64_MIN}, lowB[1] = {INT64_MIN + 1000};
+  CHECK(quant_linear_verify(lowA, lowB, &sp, QL_I64, 1, &worst) == 0);
+  CHECKF(worst == 1000.0, "i64 a thousand apart reported %g", worst);
+
+  const int64_t endA[1] = {INT64_MIN}, endB[1] = {INT64_MAX};
+  CHECK(quant_linear_verify(endA, endB, &sp, QL_I64, 1, &worst) == 0);
+  CHECKF(worst == 18446744073709551616.0, "i64 end to end reported %g", worst);
+
+  sp.max_error = 2.0;
+  CHECK(quant_linear_verify(oneA, oneB, &sp, QL_U64, 1, &worst) == 0);
+  CHECKF(worst == 0.5, "u64 at half the bound reported %g", worst);
+}
+
+// Below the smallest normal the neighbours of a reconstruction sit a flat gap
+// apart, so a bound near that gap has to be charged for it. Each sample is its
+// own raster, which leaves the relative charge at its smallest.
+static void the_flat_rounding_is_charged(void) {
+  puts("the flat rounding below the smallest normal is charged");
+  char err[256], recipe[64];
+  quant_linear_spec sp;
+  double worst = -1.0;
+
+  static const double f16Bounds[] = {3.58e-8, 5e-8, 1e-7, 1e-6, 1e-5};
+  size_t ran = 0;
+  for (size_t e = 0; e < sizeof(f16Bounds) / sizeof(*f16Bounds); ++e) {
+    snprintf(recipe, sizeof(recipe), "LINEAR:MAX_ERROR=%.17g", f16Bounds[e]);
+    CHECK(quant_linear_parse(recipe, &sp, err, sizeof(err)) == 0);
+    for (uint16_t k = 1; k < 1024; ++k) {
+      uint16_t back;
+      if (trip(recipe, QL_F16, &k, &back, 1, NULL) != 0)
+        continue;
+      ++ran;
+      CHECK(quant_linear_verify(&k, &back, &sp, QL_F16, 1, &worst) == 0);
+      CHECKF(worst <= 1.0, "f16 %u rebuilt as %u under %g, %.4f of the bound", k,
+             back, f16Bounds[e], worst);
+    }
+  }
+  CHECK(ran > 0);
+
+  // 2^-149 times these, around the half gap the bound has to clear.
+  static const double f32Gaps[] = {0.6, 1.0, 1.7, 5.0, 40.0};
+  ran = 0;
+  for (size_t e = 0; e < sizeof(f32Gaps) / sizeof(*f32Gaps); ++e) {
+    snprintf(recipe, sizeof(recipe), "LINEAR:MAX_ERROR=%.17g",
+             ldexp(f32Gaps[e], -149));
+    CHECK(quant_linear_parse(recipe, &sp, err, sizeof(err)) == 0);
+    for (uint32_t k = 1; k < 1024; ++k) {
+      float x, back;
+      memcpy(&x, &k, sizeof(x));
+      if (trip(recipe, QL_F32, &x, &back, 1, NULL) != 0)
+        continue;
+      ++ran;
+      CHECK(quant_linear_verify(&x, &back, &sp, QL_F32, 1, &worst) == 0);
+      CHECKF(worst <= 1.0, "f32 2^-149 * %u under %g, %.4f of the bound", k,
+             f32Gaps[e], worst);
+    }
+  }
+  CHECK(ran > 0);
+
+  // At or under the half gap there is no grid left to cut.
+  quant_linear_params p;
+  CHECK(quant_linear_parse("LINEAR:MAX_ERROR=2e-8", &sp, err, sizeof(err)) == 0);
+  CHECK(quant_linear_resolve(&sp, QL_F16, &(quant_linear_stats){1e-7, 0}, &p, err,
+                             sizeof(err)) != 0);
+}
+
+// The branchless half conversions against the reference. Only GEOZL_EXHAUSTIVE
+// reaches every float32, and the two values where the subnormal rounding carries
+// into the smallest normal are easy to get wrong and off the default stride, so
+// they are pinned.
 static void the_half_conversions_match_the_reference(void) {
   const uint64_t step = geozl_walk_step();
   printf("the half conversions match the reference, %s\n",
@@ -468,6 +558,13 @@ static void the_half_conversions_match_the_reference(void) {
   }
   printf("  %llu float32 checked\n", (unsigned long long)seen);
   CHECK(bad == 0);
+
+  static const uint32_t pinned[] = {0x387FFFFFu, 0xB87FFFFFu};
+  for (size_t i = 0; i < sizeof(pinned) / sizeof(*pinned); ++i) {
+    float f;
+    memcpy(&f, &pinned[i], sizeof(f));
+    CHECK(quant_linear_float_to_half(f) == ql_f32_to_half(f));
+  }
 }
 
 // Every value of a type through the grid, one at a time. The small domains are
@@ -485,27 +582,26 @@ static void every_value_holds_the_bound(void) {
 
   for (size_t t = 0; t < GEOZL_WALK_NTYPES; ++t) {
     const int dt = geozl_walk_types[t].dtype;
+    int walked = 0;
     for (size_t r = 0; r < sizeof(bounds) / sizeof(bounds[0]); ++r) {
       char err[256];
       quant_linear_spec sp;
       quant_linear_params p;
       CHECK(quant_linear_parse(recipes[r], &sp, err, sizeof err) == 0);
-      // The grid is cut against the widest the type reaches and the sign it
-      // carries, since the walk covers the whole domain.
       // The grid is cut against a range a raster holds, not against the whole
       // float domain, which no uniform grid spans. Values past it are skipped
-      // and the count below says how much of the domain that left.
-      static const double tops[] = {255.0, 65535.0, 32767.0, 1e4, 1e4};
+      // and the count below says how much of the domain that left. A bound under
+      // the rounding of the type at that range is refused and printed.
+      static const double tops[] = {255.0, 65535.0, 32767.0, 1e3, 1e4};
       const int neg = dt == GEOZL_DT_I16 || dt == GEOZL_DT_F16 ||
                       dt == GEOZL_DT_F32;
       const quant_linear_stats sc = {tops[t], neg};
       if (quant_linear_resolve(&sp, dt, &sc, &p, err, sizeof err) != 0) {
-        // A refusal is an answer. No uniform grid spans the whole float domain,
-        // so this is where the codec says that out loud.
         printf("  %-4s %-22s refused, %s\n", geozl_walk_types[t].name,
                recipes[r], err);
         continue;
       }
+      ++walked;
 
       double worst = 0.0;
       uint64_t counted = 0, over = 0, sum = 0, at = 0;
@@ -521,7 +617,7 @@ static void every_value_holds_the_bound(void) {
           const double x = geozl_walk_get(in, dt, i);
           const double y = geozl_walk_get(out, dt, i);
           if (!isfinite(x))
-            continue; // the nodata codec owns these
+            continue; // non-finite samples belong to nodata
           if (fabs(x) > tops[t])
             continue; // outside the range the grid was cut for
           ++counted;
@@ -544,6 +640,7 @@ static void every_value_holds_the_bound(void) {
         ++failures;
       }
     }
+    CHECKF(walked > 0, "every recipe refused %s", geozl_walk_types[t].name);
   }
 }
 
@@ -567,9 +664,12 @@ static void the_wide_integers_hold_at_the_corners(void) {
         // Avoid unsigned underflow in the difference.
         const uint64_t diff =
             back[i] > in[i] ? back[i] - in[i] : in[i] - back[i];
-        CHECKF(diff <= (uint64_t)steps[k] || back[i] == UINT64_MAX,
+        CHECKF(diff <= (uint64_t)steps[k] / 2,
                "u64 %llu rebuilt as %llu at step %g",
                (unsigned long long)in[i], (unsigned long long)back[i],
+               steps[k]);
+        CHECKF(back[i] != UINT64_MAX || in[i] > UINT64_MAX - (uint64_t)steps[k],
+               "u64 %llu saturated at step %g", (unsigned long long)in[i],
                steps[k]);
       }
     }
@@ -586,7 +686,7 @@ static void the_wide_integers_hold_at_the_corners(void) {
         const uint64_t diff = back[i] > in[i]
                                   ? (uint64_t)back[i] - (uint64_t)in[i]
                                   : (uint64_t)in[i] - (uint64_t)back[i];
-        CHECKF(diff <= (uint64_t)steps[k],
+        CHECKF(diff <= (uint64_t)steps[k] / 2,
                "i64 %lld rebuilt as %lld at step %g",
                (long long)in[i], (long long)back[i], steps[k]);
       }
@@ -596,21 +696,31 @@ static void the_wide_integers_hold_at_the_corners(void) {
       uint32_t st[4], back[4];
       CHECK(quant_linear_encode(st, in, &p, QL_U32, 4) == 0);
       CHECK(quant_linear_decode(back, st, &p, QL_U32, 4) == 0);
-      for (size_t i = 0; i < 4; ++i)
+      for (size_t i = 0; i < 4; ++i) {
         CHECKF(st[i] <= in[i], "u32 index %u above its sample %u", st[i], in[i]);
+        const uint64_t diff =
+            back[i] > in[i] ? back[i] - in[i] : in[i] - back[i];
+        CHECKF(diff <= (uint64_t)steps[k] / 2, "u32 %u rebuilt as %u at step %g",
+               in[i], back[i], steps[k]);
+      }
     }
     {
       const int32_t in[5] = {0, -1, 1, INT32_MIN, INT32_MAX};
       int32_t st[5], back[5];
       CHECK(quant_linear_encode(st, in, &p, QL_I32, 5) == 0);
       CHECK(quant_linear_decode(back, st, &p, QL_I32, 5) == 0);
-      for (size_t i = 0; i < 5; ++i)
+      for (size_t i = 0; i < 5; ++i) {
         CHECKF((in[i] < 0) == (back[i] < 0) || back[i] == 0,
                "i32 %d came back as %d with the sign moved", in[i], back[i]);
+        const int64_t gap = (int64_t)back[i] - (int64_t)in[i];
+        const uint64_t diff = (uint64_t)(gap < 0 ? -gap : gap);
+        CHECKF(diff <= (uint64_t)steps[k] / 2, "i32 %d rebuilt as %d at step %g",
+               in[i], back[i], steps[k]);
+      }
     }
   }
 
-  // Saturation must precede a product that would overflow 128 bits.
+  // Saturation must precede a product that would overflow 64 bits.
   {
     quant_linear_params p = {0, 18446744073709549568.0};
     const uint64_t in[2] = {UINT64_MAX, UINT64_MAX / 2u};
@@ -640,6 +750,8 @@ int main(void) {
   a_forged_header_is_refused();
   verify_sees_the_bound_hold();
   verify_sees_the_bound_break();
+  verify_subtracts_the_wide_integers_first();
+  the_flat_rounding_is_charged();
   the_edges();
   the_half_conversions_match_the_reference();
   the_wide_integers_hold_at_the_corners();
