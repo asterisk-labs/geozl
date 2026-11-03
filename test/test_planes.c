@@ -1,9 +1,11 @@
 // The bindings call each predictor kernel separately for each plane. Check
 // that these calls round trip and that plane boundaries affect only the first
-// row's residuals. This test exercises the kernels, not the bindings.
+// row's residuals. This test exercises the kernels and the geometry helpers,
+// not the bindings.
 
 #include "average/decode_average_kernel.h"
 #include "average/encode_average_kernel.h"
+#include "common/raster.h"
 #include "delta_n/decode_delta_n_kernel.h"
 #include "delta_n/encode_delta_n_kernel.h"
 #include "med/decode_med_kernel.h"
@@ -75,9 +77,25 @@ static void one_codec(const char *name, enc_fn enc, dec_fn dec) {
   printf("  %-10s ok\n", name);
 }
 
+// What an encoder writes in the header. Decoders reject width 0, so an empty
+// stream declares 1. A stream shorter than its plane count has no whole plane.
+static void declared_geometry(void) {
+  CHECK(geozl_row_width_declared(0, 0) == 1);
+  CHECK(geozl_row_width_declared(W, 0) == 1);
+  CHECK(geozl_row_width_declared(0, PER) == PER);
+  CHECK(geozl_row_width_declared(PER + 1, PER) == PER);
+  CHECK(geozl_row_width_declared(W, PER) == W);
+
+  CHECK(geozl_planes_declared(B, 1, 0) == 1);
+  CHECK(geozl_planes_declared(B, W, B - 1) == 1);
+  CHECK(geozl_planes_declared(B, 1, B) == B);
+  CHECK(geozl_planes_declared(B, W, N) == B);
+}
+
 int main(void) {
   fill();
   printf("test_planes\n");
+  declared_geometry();
   one_codec("planar", planar_encode, planar_decode);
   one_codec("planar_zz", planar_zigzag_encode, planar_zigzag_decode);
   one_codec("delta_n", delta_n_encode, delta_n_decode);

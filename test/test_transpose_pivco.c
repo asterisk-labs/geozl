@@ -15,6 +15,17 @@ static int failures;
     }                                                                          \
   } while (0)
 
+// Lane k holds bits 8k of every sample, in sample order.
+#define CHECK_LANES(T)                                                         \
+  do {                                                                         \
+    for (size_t i = 0; i < count; ++i) {                                       \
+      T value;                                                                 \
+      memcpy(&value, source + i * sizeof(T), sizeof(T));                       \
+      for (size_t lane = 0; lane < sizeof(T); ++lane)                          \
+        CHECK(lanes[lane * count + i] == (uint8_t)(value >> (8 * lane)));      \
+    }                                                                          \
+  } while (0)
+
 static void check_width(size_t width) {
   enum { count = 257 };
   uint8_t source[count * 8];
@@ -25,6 +36,20 @@ static void check_width(size_t width) {
   memset(lanes, 0, sizeof(lanes));
   memset(decoded, 0, sizeof(decoded));
   CHECK(transpose_pivco_lanes(lanes, source, count, width) == 0);
+  switch (width) {
+  case 1:
+    CHECK_LANES(uint8_t);
+    break;
+  case 2:
+    CHECK_LANES(uint16_t);
+    break;
+  case 4:
+    CHECK_LANES(uint32_t);
+    break;
+  default:
+    CHECK_LANES(uint64_t);
+    break;
+  }
   CHECK(transpose_pivco_unlanes(decoded, lanes, count, width) == 0);
   CHECK(memcmp(source, decoded, count * width) == 0);
 }

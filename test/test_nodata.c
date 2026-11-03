@@ -135,8 +135,7 @@ static void test_sentinel_all_widths(void) {
   }
 }
 
-// The reason the codec exists. A raw sentinel drags the predictor across every
-// hole edge, a filled hole does not.
+// Filled holes leave fewer nonzero planar residuals than the raw sentinel.
 static void test_fill_beats_sentinel(void) {
   static uint32_t sentinel_tile[N], res_raw[N], res_filled[N];
   uint64_t pattern = 0;

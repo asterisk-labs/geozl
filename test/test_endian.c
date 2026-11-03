@@ -1,6 +1,6 @@
 // Byte order of the codec header helpers.
 //
-// The point of these checks is the byte positions (regression on a big-endian target without owning one).
+// Checks byte positions, so big-endian regressions show here.
 
 #include "common/endian.h"
 
@@ -29,7 +29,8 @@ static void test_scalar_layout(void) {
   CHECK(geozl_ld_le32(b) == 0x11223344u);
 
   geozl_st_le64(b, 0x0123456789ABCDEFull);
-  CHECK(b[0] == 0xEF && b[7] == 0x01);
+  CHECK(b[0] == 0xEF && b[1] == 0xCD && b[2] == 0xAB && b[3] == 0x89);
+  CHECK(b[4] == 0x67 && b[5] == 0x45 && b[6] == 0x23 && b[7] == 0x01);
   CHECK(geozl_ld_le64(b) == 0x0123456789ABCDEFull);
 }
 
@@ -74,7 +75,8 @@ static void test_variable_width(void) {
     memset(b, 0xAA, sizeof(b));
     geozl_st_le(b, v, n);
     CHECK(geozl_ld_le(b, n) == v);
-    CHECK(b[0] == (uint8_t)v);
+    for (size_t k = 0; k < n; ++k)
+      CHECK(b[k] == (uint8_t)(v >> (8 * k)));
     CHECK(b[n] == 0xAA);
   }
 }

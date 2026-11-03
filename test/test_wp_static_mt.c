@@ -1,3 +1,5 @@
+#include "wp_static/decode_wp_static_kernel.h"
+#include "wp_static/encode_wp_static_kernel.h"
 #include "wp_static/train_wp_static.h"
 
 #include <pthread.h>
@@ -38,11 +40,34 @@ static void fill_tiles(void) {
   }
 }
 
+// Both kernels fold the sum in 64 bits and refuse a shift that wide.
+static int shift_limit_failures(void) {
+  static uint16_t out[ROWS * COLS];
+  const int16_t coeffs[4] = {1, -1, 0, 0};
+  int bad = 0;
+  for (int shift = 64; shift <= 255; ++shift) {
+    bad += wp_static_encode(out, tiles[0], COLS, ROWS * COLS, sizeof(uint16_t),
+                            coeffs, (uint8_t)shift) == 0;
+    bad += wp_static_decode(out, tiles[0], COLS, ROWS * COLS, sizeof(uint16_t),
+                            coeffs, (uint8_t)shift) == 0;
+  }
+  bad += wp_static_encode(out, tiles[0], COLS, ROWS * COLS, sizeof(uint16_t),
+                          coeffs, 63) != 0;
+  bad += wp_static_decode(out, tiles[0], COLS, ROWS * COLS, sizeof(uint16_t),
+                          coeffs, 63) != 0;
+  return bad;
+}
+
 int main(void) {
   pthread_t threads[NTHREADS];
   int failures = 0;
 
   fill_tiles();
+
+  if (shift_limit_failures() != 0) {
+    printf("test_wp_static_mt: a shift of 64 or more was accepted\n");
+    return 1;
+  }
 
   for (int t = 0; t < NTHREADS; ++t)
     wp_static_train(ref_coeffs[t], &ref_shift[t], tiles[t], COLS,

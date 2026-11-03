@@ -16,7 +16,7 @@ static int failures = 0;
     }                                                                          \
   } while (0)
 
-#define N (13 * 17)
+#define N (13 * 18)
 
 static uint64_t source[N], residual[N], expected[N], encoded[N], decoded[N];
 
@@ -40,8 +40,8 @@ static uint64_t source[N], residual[N], expected[N], encoded[N], decoded[N];
     CHECK(memcmp(decoded, source, N * sizeof(T)) == 0);                        \
   } while (0)
 
-// 13 and 17 put the wavefront on both sides of its guard, one row and one
-// column exercise the serial path.
+// 6 is below the wavefront's width guard, 13 leaves a serial tail row after the
+// last block and 18 leaves none. One row and one column take the serial path.
 #define ONE_TYPE(T, B)                                                         \
   do {                                                                         \
     uint64_t state = UINT64_C(0x9e3779b97f4a7c15);                             \
@@ -51,8 +51,9 @@ static uint64_t source[N], residual[N], expected[N], encoded[N], decoded[N];
       s[i] = (T)(state ^ (state >> 23));                                       \
     }                                                                          \
     ONE_WIDTH(T, B, 1);                                                        \
+    ONE_WIDTH(T, B, 6);                                                        \
     ONE_WIDTH(T, B, 13);                                                       \
-    ONE_WIDTH(T, B, 17);                                                       \
+    ONE_WIDTH(T, B, 18);                                                       \
     ONE_WIDTH(T, B, N);                                                        \
   } while (0)
 
