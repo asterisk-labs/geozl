@@ -23,9 +23,9 @@ function _zero_recipe(error::AbstractString)
     return false
 end
 
-# The short error syntax expanded to a codec recipe, nothing for lossless: a
-# number is LINEAR, "1%" is LOG, and a full recipe passes through. Numbers print
-# as Python writes them, so both build the same recipe.
+# Expand short error syntax to a codec recipe, or nothing for lossless. Numeric
+# bounds use Julia's decimal formatting; equivalent spellings have the same
+# value when the recipe is parsed.
 function _normalize_error(error)
     error === nothing && return nothing
     error isa Bool && throw(ArgumentError("`error` must not be a Bool"))

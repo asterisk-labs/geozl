@@ -1,7 +1,7 @@
 .number_re <- "^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$"
 
-# The shortest form that reads back as x. Whole numbers print as integers, the
-# way Python writes an int bound, so both languages build the same recipe.
+# Format a numeric bound for a LINEAR recipe. Integral doubles use integer text;
+# other values use a decimal that reads back as the same double.
 .format_number <- function(x) {
   if (x == floor(x) && abs(x) < 1e15)
     return(format(x, scientific = FALSE))
