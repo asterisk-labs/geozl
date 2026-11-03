@@ -39,6 +39,7 @@ def test_every_frame_names_its_writer():
     which wire form each frame is evidence for. New frames say ``unreleased``
     until their release is prepared.
     """
+    assert sum("written_by" not in entry for entry in FRAMES) == 28
     for entry in FRAMES:
         assert entry.get("written_by", MANIFEST["written_by"]).startswith("geozl ")
 

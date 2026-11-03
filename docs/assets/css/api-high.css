@@ -20,7 +20,7 @@
     .api{ min-height:0; display:flex; flex-direction:row; overflow-x:auto; overflow-y:hidden;
       scroll-snap-type:x mandatory; scrollbar-width:none; overscroll-behavior-x:contain; }
     .api::-webkit-scrollbar{ display:none; }
-    /* safe center spreads the spare air of a short slide and falls back to
+    /* safe center spreads the spare height of a short slide and falls back to
        the start on its own as soon as the content overflows, which is when
        centring would crop the top. */
     .api section{ flex:0 0 100%; width:100%; height:100%; overflow-y:auto; scrollbar-width:none;
@@ -61,7 +61,7 @@
   .prose a{ color:var(--ink); box-shadow:inset 0 -1px 0 var(--line-strong); }
   .prose code, .note code, .ds code, .defs dd code, .calls code{ font-family:"IBM Plex Mono",monospace; font-size:.88em; color:var(--ink); background:rgba(23,22,28,.045); padding:1px 3px; border-radius:1px; }
 
-  /* hero. Title and air traced from .cat in docs.html, not from .page */
+  /* hero. Title and spacing traced from .cat in docs.html, not from .page */
   html{ scroll-behavior:smooth; }
   .api section{ scroll-margin-top:18px; }
 
@@ -166,7 +166,7 @@
   .fnpick .pk-d{ color:var(--ink-2); font-size:12.5px; line-height:1.5; }
   .fnpick code{ font-family:"IBM Plex Mono",monospace; font-size:.92em; color:var(--ink); }
 
-  /* The three panels share one grid cell, so the block always measures the
+  /* The panels share one grid cell, so the block always measures the
      tallest of them. Sized to whichever panel is open it would change height
      on every tab, and safe center would shift the cards with it. The cards are
      the navigation of the slide, they have to stay put. */
@@ -213,11 +213,9 @@
   .api section > .note + .lbl,
   .api section > .eq + .lbl,
   .api section > .out + .lbl,
-  .api section > .chart + .lbl,
-  .api section > .gtab + .lbl{ margin-top:clamp(26px,3.1vw,36px); }
+  .api section > .chart + .lbl{ margin-top:clamp(26px,3.1vw,36px); }
   .api section > .out + .note,
   .api section > .chart + .note,
-  .api section > .gtab + .note,
   .api section > .trip + .note{ margin-top:clamp(15px,1.8vw,20px); }
   /* Code, label and output never shrink. With overflow-x:auto their min-height
      resolves to 0 and the section flex crushes them. The triptych is what
@@ -310,8 +308,6 @@
   .plot .halo.on{ opacity:1; }
   .plot .guide{ stroke:var(--wine); stroke-width:1; stroke-dasharray:3 3; opacity:0; transition:opacity 90ms var(--ease); }
   .plot .guide.on{ opacity:.75; }
-  .grow[data-g]{ cursor:crosshair; }
-  .grow.hi{ background:color-mix(in srgb,var(--wine) 13%,transparent); }
   .chart .lg .hint{ color:var(--ink); }
   .chart .lg .hint::before{ content:"\2196"; margin-right:6px; opacity:.55; }
 
@@ -341,29 +337,6 @@
   .tip dt{ color:var(--ink-2); }
   .tip dd{ margin:0; text-align:right; color:var(--ink); font-weight:600; }
   .tip dd.hot{ color:var(--wine); }
-
-  /* graph table */
-  .gtab{ border:1px solid var(--line-strong); margin-top:clamp(22px,2.6vw,30px); }
-  .ghead, .grow{ display:grid; grid-template-columns:minmax(0,1fr) 84px 62px 62px 62px 54px; gap:14px; align-items:center; padding:9px clamp(14px,1.8vw,20px); }
-  .ghead{ border-bottom:1px solid var(--line-strong); background:rgba(23,22,28,.055); color:var(--ink-2); font:500 9.5px/1 "IBM Plex Mono",monospace; letter-spacing:.07em; text-transform:uppercase; }
-  .ghead span:not(:first-child){ text-align:right; }
-  .grow{ border-bottom:1px solid var(--line); }
-  .grow:last-child{ border-bottom:0; }
-  .grow:nth-of-type(even){ background:rgba(23,22,28,.035); }
-  .grow .bar{ display:block; height:7px; background:rgba(23,22,28,.08); border:1px solid var(--line); }
-  .grow .bar i{ display:block; height:100%; background:var(--page); }
-  .grow .nv{ text-align:right; color:var(--ink); font:600 12.5px/1 "IBM Plex Mono",monospace; }
-  .grow .nv.dim{ color:var(--ink-2); font-weight:500; }
-  .grow .flag{ margin-left:8px; padding:3px 6px; border:1px solid var(--purple); color:var(--purple); font:600 9px/1 "IBM Plex Mono",monospace; letter-spacing:.06em; text-transform:uppercase; }
-  .more{ border-top:1px solid var(--line-strong); }
-  .more summary{ list-style:none; cursor:pointer; padding:12px clamp(14px,1.8vw,20px); color:var(--ink-2); font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.05em; }
-  .more summary::-webkit-details-marker{ display:none; }
-  .more summary:hover{ color:var(--ink); background:rgba(23,22,28,.055); }
-  .more summary::before{ content:"+ "; color:var(--ink); }
-  .more[open] summary::before{ content:"\2212 "; }
-  .more .sm-close, .more[open] .sm-open{ display:none; }
-  .more[open] .sm-close{ display:inline; }
-  .more .grow:first-of-type{ border-top:1px solid var(--line); }
 
   /* equations */
   .eq{ margin:clamp(18px,2.2vw,26px) 0 0; border:1px solid var(--line-strong); background:rgba(23,22,28,.022); display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); }
@@ -414,7 +387,6 @@
     .cbody{ padding:clamp(10px,1.4vw,16px) clamp(10px,1.4vw,16px) 4px; }
     .defs dt{ margin-top:9px; }
     .defs dd{ font-size:12px; line-height:1.45; }
-    .gtab .grow, .ghead{ padding-block:7px; }
     .key{ padding-block:8px; }
     .trip .fig img{ max-height:32svh; object-fit:cover; }
     .readout div{ padding-block:9px; }
@@ -463,7 +435,6 @@
     .code pre{ font-size:11px; line-height:1.5; }
     .out{ font-size:11px; line-height:1.5; }
     .readout div{ padding-block:5px; font-size:11px; }
-    .gtab .grow, .ghead{ padding-block:5px; }
     .defs dt{ margin-top:4px; }
     .defs dd{ font-size:10.5px; line-height:1.3; }
     .plot{ max-height:30svh; }
@@ -519,11 +490,6 @@
     .api{ padding:0; }
     .api section{ padding:34px 20px 30px 22px; border-bottom:1px solid var(--line); }
     .apifn-n{ font-size:15px; }
-    .ghead{ display:none; }
-    .grow{ grid-template-columns:minmax(0,1fr) auto; gap:9px 12px; padding-block:13px; }
-    .grow .rcp{ grid-column:1 / -1; }
-    .grow .bar{ grid-column:1; }
-    .grow .nv.dim{ display:none; }
     .trip{ grid-template-columns:1fr; }
     .keys{ grid-template-columns:1fr; }
     .keys .key:nth-child(odd){ border-right:0; }
@@ -593,7 +559,7 @@
 
   .profile-visual{ display:grid; grid-template-columns:minmax(310px,.72fr) minmax(0,1.28fr); gap:clamp(22px,3vw,42px); align-items:stretch; min-height:0; }
   .profile-copy{ display:flex; flex-direction:column; min-width:0; }
-  .profile-copy .prose{ font-size:14px; line-height:1.55; }
+  .profile-copy .prose{ margin-bottom:14px; font-size:14px; line-height:1.55; }
   .profile-copy .flow-h{ margin-top:clamp(16px,2vw,22px); }
   .profile-copy .flow{ margin-bottom:clamp(16px,2vw,22px); }
   .profile-copy .flow .d{ font-size:11px; }
@@ -644,8 +610,8 @@
     .flow > div:first-child{ border-top:0; }
   }
 
-  /* The recipe is a graph, so show its branching structure instead of a
-     second paragraph. Only the selected recipe is accented; alternatives
+  /* The recipe is a graph, so show its branching structure. Only the selected
+     recipe is accented; alternatives
      stay quiet and readable against the dark sheet. */
   .pipeline-diagram{ margin:clamp(16px,2vw,22px) 0 12px; overflow-x:auto; border-block:1px solid var(--line); }
   .pipeline-map{ display:block; width:100%; min-width:760px; height:auto; }
@@ -725,8 +691,8 @@
 @media (min-width:981px) and (max-height:800px){ .lossy-slide .plot{max-height:210px} }
 @media (min-width:981px) and (max-height:700px){ .lossy-slide .plot{max-height:175px} }
 
-  /* Interface icons. They live in assets/svg and paint through mask, so they
-     still take their colour from CSS as they did when inlined. */
+  /* Interface icons. They live in assets/svg. Painted through mask so CSS sets
+     their colour. */
   .ic{ display:block; width:14px; height:14px; flex:0 0 auto; background:currentColor;
     -webkit-mask:center/contain no-repeat; mask:center/contain no-repeat; }
   .ic-prev{ -webkit-mask-image:url("../svg/chevron-left.svg"); mask-image:url("../svg/chevron-left.svg"); }

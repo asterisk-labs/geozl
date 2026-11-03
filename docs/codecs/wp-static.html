@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="GeoZL wp_static, a frozen JPEG XL weighted predictor with header-stored weights.">
-<meta name="theme-color" content="#F1EDE4">
+<meta name="theme-color" content="#080b10">
 <title>GeoZL · wp_static</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <link rel="icon" href="../assets/svg/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/css/style.css">
-<link rel="stylesheet" href="../assets/css/migration.css">
+<link rel="stylesheet" href="../assets/css/dark.css">
 </head>
 <body style="--page:var(--purple)">
   <div class="sheet">
@@ -36,12 +36,12 @@
     </header>
 
     <main class="codoc">
-      <div class="col-text">
+      <div>
         <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> predictor &middot; 2D <span class="sep">/</span> lossless</p>
         <h1 class="name">wp_static</h1>
         <p class="subtitle">One learned predictor, <span class="u">fixed for the whole tile</span>.</p>
         <p class="desc"><b>wp_static</b> looks at W, N, NW, NE and NN. It learns four weights once per tile,
-        stores them in the header and then keeps them fixed, so decoding remains predictable and efficient.
+        stores them in the header and then keeps them fixed. The decoder applies them unchanged, with no per-sample error feedback.
         With the default weights it behaves like planar. Choose it when a fixed learned model works better
         than the simpler predictors on your data.</p>
         <dl class="spec">

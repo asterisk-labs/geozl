@@ -1,5 +1,5 @@
 /* Tabs for the function picker. The markup ships the first panel open and the
-   other two hidden, so that is also the unscripted state. */
+   other four hidden, so that is also the unscripted state. */
 (() => {
   "use strict";
   const list = document.querySelector(".fnpick");

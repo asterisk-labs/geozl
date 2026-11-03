@@ -23,7 +23,8 @@ sees a local param. Whatever the decode needs per tile is written on encode with
 `ZL_Encoder_sendCodecHeader` and read on decode with `ZL_Decoder_getCodecHeader`,
 inline in the two bindings. Keep it minimal. Most predictors carry a four byte
 width, wp_static that width plus a shift and four coefficients, a quantizer its
-dtype, flags and step, nodata the sentinel pattern alone, deinterleave nothing.
+dtype, flags and step, nodata its pattern, and for a sentinel three replacement
+values after it, deinterleave nothing.
 
 ## The folder and the wiring
 
@@ -63,7 +64,7 @@ in, so the shared macro does not describe them.
 **`spec.md`.** The decoder contract. What a reader has to know to invert the
 codec without seeing the encoder, so inputs, header layout, the widths accepted,
 and for a near lossless codec the error bound. A simple codec settles into
-`### Inputs`, `### Codec Header`, `### Decoding` and `### Outputs`, which the
+`## Inputs`, `## Codec header`, `## Decoding` and `## Output`, which the
 predictors all use. The quantizers are longer and organised around what they
 refuse and where the bound ends, since that is what a reader of those needs.
 Follow whichever the codec is closer to rather than padding out headings.
@@ -74,9 +75,10 @@ Then three edits, and one non-edit.
 2. `decoder_registry.c`, include the decode binding and add a
    `REGISTER(GEOZL_CTID_FOO, DI_FOO)` row to `kDecoders`.
 3. `encoder_registry.c`, write the node builder and declare it in `geozl.h`. A
-   width predictor is one line through `width_node`. Anything else registers the
-   encoder and attaches its params, and refuses at the top whatever a caller can
-   get wrong, since that is the one boundary a C caller crosses.
+   width predictor is one line through `width_node` or `geometry_node`. Anything
+   else registers the encoder and attaches its params, and refuses at the top
+   whatever a caller can get wrong, since that is the one boundary a C caller
+   crosses.
 4. `core/CMakeLists.txt`, nothing. A `CONFIGURE_DEPENDS` glob takes any
    `src/<name>/` holding an `encode_<name>_binding.c` for a codec and re-globs on
    build, so a new folder is picked up on its own and the four pairs come with it
@@ -126,8 +128,8 @@ reverse, since both implement the same CTid, header, and kernel. Add the codec
 to `bindings/python/test/test_cross_reader.py`.
 
 `make test` runs the C suite then pytest, `make test-san` the same under ASan
-and UBSan, and `make fuzz` builds six harnesses, the decode fuzzer plus the ones
-that drive the kernels directly.
+and UBSan, and `make fuzz` builds the harnesses, the decode and binding fuzzers
+plus the ones that drive the kernels directly.
 
 ## Where the checking goes
 

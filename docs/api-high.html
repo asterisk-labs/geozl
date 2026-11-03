@@ -5,15 +5,15 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
 <meta content="Python API for profiling, building and running GeoZL compression graphs." name="description"/>
-<meta content="#F1EDE4" name="theme-color"/>
-<title>GeoZL — Python API</title>
+<meta content="#080b10" name="theme-color"/>
+<title>GeoZL · Python API</title>
 <link href="assets/svg/favicon.svg" rel="icon" type="image/svg+xml"/>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
 <link href="assets/css/style.css" rel="stylesheet"/>
 <link href="assets/css/api-high.css?v=4" rel="stylesheet"/>
-<link rel="stylesheet" href="assets/css/migration.css">
+<link rel="stylesheet" href="assets/css/dark.css">
 </head>
 <body class="doc-page" style="--page:var(--gold)">
 <div class="sheet">
@@ -60,7 +60,7 @@
 </div>
 </div>
 <figure class="fig">
-<img alt="A 512 by 512 elevation tile over the Mont Blanc massif, a valley running diagonally between two ridges." height="512" src="assets/img/tile-montblanc.webp" width="512"/>
+<img alt="A 512 by 512 elevation tile over the French Alps near Albertville, a valley running diagonally between two ridges." height="512" src="assets/img/tile-albertville.webp" width="512"/>
 <figcaption class="figbar">
 <span>GLO‑30 · N45 E006 · 512²</span>
 <span class="ramp">~290 m <i></i> ~2 280 m</span>
@@ -75,23 +75,23 @@
 <p>One tile selects the pipeline. Every matching tile reuses it.</p>
 </div><div aria-label="Python API functions" class="fnpick" role="tablist">
 <button aria-controls="pan-profile" aria-selected="true" id="tab-profile" role="tab" tabindex="0">
-<span class="pk-index">01</span><span class="pk-top"><span class="pk-sq"></span><span class="pk-n">profile</span><span class="pk-r">→ ProfileResults</span></span>
+<span class="pk-index">01</span><span class="pk-top"><span class="pk-n">profile</span><span class="pk-r">→ ProfileResults</span></span>
 <span class="pk-d">Ranks candidate recipes for one tile.</span>
 </button>
 <button aria-controls="pan-graph" aria-selected="false" id="tab-graph" role="tab" tabindex="-1">
-<span class="pk-index">02</span><span class="pk-top"><span class="pk-sq"></span><span class="pk-n">graph</span><span class="pk-r">→ Graph</span></span>
+<span class="pk-index">02</span><span class="pk-top"><span class="pk-n">graph</span><span class="pk-r">→ Graph</span></span>
 <span class="pk-d">Builds a reusable graph.</span>
 </button>
 <button aria-controls="pan-compress" aria-selected="false" id="tab-compress" role="tab" tabindex="-1">
-<span class="pk-index">03</span><span class="pk-top"><span class="pk-sq"></span><span class="pk-n">compress</span><span class="pk-r">→ bytes</span></span>
+<span class="pk-index">03</span><span class="pk-top"><span class="pk-n">compress</span><span class="pk-r">→ bytes</span></span>
 <span class="pk-d">Compresses one tile and returns a frame.</span>
 </button>
 <button aria-controls="pan-decompress" aria-selected="false" id="tab-decompress" role="tab" tabindex="-1">
-<span class="pk-index">04</span><span class="pk-top"><span class="pk-sq"></span><span class="pk-n">decompress</span><span class="pk-r">→ ndarray</span></span>
+<span class="pk-index">04</span><span class="pk-top"><span class="pk-n">decompress</span><span class="pk-r">→ ndarray</span></span>
 <span class="pk-d">Decompresses a frame to flat bytes.</span>
 </button>
 <button aria-controls="pan-coeffs" aria-selected="false" id="tab-coeffs" role="tab" tabindex="-1">
-<span class="pk-index">05</span><span class="pk-top"><span class="pk-sq"></span><span class="pk-n">coeffs</span><span class="pk-r">→ tuple · None</span></span>
+<span class="pk-index">05</span><span class="pk-top"><span class="pk-n">coeffs</span><span class="pk-r">→ tuple · None</span></span>
 <span class="pk-d">Reads the numbers a frame carries, without decompressing it.</span>
 </button>
 </div>
@@ -144,8 +144,8 @@ raw = tile.nbytes</pre></div>
 <div class="out">(512, 512) int16 0.52 MB</div>
 </div>
 <div><figure class="tile-preview">
-<img alt="Elevation tile from the Mont Blanc massif" src="assets/img/tile-montblanc.webp"/>
-<figcaption><span>Mont Blanc massif</span><span>GLO-30 · 512²</span></figcaption>
+<img alt="Elevation tile from the French Alps near Albertville" src="assets/img/tile-albertville.webp"/>
+<figcaption><span>French Alps, near Albertville</span><span>GLO-30 · 512²</span></figcaption>
 </figure>
 <div class="readout">
 <div><span class="k">source</span><span class="v">GLO‑30 COG</span></div>
@@ -154,14 +154,15 @@ raw = tile.nbytes</pre></div>
 </div>
 </div>
 </div>
+<p class="note">Produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA; all rights reserved.</p>
 </section>
-<section class="graph-slide" data-slide="the graph model" id="graph">
+<section data-slide="the graph model" id="graph">
 <p class="sec-h"><span class="sq"></span> the graph model</p>
 <div class="band">
 <div class="prose">
 <p>A graph is a reusable codec pipeline. <code>profile</code> finds a recipe; <code>graph</code> builds it unchanged.</p>
 </div>
-<aside class="side"><span class="st">up to 56 valid paths</span><code>planar&gt;zigzag&gt;transpose&gt;entropy</code></aside>
+<aside class="side"><span class="st">up to 72 valid paths</span><code>planar&gt;zigzag&gt;transpose&gt;entropy</code></aside>
 </div>
 <div class="pipeline-diagram">
 <svg aria-labelledby="pipeline-title pipeline-desc" class="pipeline-map" role="img" viewbox="0 0 1100 230">
@@ -177,11 +178,11 @@ raw = tile.nbytes</pre></div>
 <text class="map-stage" text-anchor="middle" x="655" y="17">layout</text>
 <text class="map-stage" text-anchor="middle" x="850" y="17">backend</text>
 <text class="map-stage" text-anchor="middle" x="1030" y="17">output</text>
-<g class="map-edges muted">
+<g class="map-edges">
 <path d="M140 115C170 115 170 115 200 115"></path>
 <path d="M140 115C170 115 170 178 200 178"></path>
 <path d="M340 115C370 115 370 115 400 115"></path>
-<path d="M340 178C370 178 370 115 400 115"></path>
+<path d="M340 178C460 178 460 157 585 157"></path>
 <path d="M525 115C555 115 555 157 585 157"></path>
 <path d="M725 67C752 67 752 115 780 115"></path>
 <path d="M725 157C752 157 752 115 780 115"></path>
@@ -211,12 +212,12 @@ raw = tile.nbytes</pre></div>
 </div>
 <p class="note">Recipes are lossless unless <code>error</code> adds quantisation before the predictor.</p>
 </section>
-<section class="profile-slide" data-slide="profile" id="profile">
+<section data-slide="profile" id="profile">
 <p class="sec-h"><span class="sq"></span> profile <span class="sig">the selection step</span></p>
 <div class="profile-visual">
 <div class="profile-copy">
 <div class="prose">
-<p><code>profile</code> benchmarks every valid recipe on one representative tile and ranks them by ratio.</p>
+<p>With <code>prior=None</code>, <code>profile</code> benchmarks every valid recipe on one representative tile and ranks them by ratio. The default, <code>prior="planar"</code>, tries 18 on this tile.</p>
 <p>The result behaves like a list. <code>print(rows)</code> shows the input geometry, benchmark settings and table together.</p>
 <p>Run it <strong>once</strong>. Pick from the Pareto front: the smallest frame is not always the fastest decode.</p>
 </div>
@@ -227,12 +228,12 @@ raw = tile.nbytes</pre></div>
 )
 print(rows)
 best = rows[0]["graph"]</pre></div>
-<div class="out">planar&gt;zigzag&gt;transpose&gt;entropy   <b>4.50×</b></div>
+<div class="out">wp_static&gt;zigzag&gt;transpose&gt;entropy   <b>4.51×</b></div>
 </div>
 </div>
 <div class="chart profile-chart">
-<div class="lbl">compression ratio vs decode speed <span class="lg"><span class="hint">48 candidates</span><span class="hint">hover a square</span><span><i class="l-front"></i> pareto front</span><span><i class="l-rest"></i> dominated</span></span></div>
-<div class="cbody"><svg aria-label="Forty-eight candidate recipes plotted by compression ratio and decode speed, with the Pareto front highlighted" class="plot" role="img" viewbox="0 0 1100 380">
+<div class="lbl">compression ratio vs decode speed <span class="lg"><span class="hint">40 of 72 recipes, older snapshot</span><span class="hint">hover a square</span><span><i class="l-front"></i> pareto front</span><span><i class="l-rest"></i> dominated</span></span></div>
+<div class="cbody"><svg aria-label="Older snapshot of 40 of the 72 recipes, plotted by compression ratio and decode speed, with the Pareto front highlighted" class="plot" role="img" viewbox="0 0 1100 380">
 <g class="grid">
 <line x1="76" x2="1066" y1="273.1" y2="273.1"></line>
 <line x1="76" x2="1066" y1="185.7" y2="185.7"></line>
@@ -242,7 +243,7 @@ best = rows[0]["graph"]</pre></div>
 <line x1="789.9" x2="789.9" y1="30" y2="330.0"></line>
 <line x1="1027.9" x2="1027.9" y1="30" y2="330.0"></line>
 </g>
-<g class="ticks">
+<g>
 <text class="ax" text-anchor="end" x="64" y="277.1">2.0×</text>
 <text class="ax" text-anchor="end" x="64" y="189.7">3.0×</text>
 <text class="ax" text-anchor="end" x="64" y="102.2">4.0×</text>
@@ -255,7 +256,7 @@ best = rows[0]["graph"]</pre></div>
 <line class="axis" x1="76" x2="1066" y1="330.0" y2="330.0"></line>
 <text class="axl" x="76" y="20">↑ ratio</text>
 <text class="axl" text-anchor="end" x="1066" y="368">decode MB/s →</text>
-<polyline class="front" points="1014.2,274.0 793.7,267.9 480.9,146.3 461.5,54.5"></polyline>
+<polyline class="front" points="793.7,267.9 480.9,146.3 461.5,54.5"></polyline>
 <rect aria-label="planar&gt;zigzag&gt;transpose&gt;entropy, ratio 4.50, decode 810 MB per second" class="pt on" data-d="810.0" data-e="273.6" data-g="planar&gt;zigzag&gt;transpose&gt;entropy" data-r="4.50" data-s="346" height="8" role="img" tabindex="0" width="8" x="457.5" y="50.5"></rect>
 <rect aria-label="planar&gt;zigzag&gt;entropy, ratio 4.49, decode 777 MB per second" class="pt" data-d="777.4" data-e="136.8" data-g="planar&gt;zigzag&gt;entropy" data-r="4.49" data-s="345" height="8" role="img" tabindex="0" width="8" x="442.0" y="51.4"></rect>
 <rect aria-label="wp_static&gt;zigzag&gt;transpose&gt;entropy, ratio 4.48, decode 294 MB per second" class="pt" data-d="294.3" data-e="30.8" data-g="wp_static&gt;zigzag&gt;transpose&gt;entropy" data-r="4.48" data-s="345" height="8" role="img" tabindex="0" width="8" x="212.1" y="52.2"></rect>
@@ -317,14 +318,14 @@ g = geozl.<span class="fn">graph</span>(tile, best)
 
 for tile in tiles:
     frame = geozl.<span class="fn">compress</span>(tile, graph=g)</pre></div>
-<div class="out">524.3 kB → 116.5 kB   <b>4.50×</b></div>
+<div class="out">524.3 kB → 116.3 kB   <b>4.51×</b></div>
 </section>
 <section class="lossy-slide" data-slide="error" id="maxerror">
 <p class="sec-h"><span class="sq"></span> error <span class="sig">bounded-error compression</span></p>
 <div class="prose">
 <p><code>error</code> trades exact values for a smaller frame under an explicit per-sample bound. Pass <code>2</code> for a linear absolute bound or <code>"1%"</code> for a logarithmic relative bound. <code>None</code> and zero stay lossless.</p>
 <p>Full <code>LINEAR</code>, <code>LOG</code> and <code>SQRT</code> recipes remain available when you need their advanced options.</p>
-<p>Build from data spanning the product; later tiles outside that domain are rejected.</p>
+<p>Build from data spanning the product. A later tile with negatives the build data lacked is rejected, as is one past its range under <code>SQRT</code> or float <code>LINEAR</code>. NaN and infinity in a later tile are not checked, apart from LOG refusing <code>-inf</code> on a graph built without negatives.</p>
 </div>
 <div class="eq">
 <span><em>linear · elevation</em><span class="expr">|x − x̂| ≤ V</span></span>
@@ -333,15 +334,15 @@ for tile in tiles:
 </div>
 <p class="note"><code>SQRT</code>: fit noise once with <code>geozl.lossy.fit_noise(stack)</code>, then reuse <code>a</code> and <code>b</code> across tiles.</p>
 <div class="chart">
-<div class="lbl">frame size vs. allowed error</div>
-<div class="cbody"><svg aria-label="Frame size falling as the error budget grows, against the lossless reference line, with the knee of the curve marked" class="plot" role="img" viewbox="0 0 1100 340">
+<div class="lbl">frame size vs. allowed error <span class="lg"><span>planar&gt;zigzag&gt;transpose&gt;entropy</span></span></div>
+<div class="cbody"><svg aria-label="Frame size of planar&gt;zigzag&gt;transpose&gt;entropy falling as the error budget grows, against the lossless reference line, with the knee of the curve marked" class="plot" role="img" viewbox="0 0 1100 340">
 <g class="grid">
 <line x1="76" x2="1066" y1="240.8" y2="240.8"></line>
 <line x1="76" x2="1066" y1="191.5" y2="191.5"></line>
 <line x1="76" x2="1066" y1="142.3" y2="142.3"></line>
 <line x1="76" x2="1066" y1="93.0" y2="93.0"></line>
 </g>
-<g class="ticks">
+<g>
 <text class="ax" text-anchor="end" x="64" y="244.8">25</text>
 <text class="ax" text-anchor="end" x="64" y="195.5">50</text>
 <text class="ax" text-anchor="end" x="64" y="146.3">75</text>
@@ -359,37 +360,37 @@ for tile in tiles:
 <line class="axis" x1="76" x2="1066" y1="290.0" y2="290.0"></line>
 <text class="axl" x="76" y="20">↑ frame kB</text>
 <text class="axl" text-anchor="end" x="1066" y="328">error, metres →</text>
-<line class="lossless" x1="76" x2="1066" y1="60.5" y2="60.5"></line>
-<text class="ll" x="86" y="51.5">lossless · 116.5 kB</text>
-<polyline class="curve" points="76.0,60.5 118.9,60.5 162.0,60.5 205.2,60.5 248.2,116.3 291.3,116.3 334.3,145.8 377.3,163.0 420.3,172.8 463.4,178.9 506.4,186.0 549.5,189.9 592.5,192.7 635.6,194.3 678.6,199.8 721.7,204.1 764.7,210.8 807.7,216.3 850.8,225.0 893.8,234.5 936.9,241.5 979.9,255.9 1023.0,260.3 1066.0,262.4"></polyline>
-<rect aria-label="max error 0.5 metres, frame 116.5 kB, ratio 4.50" class="cd" data-err="0.5" data-kb="116.5" data-r="4.50" data-step="1" height="7" role="img" tabindex="0" width="7" x="72.5" y="57.0"></rect>
-<rect aria-label="max error 0.617 metres, frame 116.5 kB, ratio 4.50" class="cd" data-err="0.617" data-kb="116.5" data-r="4.50" data-step="1" height="7" role="img" tabindex="0" width="7" x="115.4" y="57.0"></rect>
-<rect aria-label="max error 0.762 metres, frame 116.5 kB, ratio 4.50" class="cd" data-err="0.762" data-kb="116.5" data-r="4.50" data-step="1" height="7" role="img" tabindex="0" width="7" x="158.5" y="57.0"></rect>
-<rect aria-label="max error 0.942 metres, frame 116.5 kB, ratio 4.50" class="cd" data-err="0.942" data-kb="116.5" data-r="4.50" data-step="1" height="7" role="img" tabindex="0" width="7" x="201.7" y="57.0"></rect>
-<rect aria-label="max error 1.163 metres, frame 88.2 kB, ratio 5.94" class="cd" data-err="1.163" data-kb="88.2" data-r="5.94" data-step="2" height="7" role="img" tabindex="0" width="7" x="244.7" y="112.8"></rect>
-<rect aria-label="max error 1.436 metres, frame 88.2 kB, ratio 5.94" class="cd" data-err="1.436" data-kb="88.2" data-r="5.94" data-step="2" height="7" role="img" tabindex="0" width="7" x="287.8" y="112.8"></rect>
-<rect aria-label="max error 1.773 metres, frame 73.2 kB, ratio 7.16" class="cd" data-err="1.773" data-kb="73.2" data-r="7.16" data-step="3" height="7" role="img" tabindex="0" width="7" x="330.8" y="142.3"></rect>
-<rect aria-label="max error 2.189 metres, frame 64.5 kB, ratio 8.13" class="cd" data-err="2.189" data-kb="64.5" data-r="8.13" data-step="4" height="7" role="img" tabindex="0" width="7" x="373.8" y="159.5"></rect>
-<rect aria-label="max error 2.703 metres, frame 59.5 kB, ratio 8.81" class="cd" data-err="2.703" data-kb="59.5" data-r="8.81" data-step="5" height="7" role="img" tabindex="0" width="7" x="416.8" y="169.3"></rect>
-<rect aria-label="max error 3.338 metres, frame 56.4 kB, ratio 9.30" class="cd" data-err="3.338" data-kb="56.4" data-r="9.30" data-step="6" height="7" role="img" tabindex="0" width="7" x="459.9" y="175.4"></rect>
-<rect aria-label="max error 4.122 metres, frame 52.8 kB, ratio 9.93" class="cd" data-err="4.122" data-kb="52.8" data-r="9.93" data-step="8" height="7" role="img" tabindex="0" width="7" x="502.9" y="182.5"></rect>
-<rect aria-label="max error 5.091 metres, frame 50.8 kB, ratio 10.32" class="cd" data-err="5.091" data-kb="50.8" data-r="10.32" data-step="10" height="7" role="img" tabindex="0" width="7" x="546.0" y="186.4"></rect>
-<rect aria-label="max error 6.286 metres, frame 49.4 kB, ratio 10.61" class="cd" data-err="6.286" data-kb="49.4" data-r="10.61" data-step="12" height="7" role="img" tabindex="0" width="7" x="589.0" y="189.2"></rect>
-<rect aria-label="max error 7.763 metres, frame 48.6 kB, ratio 10.79" class="cd" data-err="7.763" data-kb="48.6" data-r="10.79" data-step="15" height="7" role="img" tabindex="0" width="7" x="632.1" y="190.8"></rect>
-<rect aria-label="max error 9.586 metres, frame 45.8 kB, ratio 11.45" class="cd" data-err="9.586" data-kb="45.8" data-r="11.45" data-step="19" height="7" role="img" tabindex="0" width="7" x="675.1" y="196.3"></rect>
-<rect aria-label="max error 11.837 metres, frame 43.6 kB, ratio 12.02" class="cd" data-err="11.837" data-kb="43.6" data-r="12.02" data-step="23" height="7" role="img" tabindex="0" width="7" x="718.2" y="200.6"></rect>
-<rect aria-label="max error 14.617 metres, frame 40.2 kB, ratio 13.04" class="cd" data-err="14.617" data-kb="40.2" data-r="13.04" data-step="29" height="7" role="img" tabindex="0" width="7" x="761.2" y="207.3"></rect>
-<rect aria-label="max error 18.05 metres, frame 37.4 kB, ratio 14.02" class="cd" data-err="18.05" data-kb="37.4" data-r="14.02" data-step="36" height="7" role="img" tabindex="0" width="7" x="804.2" y="212.8"></rect>
-<rect aria-label="max error 22.289 metres, frame 33.0 kB, ratio 15.89" class="cd" data-err="22.289" data-kb="33.0" data-r="15.89" data-step="44" height="7" role="img" tabindex="0" width="7" x="847.3" y="221.5"></rect>
-<rect aria-label="max error 27.524 metres, frame 28.2 kB, ratio 18.59" class="cd" data-err="27.524" data-kb="28.2" data-r="18.59" data-step="55" height="7" role="img" tabindex="0" width="7" x="890.3" y="231.0"></rect>
-<rect aria-label="max error 33.988 metres, frame 24.6 kB, ratio 21.31" class="cd" data-err="33.988" data-kb="24.6" data-r="21.31" data-step="67" height="7" role="img" tabindex="0" width="7" x="933.4" y="238.0"></rect>
-<rect aria-label="max error 41.971 metres, frame 17.3 kB, ratio 30.31" class="cd" data-err="41.971" data-kb="17.3" data-r="30.31" data-step="83" height="7" role="img" tabindex="0" width="7" x="976.4" y="252.4"></rect>
-<rect aria-label="max error 51.828 metres, frame 15.1 kB, ratio 34.72" class="cd" data-err="51.828" data-kb="15.1" data-r="34.72" data-step="103" height="7" role="img" tabindex="0" width="7" x="1019.5" y="256.8"></rect>
-<rect aria-label="max error 64 metres, frame 14.0 kB, ratio 37.45" class="cd" data-err="64" data-kb="14.0" data-r="37.45" data-step="128" height="7" role="img" tabindex="0" width="7" x="1062.5" y="258.9"></rect>
-<rect class="knee" height="15" width="15" x="412.8" y="165.3"></rect>
-<text class="num alt" x="432.3" y="165.8">1</text>
+<line class="lossless" x1="76" x2="1066" y1="60.3" y2="60.3"></line>
+<text class="ll" x="86" y="51.3">lossless · 116.6 kB</text>
+<polyline class="curve" points="76.0,60.3 118.9,60.3 162.0,60.3 205.2,60.3 248.2,118.0 291.3,118.0 334.3,147.6 377.3,164.7 420.3,179.3 463.4,187.4 506.4,197.2 549.5,203.3 592.5,207.7 635.6,210.2 678.6,213.2 721.7,215.9 764.7,222.0 807.7,228.7 850.8,235.8 893.8,243.9 936.9,249.8 979.9,256.3 1023.0,261.0 1066.0,263.2"></polyline>
+<rect aria-label="max error 0.5 metres, frame 116.6 kB, ratio 4.50" class="cd" data-err="0.5" data-kb="116.6" data-r="4.50" data-step="1" height="7" role="img" tabindex="0" width="7" x="72.5" y="56.8"></rect>
+<rect aria-label="max error 0.617 metres, frame 116.6 kB, ratio 4.50" class="cd" data-err="0.617" data-kb="116.6" data-r="4.50" data-step="1" height="7" role="img" tabindex="0" width="7" x="115.4" y="56.8"></rect>
+<rect aria-label="max error 0.762 metres, frame 116.6 kB, ratio 4.50" class="cd" data-err="0.762" data-kb="116.6" data-r="4.50" data-step="1" height="7" role="img" tabindex="0" width="7" x="158.5" y="56.8"></rect>
+<rect aria-label="max error 0.942 metres, frame 116.6 kB, ratio 4.50" class="cd" data-err="0.942" data-kb="116.6" data-r="4.50" data-step="1" height="7" role="img" tabindex="0" width="7" x="201.7" y="56.8"></rect>
+<rect aria-label="max error 1.163 metres, frame 87.3 kB, ratio 6.01" class="cd" data-err="1.163" data-kb="87.3" data-r="6.01" data-step="2" height="7" role="img" tabindex="0" width="7" x="244.7" y="114.5"></rect>
+<rect aria-label="max error 1.436 metres, frame 87.3 kB, ratio 6.01" class="cd" data-err="1.436" data-kb="87.3" data-r="6.01" data-step="2" height="7" role="img" tabindex="0" width="7" x="287.8" y="114.5"></rect>
+<rect aria-label="max error 1.773 metres, frame 72.3 kB, ratio 7.25" class="cd" data-err="1.773" data-kb="72.3" data-r="7.25" data-step="3" height="7" role="img" tabindex="0" width="7" x="330.8" y="144.1"></rect>
+<rect aria-label="max error 2.189 metres, frame 63.6 kB, ratio 8.24" class="cd" data-err="2.189" data-kb="63.6" data-r="8.24" data-step="4" height="7" role="img" tabindex="0" width="7" x="373.8" y="161.2"></rect>
+<rect aria-label="max error 2.703 metres, frame 56.2 kB, ratio 9.34" class="cd" data-err="2.703" data-kb="56.2" data-r="9.34" data-step="5" height="7" role="img" tabindex="0" width="7" x="416.8" y="175.8"></rect>
+<rect aria-label="max error 3.338 metres, frame 52.1 kB, ratio 10.07" class="cd" data-err="3.338" data-kb="52.1" data-r="10.07" data-step="6" height="7" role="img" tabindex="0" width="7" x="459.9" y="183.9"></rect>
+<rect aria-label="max error 4.122 metres, frame 47.1 kB, ratio 11.12" class="cd" data-err="4.122" data-kb="47.1" data-r="11.12" data-step="8" height="7" role="img" tabindex="0" width="7" x="502.9" y="193.7"></rect>
+<rect aria-label="max error 5.091 metres, frame 44.0 kB, ratio 11.91" class="cd" data-err="5.091" data-kb="44.0" data-r="11.91" data-step="10" height="7" role="img" tabindex="0" width="7" x="546.0" y="199.8"></rect>
+<rect aria-label="max error 6.286 metres, frame 41.8 kB, ratio 12.53" class="cd" data-err="6.286" data-kb="41.8" data-r="12.53" data-step="12" height="7" role="img" tabindex="0" width="7" x="589.0" y="204.2"></rect>
+<rect aria-label="max error 7.763 metres, frame 40.5 kB, ratio 12.93" class="cd" data-err="7.763" data-kb="40.5" data-r="12.93" data-step="15" height="7" role="img" tabindex="0" width="7" x="632.1" y="206.7"></rect>
+<rect aria-label="max error 9.586 metres, frame 39.0 kB, ratio 13.45" class="cd" data-err="9.586" data-kb="39.0" data-r="13.45" data-step="19" height="7" role="img" tabindex="0" width="7" x="675.1" y="209.7"></rect>
+<rect aria-label="max error 11.837 metres, frame 37.6 kB, ratio 13.93" class="cd" data-err="11.837" data-kb="37.6" data-r="13.93" data-step="23" height="7" role="img" tabindex="0" width="7" x="718.2" y="212.4"></rect>
+<rect aria-label="max error 14.617 metres, frame 34.5 kB, ratio 15.18" class="cd" data-err="14.617" data-kb="34.5" data-r="15.18" data-step="29" height="7" role="img" tabindex="0" width="7" x="761.2" y="218.5"></rect>
+<rect aria-label="max error 18.05 metres, frame 31.1 kB, ratio 16.88" class="cd" data-err="18.05" data-kb="31.1" data-r="16.88" data-step="36" height="7" role="img" tabindex="0" width="7" x="804.2" y="225.2"></rect>
+<rect aria-label="max error 22.289 metres, frame 27.5 kB, ratio 19.09" class="cd" data-err="22.289" data-kb="27.5" data-r="19.09" data-step="44" height="7" role="img" tabindex="0" width="7" x="847.3" y="232.3"></rect>
+<rect aria-label="max error 27.524 metres, frame 23.4 kB, ratio 22.44" class="cd" data-err="27.524" data-kb="23.4" data-r="22.44" data-step="55" height="7" role="img" tabindex="0" width="7" x="890.3" y="240.4"></rect>
+<rect aria-label="max error 33.988 metres, frame 20.4 kB, ratio 25.66" class="cd" data-err="33.988" data-kb="20.4" data-r="25.66" data-step="67" height="7" role="img" tabindex="0" width="7" x="933.4" y="246.3"></rect>
+<rect aria-label="max error 41.971 metres, frame 17.1 kB, ratio 30.68" class="cd" data-err="41.971" data-kb="17.1" data-r="30.68" data-step="83" height="7" role="img" tabindex="0" width="7" x="976.4" y="252.8"></rect>
+<rect aria-label="max error 51.828 metres, frame 14.7 kB, ratio 35.68" class="cd" data-err="51.828" data-kb="14.7" data-r="35.68" data-step="103" height="7" role="img" tabindex="0" width="7" x="1019.5" y="257.5"></rect>
+<rect aria-label="max error 64 metres, frame 13.6 kB, ratio 38.47" class="cd" data-err="64" data-kb="13.6" data-r="38.47" data-step="128" height="7" role="img" tabindex="0" width="7" x="1062.5" y="259.7"></rect>
+<rect class="knee" height="15" width="15" x="412.8" y="171.8"></rect>
+<text class="num alt" x="432.3" y="172.3">1</text>
 </svg></div>
-<div class="keys one"><div class="key"><span class="kn base">1</span><span class="kl">knee</span><span class="kv">8.81×</span><span class="kd"><b>±2.5 m</b> · 59.5 kB · half the lossless frame.</span></div></div>
+<div class="keys one"><div class="key"><span class="kn base">1</span><span class="kl">knee</span><span class="kv">9.34×</span><span class="kd"><b>±2.5 m</b> · 56.2 kB · half the lossless frame.</span></div></div>
 </div></section>
 
 
@@ -400,18 +401,18 @@ for tile in tiles:
 <p>Restore dtype and shape with <code>.view</code> and <code>.reshape</code>. Lossless frames round-trip exactly; lossy frames respect their bound.</p>
 </div>
 <div aria-label="A compressed frame passes through the recipe in reverse, then view and reshape restore a 512 by 512 int16 array" class="decode-diagram" role="img">
-<div class="decode-card decode-source">
-<span class="decode-k">self-describing frame</span><b>116.5 kB</b>
+<div class="decode-card">
+<span class="decode-k">self-describing frame</span><b>116.3 kB</b>
 <div aria-hidden="true" class="decode-bytes"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 <code>recipe + checksums + bytes</code>
 </div>
 <div aria-hidden="true" class="decode-route">
-<span>entropy⁻¹</span><i>→</i><span>transpose⁻¹</span><i>→</i><span>zigzag⁻¹</span><i>→</i><span>planar⁻¹</span>
+<span>entropy⁻¹</span><i>→</i><span>transpose⁻¹</span><i>→</i><span>zigzag⁻¹</span><i>→</i><span>wp_static⁻¹</span>
 <small><code>uint8</code> → <code>.view("int16")</code> → <code>.reshape(512, 512)</code></small>
 </div>
-<div class="decode-card decode-target">
+<div class="decode-card">
 <span class="decode-k">restored array</span><b>512 × 512</b>
-<div aria-hidden="true" class="decode-matrix"><i>312</i><i>314</i><i>318</i><i>323</i><i>309</i><i>313</i><i>319</i><i>326</i><i>305</i><i>310</i><i>317</i><i>325</i></div>
+<div aria-hidden="true" class="decode-matrix"><i>1021</i><i>1013</i><i>1008</i><i>1004</i><i>1005</i><i>998</i><i>992</i><i>987</i><i>986</i><i>980</i><i>972</i><i>966</i></div>
 <code>int16 · lossless</code>
 </div>
 </div>
@@ -429,7 +430,7 @@ best = rows[0]["graph"]
 g = geozl.<span class="fn">graph</span>(tile, best, error=4)
 frame = geozl.<span class="fn">compress</span>(tile, graph=g)
 back = geozl.<span class="fn">decompress</span>(frame).view("int16").reshape(512, 512)</pre></div>
-<div class="out">9.93×   0.05 MB   max error 4 m</div>
+<div class="out">11.57×   0.05 MB   max error 4 m</div>
 <div class="trip">
 <figure class="fig">
 <img alt="The original elevation tile." height="420" src="assets/img/loop-orig.webp" width="420"/>

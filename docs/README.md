@@ -7,8 +7,8 @@ interactions such as copy buttons, tab switching and slide navigation.
 
 The current design uses a dark background, light text and colour accents for
 codec families. The landing page keeps its styles and scripts in `index.html`.
-The other pages share `style.css` and `migration.css`; the API walkthrough also
-loads `api-high.css`.
+The other pages share `style.css` and `dark.css`; the API walkthrough also loads
+`api-high.css`.
 
 ## Structure
 
@@ -26,15 +26,15 @@ docs/
 ├── slides/cng-2026/    conference presentation, with its own assets
 └── assets/
     ├── css/style.css       base styles for pages other than the landing page
-    ├── css/migration.css   current dark theme for those pages
+    ├── css/dark.css        dark theme for those pages
     ├── css/api-high.css    API walkthrough styles
-    ├── js/main.js           codec pager, loaded by codecs/*.html
+    ├── js/main.js           codec list read by test_catalog.py; no page loads it
     ├── js/deck.js           horizontal slide navigation on api-high
     ├── js/tabs.js           the function picker on api-high
     ├── js/copy.js           copy buttons over the code blocks
     ├── js/plot-tooltip.js   nearest-point tooltip for any .plot
     ├── js/dem-readout.js    elevation readout over the hero tile
-    ├── img/                 the Mont Blanc tile and the three loop frames
+    ├── img/                 the DEM tile and the three loop frames
     └── svg/
         ├── mark.svg          animated 2x2 prediction mark
         ├── banner.svg        the README banner
@@ -47,9 +47,10 @@ docs/
 ## The catalog is written down five times
 
 `core/include/geozl/ctids.h` holds the CTid, the README table lists the codecs, the
-cards in `docs.html` show them, and the `CODECS` array in `main.js` walks them for
-prev and next. Each codec page repeats its name and CTid. Adding a codec means
-updating all five representations.
+cards in `docs.html` show them, and the `CODECS` array in `main.js` lists them for
+`test_catalog.py`. Each codec page repeats its name and CTid and carries its prev
+and next links as static HTML. Adding a codec means updating all five
+representations.
 
 `bindings/python/test/test_catalog.py` cross-checks them, so a codec renamed in
 one place fails `make test`. The CTid header is checked one way only, since a
@@ -67,6 +68,10 @@ that supports it, and degrades to a plain navigation everywhere else.
 The catalog, API, benchmark and codec pages mark their own nav entry with
 `class="here"`. There is no runtime pass for it, so pages without scripts still
 highlight the current section.
+
+## Credits
+
+`assets/svg/heart.svg` is the `favorite` glyph from Material Icons, Apache-2.0.
 
 ## Run
 

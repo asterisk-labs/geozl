@@ -1,5 +1,5 @@
 /* GeoZL base styles for the catalog, API, benchmark and codec pages.
-   migration.css applies the current dark theme; the landing page has its
+   dark.css applies the current dark theme; the landing page has its
    own styles in index.html. */
 
 :root{
@@ -104,7 +104,6 @@ svg,img{ display:block; max-width:100%; }
   height:1px;
   background:var(--page);
 }
-.landing .masthead::after{ left:auto; right:0; background:var(--ink); opacity:.48; }
 
 .status{ white-space:nowrap; }
 .masthead .status .dot{
@@ -194,191 +193,6 @@ body:has(main.codoc){ --nav:var(--purple); }
 /* Underline mark (shared) */
 .u{ box-shadow:inset 0 -.09em 0 var(--page); }
 
-/* Landing hero */
-.hero{
-  position:relative;
-  flex:1 1 auto;
-  min-height:360px;
-  display:grid;
-  grid-template-columns:minmax(0,1.55fr) minmax(330px,.85fr);
-  border-bottom:1px solid var(--line-strong);
-}
-.hero-id{
-  position:relative;
-  isolation:isolate;
-  overflow:hidden;
-  display:flex;
-  flex-direction:column;
-  justify-content:flex-end;
-  gap:22px;
-  padding:clamp(46px,6vw,86px) clamp(28px,5vw,70px);
-  border-right:1px solid var(--line);
-}
-.hero-id::before{
-  content:"";
-  position:absolute;
-  z-index:-1;
-  width:min(43vw,520px);
-  aspect-ratio:1;
-  right:-16%;
-  top:-42%;
-  border:1px solid rgba(23,22,28,.10);
-  transform:rotate(31deg);
-}
-.hero-id::after{
-  content:"";
-  position:absolute;
-  z-index:-1;
-  width:min(31vw,390px);
-  aspect-ratio:1;
-  right:-7%;
-  top:-29%;
-  border:1px solid rgba(23,22,28,.12);
-  transform:rotate(31deg);
-}
-.lockup-hero{
-  display:flex;
-  align-items:center;
-  gap:clamp(18px,2.5vw,30px);
-}
-.marksvg-lg{
-  width:clamp(68px,8.5vw,104px);
-  height:auto;
-  flex:0 0 auto;
-}
-.wordmark{
-  margin:0;
-  font-size:clamp(70px,10vw,130px);
-  font-weight:600;
-  line-height:.8;
-  letter-spacing:-.055em;
-}
-.tagline{
-  max-width:34ch;
-  margin:0 0 2px;
-  color:var(--ink-2);
-  font-size:clamp(16px,1.65vw,20px);
-  line-height:1.4;
-}
-
-/* Landing spec panel — scoped to .hero so it never clashes with the
-   codec-detail .spec definition list below. */
-.hero .spec{
-  position:relative;
-  overflow:hidden;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  background:rgba(255,255,255,.10);
-}
-.hero .spec::before{
-  content:"";
-  position:absolute;
-  inset:20px 24px auto auto;
-  width:98px;
-  height:98px;
-  background:url("../svg/mark.svg") center/contain no-repeat;
-  opacity:.045;
-  pointer-events:none;
-}
-.hero .spec-row{
-  position:relative;
-  display:grid;
-  grid-template-columns:84px 1fr;
-  align-items:baseline;
-  gap:18px;
-  padding:17px clamp(24px,3vw,38px);
-  border-bottom:1px solid var(--line);
-  font-size:13px;
-  transition:background var(--duration) var(--ease);
-}
-.hero .spec-row:last-child{ border-bottom:0; }
-.hero .spec-row:nth-child(even){ background:rgba(255,255,255,.12); }
-.hero .spec-row:hover{ background:rgba(255,255,255,.34); }
-.hero .spec-row:nth-child(4) .v{ color:var(--purple); }
-.hero .spec-row .k{
-  color:var(--ink-2);
-  font-size:10px;
-  letter-spacing:.08em;
-  text-transform:uppercase;
-}
-.hero .spec-row .v{
-  color:var(--ink);
-  font-weight:500;
-  text-align:right;
-}
-
-/* Landing index — asymmetric on desktop */
-.index{
-  display:grid;
-  grid-template-columns:repeat(12,minmax(0,1fr));
-  grid-auto-rows:104px;
-  border-left:1px solid var(--line);
-}
-.idx{
-  --accent:var(--ink-2);
-  --on:#F5F1E8;
-  position:relative;
-  min-width:0;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-  padding:16px 18px;
-  overflow:hidden;
-  color:var(--ink);
-  border-right:1px solid var(--line);
-  border-bottom:1px solid var(--line);
-  text-decoration:none;
-  transition:background var(--duration) var(--ease),color var(--duration) var(--ease),transform var(--duration) var(--ease);
-}
-.idx.doc{ grid-column:span 4; grid-row:span 2; padding:22px; }
-.idx.hi,.idx.lo,.idx.bench,.idx.links{ grid-column:span 4; }
-.idx-top{ display:flex; align-items:center; justify-content:space-between; }
-.idx .sq{
-  width:13px;
-  height:13px;
-  background:var(--accent);
-  border:1px solid var(--ink);
-}
-.idx.doc .sq{ width:18px; height:18px; }
-.idx .no{ color:var(--ink-2); font-size:11px; }
-.idx-body{ margin-top:auto; padding-right:24px; }
-.idx-name{
-  font-size:17px;
-  font-weight:500;
-  line-height:1.08;
-  letter-spacing:-.018em;
-}
-.idx.doc .idx-name{ max-width:8ch; font-size:clamp(28px,3vw,42px); line-height:.96; }
-.idx-tag{ margin-top:5px; color:var(--ink-2); font-size:10px; letter-spacing:.025em; }
-.idx-cta{
-  position:absolute;
-  right:17px;
-  bottom:17px;
-  opacity:.44;
-  transition:opacity var(--duration) var(--ease),transform var(--duration) var(--ease);
-}
-.idx-cta svg{ width:17px; height:17px; }
-.idx.doc .idx-cta svg{ width:22px; height:22px; }
-.idx:hover,.idx:focus-visible{
-  z-index:2;
-  color:var(--on);
-  background:var(--accent);
-  outline:none;
-}
-.idx:hover .no,.idx:focus-visible .no,
-.idx:hover .idx-tag,.idx:focus-visible .idx-tag{ color:var(--on); opacity:.8; }
-.idx:hover .sq,.idx:focus-visible .sq{ background:var(--on); border-color:var(--on); }
-.idx:hover .idx-cta,.idx:focus-visible .idx-cta{ opacity:1; transform:translateX(3px); }
-.idx:focus-visible{ box-shadow:inset 0 0 0 2px var(--ink); }
-
-.idx.doc{ --accent:var(--purple); --on:#F6F2EA; }
-.idx.hi{ --accent:var(--gold); --on:#17161C; }
-.idx.lo{ --accent:var(--green); --on:#17161C; }
-.idx.bench{ --accent:var(--orange); --on:#17161C; }
-.idx.links{ --accent:var(--wine); --on:#F6F2EA; }
-.idx.doc,.idx.links{ transition:none; }
-
 /* Inner pages */
 body:not(.landing) .sheet{ min-height:min(820px,calc(100svh - clamp(32px,5.2vw,68px))); }
 .page{
@@ -423,108 +237,6 @@ body:not(.landing) .sheet{ min-height:min(820px,calc(100svh - clamp(32px,5.2vw,6
   line-height:1.58;
 }
 
-/* Inner: work-in-progress panel */
-.soon{
-  position:relative;
-  grid-column:2;
-  grid-row:1 / 4;
-  min-height:360px;
-  display:flex;
-  align-items:flex-end;
-  gap:14px;
-  overflow:hidden;
-  padding:clamp(28px,4vw,46px);
-  color:var(--ink-2);
-  background:color-mix(in srgb,var(--page) 9%,rgba(255,255,255,.15));
-  border:1px solid var(--line-strong);
-  font:400 12px/1.65 "IBM Plex Mono",monospace;
-}
-.soon::before{
-  content:"";
-  position:absolute;
-  top:clamp(28px,4vw,44px);
-  right:clamp(28px,4vw,44px);
-  width:min(46%,160px);
-  aspect-ratio:1;
-  background:url("../svg/mark.svg") center/contain no-repeat;
-  opacity:.075;
-}
-.soon::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  background:
-    linear-gradient(90deg,transparent calc(100% - 1px),rgba(23,22,28,.065) 0),
-    linear-gradient(transparent calc(100% - 1px),rgba(23,22,28,.065) 0);
-  background-size:32px 32px;
-  mask-image:linear-gradient(to bottom,black,transparent 72%);
-  pointer-events:none;
-}
-.soon .s-sq{
-  position:relative;
-  z-index:1;
-  width:10px;
-  height:10px;
-  flex:0 0 auto;
-  margin-top:5px;
-  background:var(--page);
-  border:1px solid var(--ink);
-}
-.soon code{ color:var(--ink); }
-.soon > *,.soon{ position:relative; z-index:1; }
-
-/* Links page */
-.page-links .lead{ margin-bottom:0; }
-.linklist{
-  grid-column:2;
-  grid-row:1 / 4;
-  align-self:stretch;
-  display:flex;
-  flex-direction:column;
-  border:1px solid var(--line-strong);
-  background:rgba(255,255,255,.1);
-}
-.linkrow{
-  position:relative;
-  flex:1 1 0;
-  min-height:112px;
-  display:flex;
-  align-items:center;
-  gap:20px;
-  padding:24px clamp(22px,3vw,36px);
-  overflow:hidden;
-  color:var(--ink);
-  border-bottom:1px solid var(--line);
-  text-decoration:none;
-  transition:background var(--duration) var(--ease),color var(--duration) var(--ease);
-}
-.linkrow:last-child{ border-bottom:0; }
-.linkrow::after{
-  content:"";
-  position:absolute;
-  inset:0 auto 0 0;
-  width:0;
-  background:var(--page);
-  opacity:.1;
-  transition:width var(--duration) var(--ease);
-}
-.linkrow:hover,.linkrow:focus-visible{ background:rgba(255,255,255,.30); outline:none; }
-.linkrow:hover::after,.linkrow:focus-visible::after{ width:7px; }
-.linkrow:focus-visible{ box-shadow:inset 0 0 0 2px var(--ink); }
-.linkrow .logo{ position:relative; z-index:1; max-width:58%; height:28px; width:auto; flex:0 0 auto; }
-.lk-meta{
-  position:relative;
-  z-index:1;
-  margin-left:auto;
-  display:flex;
-  align-items:center;
-  gap:18px;
-}
-.lk-desc{ color:var(--ink-2); font-size:10px; letter-spacing:.03em; white-space:nowrap; }
-.lk-arrow{ color:var(--ink-2); transition:transform var(--duration) var(--ease),color var(--duration) var(--ease); }
-.lk-arrow svg{ width:19px; height:19px; }
-.linkrow:hover .lk-arrow,.linkrow:focus-visible .lk-arrow{ color:var(--ink); transform:translate(3px,-3px); }
-
 /* Footer */
 .colophon{
   min-height:54px;
@@ -565,7 +277,7 @@ body:not(.landing) .sheet{ min-height:min(820px,calc(100svh - clamp(32px,5.2vw,6
 .pg-n{ color:var(--ink); font:600 13px/1 "Space Grotesk",system-ui,sans-serif; letter-spacing:-.02em; }
 .pg-mid{ color:var(--ink-2); }
 
-/* Catalog (docs) — sheet-height, card grid scrolls when the codecs outgrow it */
+/* Catalog (docs): sheet-height, card grid scrolls when the codecs outgrow it */
 .is-catalog .sheet{
   height:min(760px,calc(100svh - clamp(32px,5.2vw,68px)));
 }
@@ -634,7 +346,7 @@ body:not(.landing) .sheet{ min-height:min(820px,calc(100svh - clamp(32px,5.2vw,6
 .card:hover .card-cta{ opacity:1; transform:translateX(2px); }
 .card:focus-visible{ box-shadow:inset 0 0 0 2px var(--ink); outline:none; }
 
-/* Codec detail — padding in one var so the divider matches it */
+/* Codec detail: padding in one var so the divider matches it */
 .codoc{
   position:relative; flex:1 1 auto; min-height:0; display:grid;
   --codoc-pad-y:clamp(30px,4vw,50px);
@@ -651,7 +363,7 @@ h1.name{ margin:0 0 8px; font-size:clamp(38px,5.2vw,70px); font-weight:600; line
 .desc{ margin:0 0 26px; max-width:50ch; color:var(--ink-2); font-size:clamp(15px,1.4vw,17px); line-height:1.62; }
 .desc b{ color:var(--ink); font-weight:600; }
 
-/* Codec spec list — scoped to .codoc (see landing .hero .spec above). */
+/* Codec spec list: scoped to .codoc. */
 .codoc .spec{ display:grid; grid-template-columns:auto 1fr; gap:8px 20px; margin:0 0 26px;
   font:500 12.5px/1.5 "IBM Plex Mono",monospace; }
 .codoc .spec dt{ color:var(--ink-2); text-transform:uppercase; letter-spacing:.05em; font-size:11px; align-self:start; padding-top:2px; }
@@ -709,9 +421,6 @@ h1.name{ margin:0 0 8px; font-size:clamp(38px,5.2vw,70px); font-weight:600; line
 @media (max-width:900px){
   body{ align-items:flex-start; padding:14px; }
   .sheet{ min-height:calc(100svh - 28px); }
-  .hero{ grid-template-columns:1.2fr .9fr; }
-  .wordmark{ font-size:clamp(68px,12vw,104px); }
-  .index{ grid-auto-rows:98px; }
   .page{
     grid-template-columns:minmax(0,1fr) minmax(285px,.78fr);
     column-gap:34px;
@@ -753,37 +462,6 @@ h1.name{ margin:0 0 8px; font-size:clamp(38px,5.2vw,70px); font-weight:600; line
   }
   .nav::-webkit-scrollbar{ display:none; }
   .nav a{ flex:0 0 auto; }
-  .hero{
-    min-height:0;
-    display:grid;
-    grid-template-columns:1fr;
-    border-bottom:0;
-  }
-  .hero-id{
-    min-height:310px;
-    justify-content:center;
-    padding:42px 22px 36px;
-    border-right:0;
-    border-bottom:1px solid var(--line);
-  }
-  .hero-id::before{ width:340px; right:-170px; top:-170px; }
-  .hero-id::after{ width:240px; right:-105px; top:-105px; }
-  .lockup-hero{ gap:17px; }
-  .marksvg-lg{ width:58px; }
-  .wordmark{ font-size:clamp(62px,20vw,90px); }
-  .tagline{ max-width:30ch; font-size:16px; }
-  .hero .spec-row{ padding:13px 20px; grid-template-columns:70px 1fr; }
-  .index{
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    grid-auto-rows:116px;
-  }
-  .idx.doc{
-    grid-column:1 / -1;
-    grid-row:span 1;
-    min-height:132px;
-  }
-  .idx.hi,.idx.lo,.idx.bench,.idx.links{ grid-column:span 1; }
-  .idx.doc .idx-name{ max-width:none; font-size:25px; line-height:1; }
   .page{
     display:block;
     padding:42px 20px 48px 23px;
@@ -792,12 +470,6 @@ h1.name{ margin:0 0 8px; font-size:clamp(38px,5.2vw,70px); font-weight:600; line
   .kicker{ margin-bottom:28px; }
   .page h1{ max-width:12ch; margin-bottom:20px; font-size:clamp(42px,13vw,64px); }
   .page .lead{ max-width:42ch; margin-bottom:34px; font-size:16px; }
-  .soon{
-    min-height:260px;
-    padding:28px 24px;
-  }
-  .linklist{ min-height:360px; }
-  .linkrow{ min-height:112px; padding:22px; }
   .colophon{
     justify-content:center;
     padding:16px 20px;
@@ -810,13 +482,6 @@ h1.name{ margin:0 0 8px; font-size:clamp(38px,5.2vw,70px); font-weight:600; line
 
 @media (max-width:460px){
   .masthead{ font-size:9px; }
-  .landing .masthead{ gap:12px; }
-  .index{ grid-template-columns:1fr; grid-auto-rows:102px; }
-  .idx.doc,.idx.hi,.idx.lo,.idx.bench,.idx.links{ grid-column:auto; }
-  .idx.doc{ min-height:116px; }
-  .idx.doc .idx-name{ font-size:24px; }
-  .lk-desc{ display:none; }
-  .linkrow .logo{ max-width:70%; height:26px; }
   .by{ flex-wrap:wrap; justify-content:center; }
   .pg-mid,.pg-fam{ display:none; }
   .pg-n{ font-size:12px; }

@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="GeoZL transpose_pivco splits numeric values into byte lanes and encodes each lane with PivCo Huffman or PFOR.">
-<meta name="theme-color" content="#F1EDE4">
+<meta name="theme-color" content="#080b10">
 <title>GeoZL · transpose_pivco</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <link rel="icon" href="../assets/svg/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="../assets/css/style.css">
-<link rel="stylesheet" href="../assets/css/migration.css">
+<link rel="stylesheet" href="../assets/css/dark.css">
 </head>
 <body style="--page:var(--green)">
   <div class="sheet">
@@ -36,7 +36,7 @@
     </header>
 
     <main class="codoc">
-      <div class="col-text">
+      <div>
         <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> numeric to numeric + serial <span class="sep">/</span> lossless</p>
         <h1 class="name">transpose_pivco</h1>
         <p class="subtitle">Byte lanes, each encoded with PivCo Huffman or PFOR.</p>
@@ -54,6 +54,7 @@
             <svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"></path><path d="M8 7h9v9"></path></svg>
           </a>
           <span class="usage mono">geozl.graph(tile, "id&gt;transpose&gt;pivco")</span>
+          <span class="usage mono">8-bit: "id&gt;pivco"</span>
         </div>
       </div>
 

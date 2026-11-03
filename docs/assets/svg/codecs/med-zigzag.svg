@@ -30,7 +30,7 @@
   <path d="M89 53 H105" class="arrow"/>
 
   <rect x="108" y="29" width="132" height="48" rx="2" class="box"/>
-  <text x="174" y="45" class="name">P = med(W, N, NW)</text>
+  <text x="174" y="45" class="name">P = med(W, N, W+N&#8722;NW)</text>
   <text x="174" y="67" class="value">47</text>
 
   <path d="M241 53 H257" class="arrow"/>

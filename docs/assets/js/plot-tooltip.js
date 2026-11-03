@@ -83,16 +83,14 @@
 
   addEventListener("resize", hide);
 
-  /* Cross-highlight with the table, plus guides out to the axes. */
+  /* Halo on the hovered square, plus guides out to the axes. */
   const scatter = plots[0];
   const halo = scatter.querySelector("#halo");
   const gx = scatter.querySelector("#gx"), gy = scatter.querySelector("#gy");
-  let litRow = null;
 
   markers = (el) => {
     if (!el || !el.dataset.g) {
       [halo, gx, gy].forEach((m) => m.classList.remove("on"));
-      if (litRow) { litRow.classList.remove("hi"); litRow = null; }
       return;
     }
     const x = parseFloat(el.getAttribute("x")) + 4, y = parseFloat(el.getAttribute("y")) + 4;
@@ -100,18 +98,5 @@
     gx.setAttribute("x1", 76); gx.setAttribute("y1", y); gx.setAttribute("x2", x); gx.setAttribute("y2", y);
     gy.setAttribute("x1", x); gy.setAttribute("y1", y); gy.setAttribute("x2", x); gy.setAttribute("y2", 330);
     [halo, gx, gy].forEach((m) => m.classList.add("on"));
-    if (litRow) litRow.classList.remove("hi");
-    litRow = document.querySelector('.grow[data-g="' + el.dataset.g + '"]');
-    if (litRow) litRow.classList.add("hi");
   };
-
-  document.querySelectorAll(".grow[data-g]").forEach((row) => {
-    row.addEventListener("pointerenter", () => {
-      const dot = scatter.querySelector('[data-g="' + row.dataset.g + '"]');
-      if (!dot) return;
-      const b = dot.getBoundingClientRect();
-      show(dot, b.left + b.width / 2, b.top + b.height / 2);
-    });
-    row.addEventListener("pointerleave", hide);
-  });
 })();

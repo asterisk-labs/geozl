@@ -4,15 +4,15 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
-<meta content="GeoZL benchmarks — compression ratio versus throughput." name="description"/>
-<meta content="#F1EDE4" name="theme-color"/>
-<title>GeoZL — benchmark</title>
+<meta content="GeoZL benchmarks: compression ratio versus throughput." name="description"/>
+<meta content="#080b10" name="theme-color"/>
+<title>GeoZL · benchmark</title>
 <link href="assets/svg/favicon.svg" rel="icon" type="image/svg+xml"/>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
 <link href="assets/css/style.css" rel="stylesheet"/>
-<link rel="stylesheet" href="assets/css/migration.css">
+<link rel="stylesheet" href="assets/css/dark.css">
 </head>
 <body style="--page:var(--orange)">
 <div class="sheet">
@@ -37,7 +37,8 @@
 <main class="page benchmark-page">
 <p class="kicker"><span class="k-sq"></span> benchmark</p>
 <h1>Ratio and <span class="u">speed</span>.</h1>
-<p class="lead">The current benchmark uses one 512 × 512 <code>int16</code> window of the Copernicus DEM. Every applicable recipe is timed and plotted against its Pareto front on the <a href="api-high.html#profile">Python API page</a>.</p>
+<p class="lead">An older snapshot times 40 of the 72 recipes <code>profile(prior=None)</code> returns for one 512 × 512 <code>int16</code> window of the Copernicus DEM, and plots them against their Pareto front on the <a href="api-high.html#profile">Python API page</a>. It has no pfor, pivco, categorical or sparse recipes.</p>
+<p class="credit">Produced using Copernicus WorldDEM-30 © DLR e.V. 2010-2014 and © Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA; all rights reserved.</p>
 </main>
 <footer class="colophon">
 <span>Made with</span>

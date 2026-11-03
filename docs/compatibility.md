@@ -4,16 +4,15 @@
 
 **0.20.0 is the first compatibility baseline.** Releases before it were
 development releases and their frames are not part of the compatibility
-contract. During the 0.20 prerelease series, readers and writers may still
-change together. Starting with 0.20.0, later readers will continue to read
+contract. Starting with 0.20.0, later readers will continue to read
 frames written by that release and by compatible releases after it.
 
 Released CTids are never reassigned. An incompatible codec layout receives a
 new CTid. Encoders may produce different bytes without breaking compatibility,
 and older readers may not understand codecs introduced later.
 
-CTids `0x72D708` through `0x72D70B` belonged to pre-baseline, decode-only
-transforms that have been removed. The values remain reserved. Current readers
+CTids `0x72D708` through `0x72D70B` belonged to pre-baseline, decode-only codecs
+ported from pcodec that have been removed. The values remain reserved. Current readers
 reject frames using them; no 0.20.0 writer emits them.
 
 Frozen frames in `bindings/python/test/golden` are decoded in CI on x86-64 and
@@ -27,12 +26,11 @@ Golden frames preserve the retired 0.14–0.18 value layouts.
 ### Changing the wire format of an existing codec
 
 Adding a codec is covered by [adding a codec](adding-a-codec.md). Changing one
-that already ships is a different job, and this is the checklist it earned:
+that already ships needs these steps:
 
 1. Freeze a golden frame in every wire form the change touches, including the
    one being retired, before the change lands.
 2. Confirm an older reader **refuses** the new frame rather than misreading it.
-   Trace the actual predicate; do not assume.
 3. Decide whether the change needs a new CTid or only widens which flag values
    are legal, and record the reasoning here rather than only in the changelog.
 4. Say which direction of compatibility survives, in the changelog entry.
@@ -42,10 +40,12 @@ that already ships is a different job, and this is the checklist it earned:
 
 ## APIs
 
-The C source API is stable from 0.13.0 apart from the retired writer stubs for
+The C source API is stable from 0.13.0 apart from `geozl_node_nodata`, which
+gained parameters in 0.17.0, `geozl_node_blocked_transpose_zstd`, removed in
+0.19.0, and four retired writer stubs and their `GEOZL_CTID_*` enumerators for
 CTids `0x72D708` through `0x72D70B`, removed after 0.20.0. The C ABI is not
 stable before 1.0, so C applications should be recompiled after an update. See
-[C API stability](c-api.md).
+[C API stability](c-api.md) for the full list.
 
 The public Python API follows semantic versioning but may grow before 1.0.
 

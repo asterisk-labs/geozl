@@ -225,29 +225,13 @@ body:not(.landing) .sheet,
 
 .benchmark-page {
   grid-template-columns: minmax(0, 760px);
+  grid-template-rows: auto auto auto 1fr;
   justify-content: start;
 }
 
 .benchmark-page::before { display: none; }
 .benchmark-page .lead { max-width: 62ch; }
-
-.soon,
-.linklist {
-  border-color: var(--line-strong);
-  background: rgba(255, 255, 255, .025);
-}
-
-.soon::before { filter: brightness(0) invert(1); opacity: .04; }
-.soon::after { display: none; }
-
-.linkrow {
-  color: var(--ink);
-  border-bottom-color: var(--line);
-}
-
-.linkrow:hover,
-.linkrow:focus-visible { background: rgba(255, 255, 255, .045); }
-.linkrow .logo { filter: brightness(0) invert(1); opacity: .9; }
+.benchmark-page .credit { grid-column: 1; grid-row: 4; max-width: 62ch; margin: 22px 0 0; color: var(--ink-2); font-size: 12px; line-height: 1.6; }
 
 /* Catalog */
 .is-catalog .sheet { height: auto; }
@@ -445,9 +429,6 @@ h1.name { color: var(--ink); font-weight: 650; }
 .readout,
 .eq,
 .cn,
-.ghead,
-.grow:nth-of-type(even),
-.more summary:hover,
 .cp {
   background: rgba(255, 255, 255, .028);
 }
@@ -481,8 +462,6 @@ h1.name { color: var(--ink); font-weight: 650; }
 .spec2 .row,
 .flow > div,
 .key,
-.ghead,
-.grow,
 .eq > span,
 .defs h3,
 .side,
@@ -502,15 +481,13 @@ h1.name { color: var(--ink); font-weight: 650; }
 .out,
 .readout,
 .chart,
-.gtab,
 .eq,
 .tip { border-color: var(--line-strong); }
 
 .readout div:nth-child(even),
 .spec2 .row:nth-child(even) { background: rgba(255, 255, 255, .018); }
 
-.rcp .back,
-.grow .bar { background: rgba(255, 255, 255, .07); }
+.rcp .back { background: rgba(255, 255, 255, .07); }
 .chart .lg .l-rest { background: var(--paper-2); border-color: var(--line-strong); }
 .tip { background: var(--paper-2); box-shadow: 3px 3px 0 rgba(0, 0, 0, .3); }
 
