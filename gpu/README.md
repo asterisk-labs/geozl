@@ -9,8 +9,8 @@ Metal source or CUDA PTX. OpenZL checks the outer frame and its compressed
 checksum on the CPU. The capture layer intercepts the supported codec inputs
 and stops before the raster is materialized; the host planner then validates
 the PFOR or PivCo streams and builds the GPU task lists. Planning splits a
-batch into at most four contiguous frame ranges and merges the task lists in
-input order.
+batch into one contiguous frame range per planning thread and merges the task
+lists in input order.
 
 ## Layout
 
@@ -24,7 +24,7 @@ input order.
 | `kernels/stages/` | PFOR, PivCo and inverse planar/Zigzag stages |
 | `kernels/common/` | shared payload access and constants |
 | `../core/src/gpu/` | frame capture, GPU task planning and the backend runtimes |
-| `../test/gpu/` | host-side frame preparation tests |
+| `../test/gpu/` | capture and planning tests, and decode tests that run the kernels on a device |
 | `proto/gpu.c`, `gpu.h` | benchmark timing adapter |
 | `proto/pfor_bench.c`, `proto/pivco_bench.c` | CPU/GPU benchmarks and verification |
 | `proto/run_all.sh` | benchmark driver |
@@ -86,14 +86,15 @@ is not checked because the reconstructed samples remain on the device.
 ## Decoding into device memory
 
 `geozl_gpu_decode` takes compressed frames, the bytes each decodes to, and
-copies of strided sample rectangles into a CUDA pointer or Metal buffer. A
-frame goes to the device when the last codec in its header is PFOR or PivCo
-and its elements match the sample size, which is one or two bytes. Every other
-frame, including quantized, NoData and zstd frames, decodes on the host with
-OpenZL into page-locked staging. A valid device frame that needs another host
-transform falls back the same way; malformed codec metadata rejects the call.
-Host threads capture and decode frames from a shared counter; planning then
-splits each codec's frames over the same threads.
+copies of strided sample rectangles into a CUDA pointer or Metal buffer. The
+device path supports `id>pfor`, `planar>zigzag>pfor`, `id>pivco`,
+`id>transpose>pivco` and `planar>zigzag>transpose>pivco` for one- and
+two-byte samples. Other graphs, including quantized, NoData and zstd frames,
+decode with OpenZL into host staging. Planar frames also use host staging when
+their planes are shorter than 256 samples or, on CUDA, exceed the grid limits.
+Malformed codec metadata rejects the call. Host threads capture and decode
+frames from a shared counter; planning then splits each codec's frames over the
+same threads.
 
 The decoder is created with a nonzero limit for the sum of decoded frame bytes
 in one call. Copies may interleave samples, but no two copies may write the

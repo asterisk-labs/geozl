@@ -68,10 +68,10 @@ GEOZL_API void geozl_gpu_destroy(GeozlGpu *gpu);
 // Decodes frames and runs copies of sampleBytes samples into target, which
 // must be aligned to the sample size. Every frame must decode to numeric
 // elements of elementBytes or of whole samples, so elementBytes divides
-// sampleBytes. When elementBytes equals sampleBytes and is 1 or 2, frames whose
-// last codec is PFOR or PivCo decode on the device and the rest decode on the
-// host into page-locked memory. Copies address at most 2^32 samples of the
-// target and of each aggregate route source.
+// sampleBytes. When elementBytes equals sampleBytes and is 1 or 2, the direct
+// id/planar PFOR and PivCo recipes decode on the device. Other graphs decode
+// into host staging. Copies address at most 2^32 samples of the target and of
+// each aggregate route source.
 //
 // On CUDA the call returns once the device work is queued on target->stream.
 // The target allocation must remain alive on the selected device until work

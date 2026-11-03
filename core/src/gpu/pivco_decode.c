@@ -351,7 +351,7 @@ GeozlGpuMemory *geozl_pivco_gpu_decode(GeozlPivcoGpuDecoder *decoder,
     return NULL;
   }
 
-  // Kernel inputs are built in staging, which the device reads in place.
+  // Kernel inputs are built in staging, which uploads without a host copy.
   GeozlGpuArena *staging = &decoder->staging;
   geozl_gpu_arena_reset(staging);
   const GeozlGpuHostAlloc alloc = geozl_gpu_arena_allocator(staging);

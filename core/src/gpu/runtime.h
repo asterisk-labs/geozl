@@ -74,8 +74,8 @@ void geozl_gpu_program_destroy(GeozlGpuProgram *program);
 const char *geozl_gpu_program_backend(const GeozlGpuProgram *program);
 const char *geozl_gpu_program_device(const GeozlGpuProgram *program);
 
-// Host memory the device reads directly, page-locked on CUDA and shared on
-// Metal. Inputs written here skip the copy into a batch. Any program on the
+// Host memory that uploads without a host copy, page-locked on CUDA and shared
+// on Metal. Inputs written here skip the copy into a batch. Any program on the
 // staging program's device may read it, and it must outlive those batches.
 GeozlGpuStaging *geozl_gpu_staging_create(GeozlGpuProgram *program,
                                           size_t bytes, char *error,

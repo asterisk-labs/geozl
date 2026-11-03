@@ -433,16 +433,12 @@ int pivco_gpu_plan_build(PivcoGpuPlan *plan, const CapturedFrame *frames,
   // sink run after the lane buffer.
   if (RESERVE(plan, laneBlocks, laneCapacity, plan->laneBlockCount, 4))
     return fail(plan, "out of memory", frameCount - 1, SIZE_MAX);
-  while (plan->laneBlockCount % 4 && plan->laneBlockCount > 0) {
-    uint32_t sink;
-    if (as_u32(plan->laneBytes, &sink))
-      return fail(plan, "lane sink exceeds 32 bits", frameCount - 1, SIZE_MAX);
-    plan->laneBlocks[plan->laneBlockCount++] =
-        (GpuLaneBlock){plan->laneBlocks[0].payloadOffset, sink};
-  }
+  while (plan->laneBlockCount % 4)
+    plan->laneBlocks[plan->laneBlockCount++] = (GpuLaneBlock){
+        plan->laneBlocks[0].payloadOffset, (uint32_t)plan->laneBytes};
 
-  // Metal and CUDA both require a non-empty bound buffer even when a kernel is
-  // omitted because its task list is empty.
+  // Both backends need an allocation behind every kernel argument, even when a
+  // kernel is omitted because its task list is empty.
   if (RESERVE(plan, symbols, symbolCapacity, plan->symbolCount, 1) ||
       RESERVE(plan, trees, treeCapacity, plan->treeCount, 1) ||
       RESERVE(plan, nodes, nodeCapacity, plan->nodeCount, 1) ||

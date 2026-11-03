@@ -11,6 +11,8 @@
 #include "gpu/runtime.h"
 #include "pfor/graph_pfor.h"
 #include "pivco_lanes/pivco_lanes.h"
+#include "planar_zigzag_pfor/graph_planar_zigzag_pfor.h"
+#include "planar_zigzag_transpose_pivco/graph_planar_zigzag_transpose_pivco.h"
 #include "transpose_pivco/graph_transpose_pivco.h"
 
 #include "openzl/zl_compress.h"
@@ -141,6 +143,20 @@ static void add_copies(Batch *batch, size_t frame, const Shape *shape,
       2 * row, 2 * bytes, shape->width, shape->rows - 1};
   batch->targetBytes += 2 * plane;
   batch->copyCount += 3;
+}
+
+static void add_whole_copy(Batch *batch, size_t frame, size_t bytes) {
+  const size_t size = batch->frames[frame].decodedBytes;
+  batch->copies[batch->copyCount++] = (GeozlGpuCopy){frame,
+                                                     0,
+                                                     size,
+                                                     bytes,
+                                                     batch->targetBytes,
+                                                     size,
+                                                     bytes,
+                                                     (uint32_t)(size / bytes),
+                                                     1};
+  batch->targetBytes += size;
 }
 
 static void expect(const Batch *batch, size_t sampleBytes, uint8_t *want,
@@ -327,6 +343,7 @@ static int check_capture_errors(GeozlGpu *gpu) {
   geozl_st_le32(header + 9, 32768);
   header[13] = GEOZL_PIVCO_LANE_PIVCO;
   geozl_st_le16(header + 14, 1);
+
   const CaptureFramePlan plans[] = {
       {.ctid = GEOZL_CTID_TRANSPOSE_PIVCO,
        .header = header,
@@ -363,6 +380,31 @@ static int check_capture_errors(GeozlGpu *gpu) {
     }
   }
   geozl_gpu_free(memory);
+  return failed;
+}
+
+// Frames past a backend limit of the scan kernels still decode. The second one
+// needs more grid groups than CUDA allows.
+static int check_plane_limits(void) {
+  char error[512];
+  GeozlGpu *gpu =
+      geozl_gpu_create(DEVICE, 0, 2, 16u << 20, 1, error, sizeof(error));
+  if (gpu == NULL) {
+    fprintf(stderr, "plane limits: %s\n", error);
+    return 1;
+  }
+  const Shape limits[] = {{65536, 1, 1}, {1, 1, 8388481}};
+  Batch batch = {0};
+  int failed = 0;
+  for (size_t i = 0; i < sizeof(limits) / sizeof(limits[0]) && !failed; ++i) {
+    failed = add_frame(&batch, "planar>zigzag>pfor", &limits[i], 1);
+    if (!failed)
+      add_whole_copy(&batch, i, 1);
+  }
+  if (!failed)
+    failed = run(gpu, &batch, 1, 1, "plane limits");
+  clear(&batch);
+  geozl_gpu_destroy(gpu);
   return failed;
 }
 
@@ -406,7 +448,8 @@ int main(void) {
   }
   const int failed = check_mixed(gpu, 2) || check_mixed(gpu, 1) ||
                      check_host_widths(gpu) || check_refusals(gpu) ||
-                     check_capture_errors(gpu) || check_batch_limit(gpu);
+                     check_capture_errors(gpu) || check_plane_limits() ||
+                     check_batch_limit(gpu);
   geozl_gpu_destroy(gpu);
   if (failed) {
     fprintf(stderr, "test_gpu_decode: failed\n");

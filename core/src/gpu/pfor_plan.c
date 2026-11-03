@@ -33,8 +33,7 @@ int pfor_gpu_block_info(const uint8_t *block, size_t available,
     const unsigned descriptor = block[2];
     const unsigned exceptionBits = descriptor & 0x7Fu;
     const unsigned mode = descriptor >> 7;
-    if (exceptionBits == 0 || bits + exceptionBits > elementBytes * 8 ||
-        mode > GEOZL_PFOR_MODE_LIST)
+    if (exceptionBits == 0 || bits + exceptionBits > elementBytes * 8)
       return 1;
     exceptionBytes = geozl_pfor_exc_bytes(exceptions, exceptionBits, mode);
   }
@@ -139,8 +138,7 @@ int pfor_gpu_plan_build(PforGpuPlan *plan, const PforGpuFrame *frames,
         return fail(plan, "invalid PFOR block", i, block);
       const size_t left = frame->shape.nbElts - block * GEOZL_PFOR_BLOCK;
       const size_t count = left < GEOZL_PFOR_BLOCK ? left : GEOZL_PFOR_BLOCK;
-      if (frame->payloadOffset + at > UINT32_MAX || output > UINT32_MAX ||
-          count > UINT32_MAX)
+      if (frame->payloadOffset + at > UINT32_MAX || output > UINT32_MAX)
         return fail(plan, "PFOR task exceeds 32-bit kernel offsets", i, block);
       plan->blocks[task++] = (GpuPforBlock){
           (uint32_t)(frame->payloadOffset + at), (uint32_t)output,
@@ -158,6 +156,11 @@ int pfor_gpu_plan_build(PforGpuPlan *plan, const PforGpuFrame *frames,
       return fail(plan, "PFOR frame has trailing bytes", i, SIZE_MAX);
   }
 
+  // Four waves share a group and a padding task still reads its block. It
+  // repeats a checked one, since the payload may start with a frame the host
+  // decodes.
+  for (size_t i = realBlocks; i < paddedBlocks; ++i)
+    plan->blocks[i].payloadOffset = plan->blocks[0].payloadOffset;
   plan->realBlockCount = realBlocks;
   plan->blockCount = paddedBlocks;
   return 0;

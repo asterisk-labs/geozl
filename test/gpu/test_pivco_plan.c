@@ -1,7 +1,9 @@
+#include "gpu/pfor_plan.h"
 #include "gpu/pivco_plan.h"
 
 #include "common/endian.h"
 #include "openzl/codecs/pivco_huffman/encode_pivco_kernel.h"
+#include "pfor/pfor_check.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -95,7 +97,41 @@ static int same_plan(const PivcoGpuPlan *a, const PivcoGpuPlan *b) {
          memcmp(a->joins, b->joins, a->joinCount * sizeof(*a->joins)) == 0;
 }
 
+// A padding task reads its block like a real one, so it repeats a block the
+// planner checked and not the bytes that start the payload.
+static int check_pfor_padding(void) {
+  enum { offset = 64, blockBytes = 2, frameCount = 2 };
+  uint8_t payload[offset + frameCount * blockBytes];
+  memset(payload, 0xFF, offset);
+  memset(payload + offset, 0, frameCount * blockBytes);
+  PforGpuFrame frames[frameCount];
+  for (size_t i = 0; i < frameCount; ++i)
+    frames[i] = (PforGpuFrame){
+        .shape = {i * GEOZL_PFOR_BLOCK, GEOZL_PFOR_BLOCK, GEOZL_PFOR_BLOCK, 1},
+        .payloadOffset = offset + i * blockBytes,
+        .payloadSize = blockBytes,
+        .transform = PFOR_GPU_ID};
+
+  PforGpuPlan plans[2] = {{0}, {0}};
+  int failed =
+      pfor_gpu_plan_build(&plans[0], frames, frameCount, payload,
+                          sizeof(payload), 1) != 0 ||
+      pfor_gpu_plan_build_parallel(&plans[1], frames, frameCount, payload,
+                                   sizeof(payload), 1, frameCount, NULL) != 0;
+  for (size_t p = 0; p < 2 && !failed; ++p) {
+    failed = plans[p].blockCount != 4 || plans[p].realBlockCount != frameCount;
+    for (size_t i = frameCount; i < plans[p].blockCount && !failed; ++i)
+      failed = plans[p].blocks[i].payloadOffset != offset ||
+               plans[p].blocks[i].count != 0;
+  }
+  pfor_gpu_plan_free(&plans[0]);
+  pfor_gpu_plan_free(&plans[1]);
+  return failed ? fail("a PFOR padding task reads an unchecked block") : 0;
+}
+
 int main(void) {
+  if (check_pfor_padding() != 0)
+    return 1;
   enum { count = 4099, blockSize = 1031 };
   static const uint8_t weights[] = {2, 1, 1};
   uint8_t *input = malloc(count);

@@ -157,10 +157,9 @@ static int merge_plans(PivcoGpuPlan *plan, const PlanWorker workers[],
     laneBase += src->laneBytes;
   }
 
-  while (plan->laneBlockCount % 4 && plan->laneBlockCount != 0) {
+  while (plan->laneBlockCount % 4)
     plan->laneBlocks[plan->laneBlockCount++] = (GpuLaneBlock){
         plan->laneBlocks[0].payloadOffset, (uint32_t)plan->laneBytes};
-  }
   return 0;
 
 overflow:

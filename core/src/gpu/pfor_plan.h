@@ -17,7 +17,7 @@ typedef struct {
   } transform;
 } PforGpuFrame;
 
-// Mirrors block_task in gpu/kernels/stages/pfor.slang.
+// Mirrors block_task in gpu/kernels/programs/pfor.slang.
 typedef struct {
   uint32_t payloadOffset;
   uint32_t outputBase;

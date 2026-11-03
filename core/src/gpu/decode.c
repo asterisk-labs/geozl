@@ -18,14 +18,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Frames route by their last codec. A frame the device path cannot capture
-// falls back to the host, so routing only has to be right in the common case.
+// The last codec is a cheap prefilter. Capture confirms that it belongs to one
+// of the direct GPU recipes; all other graphs decode on the host.
 enum { ROUTE_HOST, ROUTE_PFOR, ROUTE_PIVCO, ROUTE_FALLBACK };
 
 enum { SOURCE_DEVICE, SOURCE_HOST, SOURCE_FALLBACK, SOURCES };
 
 #define PLACE_WIDTHS 5
-#define MAX_PENDING 8
+// One batch per device codec and place source, and each call starts empty.
+#define MAX_PENDING (2 + SOURCES)
 // CUDA caps grid Y at 65535 and place covers four rows per group. Its threads
 // step across a row 128 samples at a time, which must not wrap 32 bits.
 #define PLACE_MAX_ROWS ((size_t)65535 * 4)
@@ -442,8 +443,10 @@ static void fail_frame(Pass *pass, size_t frame, const char *message) {
   pthread_mutex_unlock(&pass->lock);
 }
 
-// Valid frames that need more host transforms fall back. A capture error is a
-// malformed frame and must not be handed to a different decoder path.
+// A non-fused predictor before a PFOR or PivCo terminal is not a GPU recipe, so
+// it falls back to the host. A capture error is invalid codec metadata and must
+// not be handed to another decoder path. The header prefilter excludes raw
+// frames here.
 static void capture_frame(Pass *pass, Worker *worker, size_t i) {
   const GeozlGpuFrame *frame = &pass->frames[i];
   const size_t slotBytes = round_up(frame->size, 16);
@@ -464,7 +467,7 @@ static void capture_frame(Pass *pass, Worker *worker, size_t i) {
     const PforCaptureResult result = pfor_capture_frame(
         &worker->pfor, &pass->pforCaptured[i], worker->scratch,
         frame->decodedBytes, frame->data, frame->size);
-    if (result == PFOR_CAPTURE_FALLBACK || result == PFOR_CAPTURE_RAW)
+    if (result == PFOR_CAPTURE_FALLBACK)
       pass->routes[i] = ROUTE_FALLBACK;
     else if (result != PFOR_CAPTURE_CODEC)
       fail_frame(pass, i, "invalid compressed frame");
@@ -475,7 +478,7 @@ static void capture_frame(Pass *pass, Worker *worker, size_t i) {
     const PivcoCaptureResult result = pivco_capture_frame(
         &worker->pivco, &pass->pivcoCaptured[i], worker->scratch,
         frame->decodedBytes, frame->data, frame->size);
-    if (result == PIVCO_CAPTURE_FALLBACK || result == PIVCO_CAPTURE_RAW)
+    if (result == PIVCO_CAPTURE_FALLBACK)
       pass->routes[i] = ROUTE_FALLBACK;
     else if (result != PIVCO_CAPTURE_CODEC)
       fail_frame(pass, i, "invalid compressed frame");
@@ -562,10 +565,6 @@ static int queue(GeozlGpu *gpu, GeozlGpuBatch *batch,
                  void *stream, char *error, size_t errorCapacity) {
   if (batch == NULL)
     return 1;
-  if (gpu->pendingCount == MAX_PENDING) {
-    geozl_gpu_batch_destroy(batch);
-    return geozl_gpu_error(error, errorCapacity, "too many GPU batches");
-  }
   gpu->pending[gpu->pendingCount++] = batch;
   return geozl_gpu_batch_enqueue(batch, dispatches, dispatchCount, stream,
                                  error, errorCapacity);
@@ -764,7 +763,8 @@ int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
     goto done;
 
   // Captured frames get their place in the device output in frame order. A
-  // header that disagrees with the frame also sends it to the host.
+  // header that disagrees with the frame, or planes the scan kernels should not
+  // run, also send it to the host.
   pforFrames = pforCount == 0 ? NULL : calloc(pforCount, sizeof(*pforFrames));
   shapes = pivcoCount == 0 ? NULL : calloc(pivcoCount, sizeof(*shapes));
   if ((pforCount != 0 && pforFrames == NULL) ||
@@ -776,11 +776,15 @@ int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
   size_t pforUsed = 0, pivcoUsed = 0;
   size_t *pforIds = ids;
   size_t *pivcoIds = ids + pforCount;
+  const int gridLimited = gpu->backend == GEOZL_GPU_BACKEND_CUDA;
   for (size_t i = 0; i < frameCount; ++i) {
     if (routes[i] == ROUTE_PFOR) {
       if (pfor_gpu_frame_init(&pforFrames[pforUsed], &pforCaptured[i], slots[i],
                               sampleBytes, frames[i].decodedBytes,
-                              pforOutput / sampleBytes) == 0) {
+                              pforOutput / sampleBytes) == 0 &&
+          (pforFrames[pforUsed].transform != PFOR_GPU_PLANAR_ZIGZAG ||
+           geozl_gpu_plane_shape_fits(&pforFrames[pforUsed].shape,
+                                      gridLimited))) {
         bases[i] = pforOutput;
         pforIds[pforUsed++] = i;
         pforOutput += frames[i].decodedBytes;
@@ -790,7 +794,9 @@ int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
     } else if (routes[i] == ROUTE_PIVCO) {
       if (pivco_gpu_frame_init(&pivcoCaptured[i], &shapes[pivcoUsed], slots[i],
                                sampleBytes, frames[i].decodedBytes,
-                               pivcoOutput / sampleBytes) == 0) {
+                               pivcoOutput / sampleBytes) == 0 &&
+          (pivcoCaptured[i].kind != PIVCO_CAPTURE_KIND_PLANAR_ZIGZAG ||
+           geozl_gpu_plane_shape_fits(&shapes[pivcoUsed], gridLimited))) {
         if (pivcoUsed != i)
           pivcoCaptured[pivcoUsed] = pivcoCaptured[i];
         bases[i] = pivcoOutput;

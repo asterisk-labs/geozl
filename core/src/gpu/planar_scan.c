@@ -14,6 +14,16 @@ void geozl_gpu_plane_plan_free(GeozlGpuPlanePlan *plan) {
   *plan = (GeozlGpuPlanePlan){0};
 }
 
+int geozl_gpu_plane_shape_fits(const GeozlGpuFrameShape *frame,
+                               int gridLimited) {
+  const size_t planeElts = frame->nbElts / frame->planes;
+  if (frame->planes > 1 && planeElts < GEOZL_GPU_SCAN_SEGMENT)
+    return 0;
+  return !gridLimited || frame->width <= GEOZL_GPU_SCAN_SEGMENT ||
+         (frame->width <= GEOZL_GPU_SCAN_MAX_WIDTH &&
+          planeElts / frame->width <= GEOZL_GPU_SCAN_MAX_ROWS);
+}
+
 int geozl_gpu_plane_plan_build(GeozlGpuPlanePlan *plan,
                                const GeozlGpuFrameShape *frames,
                                size_t frameCount,

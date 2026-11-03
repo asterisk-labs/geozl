@@ -12,7 +12,7 @@
 
 typedef struct GeozlPivcoGpuDecoder GeozlPivcoGpuDecoder;
 
-// module is a Metal library or CUDA PTX compiled from
+// module is Metal source or CUDA PTX compiled from
 // gpu/kernels/programs/pivco.slang with the same elementBytes.
 GeozlPivcoGpuDecoder *
 geozl_pivco_gpu_decoder_create(GeozlGpuBackendId backend, const void *module,

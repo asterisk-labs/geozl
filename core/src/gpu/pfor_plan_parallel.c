@@ -70,6 +70,8 @@ static int merge_plans(PforGpuPlan *plan, const PlanWorker workers[],
            src->realBlockCount * sizeof(*src->blocks));
     at += src->realBlockCount;
   }
+  for (size_t i = at; i < plan->blockCount; ++i)
+    plan->blocks[i].payloadOffset = plan->blocks[0].payloadOffset;
   return 0;
 
 overflow:

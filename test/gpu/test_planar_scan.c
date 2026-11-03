@@ -46,8 +46,44 @@ static int check_invalid_geometry(void) {
   return 0;
 }
 
+// 262140 rows and 8388480 columns are the largest that need 65535 groups.
+static int check_shape_limits(void) {
+  const struct {
+    GeozlGpuFrameShape frame;
+    int fits;
+  } cases[] = {
+      {{0, 7, 7, 1}, 1},
+      {{0, (size_t)1 << 20, 1, (uint32_t)1 << 20}, 0},
+      {{0, 2 * 255, 255, 2}, 0},
+      {{0, 2 * 256, 256, 2}, 1},
+      {{0, 2 * 256, 1, 2}, 1},
+      {{0, (size_t)256 * 1048576, 256, 1}, 1},
+      {{0, (size_t)257 * 262140, 257, 1}, 1},
+      {{0, (size_t)257 * 262141, 257, 1}, 0},
+      {{0, 8388480, 8388480, 1}, 1},
+      {{0, 8388481, 8388481, 1}, 0},
+  };
+  for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+    if (geozl_gpu_plane_shape_fits(&cases[i].frame, 1) != cases[i].fits) {
+      fprintf(stderr, "shape %zu took the wrong route\n", i);
+      return 1;
+    }
+  }
+  // Metal has no such grid, so only short planes leave the device there.
+  const GeozlGpuFrameShape wide = {0, 8388481, 8388481, 1};
+  const GeozlGpuFrameShape tall = {0, (size_t)257 * 262141, 257, 1};
+  const GeozlGpuFrameShape shortPlanes = {0, 2 * 255, 255, 2};
+  if (!geozl_gpu_plane_shape_fits(&wide, 0) ||
+      !geozl_gpu_plane_shape_fits(&tall, 0) ||
+      geozl_gpu_plane_shape_fits(&shortPlanes, 0)) {
+    fprintf(stderr, "a backend with no grid limit took the wrong route\n");
+    return 1;
+  }
+  return 0;
+}
+
 int main(void) {
-  if (check_valid_plan() || check_invalid_geometry()) {
+  if (check_valid_plan() || check_invalid_geometry() || check_shape_limits()) {
     fprintf(stderr, "test_planar_scan: failed\n");
     return 1;
   }

@@ -32,8 +32,9 @@ GeozlGpuStaging *geozl_gpu_arena_staging(const GeozlGpuArena *arena,
                                          const void *memory);
 GeozlGpuHostAlloc geozl_gpu_arena_allocator(GeozlGpuArena *arena);
 
-// A kernel input of count elements read in place from arena memory. Kernels
-// need a bound buffer even when they skip it, so it spans at least one element.
+// A kernel input of count elements that uploads from arena memory without a
+// host copy. Kernels need a bound buffer even when they skip it, so it spans at
+// least one element.
 static inline GeozlGpuBuffer geozl_gpu_arena_input(const GeozlGpuArena *arena,
                                                    const void *host,
                                                    size_t count,

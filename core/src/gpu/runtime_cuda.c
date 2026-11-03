@@ -285,7 +285,7 @@ static int load_module(CudaProgram *program, const void *module,
   free(ptx);
   if (result == CUDA_SUCCESS)
     return 0;
-  cuda_ok(result, "cuModuleLoadData", error, errorCapacity);
+  cuda_ok(result, "cuModuleLoadDataEx", error, errorCapacity);
   log[strcspn(log, "\n")] = 0;
   if (log[0] != 0 && error != NULL && errorCapacity != 0) {
     const size_t used = strlen(error);
