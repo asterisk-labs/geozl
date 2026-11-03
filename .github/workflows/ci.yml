@@ -53,9 +53,9 @@ jobs:
             coverage report --format=markdown --show-missing
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # Labelled for what it measures. --cov=geozl is the Python package, so the
-      # C under core/ is not in this number; the C tests and the sanitizer jobs
-      # are what cover that, and neither reports a percentage.
+      # Python coverage only. --cov=geozl is the Python package, so the C under
+      # core/ is not in this number; the C tests and the sanitizer jobs are what
+      # cover that, and neither reports a percentage.
       - name: Generate the coverage badge
         if: matrix.python == '3.12' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
@@ -213,15 +213,22 @@ jobs:
           GEOZL_SIMD: ${{ matrix.cap }}
         run: make test FULL=OFF
 
-      - name: Report the paths this build carries
+      # The tests pass on any path, so a row that ran the wrong one has to fail here.
+      - name: Check the paths this build carries
         env:
           GEOZL_SIMD: ${{ matrix.cap }}
+          ISA: ${{ matrix.name }}
         run: |
           python - <<'EOF'
-          import json, sys
+          import json, os, sys
           sys.path.insert(0, "bindings/python")
           import geozl
-          print(json.dumps(geozl.simd_info()))
+          info = geozl.simd_info()
+          print(json.dumps(info))
+          isa = os.environ["ISA"]
+          assert info["active"] == isa, f"the {isa} row ran {info['active']}"
+          if isa == "scalar":
+              assert info["built"] == ["scalar"], f"scalar built {info['built']}"
           EOF
 
   r:

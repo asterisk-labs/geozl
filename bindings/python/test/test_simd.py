@@ -88,9 +88,10 @@ def test_unknown_env_value_is_ignored():
                     reason="no vector path to compare against")
 @pytest.mark.skipif(not HAVE_FULL,
                     reason="libgeozl not built, rebuild with FULL=ON")
-def test_vector_and_scalar_agree_byte_for_byte():
-    """Compares the frame and not the array. The array survives a bad fill
-    because decode overwrites everything under the mask, the frame does not."""
+def test_capped_and_default_paths_agree_byte_for_byte():
+    """Compares the frame too, because decode overwrites everything under the
+    mask and hides a bad fill. The cap reaches AVX2 decode only; SSE2 and NEON
+    are compiled in."""
     snippet = (
         "import numpy as np, geozl, hashlib\n"
         "rng = np.random.default_rng(11)\n"
@@ -100,6 +101,7 @@ def test_vector_and_scalar_agree_byte_for_byte():
         "g = geozl.graph(t, 'planar>zigzag>entropy', nodata=-9999)\n"
         "f = geozl.compress(t, graph=g)\n"
         "print(hashlib.sha256(f).hexdigest())\n"
+        "print(hashlib.sha256(geozl.decompress(f)).hexdigest())\n"
     )
     assert run_with("scalar", snippet) == run_with(None, snippet)
 
