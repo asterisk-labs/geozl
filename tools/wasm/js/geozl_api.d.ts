@@ -27,6 +27,11 @@ export interface CompressOptions {
   planes?: number;
   dtype: DTypeValue;
   error?: string | null;
+  /**
+   * NONE by default, which does not look for NaN. Under a lossy `error`, NaN and
+   * infinity are not checked: a tile holding them may be accepted, and they then
+   * decode to finite values. Only NAN keeps NaN.
+   */
   nodataMode?: NoDataValue;
   nodataBits?: number | bigint;
 }

@@ -51,7 +51,7 @@ def test_nan_round_trips_with_its_payload():
     tile = _smooth(np.float32)
     tile[_holes()] = ODD_NAN
     _, out = _roundtrip(tile, method=GRAPH_WIDE)
-    # Bitwise, since NaN != NaN and array_equal would wave the payload through.
+    # Bitwise, since NaN != NaN and equal_nan would ignore the payload.
     assert np.array_equal(out.view(np.uint32), tile.view(np.uint32))
 
 
@@ -71,6 +71,32 @@ def test_a_second_nan_payload_is_a_hole_too():
 
 # A second payload, and the default NaN arithmetic produces.
 OTHER_NAN = np.array(0x7FA00042, dtype=np.uint32).view(np.float32)
+
+
+@pytest.mark.parametrize("nan", [
+    float("nan"), np.float64("nan"), np.float32("nan"), np.float16("nan"),
+    np.array(np.nan, dtype=np.float32),
+], ids=["float", "float64", "float32", "float16", "0d"])
+def test_every_spelling_of_nan_selects_nan_mode(nan):
+    assert (_2d._nodata_args(_smooth(np.float32), nan) ==
+            (_2d._NODATA_NAN, 0))
+
+
+def test_a_numpy_nan_declares_every_payload_a_hole():
+    tile = _smooth(np.float32)
+    tile[_holes()] = ODD_NAN
+    tile[3, 3] = OTHER_NAN
+    _, out = _roundtrip(tile, method=GRAPH_WIDE, error=2,
+                        nodata=np.float32("nan"))
+    assert np.isnan(out[3, 3])
+    assert np.isnan(out[_holes()]).all()
+
+
+def test_a_half_float_takes_its_own_nan():
+    tile = _smooth(np.float16)
+    tile[_holes()] = np.nan
+    _, out = _roundtrip(tile, method="id>zstd", nodata=np.float16("nan"))
+    assert np.array_equal(out.view(np.uint16), tile.view(np.uint16))
 
 
 @pytest.mark.parametrize("method", [GRAPH_WIDE, "id>zstd",
@@ -240,6 +266,46 @@ def test_low_level_lossless_radius_keeps_every_nan_payload():
     assert np.array_equal(out.view(np.uint32), tile.reshape(-1).view(np.uint32))
 
 
+def test_low_level_default_keeps_every_nan_payload_under_the_checksum():
+    zl = pytest.importorskip("openzl.ext")
+    tile = _smooth(np.float32)
+    tile[_holes()] = ODD_NAN
+    tile[3, 3] = OTHER_NAN
+    frame = _frame_from_node(tile, geozl.lossless.Nodata(COLS))
+    want = tile.reshape(-1).view(np.uint32)
+    assert np.array_equal(geozl.decompress(frame).view(np.uint32), want)
+    d = zl.DCtx()
+    geozl.register_decoders(d)
+    out = d.decompress(frame)[0].content.as_nparray()
+    assert np.array_equal(out.view(np.uint32), want)
+
+
+def test_low_level_default_marks_every_nan_before_a_quantizer():
+    zl = pytest.importorskip("openzl.ext")
+    tile = _smooth(np.float32)
+    tile[_holes()] = ODD_NAN
+    tile[3, 3] = OTHER_NAN
+    c = zl.Compressor()
+    backend = zl.graphs.Compress()(c)
+    q = geozl.lossy.QuantLinear("LINEAR:MAX_ERROR=2", np.float32)(c, backend)
+    c.select_starting_graph(geozl.lossless.Nodata(COLS)(c, q, backend))
+    cc = zl.CCtx()
+    cc.ref_compressor(c)
+    cc.set_parameter(zl.CParam.FormatVersion, zl.MAX_FORMAT_VERSION)
+    cc.set_parameter(zl.CParam.ContentChecksum, 2)  # disable, lossy
+    frame = bytes(cc.compress(
+        [zl.Input(zl.Type.Numeric, np.ascontiguousarray(tile).reshape(-1))]))
+    mask = _nodata_streams(frame)[1].reshape(tile.shape)
+    assert (mask[_holes()] == 0).all()
+    assert mask[3, 3] == 0
+
+
+def test_low_level_nan_mode_takes_no_dtype():
+    pytest.importorskip("openzl.ext")
+    with pytest.raises(ValueError, match="value and dtype together"):
+        geozl.lossless.Nodata(COLS, dtype=np.uint32)
+
+
 def test_one_nan_payload_writes_the_frame_it_always_did():
     """With a single payload both markings pick the same holes, and with none
     both leave the mask all valid."""
@@ -298,6 +364,29 @@ def test_a_sentinel_needs_a_type_that_can_carry_one():
         geozl.lossless.Nodata(COLS, value=1, dtype=np.float16)
     with pytest.raises(ValueError, match="no code for dtype"):
         geozl.lossless.Nodata(COLS, value=1, dtype=np.complex64)
+
+
+@pytest.mark.parametrize("value", [
+    np.int64(300), np.int64(-1), np.float64(300.0), np.array(300),
+], ids=["int64 over", "int64 under", "float64", "0d"])
+def test_a_numpy_sentinel_outside_the_dtype_is_refused(value):
+    with pytest.raises(OverflowError):
+        geozl.graph(_smooth(np.uint8), method=GRAPH, nodata=value)
+
+
+def test_a_numpy_sentinel_that_fits_keeps_its_value():
+    from geozl._dtype import nodata_bits
+    assert nodata_bits(np.int64(-9999), np.int32) == 0xFFFFD8F1
+    assert nodata_bits(np.float64(-9999.0), np.float32) == 0xC61C3C00
+    assert nodata_bits(np.uint8(5), np.uint16) == 5
+    assert nodata_bits(np.uint64(2 ** 64 - 1), np.uint64) == 2 ** 64 - 1
+
+
+def test_a_sentinel_of_the_raster_dtype_keeps_its_bits():
+    """OTHER_NAN is signaling, and a Python float would quiet it."""
+    from geozl._dtype import nodata_bits
+    assert nodata_bits(OTHER_NAN, np.float32) == 0x7FA00042
+    assert nodata_bits(OTHER_NAN[()], np.float32) == 0x7FA00042
 
 
 # Sentinel guards around lossy stages.
@@ -598,3 +687,25 @@ def test_the_radius_covers_every_sample_a_quantizer_lands_on_the_sentinel(
     x = tile[~hole].astype(np.float64)
     err = np.abs(out[~hole].astype(np.float64) - x)
     assert (err <= _bound(error, tile[~hole])).all(), err.max()
+
+
+@pytest.mark.parametrize("value, dtype, bits", [
+    (True, "uint64", 1),
+    ("5", "uint16", 5),
+    (2**64 - 1, "uint64", 2**64 - 1),
+    (-2**63, "int64", 2**63),
+])
+def test_a_sentinel_at_the_edge_of_its_dtype_is_kept(value, dtype, bits):
+    from geozl._dtype import nodata_bits
+    assert nodata_bits(value, dtype) == bits
+
+
+@pytest.mark.parametrize("value, dtype", [
+    (2**64, "uint64"),
+    (-1, "uint64"),
+    (np.int64(300), "uint8"),
+])
+def test_a_sentinel_past_its_dtype_raises(value, dtype):
+    from geozl._dtype import nodata_bits
+    with pytest.raises(OverflowError):
+        nodata_bits(value, dtype)

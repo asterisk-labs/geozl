@@ -247,3 +247,71 @@ def test_the_c_reader_refuses_that_frame_too(offset):
     frame = _forge(_guarded_build, _GUARDED, offset, struct.pack("<H", _S))
     with pytest.raises(RuntimeError, match="(?s)Corruption.*geozl.lossless.nodata"):
         geozl.decompress(frame, verify=False)
+
+
+def _delta_w_with_a_plane_count():
+    from geozl._codec import spatial_predictor
+
+    node, _ = spatial_predictor(0x72D701, "geozl.lossless.delta_w",
+                                "delta_w_encode", "delta_w_decode")
+    return _frame(node(8, planes=2), np.arange(64, dtype=np.uint16))
+
+
+def test_delta_w_decoder_rejects_a_header_with_a_plane_count():
+    with pytest.raises(Exception, match="bad codec header"):
+        _decode(_delta_w_with_a_plane_count())
+
+
+@pytest.mark.skipif(not _FULL, reason="libgeozl not built, rebuild with FULL=ON")
+def test_the_c_reader_rejects_a_delta_w_plane_count_too():
+    with pytest.raises(RuntimeError, match="(?s)Corruption.*geozl.lossless.delta_w"):
+        geozl.decompress(_delta_w_with_a_plane_count(), verify=False)
+
+
+def _forged_lanes(dtype, n, n0, width1):
+    """Deinterleave's frame with lanes its encoder never writes."""
+    from geozl.lossless.deinterleave import _desc
+
+    class Forged(zl.CustomEncoder):
+        def multi_input_description(self):
+            return _desc
+
+        def encode(self, state):
+            inp = state.inputs[0]
+            src = inp.content.as_nparray().view(np.uint8)
+            cut = n0 * inp.elt_width
+            lanes = ((n0, inp.elt_width, src[:cut]),
+                     ((src.size - cut) // width1, width1, src[cut:]))
+            for i, (count, width, part) in enumerate(lanes):
+                out = state.create_output(i, count, width)
+                out.mut_content.as_nparray().view(np.uint8)[:] = \
+                    part[:count * width]
+                out.commit(count)
+
+    def node(compressor, successor):
+        return compressor.build_static_graph(
+            compressor.register_custom_encoder(Forged()),
+            [successor, successor], name="forged")
+
+    return _frame(node, np.arange(n, dtype=dtype))
+
+
+_LANES = [
+    pytest.param(np.uint8, 4096, 2, 1, id="short then long"),
+    pytest.param(np.uint8, 4096, 4094, 1, id="long then short"),
+    pytest.param(np.uint32, 1024, 512, 2, id="two widths"),
+]
+
+
+@pytest.mark.parametrize("dtype,n,n0,width1", _LANES)
+def test_deinterleave_decoder_rejects_lanes_the_encoder_never_writes(
+        dtype, n, n0, width1):
+    with pytest.raises(Exception, match="lanes differ"):
+        _decode(_forged_lanes(dtype, n, n0, width1))
+
+
+@pytest.mark.skipif(not _FULL, reason="libgeozl not built, rebuild with FULL=ON")
+@pytest.mark.parametrize("dtype,n,n0,width1", _LANES)
+def test_the_c_reader_rejects_those_lanes_too(dtype, n, n0, width1):
+    with pytest.raises(RuntimeError, match="(?s)Corruption.*deinterleave"):
+        geozl.decompress(_forged_lanes(dtype, n, n0, width1), verify=False)

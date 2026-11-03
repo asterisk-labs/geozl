@@ -2,6 +2,8 @@
 boundary, so a (B, Y, X) cube is predicted band by band while everything after
 it in the graph still sees one stream."""
 
+import struct
+
 import numpy as np
 import pytest
 
@@ -67,9 +69,8 @@ def test_delta_w_ignores_planes():
 
 
 @pytest.mark.parametrize("pred", ALL_PREDICTORS)
-def test_one_plane_is_the_old_wire(pred):
-    """A 2D raster must produce the bytes it produced before planes existed,
-    which is what keeps every frame already written readable."""
+def test_a_2d_raster_defaults_to_one_plane(pred):
+    """A 2D raster is one plane, and spelling that out writes the same frame."""
     a = cube((32, 32))
     g = geozl.graph(a, f"{pred}>zigzag>zstd")
     assert g.planes == 1
@@ -130,7 +131,19 @@ def test_profile_accepts_a_cube():
 
 def test_a_corrupt_plane_count_is_refused():
     """The count rides in the codec header, so a bad one is corruption rather
-    than a caller mistake."""
+    than a caller mistake. Three planes do not split the stream, and verify=False
+    leaves the refusal to the codec."""
+    a = cube((4, 16, 16))
+    frame = bytearray(geozl.compress(a, graph=geozl.graph(a, "planar>zigzag>zstd")))
+    anchor = struct.pack("<II", 16, 4)
+    assert frame.count(anchor) == 1
+    at = frame.find(anchor)
+    frame[at + 4:at + 8] = struct.pack("<I", 3)
+    with pytest.raises(RuntimeError, match="Corruption"):
+        geozl.decompress(bytes(frame), verify=False)
+
+
+def test_no_flipped_byte_decodes_to_different_data():
     a = cube((4, 16, 16))
     frame = bytearray(geozl.compress(a, graph=geozl.graph(a, "planar>zigzag>zstd")))
     hit = 0
@@ -139,7 +152,7 @@ def test_a_corrupt_plane_count_is_refused():
         b[i] ^= 0xFF
         try:
             out = geozl.decompress(bytes(b)).view(a.dtype)
-        except Exception:
+        except RuntimeError:
             continue
         if out.size == a.size and np.array_equal(out.reshape(a.shape), a):
             continue

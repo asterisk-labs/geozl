@@ -23,6 +23,9 @@ Inputs and outputs are raw little-endian bytes. Dtype and shape stay outside
 the frame. Browser deployments must serve both generated files; pass `wasmUrl`
 to `createGeoZL` when they do not share a directory.
 
+Under a lossy `error`, NaN and infinity are not checked and may decode to finite
+values. Only `nodataMode: NoData.NAN` keeps NaN.
+
 Building it needs Emscripten 4.0.19 or newer. The build writes the package,
 `geozl.js`, `geozl.wasm`, `geozl_api.js` and its TypeScript declarations, to
 `core/build-wasm/wasm/`.

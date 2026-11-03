@@ -19,7 +19,9 @@ geozl_profile(
 \arguments{
 \item{x}{Raster samples: a double, integer or raw vector or array. For a
 bounded-error graph it fixes the domain later tiles are checked against,
-so use data spanning the product.}
+so use data spanning the product. NaN and infinity are not checked: a later
+tile holding them may be accepted, and they then decode to finite values.
+Only a graph with NaN nodata, set or found in \code{x}, keeps NaN.}
 
 \item{prior}{One predictor plus the identity path: \code{"planar"}, \code{"med"},
 \code{"delta_w"}, \code{"delta_n"}, \code{"average"}, \code{"wp_static"} or \code{"delta_1d"}.
@@ -33,9 +35,10 @@ bound (LINEAR), a percentage such as \code{"1\%"} (LOG), or a full \code{LINEAR}
 
 \item{reps}{Round trips per recipe; the best time is kept.}
 
-\item{nodata}{A sentinel value marking missing samples. \code{NA} in \code{x} is
-stored as this value. \code{NaN} selects NaN handling, which float rasters with
-missing values get without asking.}
+\item{nodata}{A sentinel value marking missing samples. \code{NA} and \code{NaN} in \code{x}
+are stored as this value, where Python leaves \code{NaN} in the samples. Passing
+\code{NaN} selects NaN handling, which float rasters with missing values get
+without asking.}
 
 \item{datatype}{Storage type: \code{"uint16"}, terra's \code{"INT2U"} or GDAL's
 \code{"UInt16"}, and so on for 8, 16, 32 and 64 bit integers and 16, 32 and 64

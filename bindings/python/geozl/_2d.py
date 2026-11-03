@@ -7,7 +7,7 @@ import numpy as np
 from numpy.typing import ArrayLike
 
 from ._coeffs import CoeffVectors, _pack_coeffs
-from ._dtype import dtype_code, nodata_bits
+from ._dtype import dtype_code, nodata_bits, refuse_object
 from ._ffi import _load_lib_full, _ptr, ffi
 
 # Predictor priors. A name expands to {that predictor, id}; None is unbiased
@@ -35,7 +35,9 @@ def _nodata_args(arr: np.ndarray, nodata: Any) -> tuple[int, int]:
     if dtype_code(arr.dtype) is None:
         raise ValueError(f"nodata needs a dtype geozl knows, got {arr.dtype}")
     # as bits a NaN matches one payload, not every NaN in the raster
-    if arr.dtype.kind == "f" and isinstance(nodata, float) and math.isnan(nodata):
+    if (arr.dtype.kind == "f" and
+            isinstance(nodata, (float, np.floating, np.ndarray)) and
+            math.isnan(nodata)):
         return _NODATA_NAN, 0
     return _NODATA_VALUE, nodata_bits(nodata, arr.dtype)
 
@@ -50,7 +52,7 @@ def _zero_recipe(error: str) -> bool:
     for prefix, suffix in forms:
         if not error.startswith(prefix) or not error.endswith(suffix):
             continue
-        end = len(error) - len(suffix) if suffix else len(error)
+        end = len(error) - len(suffix)
         value = error[len(prefix):end]
         if _NUMBER.fullmatch(value):
             return Decimal(value).is_zero()
@@ -117,6 +119,7 @@ def _is_native(dt: np.dtype) -> bool:
 
 def _as_raster(tile: ArrayLike) -> tuple[np.ndarray, int]:
     arr = np.ascontiguousarray(tile)
+    refuse_object(arr.dtype)
     if not _is_native(arr.dtype):
         raise ValueError(f"dtype {arr.dtype} is not native byte order; the "
                          f"kernels read native, byte-swap it first")
@@ -142,7 +145,7 @@ def _prepare(tile: ArrayLike, width: int | None,
         raise ValueError(f"planes must be at least 1, got {planes}")
     if planes > 1:
         n = arr.size
-        if n % planes or (n // planes) % width:
+        if not width or n % planes or (n // planes) % width:
             raise ValueError(
                 f"{planes} planes do not split {n} elements into whole rows "
                 f"of {width}")
@@ -177,7 +180,6 @@ class ProfileResults(list[dict[str, Any]]):
 
     def __str__(self) -> str:
         axes = {
-            0: "scalar",
             1: "samples",
             2: "rows, columns",
             3: "planes, rows, columns",
@@ -249,8 +251,9 @@ def graph(raster: ArrayLike, method: str, *, width: int | None = None,
     """Build a reusable graph for ``method``.
 
     ``width`` defaults to the last axis. ``planes`` defaults to the first axis
-    for a ``(B, Y, X)`` array and to 1 otherwise. Row-based predictors reset at
-    each plane; use ``width=Y*X, planes=1`` to predict between bands.
+    for an array of three or more dimensions, such as ``(B, Y, X)``, and to 1
+    otherwise. Row-based predictors reset at each plane; use
+    ``width=Y*X, planes=1`` to predict between bands.
 
     ``error=None`` or zero is lossless. A positive number selects ``LINEAR``;
     a percentage string such as ``"1%"`` selects ``LOG``. Full ``LINEAR``,
@@ -290,7 +293,9 @@ def compress(tile: ArrayLike, *, graph: Graph,
     """Compress ``tile`` with a prepared graph and return the frame bytes.
 
     The dtype must match exactly. Geometry is not checked against the graph. A
-    lossy tile outside the domain used to build the graph is refused.
+    lossy tile outside the domain used to build the graph is refused, but NaN
+    and infinity are not checked, apart from LOG refusing ``-inf`` on a graph
+    built without negatives.
 
     ``coeffs`` attaches numeric vectors to this frame. Read them back with
     ``geozl.coeffs``; geozl does not assign meaning to them.
@@ -340,12 +345,7 @@ def decompress(frame: bytes, *, verify: bool = True,
     """
     lib = _load_lib_full()
     buf = np.frombuffer(frame, np.uint8)
-    dsize = lib.geozl_2d_frame_dsize_c(_ptr(buf), buf.size)
-    if dsize == 0:
-        raise RuntimeError("geozl.decompress: unreadable frame")
-
-    # Numeric output must be 8-byte aligned; a uint64 backing store guarantees it.
-    dsize = int(dsize)
+    dsize = int(lib.geozl_2d_frame_dsize_c(_ptr(buf), buf.size))
     if max_output_size is not None:
         try:
             valid_limit = (not isinstance(max_output_size, (bool, np.bool_)) and
@@ -360,13 +360,19 @@ def decompress(frame: bytes, *, verify: bool = True,
                 f"geozl.decompress: the frame declares {dsize} bytes of output, "
                 f"above the {max_output_size} allowed"
             )
-    out = np.empty((dsize + 7) // 8, np.uint64).view(np.uint8)[:dsize]
+    # Numeric output must be 8-byte aligned; a uint64 backing store guarantees it.
+    # An empty frame and an unreadable one both report a size of zero, so one
+    # byte gives the decoder somewhere to write and tells them apart.
+    capacity = dsize or 1
+    out = np.empty((capacity + 7) // 8, np.uint64).view(np.uint8)[:capacity]
     out_size = ffi.new("size_t*")
     err_ctx = ffi.new("char[]", 256)
     rc = lib.geozl_2d_decompress_c(_ptr(buf), buf.size, _ptr(out), out.size,
                                    out_size, int(verify), err_ctx,
                                    len(err_ctx))
     if rc != 0:
+        if dsize == 0:
+            raise RuntimeError("geozl.decompress: unreadable frame")
         reason = ffi.string(err_ctx).decode("utf-8", "replace")
         raise RuntimeError(f"geozl.decompress failed: {reason} "
                            f"(ZL error code {rc})")
@@ -429,6 +435,7 @@ def profile(tile: ArrayLike, *, prior: str | None = "planar",
     rows = ProfileResults(
         shape=arr.shape, dtype=arr.dtype, raw_bytes=raw, width=width,
         planes=planes, prior=prior, reps=reps, error=error_recipe)
+    failure = None
     for name in _grid_names(prior, elt):
         comp = ffi.new("size_t*")
         enc = ffi.new("double*")
@@ -441,6 +448,8 @@ def profile(tile: ArrayLike, *, prior: str | None = "planar",
             _ptr(arr), arr.size, elt, reps, 1, int(verify), comp, enc, dec,
             err_ctx, len(err_ctx))
         if rc != 0:
+            reason = ffi.string(err_ctx).decode("utf-8", "replace")
+            failure = f"{reason} (ZL error code {rc})"
             continue
         size = int(comp[0])
         rows.append({
@@ -451,5 +460,7 @@ def profile(tile: ArrayLike, *, prior: str | None = "planar",
             "decode_mbps": _mbps(raw, dec[0]),
             "shannon_pct": 100.0 * ideal / size,
         })
+    if failure is not None and not rows:
+        raise RuntimeError(f"geozl.profile failed: {failure}")
     rows.sort(key=lambda r: r["ratio"], reverse=True)
     return rows

@@ -195,8 +195,9 @@ static void check_value(int d, double v, R_xlen_t i, const char *what) {
 }
 
 // R values to native samples. A raw vector is taken as samples already. NA
-// and NaN become nodata when one is given; float types otherwise keep them,
-// payload included, and an integer type has no way to hold them.
+// and NaN become nodata when one is given. Otherwise float64 keeps them, payload
+// included, float32 and float16 store both as one NaN, and an integer type has
+// no way to hold them.
 SEXP geozl_r_pack(SEXP x, SEXP dtype_s, SEXP nodata_s) {
   int d = dtype_arg(dtype_s);
   size_t w = kWidth[d];
@@ -442,18 +443,13 @@ SEXP geozl_r_decompress(SEXP frame, SEXP verify_s, SEXP max_s) {
              "the %.0f allowed",
              (double)dsize, Rf_asReal(max_s));
   SEXP out = PROTECT(Rf_allocVector(RAWSXP, (R_xlen_t)dsize));
-  // Numeric output must be 8-byte aligned; R_alloc memory is aligned for double.
-  uint8_t *dst = RAW(out);
-  if ((uintptr_t)dst % 8 != 0)
-    dst = (uint8_t *)R_alloc(dsize, 1);
   char err[ERR_SIZE] = {0};
   size_t outSize = 0;
-  int rc = geozl_2d_decompress_c(src, len, dst, dsize, &outSize,
+  // Numeric output must be 8-byte aligned; R aligns vector data for double.
+  int rc = geozl_2d_decompress_c(src, len, RAW(out), dsize, &outSize,
                                  Rf_asLogical(verify_s), err, sizeof err);
   if (rc != 0)
     Rf_error("geozl_decompress failed: %s (ZL error code %d)", err, rc);
-  if (dst != RAW(out))
-    memcpy(RAW(out), dst, outSize);
   SEXP result = shrink(out, outSize);
   UNPROTECT(1);
   return result;

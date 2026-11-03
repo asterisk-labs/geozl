@@ -47,6 +47,7 @@ function _samples(x::AbstractArray, nodata)
     (T !== Union{} && T <: Sample) ||
         throw(ArgumentError("GeoZL stores $(Sample), not $(eltype(x))"))
     eltype(x) === T && return x isa Array ? x : Array{T}(x)
+    any(ismissing, x) || return Array{T}(x)
     if nodata === nothing && !(T <: AbstractFloat)
         throw(ArgumentError("`x` has missing values; an $T raster needs `nodata` to mark them"))
     end
@@ -161,7 +162,9 @@ end
 
 Compress the tile `x` with `g` and return the frame. Its element type must be
 the graph's; its geometry is not checked. A lossy tile outside the domain the
-graph was built from is refused.
+graph was built from is refused, but NaN and infinity are not checked: a tile
+holding them may be accepted, and they then decode to finite values. Only a
+graph with NaN nodata, set or found at build, keeps NaN.
 
 `coeffs`, a vector of integer vectors, is attached to this frame. Read it back
 with [`coeffs`](@ref); GeoZL assigns it no meaning.
@@ -212,9 +215,8 @@ function _frame_size(frame::Vector{UInt8}, max_output_size)
     return Int(dsize)
 end
 
-# Numeric output must be 8-byte aligned, which Julia's arrays are.
+# `out` is a fresh Array; Julia aligns those past the 8 bytes numeric output needs.
 function _decompress!(out::Array, frame::Vector{UInt8}, verify::Bool)
-    UInt(pointer(out)) % 8 == 0 || error("GeoZL: output buffer is not 8-byte aligned")
     outsize = Ref{Csize_t}(0)
     buf = zeros(UInt8, _ERR_SIZE)
     rc = GC.@preserve out frame ccall(_sym(:geozl_2d_decompress_c), Cint,

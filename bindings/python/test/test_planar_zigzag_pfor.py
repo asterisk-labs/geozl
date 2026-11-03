@@ -99,3 +99,15 @@ def test_raw_decoder_rejects_truncation_and_trailing_bytes():
         _fused.decode(payload[:-1], array.size, array.dtype, 17, planes=2)
     with pytest.raises(ValueError, match="corrupt"):
         _fused.decode(payload + b"\x00", array.size, array.dtype, 17, planes=2)
+
+
+def test_raw_helpers_refuse_arrays_that_hold_references():
+    values = np.array([1, None, 3, 4], dtype=object)
+    with pytest.raises(ValueError, match="references, not samples"):
+        _pfor.encode(values)
+    with pytest.raises(ValueError, match="references, not samples"):
+        _pfor.decode(b"", 4, object)
+    with pytest.raises(ValueError, match="references, not samples"):
+        _fused.encode(values, 2)
+    with pytest.raises(ValueError, match="references, not samples"):
+        _fused.decode(b"", 4, object, 2)

@@ -243,7 +243,7 @@ def test_c_and_python_pfor_bindings_write_the_same_bytes():
     from geozl.lossless import pfor as _pfor
     for dtype in ("uint8", "uint16", "uint32", "uint64"):
         arr = _tile(dtype).reshape(-1)
-        frame = _pfor_frame_from_python(arr)
+        frame = _frame_from_c(arr, "id>pfor", width=arr.size)
         assert _pfor.encode(arr) in frame
 
 

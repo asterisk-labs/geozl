@@ -48,6 +48,20 @@ def test_rejects_non_native_byte_order():
         geozl.graph(_tile().astype(">i2"), method=GRAPH)
 
 
+@pytest.mark.parametrize("raster", [
+    [[1, None], [3, 4]],
+    np.zeros((2, 2), dtype=[("a", object)]),
+], ids=["object", "structured"])
+def test_rejects_arrays_that_hold_references(raster):
+    with pytest.raises(ValueError, match="references, not samples"):
+        geozl.graph(raster, method=GRAPH)
+    with pytest.raises(ValueError, match="references, not samples"):
+        geozl.profile(raster, reps=1)
+    g = geozl.graph(np.zeros((2, 2), np.int64), method=GRAPH)
+    with pytest.raises(ValueError, match="references, not samples"):
+        geozl.compress(raster, graph=g)
+
+
 def test_rejects_1d_without_width():
     with pytest.raises(ValueError, match="width"):
         geozl.graph(np.arange(64, dtype=np.int16), method=GRAPH)
@@ -82,7 +96,7 @@ def test_unknown_recipe_is_rejected_by_the_library():
 
 
 def test_recipe_that_does_not_fit_the_element_width_fails():
-    # the point of dropping the search: no silent fallback to something else
+    # A misfit recipe raises; nothing is substituted.
     with pytest.raises(RuntimeError, match="1-byte elements"):
         geozl.graph(_tile(dtype=np.uint8), method=GRAPH)
 
@@ -261,9 +275,26 @@ def test_sparse_leaves_a_stream_without_a_majority_to_entropy():
     assert len(sparse) <= len(entropy) + 16
 
 
-def test_unreadable_frame_is_reported():
+@pytest.mark.parametrize("junk", [b"not a frame at all", b""],
+                         ids=["junk", "no bytes"])
+def test_unreadable_frame_is_reported(junk):
     with pytest.raises(RuntimeError, match="unreadable frame"):
-        geozl.decompress(b"not a frame at all")
+        geozl.decompress(junk)
+
+
+@pytest.mark.parametrize("shape", [(0, 8), (8, 0), (2, 0, 8)])
+def test_an_empty_raster_round_trips(shape):
+    arr = np.zeros(shape, np.int16)
+    frame = _frame(arr, method=GRAPH)
+    for kw in ({}, {"verify": False}, {"max_output_size": 0}):
+        out = geozl.decompress(frame, **kw)
+        assert out.size == 0
+        assert out.dtype == np.uint8
+
+
+def test_planes_over_rows_of_no_samples_are_refused():
+    with pytest.raises(ValueError, match="do not split"):
+        geozl.graph(np.zeros((2, 8, 0), np.int16), method=GRAPH)
 
 
 def test_corrupt_payload_is_reported():
@@ -308,7 +339,7 @@ def test_verification_is_what_reads_the_checksums():
     """Both checksums sit in the frame tail. Every flip there is refused with
     verification on. With it off some come back untouched, which are the ones
     that landed on a checksum and nowhere else, and the rest come back holding a
-    different raster without a word."""
+    different raster with no error."""
     arr = _tile()
     frame = _frame(arr, method=GRAPH)
     intact = quiet = 0
@@ -378,8 +409,7 @@ def test_profile_names_graphs_compress_accepts():
 
 
 def test_profile_reports_the_frame_compress_writes_to_the_byte():
-    """Not approximately. The bench used to time with the content checksum off,
-    which left its frame four bytes under the one compress writes."""
+    """profile keeps the content checksum on, so `bytes` matches compress."""
     arr = _tile()
     for row in geozl.profile(arr, prior=None, reps=1):
         frame = _frame(arr, method=row["graph"])
@@ -394,8 +424,7 @@ def test_unbiased_prior_sweeps_more_graphs_than_a_named_one():
 
 
 def test_unbiased_prior_is_the_whole_grid():
-    # 8 predictors x 9 terminals. The planar PivCo candidate is the explicit
-    # transpose terminal now, not a second hidden candidate.
+    # 8 predictors x 9 terminals. Planar PivCo is the transpose terminal.
     assert len(geozl.profile(_tile(), prior=None, reps=1)) == 72
 
 
@@ -421,7 +450,7 @@ def test_transpose_terminals_drop_out_on_1_byte_elements():
     assert not any(">transpose>" in r["graph"] for r in rows)
 
 
-def test_store_lo_is_no_longer_a_recipe():
+def test_store_lo_rejected():
     with pytest.raises(RuntimeError, match="unknown method"):
         geozl.graph(_tile(), "planar>zigzag>store_lo")
 
@@ -434,6 +463,11 @@ def test_profile_rejects_an_unknown_prior():
 def test_profile_rejects_an_empty_prior():
     with pytest.raises(ValueError, match="not one of"):
         geozl.profile(_tile(), prior="")
+
+
+def test_profile_raises_the_reason_when_every_graph_fails():
+    with pytest.raises(RuntimeError, match="families are LINEAR, LOG and SQRT"):
+        geozl.profile(_tile(), error="NOPE:1", reps=1)
 
 
 def test_categorical_drops_out_past_two_bytes():
@@ -459,7 +493,7 @@ def test_profile_needs_at_least_one_rep():
 
 def test_a_tile_too_small_to_time_still_profiles():
     """One rep over a kilobyte can finish inside a clock tick, and macOS ticks
-    at a microsecond. A zero there used to divide."""
+    at a microsecond, so the rate has to survive a time of zero."""
     rows = geozl.profile(np.zeros((8, 8), np.uint8), prior=None, reps=1)
     assert rows
     assert all(r["encode_mbps"] > 0 and r["decode_mbps"] > 0 for r in rows)
@@ -518,8 +552,7 @@ def _holed(dtype=np.float32, hole=np.nan):
 
 
 def test_a_tile_without_holes_never_reaches_the_codec():
-    """The regression that matters. No missing samples, no mask stream, so the
-    frame has to be exactly the one this tile produced before nodata existed."""
+    """A tile without holes selects no nodata mode."""
     arr = _tile()
     assert _2d._nodata_args(arr, None) == (_2d._NODATA_NONE, 0.0)
     assert _2d._nodata_args(arr.astype(np.float32), None) == \

@@ -123,7 +123,7 @@ def test_trained_kernel_matches_oracle(seed):
     arr = _anisotropic(256, 256, seed)
 
     c_coeffs, c_shift = _trained_kernel(arr)
-    assert (c_coeffs, c_shift) != ((1, -1, 0, 0), 0)      # it really trained
+    assert (c_coeffs, c_shift) != ((1, -1, 0, 0), 0)      # not the planar default
 
     o_coeffs, o_shift = oracle.fit_wp_static(arr)
     c_bits = oracle._plane_bits(oracle._residual(arr, c_coeffs, c_shift))

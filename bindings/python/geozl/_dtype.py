@@ -25,6 +25,12 @@ def dtype_width(code: int) -> int | None:
     return _WIDTH[code] if 0 <= code < len(_WIDTH) else None
 
 
+def refuse_object(dtype: DTypeLike) -> None:
+    """Raise for a dtype whose elements are references, not samples."""
+    if np.dtype(dtype).hasobject:
+        raise ValueError("object arrays hold references, not samples")
+
+
 def nodata_bits(value: Any, dtype: DTypeLike) -> int:
     """Return a nodata value's bit pattern at ``dtype``."""
     dt = np.dtype(dtype)
@@ -33,10 +39,17 @@ def nodata_bits(value: Any, dtype: DTypeLike) -> int:
     if dt == np.dtype("float16"):
         raise ValueError("a half float carries no sentinel, NaN still works "
                          "on one")
+    # NumPy casts its own values unchecked. At the same dtype there is no cast,
+    # and a Python float would quiet a signaling NaN.
+    if isinstance(value, (np.generic, np.ndarray)) and value.dtype != dt:
+        value = value.item()
     v = np.asarray(value)
     if dt.kind in "iu" and v.dtype.kind == "f" and v != np.floor(v):
         raise ValueError(f"nodata {value} is not a whole number, it cannot be "
                          f"a sentinel on {dt}")
+    if (dt.kind in "iu" and v.dtype.kind in "iufO" and
+            not np.iinfo(dt).min <= v.item() <= np.iinfo(dt).max):
+        raise OverflowError("nodata does not fit the dtype")
     with np.errstate(over="raise"):
         # out of range has to raise, not wrap or go infinite
         packed = np.asarray(value, dtype=dt)

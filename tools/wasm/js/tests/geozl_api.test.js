@@ -22,6 +22,16 @@ describe('GeoZL wasm64', () => {
     assert.deepEqual(geozl.decompress(frame), data);
   });
 
+  it('takes the wasm location as a URL object', async () => {
+    const url = new URL('../geozl.wasm', import.meta.url);
+    for (const options of [{wasmUrl: url}, {locateFile: () => url}]) {
+      const geozl = await createGeoZL(options);
+      const data = new Uint8Array(64);
+      const frame = geozl.compress(data, {method: 'id>zstd', width: 8, dtype: DType.U8});
+      assert.deepEqual(geozl.decompress(frame), data);
+    }
+  });
+
   it('checks geometry and output limits', async () => {
     const geozl = await createGeoZL();
     assert.throws(

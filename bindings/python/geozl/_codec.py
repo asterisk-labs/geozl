@@ -14,6 +14,8 @@ _CHECKSUM_DISABLE = 2  # ZL_TernaryParam_disable
 
 def row_width_declared(width, nb_elts):
     """Return the row width stored in a predictor header."""
+    if nb_elts == 0:
+        return 1
     return nb_elts if width == 0 or width > nb_elts else width
 
 
@@ -24,7 +26,7 @@ def planes_declared(planes, width, nb_elts):
     if nb_elts % planes:
         return 1
     per = nb_elts // planes
-    if per == 0 or per % width:
+    if per % width:
         return 1
     return planes
 
@@ -40,16 +42,14 @@ def _per_plane(fn, dst, src, width, nb_elts, elt, planes):
     return 0
 
 
-def _unpack_geometry(name, raw, nb_elts):
+def _unpack_geometry(name, raw, nb_elts, supports_planes):
     """Read width and planes off a predictor header, as the C reader does."""
     if len(raw) == _HEADER.size:
         (width,), planes = _HEADER.unpack(raw), 1
-    elif len(raw) == _HEADER_PLANES.size:
+    elif supports_planes and len(raw) == _HEADER_PLANES.size:
         width, planes = _HEADER_PLANES.unpack(raw)
     else:
-        raise ValueError(f"{name}: bad codec header, {len(raw)} bytes where the "
-                         f"frame carries {_HEADER.size} or "
-                         f"{_HEADER_PLANES.size}")
+        raise ValueError(f"{name}: bad codec header, {len(raw)} bytes")
     if planes == 0 or width == 0:
         raise ValueError(f"{name}: codec header declares width {width} over "
                          f"{planes} planes")
@@ -106,7 +106,7 @@ def spatial_predictor(ctid, name, encode, decode, supports_planes=True):
             inp = state.singleton_inputs[0]
             n, elt = inp.num_elts, inp.elt_width
             width, nb_planes = _unpack_geometry(name, bytes(state.codec_header),
-                                                n)
+                                                n, supports_planes)
             out = state.create_output(0, n, elt)
             if n and _per_plane(dec, _ptr(out.mut_content.as_nparray()),
                                 _ptr(inp.content.as_nparray()), width, n, elt,

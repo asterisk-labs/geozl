@@ -1,5 +1,5 @@
 # R and Python write the same frame for the same samples and settings. Runs
-# when GEOZL_PYTHON names a Python with geozl, as `make r-test` sets it.
+# when GEOZL_PYTHON names a Python with geozl, as `make r` sets it.
 cases <- list(
   list(x = round(smooth_raster(64, 48, 0, 4000)), method = "planar>zigzag>pfor",
        datatype = "uint16"),

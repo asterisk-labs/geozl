@@ -74,11 +74,12 @@ def test_a_skewed_field_does_not_lose_to_either_fixed_terminal_by_much():
 
 
 def test_the_smallest_raster_still_takes_a_branch():
-    """One sample is constant by definition."""
-    for n in (1, 2, 3):
-        arr = np.full(n, 5, np.uint8)
-        frame = geozl.compress(arr, graph=geozl.graph(arr, CAT, width=1))
-        assert np.array_equal(geozl.decompress(frame), arr)
+    """Below 16 samples OpenZL stores the stream whatever the terminal, so the
+    branch starts at 16."""
+    for n in (16, 17, 64):
+        arr = np.full((1, n), 5, np.uint8)
+        assert np.array_equal(_roundtrip(arr), arr)
+        assert _size(arr) < _size(arr, "id>field_lz")
 
 
 def test_it_is_in_the_grid_where_a_class_raster_lives():

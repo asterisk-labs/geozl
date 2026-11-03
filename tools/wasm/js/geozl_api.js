@@ -82,9 +82,10 @@ async function loadModule(options) {
     throw new Error('geozl.js is missing; run `make wasm` first', {cause});
   }
   const {wasmUrl = new URL('./geozl.wasm', import.meta.url).href, locateFile, ...moduleOptions} = options;
+  const locate = locateFile ?? ((path, prefix = '') => (path.endsWith('.wasm') ? wasmUrl : `${prefix}${path}`));
   return factory({
     ...moduleOptions,
-    locateFile: locateFile ?? ((path, prefix = '') => (path.endsWith('.wasm') ? wasmUrl : `${prefix}${path}`)),
+    locateFile: (path, prefix) => String(locate(path, prefix)),
   });
 }
 

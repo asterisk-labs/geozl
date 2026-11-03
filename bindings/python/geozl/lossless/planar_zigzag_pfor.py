@@ -4,6 +4,7 @@ import numpy as np
 from openzl import ext as _ext
 
 from .._codec import planes_declared, row_width_declared
+from .._dtype import refuse_object
 from .._ffi import _ptr, ffi, lib
 
 _CTID = 0x72D710
@@ -143,6 +144,7 @@ def bound(nb_elts, elt_width):
 def encode(values, width, planes=1):
     """Encode values to the raw payload, without an OpenZL frame header."""
     flat = np.ascontiguousarray(values).reshape(-1)
+    refuse_object(flat.dtype)
     n, elt = flat.size, flat.dtype.itemsize
     row_width = row_width_declared(int(width), n)
     plane_count = planes_declared(int(planes), row_width, n)
@@ -161,6 +163,7 @@ def encode(values, width, planes=1):
 def decode(packed, nb_elts, dtype, width, planes=1):
     """Decode a raw payload into a flat array of ``dtype``."""
     dt = np.dtype(dtype)
+    refuse_object(dt)
     out = np.empty(nb_elts, dtype=dt)
     buf = np.frombuffer(packed, dtype=np.uint8)
     if lib.planar_zigzag_pfor_decode(

@@ -132,7 +132,7 @@ def cdef_declarations():
 
 
 def test_the_cdef_is_not_empty(cdef_declarations, c_declarations):
-    """A parser that quietly matched nothing would let this whole file pass."""
+    """A parser that matched nothing would let this whole file pass."""
     assert len(cdef_declarations) > 30
     assert len(c_declarations) > len(cdef_declarations)
 

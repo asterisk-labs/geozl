@@ -4,9 +4,7 @@ import pytest
 zl = pytest.importorskip("openzl.ext")
 geozl = pytest.importorskip("geozl")
 
-# Each of these owns a copy of the successor branch. Three from
-# spatial_predictor, three from quantizer, wp_static and deinterleave by
-# hand.
+# Each node carries its own successor branch.
 _NODES = [
     ("planar", lambda: geozl.lossless.Planar(8)),
     ("planar_zigzag", lambda: geozl.lossless.PlanarZigzag(8)),
@@ -63,12 +61,6 @@ def test_a_width_that_cannot_tile_folds_to_one_row(width):
     assert np.array_equal(out.view(arr.dtype), arr)
 
 
-def test_an_empty_tile_skips_the_width_check():
-    # n == 0 short-circuits the guard, so a width that could never tile it is
-    # still accepted instead of raising
-    assert _frame(geozl.lossless.Planar(7), np.zeros(0, np.uint16)) is not None
-
-
 @pytest.mark.parametrize("dtype,component", [
     (np.complex64, np.float32),
     (np.complex128, np.float64),
@@ -98,3 +90,10 @@ def test_register_decoders_covers_both_families():
     assert seen == [d.__name__ for d in geozl.lossless._DECODERS
                     + geozl.lossy._DECODERS]
     assert len(set(seen)) == len(seen)
+
+
+def test_an_empty_stream_declares_one_row():
+    from geozl._codec import row_width_declared
+    assert row_width_declared(8, 0) == 1
+    assert row_width_declared(8, 16) == 8
+    assert row_width_declared(0, 16) == 16

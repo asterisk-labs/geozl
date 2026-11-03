@@ -51,9 +51,9 @@ def _place(build, needle, tries=64):
 
 
 # width that does not divide the tile, the encoder must reject it
-def _case_width_encode():
-    arr = np.arange(200, dtype=np.uint16)
-    _compress(geozl.lossless.DeltaW(7), arr)
+def test_encode_rejects_a_width_that_does_not_tile():
+    with pytest.raises(RuntimeError, match="does not tile"):
+        _compress(geozl.lossless.DeltaW(7), np.arange(200, dtype=np.uint16))
 
 
 # same width fault, forged into the codec header
@@ -64,7 +64,7 @@ def _case_width_decode():
 
     frame, at = _place(build, struct.pack("<I", 200))
     frame[at:at + 4] = struct.pack("<I", 7)
-    _decode(bytes(frame))
+    return bytes(frame)
 
 
 # shift wider than the accumulator. Two rows force the planar default, so the
@@ -76,7 +76,7 @@ def _case_shift():
 
     frame, at = _place(build, struct.pack("<4h", 1, -1, 0, 0))
     frame[at - 1] = 200
-    _decode(bytes(frame))
+    return bytes(frame)
 
 
 def _codec_header(decoder_cls, frame):
@@ -106,33 +106,32 @@ def _quant_case(make, decoder, offset, replace):
     frame, at = _place(build, header)
     payload = replace(header)
     frame[at + offset:at + offset + len(payload)] = payload
-    _decode(bytes(frame))
+    return bytes(frame)
 
 
 # a dtype eight bytes wide over a two byte stream, the one header fault that
 # reaches past the end of the output the decoder sized
 def _case_quant_dtype():
-    _quant_case(
+    return _quant_case(
         lambda: geozl.lossy.QuantLinear("LINEAR:MAX_ERROR=0.5", np.uint16),
         geozl.lossy.QuantLinearDecoder, 0, lambda h: bytes([10]))
 
 
 def _case_quant_flags():
-    _quant_case(lambda: geozl.lossy.QuantLog("LOG:MAX_ERROR=5%", np.uint16),
-                geozl.lossy.QuantLogDecoder, 1,
-                lambda h: bytes([h[1] | 0x80]))
+    return _quant_case(
+        lambda: geozl.lossy.QuantLog("LOG:MAX_ERROR=5%", np.uint16),
+        geozl.lossy.QuantLogDecoder, 1, lambda h: bytes([h[1] | 0x80]))
 
 
 # the sqrt curve anchor, negative puts the grid below the decoder's floor
 def _case_quant_offset():
-    _quant_case(
+    return _quant_case(
         lambda: geozl.lossy.QuantSqrt("SQRT:MAX_ERROR=0.5N,A=100,B=1",
                                       np.uint16),
         geozl.lossy.QuantSqrtDecoder, 10, lambda h: struct.pack("<d", -1.0))
 
 
 _CASES = {
-    "width_encode": _case_width_encode,
     "width_decode": _case_width_decode,
     "shift": _case_shift,
     "quant_dtype": _case_quant_dtype,
@@ -164,12 +163,11 @@ def test_decode_rejects_bad_header(name):
 
 
 if __name__ == "__main__":
-    # 0 rejected cleanly, 3 slipped through, 4 the anchor is gone, a signal
-    # means it corrupted memory
+    # 0 rejected cleanly, 3 slipped through, 4 the anchor is gone, 1 a bug in the
+    # case itself, a signal means it corrupted memory
+    forged = _CASES[sys.argv[1]]()
     try:
-        _CASES[sys.argv[1]]()
-    except SystemExit:
-        raise
-    except BaseException:
+        _decode(forged)
+    except (RuntimeError, ValueError):
         sys.exit(0)
     sys.exit(3)

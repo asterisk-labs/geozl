@@ -3,6 +3,7 @@ import struct
 import numpy as np
 from openzl import ext as _ext
 
+from .._dtype import refuse_object
 from .._ffi import _ptr, ffi, lib
 
 _CTID = 0x72D70D
@@ -100,6 +101,7 @@ def bound(nb_elts, elt_width):
 def encode(values):
     """Pack a 1-D numeric array. Returns the packed bytes."""
     a = np.ascontiguousarray(values)
+    refuse_object(a.dtype)
     n, elt = a.size, a.dtype.itemsize
     cap = bound(n, elt)
     if cap == 0:
@@ -114,6 +116,7 @@ def encode(values):
 def decode(packed, nb_elts, dtype):
     """Unpack into a 1-D array of nb_elts values of dtype."""
     dt = np.dtype(dtype)
+    refuse_object(dt)
     out = np.empty(nb_elts, dtype=dt)
     buf = np.frombuffer(packed, dtype=np.uint8)
     if lib.pfor_decode(_ptr(out), nb_elts, dt.itemsize, _ptr(buf), buf.size):

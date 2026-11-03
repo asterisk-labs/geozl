@@ -1,7 +1,8 @@
 # geozl for R
 
 R bindings to GeoZL. They have the same graph, compress, decompress and profile
-calls as the Python package and write the same frames.
+calls as the Python package and write the same frames, except that R stores NaN
+as a `nodata` sentinel where Python leaves it in the samples.
 
 ```r
 library(geozl)
@@ -46,10 +47,11 @@ when it is out of date.
   `width = terra::ncol(r), planes = terra::nlyr(r)` because `v` is shaped
   `(ncell, nlyr)`. `terra::as.array()` is `(y, x, band)`; pass it through
   `aperm(a, c(2, 1, 3))` first.
-- **NoData.** `nodata = -9999` stores `NA` as that sentinel, and
+- **NoData.** `nodata = -9999` stores `NA` and `NaN` as that sentinel, and
   `geozl_decompress(..., nodata = -9999)` turns it back into `NA`. A float
-  raster with missing values and no sentinel uses NaN handling, which keeps
-  `NA` and `NaN` apart in a lossless frame; a lossy one writes every hole back
+  raster with missing values and no sentinel uses NaN handling. A lossless
+  float64 frame keeps `NA` and `NaN` apart; float32 and float16 store both as
+  one NaN, so `NA` reads back as `NaN`. A lossy frame writes every hole back
   with the first one's bits.
 - **Bounded error.** `error = 0.5` bounds the absolute error, `error = "1%"`
   the relative error, and full `LINEAR`, `LOG` and `SQRT` recipes are accepted,

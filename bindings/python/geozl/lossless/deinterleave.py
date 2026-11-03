@@ -45,6 +45,8 @@ class DeinterleaveDecoder(_ext.CustomDecoder):
     def decode(self, state):
         a = state.singleton_inputs[0]
         b = state.singleton_inputs[1]
+        if a.elt_width != b.elt_width or a.num_elts - b.num_elts not in (0, 1):
+            raise ValueError(f"{_NAME}: lanes differ in width or length")
         n = a.num_elts + b.num_elts
         out = state.create_output(0, n, a.elt_width)
         lib.deinterleave_join(_ptr(out.mut_content.as_nparray()),

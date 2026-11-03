@@ -90,8 +90,8 @@ end
               joinpath(@__DIR__, "..", "..", "python", "test", "golden"))
     manifest = joinpath(dir, "manifest.json")
     if isfile(manifest)
-        # The manifest's entries are flat objects, so a pattern reads them
-        # without a JSON dependency; the count check catches one it missed.
+        # No JSON parser is a test dependency, so a pattern reads the manifest's
+        # flat entries. The count below fails if the pattern skips a frame.
         text = read(manifest, String)
         entries = collect(eachmatch(r"\"file\":\s*\"([^\"]+)\"[^{}]*?\"sha256_decoded\":\s*\"([0-9a-f]+)\"[^{}]*?\"sha256_frame\":\s*\"([0-9a-f]+)\"", text))
         @test length(entries) == count(endswith(".zl"), readdir(joinpath(dir, "frames")))
@@ -169,6 +169,11 @@ end
     @test isequal(back, x)
     @test GeoZL.decompress(Int16, frame, size(x)...)[[5, 77, 1200]] == fill(Int16(-9999), 3)
     @test_throws ArgumentError GeoZL.graph(x, "planar>zigzag>pfor")
+
+    # The eltype allows missing but no sample is, so no sentinel is needed.
+    full = Union{Missing,Int16}[1 2; 3 4]
+    back = GeoZL.decompress(Int16, GeoZL.compress(full, GeoZL.graph(full, "id>zstd")), 2, 2)
+    @test back == full
 
     # Lossless keeps every NaN payload; a lossy frame writes them all back as
     # the first.

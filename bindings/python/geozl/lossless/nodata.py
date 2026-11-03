@@ -2,6 +2,7 @@ import struct
 
 from openzl import ext as _ext
 
+from .._codec import _CHECKSUM_DISABLE
 from .._dtype import dtype_code, dtype_width, nodata_bits
 from .._ffi import _ptr, ffi, lib
 
@@ -64,11 +65,13 @@ class _Encoder(_ext.CustomEncoder):
             # No pattern given, so the first NaN supplies the one the decoder
             # writes back. A lossless path marks only that payload and the
             # others come back exact; otherwise every NaN is a hole, since a
-            # quantizer has no answer for one.
+            # quantizer has no answer for one. The quantizers refuse a content
+            # checksum, so one left on means a lossless path.
             found = ffi.new("uint64_t*")
             has_nan = lib.nodata_find_nan(found, src, n, elt)
             pattern = int(found[0]) if has_nan else 0
-            if has_nan and self._radius == 0:
+            checksum = state.get_cparam(_ext.CParam.ContentChecksum)
+            if has_nan and (self._radius == 0 or checksum != _CHECKSUM_DISABLE):
                 lib.nodata_mark_value(mp, src, n, elt, pattern)
             else:
                 lib.nodata_mark_nan(mp, src, n, elt)
@@ -136,19 +139,23 @@ class Nodata:
 
     Omit this node for tiles without missing values. Sentinel mode prevents a
     lossy stage from turning valid samples into NoData. ``radius`` is the
-    largest error of the stages after the node: 0 for a lossless graph, which
-    in NaN mode keeps every NaN payload, and unknown by default.
+    largest error of the stages after the node: 0 for a lossless graph and
+    unknown by default.
+
+    Without ``value`` the node reads samples as floats and marks NaNs, so it
+    belongs on a float stream. It keeps every NaN payload when ``radius`` is 0
+    or the content checksum is on, and otherwise writes back the first one.
     """
 
     def __init__(self, width, value=None, dtype=None, radius=None):
         self._width = int(width)
         self._radius = radius
         self._dtype = None
+        if (value is None) != (dtype is None):
+            raise ValueError("give value and dtype together, a sentinel's bit "
+                             "pattern depends on the type it is read at")
         if value is None:
             self._pattern = None
-        elif dtype is None:
-            raise ValueError("give dtype alongside value, a sentinel's bit "
-                             "pattern depends on the type it is read at")
         else:
             self._pattern = nodata_bits(value, dtype)
             self._dtype = dtype_code(dtype)

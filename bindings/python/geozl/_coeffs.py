@@ -65,7 +65,7 @@ def _pack_coeffs(vectors: CoeffVectors) -> bytes:
     if size == 0:
         raise ValueError("coeffs has an invalid shape")
 
-    flat = ffi.new("int32_t[]", max(sum(map(len, packed)), 1))
+    flat = ffi.new("int32_t[]", sum(map(len, packed)))
     pointers = ffi.new("int32_t*[]", len(packed))
     offset = 0
     for i, vector in enumerate(packed):

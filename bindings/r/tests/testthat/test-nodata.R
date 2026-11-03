@@ -15,7 +15,7 @@ test_that("NaN in a float raster selects NaN nodata", {
   x[400] <- NA
   g <- geozl_graph(x, "planar>zigzag>transpose>entropy", datatype = "float64")
   back <- geozl_decompress(geozl_compress(x, g), "float64", dim = dim(x))
-  # Lossless keeps NA and NaN apart, payloads and all.
+  # Lossless float64 keeps NA and NaN apart, payloads and all.
   expect_identical(back, x)
   expect_true(is.na(back[400]) && !is.nan(back[400]))
   expect_true(all(is.nan(back[c(2, 300)])))
@@ -27,6 +27,23 @@ test_that("NaN in a float raster selects NaN nodata", {
   back <- geozl_decompress(geozl_compress(x, lossy), "float32", dim = dim(x))
   expect_identical(which(is.na(back)), which(is.na(x)))
   expect_lte(max(abs(back - x), na.rm = TRUE), 0.01 + 1e-6)
+})
+
+test_that("float32 and float16 store NA and NaN as one NaN", {
+  x <- matrix(c(NA, NaN, 1:14), 4, 4)
+  for (datatype in c("float32", "float16")) {
+    g <- geozl_graph(x, "id>zstd", datatype = datatype)
+    back <- geozl_decompress(geozl_compress(x, g), datatype, dim = dim(x))
+    expect_true(all(is.nan(back[1:2])))
+  }
+})
+
+test_that("a sentinel takes NaN as well as NA", {
+  x <- matrix(c(NA, NaN, 1:14), 4, 4)
+  g <- geozl_graph(x, "id>zstd", nodata = -9999, datatype = "float32")
+  frame <- geozl_compress(x, g)
+  raw_values <- geozl_decompress(frame, "float32", dim = dim(x))
+  expect_identical(raw_values[1:2], rep(-9999, 2))
 })
 
 test_that("a float sentinel maps NA both ways", {

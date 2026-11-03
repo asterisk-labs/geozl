@@ -71,16 +71,19 @@
 #'
 #' @param x Raster samples: a double, integer or raw vector or array. For a
 #'   bounded-error graph it fixes the domain later tiles are checked against,
-#'   so use data spanning the product.
+#'   so use data spanning the product. NaN and infinity are not checked: a later
+#'   tile holding them may be accepted, and they then decode to finite values.
+#'   Only a graph with NaN nodata, set or found in `x`, keeps NaN.
 #' @param method A recipe such as `"planar>zigzag>pfor"` or
 #'   `"planar>zigzag>transpose>entropy"`; see [geozl_profile()].
 #' @param width,planes Row width in samples and number of stacked images.
 #' @param error `NULL` or `0` for lossless, a positive number for an absolute
 #'   bound (LINEAR), a percentage such as `"1%"` (LOG), or a full `LINEAR`,
 #'   `LOG` or `SQRT` recipe.
-#' @param nodata A sentinel value marking missing samples. `NA` in `x` is
-#'   stored as this value. `NaN` selects NaN handling, which float rasters with
-#'   missing values get without asking.
+#' @param nodata A sentinel value marking missing samples. `NA` and `NaN` in `x`
+#'   are stored as this value, where Python leaves `NaN` in the samples. Passing
+#'   `NaN` selects NaN handling, which float rasters with missing values get
+#'   without asking.
 #' @param datatype Storage type: `"uint16"`, terra's `"INT2U"` or GDAL's
 #'   `"UInt16"`, and so on for 8, 16, 32 and 64 bit integers and 16, 32 and 64
 #'   bit floats. Defaults to `"int32"` for integer, `"float64"` for double and
