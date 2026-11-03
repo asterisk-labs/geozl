@@ -1,6 +1,4 @@
-/* GeoZL migration skin
-   Keeps the legacy information architecture while the public pages move to
-   the darker, quieter visual language established by the new landing page. */
+/* Dark theme for the documentation pages. */
 
 :root {
   color-scheme: dark;

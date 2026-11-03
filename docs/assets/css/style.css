@@ -1,7 +1,6 @@
-/* geozl — site styles
-   One stylesheet for every page: landing, inner pages, codec catalog and
-   codec detail. codecs.css just @imports this so the codec pages stay on
-   a single source of truth. */
+/* GeoZL base styles for the catalog, API, benchmark and codec pages.
+   migration.css applies the current dark theme; the landing page has its
+   own styles in index.html. */
 
 :root{
   --paper:#F1EDE4;
@@ -79,7 +78,7 @@ svg,img{ display:block; max-width:100%; }
 
 .vt-lockup{ view-transition-name:geozl-lockup; }
 
-/* Masthead + nav (shared by landing, inner pages, catalog) */
+/* Masthead and nav for pages using this stylesheet */
 .masthead{
   position:relative;
   z-index:3;
@@ -602,9 +601,7 @@ body:not(.landing) .sheet{ min-height:min(820px,calc(100svh - clamp(32px,5.2vw,6
   grid-auto-rows:clamp(126px,15.5vh,152px);
   gap:clamp(14px,1.6vw,20px);
 }
-/* If a future codec pushes past the last row, fade the cut edge so it reads as
-   more below rather than a clipped layout. Purely additive, the grid is sized
-   to fit twelve without ever reaching this. */
+/* Fade the cut edge when the cards overflow, indicating more below. */
 @supports (animation-timeline:scroll()){
   .cards{
     animation:cards-fade linear both;

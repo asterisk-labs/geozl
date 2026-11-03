@@ -28,8 +28,8 @@
          <dt>quant step</dt><dd>${d.step}</dd>
        </dl>`;
 
-  /* No cache. Measuring on every move costs a fraction of a millisecond and
-     keeps the panel's horizontal scroll from putting the points out of step. */
+  /* Measure on each pointer move so horizontal scrolling cannot leave cached
+     point positions stale. */
   const pts = plots.map((svg) => [...svg.querySelectorAll("[data-r]")]);
 
   let current = null;

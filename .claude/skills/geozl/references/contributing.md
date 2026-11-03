@@ -195,8 +195,10 @@ packing, so the cross-reader test can compare two independent bindings.
 
 ## 7. Documentation site rules
 
-- `docs/` is hand-written static HTML: one shared CSS file, optional JavaScript, pages
-  open from disk. Preview with `python3 -m http.server 8000 --directory docs`.
+- `docs/` contains directly maintained static HTML, CSS and JavaScript. The
+  landing page has its own styles; the other pages share `style.css` and
+  `migration.css`. Pages open from disk. Preview with
+  `python3 -m http.server 8000 --directory docs`.
 - The codec catalog appears five times: `ctids.h` (checked one way, a codec may exist in
   C before it is documented), the README codec table, the cards in `docs/docs.html`, the
   `CODECS` array in `docs/assets/js/main.js`, and a codec page whose file name uses

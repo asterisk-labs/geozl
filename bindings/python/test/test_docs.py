@@ -1,4 +1,4 @@
-"""Checks for the hand-written documentation, which has no build step."""
+"""Checks for the directly maintained documentation, which has no build step."""
 
 import ast
 import json
