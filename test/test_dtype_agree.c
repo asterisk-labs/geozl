@@ -1,6 +1,5 @@
 // The dtype tables live in four places, geozl/dtype.h and one copy per lossy
-// family. They carry the same wire codes so a codec folder lifts out whole.
-// Nothing held them to it before this.
+// family. They must carry the same wire codes and type widths.
 
 #include "geozl/dtype.h"
 
@@ -20,7 +19,7 @@ static void eq_size(const char *what, int dtype, size_t a, size_t b,
   }
 }
 
-// Bit for bit. A copy merely close to another has already drifted.
+// The shared range limits must agree exactly as numbers.
 static void eq_double(const char *what, int dtype, double a, double b,
                       const char *an, const char *bn) {
   if (!(a == b)) {
@@ -60,7 +59,7 @@ int main(void) {
     eq_int("dtype_ok", d, GEOZL_DT_OK(d) ? 1 : 0, QSQ_DTYPE_OK(d) ? 1 : 0,
            "geozl", "sqrt");
 
-    // A disagreement here is an out of bounds read, not a wrong number.
+    // A width disagreement can make a caller allocate too little space.
     const size_t w = geozl_dtype_width(d);
     eq_size("width", d, w, quant_linear_width(d), "geozl", "linear");
     eq_size("width", d, w, quant_log_width(d), "geozl", "log");

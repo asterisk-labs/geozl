@@ -582,8 +582,13 @@ static void the_wide_integers_hold_at_the_corners(void) {
         CHECKF((in[i] < 0) == (back[i] < 0) || back[i] == 0,
                "i64 %lld came back as %lld with the sign moved",
                (long long)in[i], (long long)back[i]);
-        CHECKF(back[i] >= INT64_MIN && back[i] <= INT64_MAX,
-               "i64 %lld left its type", (long long)back[i]);
+        // Subtract as unsigned values so the distance is defined at both limits.
+        const uint64_t diff = back[i] > in[i]
+                                  ? (uint64_t)back[i] - (uint64_t)in[i]
+                                  : (uint64_t)in[i] - (uint64_t)back[i];
+        CHECKF(diff <= (uint64_t)steps[k],
+               "i64 %lld rebuilt as %lld at step %g",
+               (long long)in[i], (long long)back[i], steps[k]);
       }
     }
     {

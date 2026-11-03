@@ -28,7 +28,7 @@ static uint64_t source[MAXN], residual[MAXN], expected[MAXN], decoded[MAXN];
     }                                                                          \
   } while (0)
 
-// The spec's own spelling, ITU-T T.87 A.4.2, one row after the other. The
+// The spec's own spelling, ITU-T T.87 A.4.1, one row after the other. The
 // kernel reorders the traversal and writes the median with masks, so this
 // stays an independent reading of the same rule.
 #define REF_DEC(T, W, H)                                                       \

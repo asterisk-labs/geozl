@@ -289,7 +289,7 @@ static void a_comma_locale_reads_the_same_recipe(void) {
   setlocale(LC_NUMERIC, "C");
 }
 
-// fabs folded the curve at zero and reported a bound the grid never held to.
+// The bound follows the signed input, including the negative part of the curve.
 static void the_curve_is_read_at_signed_x(void) {
   puts("the curve is read at signed x");
 
@@ -340,7 +340,7 @@ static void an_internal_index_is_not_capped_by_the_element(void) {
   CHECKF(back[200] >= 198 && back[200] <= 202, "200 rebuilt as %u", back[200]);
 }
 
-// This used to resolve, encode and decode and hand back one repeated value.
+// A step whose square underflows cannot define a usable grid.
 static void a_degenerate_grid_is_refused_at_the_resolver(void) {
   puts("a degenerate grid is refused at the resolver");
 

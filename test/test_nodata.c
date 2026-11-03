@@ -82,9 +82,8 @@ static void test_infinity_is_a_value(void) {
   CHECK(pattern == ODD_NAN);
 }
 
-// The two shapes that used to skip the fill. There is one shape now, so both
-// have to come back through it, and the all hole tile is the one that proves
-// the wire needs no case of its own.
+// A tile with no holes and a tile with only holes both take the fill path.
+// The mask must restore either shape exactly.
 static void test_degenerate_tiles_round_trip(void) {
   static uint32_t tile[16], vals[16], out[16];
   static uint8_t m[16];
