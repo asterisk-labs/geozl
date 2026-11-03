@@ -4,10 +4,26 @@ repository by tools/sync_r_vendor.py. Their licenses are in inst/licenses.
 GeoZL      Copyright (c) 2026, Asterisk Labs. BSD 3-Clause.
 OpenZL     Copyright (c) Meta Platforms, Inc. and affiliates. BSD 3-Clause.
            licenses/LICENSE.OpenZL
+xxHash     Copyright (C) 2012-2023 Yann Collet. BSD 2-Clause.
+           licenses/LICENSE.xxHash
+           src/ext/openzl/src/openzl/shared/xxhash.h
+pdqsort    Copyright (c) 2021 Orson Peters. zlib.
+           licenses/LICENSE.pdqsort
+           src/ext/openzl/src/openzl/shared/detail/pdqsort-inl.h
 Zstandard  Copyright (c) Meta Platforms, Inc. and affiliates. BSD 3-Clause.
            licenses/LICENSE.Zstandard
+           lib/common/threading.* are Copyright (c) 2016 Tino Reichardt under
+           the same terms.
+divsufsort Copyright (c) 2003-2008 Yuta Mori. MIT.
+           licenses/LICENSE.divsufsort
+           src/ext/openzl/deps/zstd/lib/dictBuilder/divsufsort.*
+JoinPaths  Copyright 2020 Jan Tojnar. MIT or CC0-1.0, used here under MIT.
+           licenses/LICENSE.JoinPaths
+           src/ext/openzl/deps/zstd/build/cmake/CMakeModules/JoinPaths.cmake
 LZ4        Copyright (c) 2011-2020, Yann Collet. BSD 2-Clause.
            licenses/LICENSE.LZ4
+           lib/lz4file.* are Copyright (C) 2022, Xiaomi Inc. under the same
+           terms.
            The source package also includes LZ4's non-lib CMake files and
            README; see src/ext/openzl/deps/lz4/LICENSE for their licensing
            and licenses/COPYING.LZ4 for the GPL-2.0-or-later text.

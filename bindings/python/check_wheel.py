@@ -7,8 +7,8 @@ import sys
 import zipfile
 from pathlib import Path
 
-NOTICES = ("LICENSE", "NOTICE", "LICENSE.OpenZL", "LICENSE.Zstandard",
-           "LICENSE.LZ4")
+NOTICES = ("LICENSE", "NOTICE", "LICENSE.OpenZL", "LICENSE.xxHash",
+           "LICENSE.pdqsort", "LICENSE.Zstandard", "LICENSE.LZ4")
 
 LIB_SUFFIXES = (".so", ".dylib", ".dll")
 

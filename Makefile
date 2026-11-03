@@ -202,7 +202,7 @@ python: lib
 # them without touching this file.
 $(CTEST_DIR)/%: test/%.c $(CTEST_KERNELS) $(CTEST_HEADERS)
 	@mkdir -p $(CTEST_DIR)
-	@$(CC) $(CTEST_CFLAGS) $< $(CTEST_KERNELS) $(CTEST_LIBS) -o $@
+	@$(CC) $(CTEST_CFLAGS) $(CFLAGS) $< $(CTEST_KERNELS) $(CTEST_LIBS) -o $@
 
 test-c: $(CTEST_BINS)
 	@if [ -z "$(CTEST_BINS)" ]; then echo "no C tests under test/"; else \
@@ -210,8 +210,7 @@ test-c: $(CTEST_BINS)
 
 test: test-c python
 	@$(PYTHON) -c 'import pytest' 2>/dev/null || { echo "pytest not installed"; exit 1; }
-	@$(SAN_ENV) $(PYTHON) -m pytest -q $(PY_DIR); \
-	  rc=$$?; if [ $$rc -eq 5 ]; then echo "no tests collected"; elif [ $$rc -ne 0 ]; then exit $$rc; fi
+	@$(SAN_ENV) $(PYTHON) -m pytest -q $(PY_DIR)
 
 test-san:
 	$(MAKE) test SAN=ON
@@ -297,10 +296,13 @@ fuzz-seed: python
 
 # libFuzzer writes its per job logs to the working directory and its findings to
 # artifact_prefix, so the runs happen from inside fuzz/out and nothing lands in
-# the repo root. allocator_may_return_null lets an absurd allocation come back
-# as null instead of aborting, which OpenZL handles: without it the decode run
-# stops every few minutes on a forged size field rather than fuzzing.
+# the repo root.
 #
+# A forged size field must come back as a null allocation, which OpenZL handles.
+# libFuzzer's malloc hook kills the run at 2 GB, but it only sees allocations ASan
+# granted, so ASan has to refuse first: its limit sits below libFuzzer's.
+FUZZ_ASAN := allocator_may_return_null=1:max_allocation_size_mb=1024
+
 # fuzz/corpus/<target> is where each one writes what it found, and it is not
 # transient. A long run is worth nothing if the next one starts cold, so
 # clean-fuzz is the only thing that removes it.
@@ -309,10 +311,11 @@ fuzz: fuzz-build fuzz-seed
 	@for t in $(FUZZ_TARGETS); do \
 	  d=$(abspath $(FUZZ_CORPUS))/$$t; mkdir -p $$d; \
 	  echo "$$t fuzzer, $(FUZZ_TIME)s"; \
-	  (cd $(FUZZ_OUT) && ASAN_OPTIONS=allocator_may_return_null=1 \
+	  (cd $(FUZZ_OUT) && ASAN_OPTIONS=$(FUZZ_ASAN) \
 	    $(abspath core/build-fuzz)/geozl_$${t}_fuzzer $$d \
 	    -max_total_time=$(FUZZ_TIME) -max_len=4096 -jobs=$(FUZZ_JOBS) \
-	    -artifact_prefix=$(abspath $(FUZZ_OUT))/ > $$t.log 2>&1) || true; \
+	    -artifact_prefix=$(abspath $(FUZZ_OUT))/ > $$t.log 2>&1) \
+	    || : > $(abspath $(FUZZ_OUT))/crash-$$t-exit; \
 	done
 
 fuzz-report:
@@ -358,7 +361,7 @@ fuzz-replay: fuzz-build
 	  dirs=$$s; \
 	  test -n "$$(ls -A $$c 2>/dev/null)" && dirs="$$dirs $$c"; \
 	  echo "$$t replay"; \
-	  (cd $(FUZZ_OUT) && ASAN_OPTIONS=allocator_may_return_null=1 \
+	  (cd $(FUZZ_OUT) && ASAN_OPTIONS=$(FUZZ_ASAN) \
 	    $(abspath core/build-fuzz)/geozl_$${t}_fuzzer $$dirs \
 	    -runs=0 -max_len=4096 \
 	    -artifact_prefix=$(abspath $(FUZZ_OUT))/ > $$t.log 2>&1) \
@@ -406,7 +409,7 @@ help:
 	@echo "make submodules fetch or update OpenZL (zstd + lz4)"
 	@echo ""
 	@echo "vars  BUILD=Debug  PYTHON=python3.12  GEN='Unix Makefiles'  PREFIX=/opt"
-	@echo "      FULL=OFF (kernels lib only, what the wheel needs, no OpenZL compile)"
+	@echo "      FULL=OFF (kernels lib only, no OpenZL compile)"
 	@echo "      SAN=ON (ASan and UBSan, Linux and macOS, separate build-san tree)"
 	@echo "      FUZZ_TIME=600 FUZZ_JOBS=8 (seconds per fuzz target, worker count)"
 	@echo "      CMAKE_FLAGS=-DGEOZL_USE_SYSTEM_OPENZL=ON"

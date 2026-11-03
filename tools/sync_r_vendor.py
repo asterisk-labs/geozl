@@ -102,7 +102,9 @@ def main() -> None:
 
     licenses = PACKAGE / "inst" / "licenses"
     shutil.rmtree(licenses, ignore_errors=True)
-    for name in ("LICENSE.OpenZL", "LICENSE.Zstandard", "LICENSE.LZ4"):
+    for name in ("LICENSE.OpenZL", "LICENSE.xxHash", "LICENSE.pdqsort",
+                 "LICENSE.Zstandard", "LICENSE.divsufsort",
+                 "LICENSE.JoinPaths", "LICENSE.LZ4"):
         copy(ROOT / "licenses" / name, licenses / name)
     # The R source package also carries LZ4's non-lib CMake and README files.
     copy(OPENZL / "deps" / "lz4" / "programs" / "COPYING",

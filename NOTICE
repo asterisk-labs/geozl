@@ -2,11 +2,33 @@ GeoZL
 Copyright (c) 2026, Asterisk Labs
 Licensed under the BSD 3-Clause License, see LICENSE.
 
-`libgeozl` statically links the following software. Binary distributions include
-their licence texts under `dist-info/licenses/`.
+`libgeozl` statically links the following software.
 
   OpenZL 0.3.0            BSD 3-Clause     licenses/LICENSE.OpenZL
+  xxHash, in OpenZL       BSD 2-Clause     licenses/LICENSE.xxHash
+  pdqsort, in OpenZL      zlib             licenses/LICENSE.pdqsort
   Zstandard 1.5.7         BSD 3-Clause     licenses/LICENSE.Zstandard
   LZ4 1.10.0 (lib only)   BSD 2-Clause     licenses/LICENSE.LZ4
 
 Only LZ4's BSD-licensed `lib` directory is built.
+
+The npm package adds what Emscripten links. `geozl.wasm` contains musl and
+`geozl.js` is Emscripten's runtime. `geozl.wasm` also contains LLVM compiler-rt
+builtins, whose LLVM exception needs no notice in compiled form, and dlmalloc,
+which is in the public domain.
+
+  musl                    MIT              licenses/LICENSE.musl
+  Emscripten              MIT or NCSA      licenses/LICENSE.Emscripten
+
+The R source package also carries these zstd sources, which nothing links.
+
+  divsufsort, in zstd     MIT              licenses/LICENSE.divsufsort
+  JoinPaths, in zstd      MIT or CC0-1.0   licenses/LICENSE.JoinPaths
+
+Where each distribution keeps the licence texts:
+
+  Wheels                  <name>.dist-info/licenses/, the libgeozl list only
+  libgeozl tarballs       licenses/, also in the Julia artifacts
+  npm package             licenses/
+  R source package        inst/licenses/
+  CMake install           share/licenses/geozl/

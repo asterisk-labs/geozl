@@ -67,20 +67,6 @@ artifacts = [
 [tool.hatch.build.targets.wheel.hooks.custom]
 path = "hatch_build.py"
 
-[tool.hatch.build.targets.sdist]
-include = [
-    "geozl/**",
-    "test/**",
-    "hatch_build.py",
-    "README.md",
-]
-exclude = [
-    "geozl/_lib/*.so",
-    "geozl/_lib/*.so.*",
-    "geozl/_lib/*.dylib",
-    "geozl/_lib/*.dll",
-]
-
 
 [tool.pytest.ini_options]
 testpaths = ["test"]

@@ -8,7 +8,13 @@ Authors@R: c(
     person("Asterisk Labs", role = "cph"),
     person("Meta Platforms, Inc. and affiliates", role = "cph",
            comment = "OpenZL and Zstandard"),
-    person("Yann", "Collet", role = "cph", comment = "LZ4"))
+    person("Yann", "Collet", role = "cph", comment = "LZ4 and xxHash"),
+    person("Orson", "Peters", role = "cph", comment = "pdqsort"),
+    person("Yuta", "Mori", role = "cph", comment = "divsufsort"),
+    person("Jan", "Tojnar", role = "cph", comment = "JoinPaths"),
+    person("Tino", "Reichardt", role = "cph",
+           comment = "Zstandard threading"),
+    person("Xiaomi Inc.", role = "cph", comment = "LZ4 lz4file"))
 Description: R bindings to libgeozl, the geospatial codec extensions for
     OpenZL.
 License: BSD_3_clause + file LICENSE

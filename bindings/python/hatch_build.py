@@ -9,6 +9,8 @@ _NOTICE_FILES = (
     "LICENSE",
     "NOTICE",
     "licenses/LICENSE.OpenZL",
+    "licenses/LICENSE.xxHash",
+    "licenses/LICENSE.pdqsort",
     "licenses/LICENSE.Zstandard",
     "licenses/LICENSE.LZ4",
 )
@@ -21,7 +23,7 @@ class CustomBuildHook(BuildHookInterface):
         if not found:
             raise RuntimeError(
                 f"no native library in {lib_dir}. Build it with `make lib` "
-                "from a checkout. An sdist carries no C sources."
+                "from a checkout."
             )
 
         # Binary inside, so tag the wheel for this platform, not py3-none-any.
