@@ -35,10 +35,6 @@ destroys data. Released CTids are never reassigned.
 | `med` | `0x72D705` | predictor | numeric -> numeric | `Med(width, planes)` | median edge detector (JPEG-LS) |
 | `average` | `0x72D706` | predictor | numeric -> numeric | `Average(width, planes)` | `floor((W + N) / 2)` |
 | `wp_static` | `0x72D707` | predictor | numeric -> numeric | `WpStatic(width, planes)` | fixed-weight JPEG XL self-correcting predictor, weights in header |
-| `binoffset` | `0x72D708` | legacy | numeric -> numeric x 2 | none | retired pcodec port; decoder only |
-| `intmult` | `0x72D709` | legacy | numeric -> numeric x 2 | none | retired pcodec port; decoder only |
-| `floatquant` | `0x72D70A` | legacy | numeric -> numeric x 2 | none | retired pcodec port; decoder only |
-| `floatmult` | `0x72D70B` | legacy | numeric -> numeric x 2 | none | retired pcodec port; decoder only |
 | `nodata` | `0x72D70C` | split | numeric -> values + mask | `Nodata(width, value, dtype)` | holes into a validity mask, filled values onward |
 | `pfor` | `0x72D70D` | terminal | numeric -> serial | `Pfor()` | 256-value blocks bit packed with patched exceptions |
 | `planar_zigzag` | `0x72D70F` | fused | numeric -> numeric | `PlanarZigzag(width, planes)` | planar then Zigzag in one pass |
@@ -124,7 +120,7 @@ Part of the wire format (quantizer headers) and of the C API (`geozl_dtype` in `
   (the `ctids.h` comment calls it the combined `quant` codec). In 0.8.0 the quantizers
   moved to `0x72D781` to `0x72D783` and `0x72D780` was retired, not reused: a 0.7.x lossy
   frame fails to find a decoder instead of being misread.
-- The pcodec family (`0x72D708` to `0x72D70B`) keeps C decoders registered so old frames
-  still decode.
+- `0x72D708` to `0x72D70B` are reserved. Their decoders were removed; frames
+  using these IDs are no longer readable.
 - `0x72D70E` belonged to a pre-baseline blocked-transpose experiment. It is
   reserved and has no decoder.

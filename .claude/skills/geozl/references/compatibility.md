@@ -73,7 +73,7 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
 | 0.8.0 | `"full"` brute-force method | `geozl.profile` picks the recipe |
 | 0.8.0 | `QuantLinear(0.5, dtype)` | `QuantLinear("LINEAR:MAX_ERROR=0.5", dtype)` |
 | 0.8.0 | `register_decoders` on `geozl.lossless` and `geozl.lossy` | `geozl.register_decoders` |
-| 0.8.0 | Python `BinOffset`, `IntMult`, `FloatQuant`, `FloatMult` | removed (C decoders kept) |
+| 0.8.0 | Python nodes for CTids `0x72D708` to `0x72D70B` | removed; C decoders retired after 0.20.0 |
 | 0.8.0 | `geozl_2d_compress`, `GEOZL_2D_LOSSLESS` | `geozl_2d_compress_c` with a recipe name and an error string |
 
 Code or docs mentioning `max_error=` as a Python argument, `method=` on `compress`, or

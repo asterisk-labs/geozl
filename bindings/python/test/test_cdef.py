@@ -27,8 +27,8 @@ _DROP = re.compile(r"\b(GEOZL_API|restrict|__restrict|const|static|inline)\b")
 
 _NOT_A_TYPE = {"return", "if", "while", "for", "switch", "sizeof", "typedef"}
 
-# Public functions present when the C API becomes source-stable in 0.13. New
-# functions may be added, but these names and signatures must remain available.
+# Public functions retained from the 0.13 C API. New functions may be added,
+# but these names and signatures must remain available.
 # One exception, pre 1.0: geozl_node_nodata took (c, width, mode, valueBits)
 # until a sentinel became guarded, which needs the dtype and a radius.
 _PUBLIC_API_0_13 = r"""
@@ -46,10 +46,6 @@ ZL_NodeID geozl_node_average(ZL_Compressor *c, uint32_t width,
 ZL_NodeID geozl_node_wp_static(ZL_Compressor *c, uint32_t width,
                                uint32_t planes);
 ZL_NodeID geozl_node_deinterleave(ZL_Compressor *c);
-ZL_NodeID geozl_node_binoffset(ZL_Compressor *c);
-ZL_NodeID geozl_node_intmult(ZL_Compressor *c, uint64_t base);
-ZL_NodeID geozl_node_floatquant(ZL_Compressor *c, unsigned k);
-ZL_NodeID geozl_node_floatmult(ZL_Compressor *c, double base);
 ZL_NodeID geozl_node_quant_linear(ZL_Compressor *c,
                                   const quant_linear_params *params, int dtype);
 ZL_NodeID geozl_node_quant_log(ZL_Compressor *c,
@@ -163,7 +159,7 @@ def test_every_signature_matches_the_header(cdef_declarations,
 def test_public_c_api_keeps_the_0_13_signatures():
     baseline = _declarations(_PUBLIC_API_0_13)
     current_api = _declarations(_HEADERS[0].read_text())
-    assert len(baseline) == 26
+    assert len(baseline) == 22
     drift = []
     for name, signature in baseline.items():
         current = current_api.get(name)

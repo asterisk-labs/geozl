@@ -179,12 +179,3 @@ back = planar_zigzag_pfor.decode(payload, raster.size, raster.dtype, width, plan
 ```
 
 `planar_zigzag_pfor.encode` produces the same bytes as `planar_zigzag` followed by `pfor`.
-
-## 7. Codecs without a Python node
-
-| Codec | CTid | Status |
-| --- | --- | --- |
-| `binoffset`, `intmult`, `floatquant`, `floatmult` | `0x72D708` to `0x72D70B` | retired pcodec ports; C decoders remain for old frames |
-
-`geozl.decompress` and `geozl_register_decoders` (C) decode all of them.
-`geozl.register_decoders` (Python) does not.

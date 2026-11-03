@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Four unused decode-only transforms and their retired writer stubs. CTids
+  `0x72D708` through `0x72D70B` remain reserved; frames using them are no
+  longer decoded.
+
 ## [0.20.0] - 2026-11-01
 
 ### Added

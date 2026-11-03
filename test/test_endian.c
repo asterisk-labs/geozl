@@ -63,8 +63,7 @@ static void test_signed_coeffs32(void) {
   CHECK(b[0] == 0xFE && b[1] == 0xFF && b[2] == 0xFF && b[3] == 0xFF);
 }
 
-// intmult stores its base and binoffset its bin lowers at the sample width,
-// so the variable-width pair has to stay exact and must not write past n.
+// Variable-width integer helpers preserve the byte layout and buffer boundary.
 static void test_variable_width(void) {
   uint8_t b[16];
 
@@ -80,8 +79,7 @@ static void test_variable_width(void) {
   }
 }
 
-// floatmult and quant put an IEEE-754 double in the header. Compared
-// bitwise so a signed zero or a subnormal is not waved through by ==.
+// The binary64 helpers preserve signed zero and subnormal bits.
 static void test_double_bits(void) {
   static const double values[] = { 0.0, -0.0, 1.0, -0.75, 0.1,
                                    1e-300, 1e300, 5e-324 };

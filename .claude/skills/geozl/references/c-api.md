@@ -50,11 +50,6 @@ ZL_NodeID geozl_node_average(ZL_Compressor *c, uint32_t width, uint32_t planes);
 ZL_NodeID geozl_node_wp_static(ZL_Compressor *c, uint32_t width, uint32_t planes);
 ZL_NodeID geozl_node_deinterleave(ZL_Compressor *c);
 ZL_NodeID geozl_node_pfor(ZL_Compressor *c);
-ZL_NodeID geozl_node_binoffset(ZL_Compressor *c);              // retired, returns illegal
-ZL_NodeID geozl_node_intmult(ZL_Compressor *c, uint64_t base); // retired, returns illegal
-ZL_NodeID geozl_node_floatquant(ZL_Compressor *c, unsigned k); // retired, returns illegal
-ZL_NodeID geozl_node_floatmult(ZL_Compressor *c, double base); // retired, returns illegal
-
 // params must come from the spec parsers and resolvers (quant_*_parse, _scan, _resolve)
 ZL_NodeID geozl_node_quant_linear(ZL_Compressor *c, const quant_linear_params *params, int dtype);
 ZL_NodeID geozl_node_quant_log(ZL_Compressor *c, const quant_log_params *params, int dtype);

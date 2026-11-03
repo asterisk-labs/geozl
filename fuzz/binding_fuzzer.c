@@ -18,14 +18,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Covers binoffset's largest header: 1 + 255 * (8 + 1).
+// Keep room for codec headers with variable-length metadata.
 #define MAX_HDR 4096
 #define MAX_OUT 2
 #define MAX_ELTS 8192
 #define MAX_BYTES (MAX_ELTS * 8)
 #define MAX_FRAME (1u << 20)
 
-// Every geozl CTid, its child-stream count, and which children are serial.
+// Every active GeoZL CTid, its child-stream count, and which children are serial.
 typedef struct {
   uint32_t ctid;
   unsigned nbOut;
@@ -48,10 +48,6 @@ static const codec_slot kSlots[] = {
     {GEOZL_CTID_PLANAR_ZIGZAG_PFOR, 1, 1},
     {GEOZL_CTID_DEINTERLEAVE, 2, 0},
     {GEOZL_CTID_NODATA, 2, 0},
-    {GEOZL_CTID_BINOFFSET, 2, 0},
-    {GEOZL_CTID_INTMULT, 2, 0},
-    {GEOZL_CTID_FLOATQUANT, 2, 0},
-    {GEOZL_CTID_FLOATMULT, 2, 0},
     {GEOZL_CTID_PLANAR_ZIGZAG_TRANSPOSE_PIVCO, 2, 2},
     {GEOZL_CTID_TRANSPOSE_PIVCO, 2, 2},
 };
