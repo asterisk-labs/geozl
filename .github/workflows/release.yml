@@ -100,6 +100,8 @@ jobs:
           mkdir -p "$name/lib" lib-dist
           cp build/libgeozl.so "$name/lib/"
           cp LICENSE "$name/"
+          cp NOTICE "$name/"
+          cp -R licenses "$name/"
           tar -czf "lib-dist/$name.tar.gz" "$name"
       - uses: actions/upload-artifact@v7
         with:
@@ -162,6 +164,8 @@ jobs:
           mkdir -p "$name/lib" lib-dist
           cp build/libgeozl.dylib "$name/lib/"
           cp LICENSE "$name/"
+          cp NOTICE "$name/"
+          cp -R licenses "$name/"
           # No AppleDouble files or extended attributes, which would change the
           # tree Julia hashes.
           COPYFILE_DISABLE=1 tar --no-xattrs -czf "lib-dist/$name.tar.gz" "$name"

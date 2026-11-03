@@ -331,6 +331,8 @@ jobs:
           mkdir -p "$dist/$name/lib"
           cp "core/build/$library" "$dist/$name/lib/"
           cp LICENSE "$dist/$name/"
+          cp NOTICE "$dist/$name/"
+          cp -R licenses "$dist/$name/"
           COPYFILE_DISABLE=1 tar -C "$dist" -czf "$dist/$name.tar.gz" "$name"
           cp -R bindings/julia "$package"
           export JULIA_DEPOT_PATH="$RUNNER_TEMP/geozl-julia-depot"
