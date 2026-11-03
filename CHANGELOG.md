@@ -7,11 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `geozl.profile` raises the reason when every recipe fails instead of returning
+  no rows.
+- `graph`, `compress`, `profile` and the raw PFOR helpers refuse object arrays.
+- `lossless.Nodata` raises when `dtype` is given without `value`.
+- LINEAR and SQRT charge more rounding, so f16 and f32 frames can differ from
+  earlier ones. Older frames still decode.
+
 ### Removed
 
-- Four unused decode-only transforms and their retired writer stubs. CTids
-  `0x72D708` through `0x72D70B` remain reserved; frames using them are no
-  longer decoded.
+- The four decode-only codecs ported from pcodec, `binoffset`, `intmult`,
+  `floatquant` and `floatmult`, and their retired writer stubs. CTids `0x72D708`
+  through `0x72D70B` remain reserved; frames using them are no longer decoded.
+- The Python package's sdist settings. Releases publish wheels only, and that
+  sdist could not build a wheel.
+
+### Fixed
+
+- `geozl_2d_graph_open_c`, `geozl_2d_compress_c` and `geozl_2d_bench_c` refuse a
+  lossy recipe whose dtype width differs from `eltWidth`. The scan read past the
+  end of `src`.
+- The same functions report an unknown `nodataMode` as `parameter_invalid`.
+- `GEOZL_USE_SYSTEM_OPENZL` configures against an OpenZL install, whose exported
+  targets need zstd and LZ4 found first.
+- A `libgeozl` built on the vendored OpenZL no longer exports the symbols of the
+  zstd and LZ4 it links.
+- A static CMake build defines `GEOZL_STATIC` for its consumers, so Windows
+  consumers no longer ask for `dllimport`.
+- `GEOZL_BUILD_FUZZERS` with `GEOZL_BUILD_FULL=OFF` fails at configure instead of
+  building no fuzzers.
+- Notices now cover xxHash and pdqsort in `libgeozl`, musl and the Emscripten
+  runtime in the npm package, and divsufsort and JoinPaths in the R source
+  package.
+- LINEAR charges f16 and f32 subnormal rounding, so tight bounds hold.
+- LOG refuses integer bounds that need 2^53 or more levels, and a graph built
+  without negatives refuses `-inf` under a nodata sentinel too.
+- SQRT on f16 charges its binary32 rebuild. SQRT on f32 holds its bound near
+  `-A/B` by using binary64 or refusing. SQRT refuses a step too small to square
+  when resolving, and floors stored signed integers under the nonnegative flag.
+- Recipes refuse subnormal numbers, hex included.
+- `quant_sqrt_fit` and `quant_sqrt_accum_solve` refuse a null output, and `blocks`
+  counts blocks measured rather than blocks kept.
+- `delta_n`, `planar`, `planar_zigzag`, `med`, `med_zigzag`, `average` and
+  `wp_static` frames over an empty stream decode.
+- `wp_static_encode` refuses a shift of 64 or more.
+- Planar GPU recipes with planes under 256 samples, and on CUDA shapes past the
+  grid limits, decode through host staging instead of failing the batch.
+- PFOR padding tasks no longer read unchecked payload bytes on the GPU.
+- Python decoders refuse deinterleave lanes of unequal width or length and
+  `delta_w` headers with a plane count, as C does.
+- `geozl.decompress` reads frames of empty rasters. `graph` raises `ValueError`
+  for planes over zero-width rows. `fit_noise` raises `ValueError` on an empty
+  stack.
+- Any NumPy float NaN selects NaN mode, and NumPy sentinels outside an integer
+  dtype raise `OverflowError`.
+- `lossless.Nodata` keeps every NaN payload with the content checksum on.
+- Julia accepts an array with a `Missing` eltype and no missing values without
+  `nodata`.
+- In the npm package, `wasmUrl` and `locateFile` accept URL objects, as declared.
+- The API page names the recipes behind its numbers, labels its scatter as an
+  older snapshot, and credits the Copernicus DEM.
 
 ## [0.20.0] - 2026-11-01
 
