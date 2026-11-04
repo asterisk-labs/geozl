@@ -64,6 +64,14 @@ end
     @test GeoZL.decompress(Int16, frame) == vec(x)
 end
 
+@testset "empty frames" begin
+    x = Array{Int16}(undef, 8, 0)
+    frame = GeoZL.compress(x, GeoZL.graph(x, "id>zstd"))
+    @test isempty(GeoZL.decompress(frame; max_output_size = 0))
+    @test isempty(GeoZL.decompress(frame; verify = false))
+    @test GeoZL.decompress(Int16, frame, size(x)...) == x
+end
+
 @testset "layout" begin
     x = cases[UInt16](smooth(48, 32, 0.0, 1.0))
     g = GeoZL.graph(x, "planar>zigzag>pfor")

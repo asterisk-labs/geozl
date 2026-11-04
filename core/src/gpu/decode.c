@@ -10,6 +10,7 @@
 
 #include "openzl/decompress/decode_frameheader.h"
 #include "openzl/zl_decompress.h"
+#include "openzl/zl_version.h"
 
 #include <limits.h>
 #include <pthread.h>
@@ -18,8 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-// The last codec is a cheap prefilter. Capture confirms that it belongs to one
-// of the direct GPU recipes; all other graphs decode on the host.
+// Only a single-chunk direct GPU recipe goes through capture. Other frames
+// decode completely on the host before their copies are placed on the device.
 enum { ROUTE_HOST, ROUTE_PFOR, ROUTE_PIVCO, ROUTE_FALLBACK };
 
 enum { SOURCE_DEVICE, SOURCE_HOST, SOURCE_FALLBACK, SOURCES };
@@ -309,31 +310,65 @@ void geozl_gpu_free(GeozlGpuMemory *memory) {
   geozl_gpu_memory_destroy(memory);
 }
 
+static int advance_within_frame(size_t *offset, size_t bytes,
+                                size_t frameSize) {
+  if (*offset > frameSize || bytes > frameSize - *offset)
+    return 0;
+  *offset += bytes;
+  return 1;
+}
+
+static int first_chunk_is_last(const GeozlGpuFrame *frame,
+                               const DFH_Struct *header, size_t chunkStart,
+                               size_t chunkHeaderSize) {
+  size_t end = chunkStart;
+  if (!advance_within_frame(&end, chunkHeaderSize, frame->size) ||
+      !advance_within_frame(&end, header->totalTHSize, frame->size))
+    return 0;
+  for (size_t i = 0; i < VECTOR_SIZE(header->storedStreamSizes); ++i) {
+    if (!advance_within_frame(&end, VECTOR_AT(header->storedStreamSizes, i),
+                              frame->size))
+      return 0;
+  }
+  if ((FrameInfo_hasContentChecksum(header->frameinfo) &&
+       !advance_within_frame(&end, 4, frame->size)) ||
+      (FrameInfo_hasCompressedChecksum(header->frameinfo) &&
+       !advance_within_frame(&end, 4, frame->size)))
+    return 0;
+  return header->formatVersion < ZL_CHUNK_VERSION_MIN ||
+         (end < frame->size && ((const uint8_t *)frame->data)[end] == 0);
+}
+
 static int route_of(const GeozlGpuFrame *frame) {
   DFH_Struct header = {0};
   DFH_init(&header);
   int route = ROUTE_HOST;
   const ZL_Report frameHeader =
       DFH_decodeFrameHeader(&header, frame->data, frame->size);
-  if (!ZL_isError(frameHeader) &&
-      (size_t)ZL_validResult(frameHeader) <= frame->size) {
-    const size_t used = (size_t)ZL_validResult(frameHeader);
-    const ZL_Report chunk = DFH_decodeChunkHeader(
-        &header, (const uint8_t *)frame->data + used, frame->size - used);
-    const size_t count = VECTOR_SIZE(header.nodes);
-    if (!ZL_isError(chunk) && count != 0) {
-      // OpenZL lists the last codec applied on decode at the end.
-      const PublicTransformInfo last = VECTOR_AT(header.nodes, count - 1).trpid;
-      if (last.trt == trt_custom &&
-          (last.trid == GEOZL_CTID_PFOR ||
-           last.trid == GEOZL_CTID_PLANAR_ZIGZAG_PFOR))
-        route = ROUTE_PFOR;
-      else if (last.trt == trt_custom &&
-               (last.trid == GEOZL_CTID_PLANAR_ZIGZAG_TRANSPOSE_PIVCO ||
-                last.trid == GEOZL_CTID_TRANSPOSE_PIVCO))
-        route = ROUTE_PIVCO;
-    }
-  }
+  if (ZL_isError(frameHeader) ||
+      (size_t)ZL_validResult(frameHeader) > frame->size)
+    goto done;
+  const size_t used = (size_t)ZL_validResult(frameHeader);
+  const ZL_Report chunk = DFH_decodeChunkHeader(
+      &header, (const uint8_t *)frame->data + used, frame->size - used);
+  if (ZL_isError(chunk) ||
+      !first_chunk_is_last(frame, &header, used,
+                           (size_t)ZL_validResult(chunk)))
+    goto done;
+  const size_t count = VECTOR_SIZE(header.nodes);
+  if (count == 0)
+    goto done;
+  // OpenZL lists the last codec applied on decode at the end.
+  const PublicTransformInfo last = VECTOR_AT(header.nodes, count - 1).trpid;
+  if (last.trt == trt_custom &&
+      (last.trid == GEOZL_CTID_PFOR ||
+       last.trid == GEOZL_CTID_PLANAR_ZIGZAG_PFOR))
+    route = ROUTE_PFOR;
+  else if (last.trt == trt_custom &&
+           (last.trid == GEOZL_CTID_PLANAR_ZIGZAG_TRANSPOSE_PIVCO ||
+            last.trid == GEOZL_CTID_TRANSPOSE_PIVCO))
+    route = ROUTE_PIVCO;
+done:
   DFH_destroy(&header);
   return route;
 }
@@ -616,11 +651,12 @@ static size_t piece_count(const GeozlGpuCopy *copy) {
   return ((size_t)copy->rows + PLACE_MAX_ROWS - 1) / PLACE_MAX_ROWS;
 }
 
-int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
-                     size_t frameCount, const GeozlGpuCopy copies[],
-                     size_t copyCount, size_t sampleBytes, size_t elementBytes,
-                     const GeozlGpuTarget *target, char *error,
-                     size_t errorCapacity) {
+int geozl_gpu_decode_ex(GeozlGpu *gpu, const GeozlGpuFrame frames[],
+                        size_t frameCount, const GeozlGpuCopy copies[],
+                        size_t copyCount, size_t sampleBytes,
+                        size_t elementBytes, const GeozlGpuTarget *target,
+                        const uint8_t forceHost[], char *error,
+                        size_t errorCapacity) {
   if (error != NULL && errorCapacity != 0)
     error[0] = '\0';
   if (gpu == NULL)
@@ -693,7 +729,9 @@ int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
   size_t pforBytes = 0, pivcoBytes = 0, hostBytes = 0;
   size_t pforCount = 0, pivcoCount = 0, deviceOutput = 0;
   for (size_t i = 0; i < frameCount; ++i) {
-    routes[i] = device ? (uint8_t)route_of(&frames[i]) : ROUTE_HOST;
+    routes[i] = device && (forceHost == NULL || forceHost[i] == 0)
+                    ? (uint8_t)route_of(&frames[i])
+                    : ROUTE_HOST;
     if (routes[i] != ROUTE_HOST) {
       const size_t payload = routes[i] == ROUTE_PFOR ? pforBytes : pivcoBytes;
       const size_t output = frames[i].decodedBytes <= DEVICE_BUDGET
@@ -991,4 +1029,14 @@ done:
   free(slots);
   free(routes);
   return failed;
+}
+
+int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
+                     size_t frameCount, const GeozlGpuCopy copies[],
+                     size_t copyCount, size_t sampleBytes, size_t elementBytes,
+                     const GeozlGpuTarget *target, char *error,
+                     size_t errorCapacity) {
+  return geozl_gpu_decode_ex(gpu, frames, frameCount, copies, copyCount,
+                             sampleBytes, elementBytes, target, NULL, error,
+                             errorCapacity);
 }

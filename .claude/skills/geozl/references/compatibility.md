@@ -46,7 +46,7 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
 
 | Version | Change | Consequence |
 | --- | --- | --- |
-| after 0.20.0 | decoders for `0x72D708` to `0x72D70B` removed | frames using them no longer decode; the CTids stay reserved |
+| 0.21.0 | decoders for `0x72D708` to `0x72D70B` removed | frames using them no longer decode; the CTids stay reserved |
 | 0.20.0-alpha.2 (2026-11-01) | `blocked_transpose_zstd` decoder removed | frames using `0x72D70E` no longer decode; the CTid stays reserved |
 | 0.20.0-alpha.1 (2026-10-31) | non-planar `pivco` recipes use `transpose_pivco` (`0x72D713`) | 0.19 readers reject new frames; current readers retain the 0.19 standard-node path |
 | 0.19.0 (2026-10-08) | new `planar_zigzag_pivco` codec and `sparse` terminal | those frames need a 0.19 reader; PivCo and sparse frames use OpenZL format 27 |
@@ -65,7 +65,7 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
 
 | Version | Old | New |
 | --- | --- | --- |
-| after 0.20.0 | `geozl_node_binoffset`, `geozl_node_intmult`, `geozl_node_floatquant`, `geozl_node_floatmult`, and their `GEOZL_CTID_*` enumerators | removed |
+| 0.21.0 | `geozl_node_binoffset`, `geozl_node_intmult`, `geozl_node_floatquant`, `geozl_node_floatmult`, and their `GEOZL_CTID_*` enumerators | removed |
 | 0.20.0 | `GEOZL_CTID_BLOCKED_TRANSPOSE_ZSTD` | removed |
 | 0.19.0 | `geozl_node_blocked_transpose_zstd` | removed |
 | 0.19.0 | lossy recipe `STORE=...`; `Noise.recipe(..., store=...)` | removed; layout is automatic |

@@ -16,6 +16,8 @@
 #include "transpose_pivco/graph_transpose_pivco.h"
 
 #include "openzl/zl_compress.h"
+#include "openzl/zl_input.h"
+#include "openzl/zl_segmenter.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -177,8 +179,9 @@ static void expect(const Batch *batch, size_t sampleBytes, uint8_t *want,
 }
 
 // The second pass writes behind an offset into the same memory.
-static int run(GeozlGpu *gpu, const Batch *batch, size_t sampleBytes,
-               size_t elementBytes, const char *name) {
+static int run_with_host_flags(GeozlGpu *gpu, const Batch *batch,
+                               size_t sampleBytes, size_t elementBytes,
+                               const char *name, const uint8_t forceHost[]) {
   char error[512];
   const size_t shift = 64 * sampleBytes;
   GeozlGpuMemory *memory =
@@ -196,9 +199,9 @@ static int run(GeozlGpu *gpu, const Batch *batch, size_t sampleBytes,
     const size_t offset = pass == 0 ? 0 : shift;
     const GeozlGpuTarget target = {geozl_gpu_pointer(memory), offset,
                                    batch->targetBytes, NULL};
-    if (geozl_gpu_decode(gpu, batch->frames, batch->count, batch->copies,
-                         batch->copyCount, sampleBytes, elementBytes, &target,
-                         error, sizeof(error)) != 0 ||
+    if (geozl_gpu_decode_ex(gpu, batch->frames, batch->count, batch->copies,
+                            batch->copyCount, sampleBytes, elementBytes,
+                            &target, forceHost, error, sizeof(error)) != 0 ||
         geozl_gpu_synchronize(gpu, error, sizeof(error)) != 0 ||
         geozl_gpu_memory_download(memory, got, batch->targetBytes + shift,
                                   error, sizeof(error)) != 0) {
@@ -221,6 +224,11 @@ done:
   free(want);
   free(got);
   return failed;
+}
+
+static int run(GeozlGpu *gpu, const Batch *batch, size_t sampleBytes,
+               size_t elementBytes, const char *name) {
+  return run_with_host_flags(gpu, batch, sampleBytes, elementBytes, name, NULL);
 }
 
 static void clear(Batch *batch) {
@@ -383,6 +391,115 @@ static int check_capture_errors(GeozlGpu *gpu) {
   return failed;
 }
 
+enum { SEGMENT_SAMPLES = 32768 };
+static ZL_GraphID segmentGraphs[2];
+
+static ZL_Report split_frame(ZL_Segmenter *ctx) {
+  for (size_t i = 0; i < 2; ++i) {
+    const ZL_Input *input = ZL_Segmenter_getInput(ctx, 0);
+    if (ZL_Input_numElts(input) < SEGMENT_SAMPLES)
+      return ZL_returnError(ZL_ErrorCode_GENERIC);
+    size_t count = SEGMENT_SAMPLES;
+    ZL_Report report =
+        ZL_Segmenter_processChunk(ctx, &count, 1, segmentGraphs[i], NULL);
+    if (ZL_isError(report))
+      return report;
+  }
+  return ZL_returnSuccess();
+}
+
+static int add_segmented_frame(Batch *batch, size_t bytes, int firstStore,
+                               int secondStore) {
+  enum { COUNT = 2 * SEGMENT_SAMPLES };
+  const size_t outputBytes = COUNT * bytes;
+  const size_t bound = ZL_compressBound(outputBytes);
+  uint8_t *source = malloc(outputBytes);
+  uint8_t *frame = malloc(bound);
+  ZL_Compressor *compressor = ZL_Compressor_create();
+  ZL_CCtx *cctx = ZL_CCtx_create();
+  ZL_TypedRef *ref = NULL;
+  int failed = 1;
+  if (source == NULL || frame == NULL || compressor == NULL || cctx == NULL)
+    goto done;
+  fill(source, COUNT, 256, bytes);
+  ref = ZL_TypedRef_createNumeric(source, bytes, COUNT);
+  if (ref == NULL)
+    goto done;
+  const ZL_NodeID node = bytes == 1 ? geozl_node_pfor(compressor)
+                                    : geozl_node_transpose_pivco(compressor);
+  const ZL_GraphID codec =
+      bytes == 1 ? ZL_Compressor_registerStaticGraph_fromNode(
+                       compressor, node, ZL_GRAPHLIST(ZL_GRAPH_STORE))
+                 : ZL_Compressor_registerStaticGraph_fromNode(
+                       compressor, node,
+                       ZL_GRAPHLIST(ZL_GRAPH_STORE, ZL_GRAPH_STORE));
+  segmentGraphs[0] = firstStore ? ZL_GRAPH_STORE : codec;
+  segmentGraphs[1] = secondStore ? ZL_GRAPH_STORE : codec;
+  const ZL_SegmenterDesc desc = {
+      .name = "two chunks",
+      .segmenterFn = split_frame,
+      .inputTypeMasks = (const ZL_Type[]){ZL_Type_numeric},
+      .numInputs = 1,
+      .customGraphs = segmentGraphs,
+      .numCustomGraphs = 2};
+  const ZL_GraphID graph = ZL_Compressor_registerSegmenter(compressor, &desc);
+  if (ZL_isError(ZL_Compressor_selectStartingGraphID(compressor, graph)) ||
+      ZL_isError(ZL_CCtx_refCompressor(cctx, compressor)) ||
+      ZL_isError(ZL_CCtx_setParameter(cctx, ZL_CParam_formatVersion,
+                                     ZL_MAX_FORMAT_VERSION)))
+    goto done;
+  const ZL_Report report = ZL_CCtx_compressTypedRef(cctx, frame, bound, ref);
+  if (ZL_isError(report)) {
+    fprintf(stderr, "segmented compression: %s\n",
+            ZL_CCtx_getErrorContextString(cctx, report));
+    goto done;
+  }
+  const size_t i = batch->count++;
+  batch->data[i] = frame;
+  batch->decoded[i] = source;
+  batch->frames[i] = (GeozlGpuFrame){frame, ZL_validResult(report), outputBytes};
+  frame = NULL;
+  source = NULL;
+  failed = 0;
+done:
+  ZL_TypedRef_free(ref);
+  ZL_CCtx_free(cctx);
+  ZL_Compressor_free(compressor);
+  free(frame);
+  free(source);
+  return failed;
+}
+
+static int check_segmented_frames(GeozlGpu *gpu, size_t bytes) {
+  static const uint8_t stores[][2] = {{0, 0}, {0, 1}, {1, 0}, {1, 1}};
+  Batch batch = {0};
+  int failed = 0;
+  // First and second chunks independently use the GPU codec or STORE.
+  for (size_t i = 0; i < sizeof(stores) / sizeof(stores[0]) && !failed; ++i) {
+    failed = add_segmented_frame(&batch, bytes, stores[i][0], stores[i][1]);
+    if (!failed)
+      add_whole_copy(&batch, batch.count - 1, bytes);
+  }
+  if (!failed)
+    failed = run(gpu, &batch, bytes, bytes, "segmented");
+  clear(&batch);
+  return failed;
+}
+
+static int check_forced_host(GeozlGpu *gpu) {
+  Batch batch = {0};
+  const Shape shape = {1, 64, 64};
+  int failed = add_frame(&batch, "id>pfor", &shape, 1) ||
+               add_frame(&batch, "planar>zigzag>pfor", &shape, 1);
+  for (size_t i = 0; i < batch.count; ++i)
+    add_whole_copy(&batch, i, 1);
+  const uint8_t forceHost[] = {1, 0};
+  if (!failed)
+    failed = run_with_host_flags(gpu, &batch, 1, 1, "forced host", forceHost);
+  clear(&batch);
+  return failed;
+}
+
 // Frames past a backend limit of the scan kernels still decode. The second one
 // needs more grid groups than CUDA allows.
 static int check_plane_limits(void) {
@@ -448,7 +565,11 @@ int main(void) {
   }
   const int failed = check_mixed(gpu, 2) || check_mixed(gpu, 1) ||
                      check_host_widths(gpu) || check_refusals(gpu) ||
-                     check_capture_errors(gpu) || check_plane_limits() ||
+                     check_capture_errors(gpu) ||
+                     check_segmented_frames(gpu, 1) ||
+                     check_segmented_frames(gpu, 2) ||
+                     check_forced_host(gpu) ||
+                     check_plane_limits() ||
                      check_batch_limit(gpu);
   geozl_gpu_destroy(gpu);
   if (failed) {

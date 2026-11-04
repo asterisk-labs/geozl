@@ -58,6 +58,11 @@ static size_t reps_arg(SEXP s) {
 static const uint8_t *raw_arg(SEXP s, const char *name) {
   if (TYPEOF(s) != RAWSXP)
     Rf_error("`%s` must be a raw vector", name);
+  // R may return NULL for a zero-length raw vector, while OpenZL needs a
+  // non-null pointer even when the numeric stream has no elements.
+  static const uint64_t empty = 0;
+  if (XLENGTH(s) == 0)
+    return (const uint8_t *)&empty;
   return RAW(s);
 }
 
@@ -403,7 +408,8 @@ static SEXP shrink(SEXP raw, size_t size) {
   if ((size_t)XLENGTH(raw) == size)
     return raw;
   SEXP out = PROTECT(Rf_allocVector(RAWSXP, (R_xlen_t)size));
-  memcpy(RAW(out), RAW(raw), size);
+  if (size != 0)
+    memcpy(RAW(out), RAW(raw), size);
   UNPROTECT(1);
   return out;
 }
@@ -436,20 +442,26 @@ SEXP geozl_r_decompress(SEXP frame, SEXP verify_s, SEXP max_s) {
   const uint8_t *src = raw_arg(frame, "frame");
   size_t len = (size_t)XLENGTH(frame);
   size_t dsize = geozl_2d_frame_dsize_c(src, len);
-  if (dsize == 0)
-    Rf_error("geozl_decompress: unreadable frame");
   if (!Rf_isNull(max_s) && (double)dsize > Rf_asReal(max_s))
     Rf_error("geozl_decompress: the frame declares %.0f bytes of output, above "
              "the %.0f allowed",
              (double)dsize, Rf_asReal(max_s));
-  SEXP out = PROTECT(Rf_allocVector(RAWSXP, (R_xlen_t)dsize));
+  // Zero can mean either an empty frame or an unreadable one. Give the decoder
+  // a writable byte and let it distinguish the two.
+  size_t capacity = dsize ? dsize : 1;
+  SEXP out = PROTECT(Rf_allocVector(RAWSXP, (R_xlen_t)capacity));
   char err[ERR_SIZE] = {0};
   size_t outSize = 0;
   // Numeric output must be 8-byte aligned; R aligns vector data for double.
-  int rc = geozl_2d_decompress_c(src, len, RAW(out), dsize, &outSize,
+  int rc = geozl_2d_decompress_c(src, len, RAW(out), capacity, &outSize,
                                  Rf_asLogical(verify_s), err, sizeof err);
+  if (rc != 0 && dsize == 0)
+    Rf_error("geozl_decompress: unreadable frame");
   if (rc != 0)
     Rf_error("geozl_decompress failed: %s (ZL error code %d)", err, rc);
+  if (outSize != dsize)
+    Rf_error("geozl_decompress: the frame held %zu bytes, not %zu", outSize,
+             dsize);
   SEXP result = shrink(out, outSize);
   UNPROTECT(1);
   return result;

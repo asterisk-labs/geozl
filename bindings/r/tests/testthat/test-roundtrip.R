@@ -71,6 +71,16 @@ test_that("raw input is native samples and raw output returns them", {
   expect_identical(geozl_compress(bytes, g_raw), frame)
 })
 
+test_that("a frame with no samples decodes to empty raw and typed output", {
+  x <- matrix(integer(), 8, 0)
+  g <- geozl_graph(x, "id>zstd", datatype = "int16")
+  frame <- geozl_compress(x, g)
+  expect_identical(geozl_decompress(frame, max_output_size = 0), raw())
+  expect_identical(geozl_decompress(frame, verify = FALSE), raw())
+  expect_identical(geozl_decompress(frame, "int16", dim = dim(x),
+                                    as = "integer"), x)
+})
+
 test_that("terra and GDAL datatype names map to the same storage", {
   pairs <- list(c("INT1U", "Byte", "uint8"), c("INT2S", "Int16", "int16"),
                 c("INT4U", "UInt32", "uint32"), c("INT8S", "Int64", "int64"),

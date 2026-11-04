@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-11-03
+
 ### Changed
 
 - `geozl.profile` raises the reason when every recipe fails instead of returning
@@ -15,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `lossless.Nodata` raises when `dtype` is given without `value`.
 - LINEAR and SQRT charge more rounding, so f16 and f32 frames can differ from
   earlier ones. Older frames still decode.
+
+### Added
+
+- `geozl_gpu_decode_ex` accepts a per-frame `forceHost` array to decode selected
+  frames on CPU before copying them to GPU memory.
 
 ### Removed
 
@@ -56,11 +63,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Planar GPU recipes with planes under 256 samples, and on CUDA shapes past the
   grid limits, decode through host staging instead of failing the batch.
 - PFOR padding tasks no longer read unchecked payload bytes on the GPU.
+- `geozl_gpu_decode` decodes multi-chunk frames entirely on the host before
+  copying samples to the device, even when the first chunk uses a GPU codec.
 - Python decoders refuse deinterleave lanes of unequal width or length and
   `delta_w` headers with a plane count, as C does.
 - `geozl.decompress` reads frames of empty rasters. `graph` raises `ValueError`
   for planes over zero-width rows. `fit_noise` raises `ValueError` on an empty
   stack.
+- R and Julia decode frames with zero output; R also compresses empty rasters.
 - Any NumPy float NaN selects NaN mode, and NumPy sentinels outside an integer
   dtype raise `OverflowError`.
 - `lossless.Nodata` keeps every NaN payload with the content checksum on.
@@ -628,7 +638,8 @@ First release.
   `register_decoders` for reading frames back.
 - A libFuzzer harness over the decode path.
 
-[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/asterisk-labs/geozl/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/asterisk-labs/geozl/compare/v0.19.0...v0.20.0
 [0.20.0-alpha.3]: https://github.com/asterisk-labs/geozl/compare/v0.20.0-alpha.2...v0.20.0-alpha.3
 [0.20.0-alpha.2]: https://github.com/asterisk-labs/geozl/compare/v0.20.0-alpha.1...v0.20.0-alpha.2
