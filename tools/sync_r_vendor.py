@@ -61,7 +61,8 @@ def main() -> None:
     copy(ROOT / "core" / "src" / "gpu" / "unavailable.c",
          VENDOR / "core" / "src" / "gpu" / "unavailable.c")
 
-    for part in ("CMakeLists.txt", "LICENSE", "build-scripts", "include", "src"):
+    # build-scripts/make holds GNU Makefiles, which R flags; CMake reads only cmake/.
+    for part in ("CMakeLists.txt", "LICENSE", "build-scripts/cmake", "include", "src"):
         copy(OPENZL / part, VENDOR / "openzl" / part)
     # tools/ is always added. Its subdirectories build nothing with the tools
     # off, except fileio, whose library is declared unconditionally.
