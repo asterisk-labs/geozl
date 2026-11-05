@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.1] - 2026-11-05
+
 ### Changed
 
 - CUDA decode calls on one stream can overlap. Keep the target alive until its
@@ -645,7 +647,8 @@ First release.
   `register_decoders` for reading frames back.
 - A libFuzzer harness over the decode path.
 
-[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.21.1...HEAD
+[0.21.1]: https://github.com/asterisk-labs/geozl/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/asterisk-labs/geozl/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/asterisk-labs/geozl/compare/v0.19.0...v0.20.0
 [0.20.0-alpha.3]: https://github.com/asterisk-labs/geozl/compare/v0.20.0-alpha.2...v0.20.0-alpha.3
