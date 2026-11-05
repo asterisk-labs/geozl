@@ -18,6 +18,10 @@
 
 #define ERR_SIZE 256
 
+// configure builds OpenZL to call this in place of abort(), so a failed
+// internal check raises an R error instead of ending the session.
+void geozl_r_abort(void) { Rf_error("OpenZL failed an internal check"); }
+
 static const size_t kWidth[] = {1, 2, 4, 8, 1, 2, 4, 8, 2, 4, 8};
 static const char *const kName[] = {"uint8", "uint16", "uint32", "uint64",
                                     "int8", "int16", "int32", "int64",
