@@ -21,6 +21,7 @@ docs/
 ├── benchmark.html      benchmark overview and link to the API walkthrough
 ├── compatibility.md    frame compatibility policy
 ├── c-api.md            C source compatibility policy
+├── releasing.md        release gates and version procedure
 ├── adding-a-codec.md   how to write one, for contributors
 ├── notebooks/          high-level-api.ipynb, the runnable version of api-high
 ├── slides/cng-2026/    conference presentation, with its own assets
