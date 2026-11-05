@@ -742,6 +742,36 @@
       "written_by": "geozl 0.20.0-alpha.1",
       "sha256_decoded": "402d0f26d7d5f74c6f90a6a2ded767b1190b778e74c35850cefa7bdd238b4791",
       "sha256_frame": "84c347e5cdc5bd648d88bfc1f477e52bd3c5ab912bc1e66eaf9821514f2a3d19"
+    },
+    {
+      "name": "planar-zigzag-pfor-uint16",
+      "file": "planar-zigzag-pfor-uint16.zl",
+      "graph": "planar>zigzag>pfor",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.21.1",
+      "sha256_decoded": "11955c7f038c16ee689492852d54092713a1deccdbdadc88157eb4c011ecea2f",
+      "sha256_frame": "2f2d9dd6e0b9e11d5ad357b62668fa3a9ec553bdb08b37b6681209a127d17284"
+    },
+    {
+      "name": "med-zigzag-uint16",
+      "file": "med-zigzag-uint16.zl",
+      "graph": "med>zigzag>transpose>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.21.1",
+      "sha256_decoded": "11955c7f038c16ee689492852d54092713a1deccdbdadc88157eb4c011ecea2f",
+      "sha256_frame": "6f3895f2b823f6ae4f0adf2ec09e06262071bc26ccf8f3ba1aba298d23ec3f7d"
     }
   ]
 }
