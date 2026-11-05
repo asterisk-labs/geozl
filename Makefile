@@ -42,7 +42,7 @@ FUZZ_OUT   := fuzz/out
 FUZZ_CORPUS := fuzz/corpus
 # Small inputs kept in git. The cached corpus adds depth when available.
 FUZZ_SEEDS := fuzz/replay
-FUZZ_TARGETS := roundtrip lossy_recipe quant_linear quant_log quant_sqrt pfor decode binding coeffs
+FUZZ_TARGETS := roundtrip lossy_recipe quant_linear quant_log quant_sqrt pfor decode binding coeffs gpu_plan
 OPENZL     := extern/openzl
 WASM_BUILD_DIR := core/build-wasm
 PY_DIR     := bindings/python
@@ -284,7 +284,7 @@ fuzz-build: $(OPENZL)/CMakeLists.txt
 	      geozl_roundtrip_fuzzer geozl_lossy_recipe_fuzzer \
 	      geozl_quant_linear_fuzzer \
 	      geozl_quant_log_fuzzer geozl_quant_sqrt_fuzzer geozl_pfor_fuzzer \
-	      geozl_coeffs_fuzzer
+	      geozl_coeffs_fuzzer geozl_gpu_plan_fuzzer
 
 fuzz-seed: python
 	@$(PYTHON) fuzz/gen_corpus.py $(FUZZ_CORPUS)/decode
