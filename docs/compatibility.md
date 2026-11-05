@@ -16,8 +16,9 @@ ported from pcodec that were removed in 0.21.0. The values remain reserved. Curr
 reject frames using them; no 0.20.0 writer emits them.
 
 Frozen frames in `bindings/python/test/golden` are decoded in CI on x86-64 and
-arm64. Frames from before 0.20 are regression fixtures, not a compatibility
-promise.
+arm64. The corpus includes the fused `planar_zigzag_pfor` (`0x72D710`) and
+`med_zigzag` (`0x72D711`) layouts written by 0.21.1. Frames from before 0.20
+are regression fixtures, not a compatibility promise.
 
 From 0.19, lossy codecs choose the stream layout and recipes no longer accept
 `STORE`. The wire format is unchanged, and readers still accept both layouts.
@@ -43,8 +44,9 @@ that already ships needs these steps:
 The C source API is stable from 0.13.0 apart from `geozl_node_nodata`, which
 gained parameters in 0.17.0, `geozl_node_blocked_transpose_zstd`, removed in
 0.19.0, and four retired writer stubs and their `GEOZL_CTID_*` enumerators for
-CTids `0x72D708` through `0x72D70B`, removed in 0.21.0. The C ABI is not
-stable before 1.0, so C applications should be recompiled after an update. See
+CTids `0x72D708` through `0x72D70B`, removed in 0.21.0. From 0.30.0,
+`geozl/gpu.h` joins the supported C source API. The C ABI is not stable before
+1.0, so C applications should be recompiled after an update. See
 [C API stability](c-api.md) for the full list.
 
 The public Python API follows semantic versioning but may grow before 1.0.

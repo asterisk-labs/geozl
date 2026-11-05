@@ -29,8 +29,9 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
   Frames containing `planar_zigzag_transpose_pivco` also need a GeoZL 0.19 reader.
   GeoZL 0.20 writers use `transpose_pivco` (`0x72D713`) for non-planar PivCo
   recipes; 0.19 readers reject those frames.
-- Python API: semantic versioning, may grow before 1.0. C: stable source API from
-  0.13.0 apart from the breaks in section 4, no ABI promise before 1.0.
+- Python API: semantic versioning, may grow before 1.0. C: stable source API
+  from 0.13.0 apart from the breaks in section 4; `geozl/gpu.h` joins from
+  0.30.0. There is no ABI promise before 1.0.
 
 ## 2. Deploying readers and writers
 
@@ -87,12 +88,13 @@ Code or docs mentioning `max_error=` as a Python argument, `method=` on `compres
 
 ## 5. Golden frames
 
-- `bindings/python/test/golden/frames/*.zl` are 49 released frames: 28 written by 0.13.0
+- `bindings/python/test/golden/frames/*.zl` are 51 released frames: 28 written by 0.13.0
   (all six predictors at 1 and 3 planes, `id`, `deinterleave`, `nodata` with an int32
   sentinel and float32 NaN, float quantizers), 6 by 0.14.0 (integer quantizer frames in
   both storage modes, including `planar>zigzag>pfor`, then written with separate nodes),
   9 value-layout float frames by 0.18.0 (fused `0x72D70F`), 1 by 0.19.0 (`0x72D712`) and
-  5 by 0.20.0-alpha.1 (`0x72D713`). No golden frame uses `0x72D710` or `0x72D711`.
+  5 by 0.20.0-alpha.1 (`0x72D713`), and 2 by 0.21.1 (`0x72D710` and
+  `0x72D711`).
 - `manifest.json` records per frame: `graph`, `error`, `nodata`, `dtype`, `shape`,
   `sha256_frame`, `sha256_decoded`, `frame_bytes` (0.13.0 entries only), and `written_by`
   for frames added after the 0.13.0 set. The manifest is frozen on purpose.
