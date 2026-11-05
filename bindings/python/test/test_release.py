@@ -1,3 +1,4 @@
+import json
 import re
 import subprocess
 from pathlib import Path
@@ -23,9 +24,11 @@ def test_binding_versions_match_version():
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     r = (ROOT / "bindings/r/DESCRIPTION").read_text(encoding="utf-8")
     julia = (ROOT / "bindings/julia/Project.toml").read_text(encoding="utf-8")
+    npm = json.loads((ROOT / "tools/wasm/js/package.json").read_text(encoding="utf-8"))
 
     assert re.search(r"(?m)^Version: (.*)$", r).group(1) == r_package_version(version)
     assert re.search(r'(?m)^version = "(.*)"$', julia).group(1) == version
+    assert npm["version"] == version
 
 
 def test_r_check_status_needs_a_complete_known_result(tmp_path):
