@@ -82,10 +82,14 @@ static ZL_Report capture_decoder(ZL_Decoder *decoder, const ZL_Input *inputs[],
       weightsSize > sizeof(frame->weights) ||
       (weightsSize != 0 && weights == NULL) ||
       (bitsSize != 0 && bits == NULL) ||
-      capture->payloadSize > capture->payloadCapacity ||
-      paddedBitsSize > capture->payloadCapacity - capture->payloadSize) {
+      capture->payloadSize > capture->payloadCapacity) {
     frame->seen = -1;
     return ZL_returnError(ZL_ErrorCode_allocation);
+  }
+  // An earlier codec, such as zstd, can expand the bits past their slot.
+  if (paddedBitsSize > capture->payloadCapacity - capture->payloadSize) {
+    frame->seen = 2;
+    return ZL_returnError(ZL_ErrorCode_graph_invalid);
   }
 
   memcpy(frame->header, bytes, header.size);

@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 static int fail(const char *message) {
   fprintf(stderr, "test_pivco_capture: %s\n", message);
@@ -97,7 +98,76 @@ static int check_transpose_codec(const char *method, PivcoCaptureResult want) {
   return failed ? fail("transpose PivCo took the wrong capture path") : 0;
 }
 
+static int check_zstd_expansion(void) {
+  enum { count = 16384 };
+  uint8_t source[count], output[count];
+  for (size_t i = 0; i < count; ++i)
+    source[i] = (uint8_t)(i % 4);
+  const size_t capacity = ZL_compressBound(count);
+  uint8_t *frame = malloc(capacity);
+  uint8_t *payload = malloc(capacity);
+  if (frame == NULL || payload == NULL) {
+    free(frame);
+    free(payload);
+    return fail("could not allocate wrapped-frame buffers");
+  }
+  const size_t frameSize = capture_test_build_wrapped_frame(
+      frame, capacity, source, count, CAPTURE_WRAPPED_PIVCO);
+  const size_t slot = (frameSize + 15) & ~(size_t)15;
+  int failed = frameSize == 0 || slot > capacity;
+  if (!failed) {
+    PivcoCapture capture;
+    CapturedFrame captured;
+    failed = pivco_capture_init(&capture, payload, capacity) != 0;
+    if (!failed) {
+      failed = pivco_capture_frame(&capture, &captured, output, count, frame,
+                                    frameSize) != PIVCO_CAPTURE_CODEC ||
+               captured.bitsSize <= slot;
+      pivco_capture_destroy(&capture);
+    }
+  }
+  if (!failed) {
+    PivcoCapture capture;
+    CapturedFrame captured;
+    failed = pivco_capture_init(&capture, payload, slot) != 0;
+    if (!failed) {
+      failed = pivco_capture_frame(&capture, &captured, output, count, frame,
+                                    frameSize) != PIVCO_CAPTURE_FALLBACK ||
+               captured.seen != 2;
+      pivco_capture_destroy(&capture);
+    }
+  }
+  size_t decoded = 0;
+  char error[256];
+  if (!failed)
+    failed = geozl_2d_decompress_c(frame, frameSize, output, count, &decoded,
+                                    1, error, sizeof(error)) != 0 ||
+             decoded != count || memcmp(output, source, count) != 0;
+  free(payload);
+  free(frame);
+  return failed ? fail("pivco>zstd did not fall back and decode") : 0;
+}
+
+static int check_count_limit(void) {
+  const uint8_t laneHeader[GEOZL_PIVCO_LANE_HEADER_SIZE] = {
+      GEOZL_PIVCO_LANE_PIVCO, 1};
+  const uint8_t weight = 1;
+  GeozlPivcoLanes parsed;
+  if (geozl_pivco_lanes_parse(&parsed, laneHeader, sizeof(laneHeader),
+                              UINT_MAX, 1, 32768, &weight, 1, 0) != 0)
+    return fail("UINT_MAX PivCo count was rejected");
+#if SIZE_MAX > UINT_MAX
+  if (geozl_pivco_lanes_parse(&parsed, laneHeader, sizeof(laneHeader),
+                              (size_t)UINT_MAX + 1, 1, 32768, &weight, 1,
+                              0) == 0)
+    return fail("PivCo count above UINT_MAX was accepted");
+#endif
+  return 0;
+}
+
 int main(void) {
+  if (check_count_limit() != 0 || check_zstd_expansion() != 0)
+    return 1;
   enum { width = 8, planes = 2, count = width * 8 * planes };
   uint16_t input[count];
   for (size_t i = 0; i < count; ++i)
@@ -146,6 +216,14 @@ int main(void) {
   if (captured.headerSize == 0 || captured.bitsSize == 0 ||
       capture.payloadSize < captured.bitsSize)
     return fail("captured inputs are incomplete");
+
+  PivcoCapture small;
+  if (pivco_capture_init(&small, payload, 16) != 0)
+    return fail("could not create capture context");
+  if (pivco_capture_frame(&small, &captured, output, sizeof(output), frame,
+                          frameSize) != PIVCO_CAPTURE_FALLBACK)
+    return fail("bits past their slot did not fall back");
+  pivco_capture_destroy(&small);
 
   frame[frameSize - 2] ^= 1;
   if (pivco_capture_frame(&capture, &captured, output, sizeof(output), frame,

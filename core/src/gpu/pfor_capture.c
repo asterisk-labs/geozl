@@ -67,10 +67,14 @@ static ZL_Report capture_decoder(ZL_Decoder *decoder, const ZL_Input *inputs[],
   const uint8_t *payload = ZL_Input_ptr(inputs[0]);
   if (header.size > sizeof(frame->header) ||
       (payloadSize != 0 && payload == NULL) ||
-      capture->payloadSize > capture->payloadCapacity ||
-      paddedSize > capture->payloadCapacity - capture->payloadSize) {
+      capture->payloadSize > capture->payloadCapacity) {
     frame->seen = -1;
     return ZL_returnError(ZL_ErrorCode_allocation);
+  }
+  // An earlier codec, such as zstd, can expand the payload past its slot.
+  if (paddedSize > capture->payloadCapacity - capture->payloadSize) {
+    frame->seen = 2;
+    return ZL_returnError(ZL_ErrorCode_graph_invalid);
   }
 
   memcpy(frame->header, header.start, header.size);

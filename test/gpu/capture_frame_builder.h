@@ -17,4 +17,13 @@ size_t capture_test_build_frame(uint8_t *dst, size_t capacity,
                                 size_t outerBytes,
                                 const CaptureFramePlan *plan);
 
+typedef enum {
+  CAPTURE_WRAPPED_PFOR,
+  CAPTURE_WRAPPED_PIVCO,
+} CaptureWrappedCodec;
+
+size_t capture_test_build_wrapped_frame(uint8_t *dst, size_t capacity,
+                                        const uint8_t *src, size_t count,
+                                        CaptureWrappedCodec codec);
+
 #endif // GEOZL_TEST_GPU_CAPTURE_FRAME_BUILDER_H

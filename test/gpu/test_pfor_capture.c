@@ -81,6 +81,56 @@ static int check_swapped_header(PforCapture *capture,
   return 0;
 }
 
+static int check_zstd_expansion(void) {
+  enum { count = 16384 };
+  uint8_t source[count], output[count];
+  for (size_t i = 0; i < count; ++i)
+    source[i] = (uint8_t)(i % 4);
+  const size_t capacity = ZL_compressBound(count);
+  uint8_t *frame = malloc(capacity);
+  uint8_t *payload = malloc(capacity);
+  if (frame == NULL || payload == NULL) {
+    free(frame);
+    free(payload);
+    return fail("could not allocate wrapped-frame buffers");
+  }
+  const size_t frameSize = capture_test_build_wrapped_frame(
+      frame, capacity, source, count, CAPTURE_WRAPPED_PFOR);
+  const size_t slot = (frameSize + 15) & ~(size_t)15;
+  int failed = frameSize == 0 || slot > capacity;
+  if (!failed) {
+    PforCapture capture;
+    CapturedPforFrame captured;
+    failed = pfor_capture_init(&capture, payload, capacity) != 0;
+    if (!failed) {
+      failed = pfor_capture_frame(&capture, &captured, output, count, frame,
+                                  frameSize) != PFOR_CAPTURE_CODEC ||
+               captured.payloadSize <= slot;
+      pfor_capture_destroy(&capture);
+    }
+  }
+  if (!failed) {
+    PforCapture capture;
+    CapturedPforFrame captured;
+    failed = pfor_capture_init(&capture, payload, slot) != 0;
+    if (!failed) {
+      failed = pfor_capture_frame(&capture, &captured, output, count, frame,
+                                  frameSize) != PFOR_CAPTURE_FALLBACK ||
+               captured.seen != 2;
+      pfor_capture_destroy(&capture);
+    }
+  }
+  size_t decoded = 0;
+  char error[256];
+  if (!failed)
+    failed = geozl_2d_decompress_c(frame, frameSize, output, count, &decoded,
+                                    1, error, sizeof(error)) != 0 ||
+             decoded != count || memcmp(output, source, count) != 0;
+  free(payload);
+  free(frame);
+  return failed ? fail("pfor>zstd did not fall back and decode") : 0;
+}
+
 int main(void) {
   enum { width = 8, planes = 2, count = width * 8 * planes };
   uint16_t input[count];
@@ -149,6 +199,16 @@ int main(void) {
       captured.kind != PFOR_CAPTURE_KIND_ID ||
       captured.headerSize != PFOR_HEADER_SIZE)
     return fail("id>pfor was not captured");
+
+  PforCapture small;
+  if (pfor_capture_init(&small, payload, 16) != 0)
+    return fail("could not create capture context");
+  if (pfor_capture_frame(&small, &captured, output, sizeof(output), frame,
+                         frameSize) != PFOR_CAPTURE_FALLBACK)
+    return fail("a payload past its slot did not fall back");
+  pfor_capture_destroy(&small);
+  if (check_zstd_expansion() != 0)
+    return 1;
 
   frame[frameSize - 2] ^= 1;
   if (pfor_capture_frame(&capture, &captured, output, sizeof(output), frame,

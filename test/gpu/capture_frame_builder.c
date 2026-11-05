@@ -1,6 +1,10 @@
 #include "capture_frame_builder.h"
 
+#include "geozl/geozl.h"
+
+#include "openzl/codecs/zl_entropy.h"
 #include "openzl/codecs/zl_store.h"
+#include "openzl/codecs/zl_zstd.h"
 #include "openzl/zl_compress.h"
 #include "openzl/zl_compressor.h"
 #include "openzl/zl_ctransform.h"
@@ -77,6 +81,56 @@ size_t capture_test_build_frame(uint8_t *dst, size_t capacity,
       !ZL_isError(ZL_CCtx_setParameter(context, ZL_CParam_formatVersion,
                                        ZL_MAX_FORMAT_VERSION))) {
     ZL_TypedRef *input = ZL_TypedRef_createNumeric(seed, 1, outerBytes);
+    if (input != NULL) {
+      const ZL_Report report =
+          ZL_CCtx_compressTypedRef(context, dst, capacity, input);
+      ZL_TypedRef_free(input);
+      if (!ZL_isError(report))
+        written = ZL_validResult(report);
+    }
+  }
+  ZL_CCtx_free(context);
+
+done:
+  ZL_Compressor_free(compressor);
+  return written;
+}
+
+size_t capture_test_build_wrapped_frame(uint8_t *dst, size_t capacity,
+                                        const uint8_t *src, size_t count,
+                                        CaptureWrappedCodec codec) {
+  if (dst == NULL || src == NULL || count == 0 ||
+      (codec != CAPTURE_WRAPPED_PFOR && codec != CAPTURE_WRAPPED_PIVCO))
+    return 0;
+
+  size_t written = 0;
+  ZL_Compressor *compressor = ZL_Compressor_create();
+  if (compressor == NULL)
+    return 0;
+  const ZL_NodeID node = codec == CAPTURE_WRAPPED_PFOR
+                             ? geozl_node_pfor(compressor)
+                             : geozl_node_transpose_pivco(compressor);
+  if (!ZL_NodeID_isValid(node))
+    goto done;
+  const ZL_GraphID graph = codec == CAPTURE_WRAPPED_PFOR
+                               ? ZL_Compressor_registerStaticGraph_fromNode(
+                                     compressor, node,
+                                     ZL_GRAPHLIST(ZL_GRAPH_ZSTD))
+                               : ZL_Compressor_registerStaticGraph_fromNode(
+                                     compressor, node,
+                                     ZL_GRAPHLIST(ZL_GRAPH_ENTROPY,
+                                                  ZL_GRAPH_ZSTD));
+  if (!ZL_GraphID_isValid(graph) ||
+      ZL_isError(ZL_Compressor_selectStartingGraphID(compressor, graph)))
+    goto done;
+
+  ZL_CCtx *context = ZL_CCtx_create();
+  if (context == NULL)
+    goto done;
+  if (!ZL_isError(ZL_CCtx_refCompressor(context, compressor)) &&
+      !ZL_isError(ZL_CCtx_setParameter(context, ZL_CParam_formatVersion,
+                                       ZL_MAX_FORMAT_VERSION))) {
+    ZL_TypedRef *input = ZL_TypedRef_createNumeric(src, 1, count);
     if (input != NULL) {
       const ZL_Report report =
           ZL_CCtx_compressTypedRef(context, dst, capacity, input);
