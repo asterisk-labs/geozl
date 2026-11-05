@@ -93,21 +93,23 @@ two-byte samples. Other graphs, including quantized, NoData and zstd frames,
 decode with OpenZL into host staging. Planar frames also use host staging when
 their planes are shorter than 256 samples or, on CUDA, exceed the grid limits.
 Malformed codec metadata rejects the call. Host threads capture and decode
-frames from a shared counter; planning then splits each codec's frames over the
-same threads.
+frames from a shared counter, and the thread that captures a frame plans it.
 
 The decoder is created with a nonzero limit for the sum of decoded frame bytes
 in one call. Copies may interleave samples, but no two copies may write the
-same target sample. On CUDA the target allocation stays alive on the selected
-device until later work in the same stream, synchronization, the next decode
-or decoder destruction has completed.
+same target sample. On CUDA, keep the target and stream alive until queued work
+finishes. The decoder identifies streams by handle, so a destroyed stream must
+not have work pending.
 
-Device frames decode into scratch the decoder keeps, and `place` copies every
-requested rectangle into the target. On CUDA the work joins the caller's
-stream and the call returns once it is queued. The next call, synchronization
-or destruction waits for it before reusing staging. Metal finishes each batch
-before returning. Programs keep finished device allocations for the next batch,
-so steady calls neither allocate nor free device memory.
+Device frames usually decode into scratch, then `place` copies the requested
+rectangles into the target. On CUDA, eligible whole frames decode directly into
+the target; PivCo still uses scratch for temporary samples. CUDA queues work on
+the caller's stream and uses two staging arenas. Calls on the same stream can
+overlap, but a call waits before reusing an arena from two calls earlier.
+Changing streams, synchronizing or destroying the decoder waits for pending
+work. Metal finishes each batch before returning. Programs keep finished device
+allocations for the next batch, so steady calls neither allocate nor free device
+memory.
 
 The kernels ship in the library as PTX and Metal source, embedded at build
 time from `core/src/gpu/modules`. Regenerate them with

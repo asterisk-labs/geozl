@@ -19,7 +19,11 @@ submodule in `extern/openzl`.
 - Keep the C kernels independent of Python and, where the current split uses one,
   independent of OpenZL. Put OpenZL orchestration in bindings and registries.
 - Keep the stable C source API backward compatible; before 1.0, ABI changes still
-  require callers to rebuild.
+  require callers to rebuild. `geozl/gpu.h` sits outside that stable API and may
+  still change.
+- On CUDA, `geozl_gpu_decode` returns once its work is queued and a later call on
+  the same stream may leave it running. Call `geozl_gpu_synchronize` before
+  freeing or reusing a target, and keep a stream alive until its work has finished.
 
 ## Validation
 

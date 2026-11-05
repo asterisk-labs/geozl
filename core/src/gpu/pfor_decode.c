@@ -142,7 +142,8 @@ int pfor_gpu_work_build(PforGpuWork *work, GeozlGpuArena *staging,
                         uint8_t *payload, size_t payloadSize,
                         const uint8_t *rawValues, size_t rawBytes,
                         const GeozlGpuRawCopy rawCopies[], size_t rawCount,
-                        size_t outputBytes, size_t threads, char *error,
+                        size_t outputBytes, const PforGpuPlan *framePlan,
+                        size_t threads, char *error,
                         size_t errorCapacity) {
   *work = (PforGpuWork){0};
   if (payloadSize > UINT32_MAX - GEOZL_GPU_PAYLOAD_PADDING)
@@ -157,9 +158,12 @@ int pfor_gpu_work_build(PforGpuWork *work, GeozlGpuArena *staging,
                            geozl_gpu_arena_error(staging));
   memset(payload + payloadSize, 0, GEOZL_GPU_PAYLOAD_PADDING);
 
-  if (frameCount != 0 && pfor_gpu_plan_build_parallel(
-                             &work->plan, frames, frameCount, payload,
-                             payloadSize, elementBytes, threads, &alloc) != 0) {
+  if (framePlan != NULL) {
+    work->plan = *framePlan;
+  } else if (frameCount != 0 &&
+             pfor_gpu_plan_build_parallel(&work->plan, frames, frameCount,
+                                          payload, payloadSize, elementBytes,
+                                          threads, &alloc) != 0) {
     const PforGpuPlan *plan = &work->plan;
     if (plan->errorFrame == SIZE_MAX)
       geozl_gpu_error(error, errorCapacity, "%s", plan->error);
@@ -358,7 +362,7 @@ GeozlGpuMemory *geozl_pfor_gpu_decode(GeozlPforGpuDecoder *decoder,
       pfor_gpu_work_build(&work, staging, decoder->elementBytes, gpuFrames,
                           gpuCount, NULL, payload, payloadSize, rawValues,
                           rawBytes, rawCopies, rawCount, batchInfo.totalBytes,
-                          4, error, errorCapacity))
+                          NULL, 4, error, errorCapacity))
     goto done;
 
   GeozlGpuBatch *batch = geozl_gpu_batch_create(

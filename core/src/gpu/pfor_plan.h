@@ -45,6 +45,22 @@ typedef struct {
 int pfor_gpu_block_info(const uint8_t *block, size_t available,
                         size_t elementBytes, PforGpuBlockInfo *info);
 
+typedef struct {
+  size_t blocksWithExceptions;
+  size_t exceptionCount;
+  const char *error;
+  size_t errorBlock;
+} PforGpuFrameTally;
+
+// Plans one frame into blocks, which has room for all of its blocks.
+int pfor_gpu_plan_frame(GpuPforBlock blocks[], const PforGpuFrame *frame,
+                        const uint8_t *payload, size_t elementBytes,
+                        PforGpuFrameTally *tally);
+// A plan over frames planned by the caller, which still owns blocks. blocks has
+// room for realBlocks rounded up to a multiple of four.
+void pfor_gpu_plan_wrap(PforGpuPlan *plan, GpuPforBlock blocks[],
+                        size_t realBlocks);
+
 int pfor_gpu_plan_build(PforGpuPlan *plan, const PforGpuFrame *frames,
                         size_t frameCount, const uint8_t *payload,
                         size_t payloadSize, size_t elementBytes);

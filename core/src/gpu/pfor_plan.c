@@ -76,6 +76,64 @@ void pfor_gpu_plan_free(PforGpuPlan *plan) {
   *plan = (PforGpuPlan){0};
 }
 
+int pfor_gpu_plan_frame(GpuPforBlock blocks[], const PforGpuFrame *frame,
+                        const uint8_t *payload, size_t elementBytes,
+                        PforGpuFrameTally *tally) {
+  *tally = (PforGpuFrameTally){.errorBlock = SIZE_MAX};
+  size_t at = 0;
+  size_t output = frame->shape.outOff;
+  for (size_t block = 0; block * GEOZL_PFOR_BLOCK < frame->shape.nbElts;
+       ++block) {
+    PforGpuBlockInfo info;
+    if (pfor_gpu_block_info(payload + frame->payloadOffset + at,
+                            frame->payloadSize - at, elementBytes,
+                            &info) != 0) {
+      tally->error = "invalid PFOR block";
+      tally->errorBlock = block;
+      return 1;
+    }
+    const size_t left = frame->shape.nbElts - block * GEOZL_PFOR_BLOCK;
+    const size_t count = left < GEOZL_PFOR_BLOCK ? left : GEOZL_PFOR_BLOCK;
+    if (frame->payloadOffset + at > UINT32_MAX || output > UINT32_MAX) {
+      tally->error = "PFOR task exceeds 32-bit kernel offsets";
+      tally->errorBlock = block;
+      return 1;
+    }
+    blocks[block] = (GpuPforBlock){(uint32_t)(frame->payloadOffset + at),
+                                   (uint32_t)output, (uint32_t)count,
+                                   (uint32_t)frame->transform};
+    if (info.exceptions != 0) {
+      ++tally->blocksWithExceptions;
+      tally->exceptionCount += info.exceptions;
+    }
+    at += info.bytes;
+    output += count;
+  }
+  if (at != frame->payloadSize) {
+    tally->error = "PFOR frame has trailing bytes";
+    return 1;
+  }
+  return 0;
+}
+
+// Four waves share a group and a padding task still reads its block. It repeats
+// a checked one, since the payload may start with a frame the host decodes.
+static void pad_blocks(GpuPforBlock blocks[], size_t realBlocks,
+                       size_t paddedBlocks) {
+  for (size_t i = realBlocks; i < paddedBlocks; ++i)
+    blocks[i] = (GpuPforBlock){blocks[0].payloadOffset, 0, 0, 0};
+}
+
+void pfor_gpu_plan_wrap(PforGpuPlan *plan, GpuPforBlock blocks[],
+                        size_t realBlocks) {
+  const size_t paddedBlocks = (realBlocks + 3) / 4 * 4;
+  pad_blocks(blocks, realBlocks, paddedBlocks);
+  *plan = (PforGpuPlan){.blocks = blocks,
+                        .blockCount = paddedBlocks,
+                        .realBlockCount = realBlocks,
+                        .borrowed = 1};
+}
+
 static int fail(PforGpuPlan *plan, const char *message, size_t frame,
                 size_t block) {
   pfor_gpu_plan_free(plan);
@@ -127,40 +185,18 @@ int pfor_gpu_plan_build(PforGpuPlan *plan, const PforGpuFrame *frames,
   size_t task = 0;
   for (size_t i = 0; i < frameCount; ++i) {
     const PforGpuFrame *frame = &frames[i];
-    size_t at = 0;
-    size_t output = frame->shape.outOff;
-    for (size_t block = 0; block * GEOZL_PFOR_BLOCK < frame->shape.nbElts;
-         ++block) {
-      PforGpuBlockInfo info;
-      if (pfor_gpu_block_info(payload + frame->payloadOffset + at,
-                              frame->payloadSize - at, elementBytes,
-                              &info) != 0)
-        return fail(plan, "invalid PFOR block", i, block);
-      const size_t left = frame->shape.nbElts - block * GEOZL_PFOR_BLOCK;
-      const size_t count = left < GEOZL_PFOR_BLOCK ? left : GEOZL_PFOR_BLOCK;
-      if (frame->payloadOffset + at > UINT32_MAX || output > UINT32_MAX)
-        return fail(plan, "PFOR task exceeds 32-bit kernel offsets", i, block);
-      plan->blocks[task++] = (GpuPforBlock){
-          (uint32_t)(frame->payloadOffset + at), (uint32_t)output,
-          (uint32_t)count, (uint32_t)frame->transform};
-      if (info.exceptions != 0) {
-        ++plan->blocksWithExceptions;
-        if (info.exceptions > SIZE_MAX - plan->exceptionCount)
-          return fail(plan, "PFOR exception count overflows", i, block);
-        plan->exceptionCount += info.exceptions;
-      }
-      at += info.bytes;
-      output += count;
-    }
-    if (at != frame->payloadSize)
-      return fail(plan, "PFOR frame has trailing bytes", i, SIZE_MAX);
+    PforGpuFrameTally tally;
+    if (pfor_gpu_plan_frame(plan->blocks + task, frame, payload, elementBytes,
+                            &tally) != 0)
+      return fail(plan, tally.error, i, tally.errorBlock);
+    task += (frame->shape.nbElts + GEOZL_PFOR_BLOCK - 1) / GEOZL_PFOR_BLOCK;
+    plan->blocksWithExceptions += tally.blocksWithExceptions;
+    if (tally.exceptionCount > SIZE_MAX - plan->exceptionCount)
+      return fail(plan, "PFOR exception count overflows", i, SIZE_MAX);
+    plan->exceptionCount += tally.exceptionCount;
   }
 
-  // Four waves share a group and a padding task still reads its block. It
-  // repeats a checked one, since the payload may start with a frame the host
-  // decodes.
-  for (size_t i = realBlocks; i < paddedBlocks; ++i)
-    plan->blocks[i].payloadOffset = plan->blocks[0].payloadOffset;
+  pad_blocks(plan->blocks, realBlocks, paddedBlocks);
   plan->realBlockCount = realBlocks;
   plan->blockCount = paddedBlocks;
   return 0;

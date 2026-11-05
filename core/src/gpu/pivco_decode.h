@@ -41,11 +41,18 @@ int pivco_gpu_frame_init(CapturedFrame *frame, GeozlGpuFrameShape *shape,
                          size_t payloadBase, size_t elementBytes,
                          size_t outputBytes, size_t outputBase);
 
-enum { PIVCO_GPU_OUTPUT = 10, PIVCO_GPU_BUFFERS = 15 };
+enum {
+  PIVCO_GPU_OUTPUT = 10,
+  PIVCO_GPU_OUTPUT_BYTES = 11,
+  PIVCO_GPU_TEMPORARY = 12,
+  PIVCO_GPU_BUFFERS = 15
+};
 
 // Kernel inputs of one batch, built in staging. buffers[PIVCO_GPU_OUTPUT]
 // holds the decoded frames, then lane scratch up to resultBytes, and is a
 // result the batch allocates unless the caller binds other memory there.
+// buffers[PIVCO_GPU_TEMPORARY] aliases it because odd tree levels decode there,
+// so a caller binding samples elsewhere must keep resultBytes of memory here.
 typedef struct {
   PivcoGpuPlan plan;
   GeozlGpuPlanePlan planes;
@@ -57,15 +64,17 @@ typedef struct {
 
 // payload and rawCopies lie in staging, and payload has
 // GEOZL_GPU_PAYLOAD_PADDING writable bytes after payloadSize. frameIds, when
-// not NULL, names frames in errors.
+// not NULL, names frames in errors. parts, when not NULL, holds one plan per
+// frame to merge in place of planning them, and stays owned by the caller.
 int pivco_gpu_work_build(PivcoGpuWork *work, GeozlGpuArena *staging,
                          size_t elementBytes, const CapturedFrame frames[],
                          const GeozlGpuFrameShape shapes[], size_t frameCount,
                          const size_t frameIds[], uint8_t *payload,
                          size_t payloadSize, const uint8_t *rawValues,
                          size_t rawBytes, const GeozlGpuRawCopy rawCopies[],
-                         size_t rawCount, size_t outputBytes, size_t threads,
-                         char *error, size_t errorCapacity);
+                         size_t rawCount, size_t outputBytes,
+                         PivcoGpuPlan parts[], size_t threads, char *error,
+                         size_t errorCapacity);
 void pivco_gpu_work_free(PivcoGpuWork *work);
 
 #endif // GEOZL_GPU_PIVCO_DECODE_H

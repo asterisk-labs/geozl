@@ -12,6 +12,7 @@ Public headers live in `core/include/geozl/`. `geozl.h` includes all of them exc
 5. Example: geozl nodes inside your own OpenZL graph
 6. Building and linking
 7. The kernels library
+8. GPU batch decode
 
 ## 1. Stability
 
@@ -22,6 +23,7 @@ Public headers live in `core/include/geozl/`. `geozl.h` includes all of them exc
   0.20.0; the four writer stubs `geozl_node_binoffset`, `geozl_node_intmult`,
   `geozl_node_floatquant`, `geozl_node_floatmult` and their `GEOZL_CTID_*` enumerators
   were removed after 0.20.0.
+- `geozl/gpu.h` is still changing and is outside the stable C API.
 - The **ABI is not stable before 1.0**: recompile C applications after updating GeoZL or
   OpenZL.
 - History of source breaks before 0.13: `planes` arguments added to five node builders
@@ -256,3 +258,28 @@ signatures are mirrored by hand in `bindings/python/geozl/_ffi.py` and checked b
 `test_cdef.py`. Kernels return a nonzero `int` for geometry they refuse and validate
 everything they compute on, because Python can call them without any frame or binding
 in between.
+
+## 8. GPU batch decode
+
+`geozl/gpu.h` decodes frames into device memory. CUDA queues work on
+`target->stream` without waiting for completion. A later call on that stream
+may report an earlier failure. Metal finishes before returning.
+
+```c
+int failed = geozl_gpu_decode(gpu, framesA, countA, copiesA, nA, 2, 2,
+                              &targetA, error, sizeof(error));
+if (!failed)
+  failed = geozl_gpu_decode(gpu, framesB, countB, copiesB, nB, 2, 2,
+                            &targetB, error, sizeof(error));
+int synced = geozl_gpu_synchronize(gpu, error, sizeof(error));
+if (failed || synced)
+  return 1;
+/* targetA and targetB can now be read, freed or reused. */
+```
+
+- Keep the target and stream alive until the queued work finishes. A later decode
+  on the same stream need not wait for it.
+- Changing streams or growing device scratch waits for pending calls. The decoder
+  keeps two pinned staging arenas until destruction.
+- On CUDA, whole, contiguous frames can decode into the target directly. Other
+  copies use `place`.

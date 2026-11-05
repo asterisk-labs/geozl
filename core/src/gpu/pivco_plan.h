@@ -77,6 +77,11 @@ int pivco_gpu_plan_build_parallel(PivcoGpuPlan *plan,
                                   size_t threadCount,
                                   const GeozlGpuHostAlloc *alloc);
 
+// Merges plans of consecutive frames in order into arrays from alloc. The parts
+// stay owned by the caller, without their lane padding.
+int pivco_gpu_plan_merge(PivcoGpuPlan *plan, PivcoGpuPlan parts[],
+                         size_t partCount, const GeozlGpuHostAlloc *alloc);
+
 void pivco_gpu_plan_free(PivcoGpuPlan *plan);
 
 #endif // GEOZL_GPU_PIVCO_PLAN_H

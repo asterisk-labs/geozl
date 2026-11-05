@@ -38,7 +38,7 @@ int pfor_gpu_frame_init(PforGpuFrame *frame, const CapturedPforFrame *captured,
                         size_t payloadBase, size_t elementBytes,
                         size_t outputBytes, size_t outputBase);
 
-enum { PFOR_GPU_OUTPUT = 3, PFOR_GPU_BUFFERS = 7 };
+enum { PFOR_GPU_OUTPUT = 3, PFOR_GPU_OUTPUT_BYTES = 4, PFOR_GPU_BUFFERS = 7 };
 
 // Kernel inputs of one batch, built in staging. buffers[PFOR_GPU_OUTPUT] holds
 // the decoded frames and is a result the batch allocates unless the caller
@@ -53,14 +53,16 @@ typedef struct {
 
 // payload and rawCopies lie in staging, and payload has
 // GEOZL_GPU_PAYLOAD_PADDING writable bytes after payloadSize. frameIds, when
-// not NULL, names frames in errors.
+// not NULL, names frames in errors. framePlan, when not NULL, replaces planning
+// the frames and stays owned by the caller.
 int pfor_gpu_work_build(PforGpuWork *work, GeozlGpuArena *staging,
                         size_t elementBytes, const PforGpuFrame frames[],
                         size_t frameCount, const size_t frameIds[],
                         uint8_t *payload, size_t payloadSize,
                         const uint8_t *rawValues, size_t rawBytes,
                         const GeozlGpuRawCopy rawCopies[], size_t rawCount,
-                        size_t outputBytes, size_t threads, char *error,
+                        size_t outputBytes, const PforGpuPlan *framePlan,
+                        size_t threads, char *error,
                         size_t errorCapacity);
 void pfor_gpu_work_free(PforGpuWork *work);
 

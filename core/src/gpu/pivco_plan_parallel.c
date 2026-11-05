@@ -170,6 +170,24 @@ overflow:
   return 1;
 }
 
+int pivco_gpu_plan_merge(PivcoGpuPlan *plan, PivcoGpuPlan parts[],
+                         size_t partCount, const GeozlGpuHostAlloc *alloc) {
+  PlanWorker *workers = calloc(partCount, sizeof(*workers));
+  if (workers == NULL) {
+    *plan = (PivcoGpuPlan){.error = "out of memory",
+                           .errorFrame = SIZE_MAX,
+                           .errorLane = SIZE_MAX};
+    return 1;
+  }
+  for (size_t i = 0; i < partCount; ++i) {
+    trim_lane_padding(&parts[i]);
+    workers[i].plan = parts[i];
+  }
+  const int failed = merge_plans(plan, workers, partCount, alloc);
+  free(workers);
+  return failed;
+}
+
 int pivco_gpu_plan_build_parallel(PivcoGpuPlan *plan,
                                   const CapturedFrame *frames,
                                   const GeozlGpuFrameShape *shapes,

@@ -19,6 +19,9 @@
 #include "openzl/zl_input.h"
 #include "openzl/zl_segmenter.h"
 
+#ifndef __APPLE__
+#include <dlfcn.h>
+#endif
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,6 +51,8 @@ typedef struct {
 } Batch;
 
 static const Shape shapes[] = {{3, 20, 300}, {1, 64, 64}, {2, 7, 513}};
+
+static size_t round_up_test(size_t bytes) { return (bytes + 63) / 64 * 64; }
 
 static uint64_t state = 0x9e3779b97f4a7c15u;
 
@@ -179,11 +184,10 @@ static void expect(const Batch *batch, size_t sampleBytes, uint8_t *want,
 }
 
 // The second pass writes behind an offset into the same memory.
-static int run_with_host_flags(GeozlGpu *gpu, const Batch *batch,
-                               size_t sampleBytes, size_t elementBytes,
-                               const char *name, const uint8_t forceHost[]) {
+static int run_shifted(GeozlGpu *gpu, const Batch *batch, size_t sampleBytes,
+                       size_t elementBytes, const char *name,
+                       const uint8_t forceHost[], size_t shift) {
   char error[512];
-  const size_t shift = 64 * sampleBytes;
   GeozlGpuMemory *memory =
       geozl_gpu_alloc(gpu, batch->targetBytes + shift, error, sizeof(error));
   uint8_t *got = malloc(batch->targetBytes + shift);
@@ -224,6 +228,13 @@ done:
   free(want);
   free(got);
   return failed;
+}
+
+static int run_with_host_flags(GeozlGpu *gpu, const Batch *batch,
+                               size_t sampleBytes, size_t elementBytes,
+                               const char *name, const uint8_t forceHost[]) {
+  return run_shifted(gpu, batch, sampleBytes, elementBytes, name, forceHost,
+                     64 * sampleBytes);
 }
 
 static int run(GeozlGpu *gpu, const Batch *batch, size_t sampleBytes,
@@ -551,6 +562,244 @@ static int check_batch_limit(GeozlGpu *gpu) {
   return failed;
 }
 
+// Check direct output, PivCo scratch, misaligned targets and overlapping copies.
+static int check_direct(GeozlGpu *gpu, size_t bytes) {
+  static const char *const recipes[] = {
+      "planar>zigzag>pfor", "id>pfor", "planar>zigzag>transpose>pivco"};
+  const Shape shape = {2, 64, 64};
+  for (size_t mix = 0; mix < 3; ++mix) {
+    Batch batch = {0};
+    int failed = 0;
+    for (size_t r = 0; r < 3 && !failed; ++r) {
+      // First two cases use one codec; the last mixes PFOR and PivCo.
+      if (mix != 2 && (mix == 0) != (r == 2))
+        continue;
+      for (size_t n = 0; n < 2 && !failed; ++n) {
+        failed = add_frame(&batch, recipes[r], &shape, bytes);
+        if (!failed)
+          add_whole_copy(&batch, batch.count - 1, bytes);
+      }
+    }
+    if (!failed)
+      failed = run(gpu, &batch, bytes, bytes, "direct");
+    if (!failed)
+      failed = run_shifted(gpu, &batch, bytes, bytes, "off alignment", NULL,
+                           2 * bytes);
+    if (!failed && mix == 2) {
+      // Keep the copy contiguous while splitting it into rows.
+      for (size_t c = 0; c < batch.copyCount; ++c) {
+        GeozlGpuCopy *copy = &batch.copies[c];
+        const size_t row = shape.width * bytes;
+        copy->sourceRow = row;
+        copy->destinationRow = row;
+        copy->width = shape.width;
+        copy->rows = shape.planes * shape.rows;
+      }
+      failed = run(gpu, &batch, bytes, bytes, "direct rows");
+    }
+    clear(&batch);
+    if (failed)
+      return 1;
+  }
+
+  // Mix a host fallback frame with direct frames.
+  Batch back = {0};
+  int failed = add_frame(&back, recipes[0], &shape, bytes) ||
+               add_frame(&back, "delta_1d>pfor", &shape, bytes) ||
+               add_frame(&back, recipes[2], &shape, bytes);
+  for (size_t i = 0; i < back.count && !failed; ++i)
+    add_whole_copy(&back, i, bytes);
+  if (!failed)
+    failed = run(gpu, &back, bytes, bytes, "direct with a host frame");
+  clear(&back);
+  if (failed)
+    return 1;
+
+  Batch same = {0};
+  failed = add_frame(&same, recipes[0], &shape, bytes);
+  if (!failed) {
+    add_whole_copy(&same, 0, bytes);
+    same.frames[1] = same.frames[0];
+    same.decoded[1] = same.decoded[0];
+    same.count = 2;
+    same.copies[1] = same.copies[0];
+    same.copies[1].frame = 1;
+    same.copyCount = 2;
+    failed = run(gpu, &same, bytes, bytes, "overlapping frames");
+    same.count = 1;
+    same.decoded[1] = NULL;
+  }
+  clear(&same);
+  return failed;
+}
+
+#ifdef __APPLE__
+typedef struct {
+  void *stream[2];
+} Streams;
+static void streams_open(Streams *streams) {
+  *streams = (Streams){{NULL, NULL}};
+}
+static void streams_close(Streams *streams) { (void)streams; }
+#else
+typedef struct {
+  void *stream[2];
+  void *library;
+  int (*destroy)(void *);
+} Streams;
+
+// Two streams of device 0, for calls that move between them. Without them the
+// checks below run on the default stream alone.
+static void streams_open(Streams *streams) {
+  *streams = (Streams){0};
+  streams->library = dlopen("libcuda.so.1", RTLD_NOW | RTLD_LOCAL);
+  if (streams->library == NULL)
+    return;
+  int (*init)(unsigned) = (int (*)(unsigned))dlsym(streams->library, "cuInit");
+  int (*device)(int *, int) =
+      (int (*)(int *, int))dlsym(streams->library, "cuDeviceGet");
+  int (*retain)(void **, int) = (int (*)(void **, int))dlsym(
+      streams->library, "cuDevicePrimaryCtxRetain");
+  int (*current)(void *) =
+      (int (*)(void *))dlsym(streams->library, "cuCtxSetCurrent");
+  int (*create)(void **, unsigned) =
+      (int (*)(void **, unsigned))dlsym(streams->library, "cuStreamCreate");
+  streams->destroy =
+      (int (*)(void *))dlsym(streams->library, "cuStreamDestroy_v2");
+  int id = 0;
+  void *context = NULL;
+  if (init == NULL || device == NULL || retain == NULL || current == NULL ||
+      create == NULL || streams->destroy == NULL || init(0) != 0 ||
+      device(&id, 0) != 0 || retain(&context, id) != 0 ||
+      current(context) != 0)
+    return;
+  for (size_t i = 0; i < 2; ++i) {
+    if (create(&streams->stream[i], 0) != 0)
+      streams->stream[i] = NULL;
+  }
+}
+
+static void streams_close(Streams *streams) {
+  for (size_t i = 0; i < 2; ++i) {
+    if (streams->stream[i] != NULL)
+      streams->destroy(streams->stream[i]);
+  }
+  if (streams->library != NULL)
+    dlclose(streams->library);
+}
+#endif
+
+// Check overlapping calls, scratch growth, stream changes and failure cleanup.
+static int check_waves(GeozlGpu *gpu, size_t bytes) {
+  enum { WAVES = 6 };
+  static const Shape growing[WAVES] = {{1, 16, 32},  {2, 7, 513},
+                                       {1, 64, 64},  {3, 20, 300},
+                                       {1, 256, 512}, {2, 64, 513}};
+  static const char *const recipes[] = {"planar>zigzag>pfor",
+                                        "planar>zigzag>transpose>pivco"};
+  Batch batches[WAVES];
+  memset(batches, 0, sizeof(batches));
+  size_t offsets[WAVES + 1] = {0};
+  char error[512];
+  GeozlGpuMemory *memories[4] = {NULL};
+  Streams streams;
+  streams_open(&streams);
+  uint8_t *got = NULL, *want = NULL, *written = NULL;
+  int failed = 0;
+#ifndef __APPLE__
+  if (streams.stream[0] == NULL || streams.stream[1] == NULL) {
+    fprintf(stderr, "cannot create the CUDA streams\n");
+    failed = 1;
+  }
+#endif
+  for (size_t i = 0; i < WAVES && !failed; ++i) {
+    for (size_t r = 0; r < 2 && !failed; ++r) {
+      failed = add_frame(&batches[i], recipes[(i + r) % 2], &growing[i], bytes);
+      if (!failed && i % 2 == 0)
+        add_whole_copy(&batches[i], r, bytes);
+      else if (!failed)
+        add_copies(&batches[i], r, &growing[i], bytes);
+    }
+    offsets[i + 1] = offsets[i] + round_up_test(batches[i].targetBytes);
+  }
+  const size_t total = offsets[WAVES];
+  if (!failed) {
+    for (size_t i = 0; i < 4 && !failed; ++i) {
+      memories[i] = geozl_gpu_alloc(gpu, total, error, sizeof(error));
+      failed = memories[i] == NULL;
+    }
+    got = malloc(total);
+    want = calloc(1, total);
+    written = calloc(1, total);
+    failed = failed || got == NULL || want == NULL || written == NULL;
+  }
+  for (int round = 0; round < 3 && !failed; ++round) {
+    GeozlGpuMemory *memory = memories[round];
+    for (size_t i = 0; i < WAVES && !failed; ++i) {
+      // Switch streams halfway through the third round.
+      void *stream = round == 2 ? streams.stream[i / 3] : NULL;
+      const GeozlGpuTarget target = {geozl_gpu_pointer(memory), offsets[i],
+                                     batches[i].targetBytes, stream};
+      failed = geozl_gpu_decode(gpu, batches[i].frames, batches[i].count,
+                                batches[i].copies, batches[i].copyCount, bytes,
+                                bytes, &target, error, sizeof(error)) != 0;
+      if (!failed && round == 0) {
+        expect(&batches[i], bytes, want + offsets[i], written + offsets[i]);
+      }
+    }
+    if (!failed)
+      failed = geozl_gpu_synchronize(gpu, error, sizeof(error)) != 0 ||
+               geozl_gpu_memory_download(memory, got, total, error,
+                                         sizeof(error)) != 0;
+    for (size_t i = 0; i < total && !failed; ++i) {
+      if (written[i] && got[i] != want[i]) {
+        fprintf(stderr, "overlapping calls: byte %zu is %u, want %u\n", i,
+                got[i], want[i]);
+        failed = 1;
+      }
+    }
+  }
+  if (!failed) {
+    Batch *bad = &batches[1];
+    GeozlGpuMemory *memory = memories[3];
+    const GeozlGpuTarget first = {geozl_gpu_pointer(memory), offsets[0],
+                                  batches[0].targetBytes, NULL};
+    const GeozlGpuTarget second = {geozl_gpu_pointer(memory), offsets[1],
+                                   bad->targetBytes, NULL};
+    memset(bad->data[0] + bad->frames[0].size / 2, 0xff, 32);
+    failed = geozl_gpu_decode(gpu, batches[0].frames, batches[0].count,
+                              batches[0].copies, batches[0].copyCount, bytes,
+                              bytes, &first, error, sizeof(error)) != 0;
+    if (!failed &&
+        geozl_gpu_decode(gpu, bad->frames, bad->count, bad->copies,
+                         bad->copyCount, bytes, bytes, &second, error,
+                         sizeof(error)) == 0) {
+      fprintf(stderr, "a corrupted frame was accepted between waves\n");
+      failed = 1;
+    }
+    if (!failed)
+      failed = geozl_gpu_synchronize(gpu, error, sizeof(error)) != 0 ||
+               geozl_gpu_memory_download(memory, got, total, error,
+                                         sizeof(error)) != 0;
+    for (size_t i = 0; i < batches[0].targetBytes && !failed; ++i) {
+      if (written[i] && got[i] != want[i]) {
+        fprintf(stderr, "the wave before a failure: byte %zu differs\n", i);
+        failed = 1;
+      }
+    }
+  }
+  geozl_gpu_synchronize(gpu, NULL, 0);
+  streams_close(&streams);
+  for (size_t i = 0; i < 4; ++i)
+    geozl_gpu_free(memories[i]);
+  free(written);
+  free(want);
+  free(got);
+  for (size_t i = 0; i < WAVES; ++i)
+    clear(&batches[i]);
+  return failed;
+}
+
 int main(void) {
   if (!geozl_gpu_available(DEVICE)) {
     puts("test_gpu_decode: skipped, no GPU backend");
@@ -568,7 +817,9 @@ int main(void) {
                      check_capture_errors(gpu) ||
                      check_segmented_frames(gpu, 1) ||
                      check_segmented_frames(gpu, 2) ||
-                     check_forced_host(gpu) ||
+                     check_forced_host(gpu) || check_direct(gpu, 1) ||
+                     check_direct(gpu, 2) || check_waves(gpu, 1) ||
+                     check_waves(gpu, 2) ||
                      check_plane_limits() ||
                      check_batch_limit(gpu);
   geozl_gpu_destroy(gpu);

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- CUDA decode calls on one stream can overlap. Keep the target alive until its
+  work finishes. The decoder now uses two pinned staging arenas.
+- Capture threads also plan their frames. On CUDA, eligible whole frames decode
+  directly into the target.
+
 ## [0.21.0] - 2026-11-03
 
 ### Changed

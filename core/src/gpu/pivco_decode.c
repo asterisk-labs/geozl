@@ -154,8 +154,9 @@ int pivco_gpu_work_build(PivcoGpuWork *work, GeozlGpuArena *staging,
                          const size_t frameIds[], uint8_t *payload,
                          size_t payloadSize, const uint8_t *rawValues,
                          size_t rawBytes, const GeozlGpuRawCopy rawCopies[],
-                         size_t rawCount, size_t outputBytes, size_t threads,
-                         char *error, size_t errorCapacity) {
+                         size_t rawCount, size_t outputBytes,
+                         PivcoGpuPlan parts[], size_t threads, char *error,
+                         size_t errorCapacity) {
   *work = (PivcoGpuWork){0};
   if (payloadSize > UINT32_MAX - GEOZL_GPU_PAYLOAD_PADDING)
     return geozl_gpu_error(error, errorCapacity, "GPU payload is too large");
@@ -169,9 +170,13 @@ int pivco_gpu_work_build(PivcoGpuWork *work, GeozlGpuArena *staging,
                            geozl_gpu_arena_error(staging));
   memset(payload + payloadSize, 0, GEOZL_GPU_PAYLOAD_PADDING);
 
-  if (frameCount != 0 && pivco_gpu_plan_build_parallel(
-                             &work->plan, frames, shapes, frameCount, payload,
-                             payloadSize, elementBytes, threads, &alloc) != 0) {
+  if (frameCount != 0 &&
+      (parts != NULL
+           ? pivco_gpu_plan_merge(&work->plan, parts, frameCount, &alloc)
+           : pivco_gpu_plan_build_parallel(&work->plan, frames, shapes,
+                                           frameCount, payload, payloadSize,
+                                           elementBytes, threads, &alloc)) !=
+          0) {
     const PivcoGpuPlan *plan = &work->plan;
     if (plan->errorFrame == SIZE_MAX)
       geozl_gpu_error(error, errorCapacity, "%s", plan->error);
@@ -242,9 +247,9 @@ int pivco_gpu_work_build(PivcoGpuWork *work, GeozlGpuArena *staging,
                                                .elementBytes = elementBytes,
                                                .flags = GEOZL_GPU_RESULT,
                                                .alias = -1};
-  buffers[11] = (GeozlGpuBuffer){
+  buffers[PIVCO_GPU_OUTPUT_BYTES] = (GeozlGpuBuffer){
       .bytes = work->resultBytes, .elementBytes = 1, .alias = PIVCO_GPU_OUTPUT};
-  buffers[12] = buffers[11];
+  buffers[PIVCO_GPU_TEMPORARY] = buffers[PIVCO_GPU_OUTPUT_BYTES];
   buffers[13] = geozl_gpu_arena_input(
       staging, rawValues != NULL ? (const void *)rawValues : dummy,
       rawBytes / elementBytes, elementBytes);
@@ -397,7 +402,7 @@ GeozlGpuMemory *geozl_pivco_gpu_decode(GeozlPivcoGpuDecoder *decoder,
       pivco_gpu_work_build(&work, staging, decoder->elementBytes, captured,
                            shapes, gpuCount, NULL, payload, payloadSize,
                            rawValues, rawBytes, rawCopies, rawCount,
-                           batchInfo.totalBytes, 4, error, errorCapacity))
+                           batchInfo.totalBytes, NULL, 4, error, errorCapacity))
     goto done;
 
   GeozlGpuBatch *batch = geozl_gpu_batch_create(
