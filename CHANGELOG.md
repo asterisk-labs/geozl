@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-11-05
+
+### Added
+
+- `geozl/gpu.h` joins the supported C source API. The macOS wheel now includes
+  the Metal runtime.
+- Golden frames for the fused `planar_zigzag_pfor` and `med_zigzag` layouts.
+
+### Changed
+
+- Update the OpenZL submodule from v0.3.0 to upstream commit `000f69b`.
+  OpenZL provides the `range_pack` header-write fix (with unchanged frame bytes)
+  and the configurable abort and logging hooks; GeoZL consumes these upstream
+  fixes without modifying OpenZL.
+
+### Fixed
+
+- The R package uses OpenZL's upstream hooks to route aborts through
+  `Rf_error()` and logs through the R console. It no longer suppresses GCC's
+  `-Wstringop-overflow` warning.
+- The R source package excludes OpenZL's unused GNU Makefiles; `R CMD check`
+  now passes its compiled-code and Makefile checks without warnings.
+- GPU decode sends PFOR and PivCo frames whose payload another codec expands,
+  such as `pfor>zstd`, to the host instead of failing the call.
+- PivCo decoders reject counts above `UINT_MAX`, as their encoders do, so a
+  small frame cannot request an unbounded allocation.
+
 ## [0.21.1] - 2026-11-05
 
 ### Changed
@@ -647,7 +674,8 @@ First release.
   `register_decoders` for reading frames back.
 - A libFuzzer harness over the decode path.
 
-[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.21.1...HEAD
+[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.30.0...HEAD
+[0.30.0]: https://github.com/asterisk-labs/geozl/compare/v0.21.1...v0.30.0
 [0.21.1]: https://github.com/asterisk-labs/geozl/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/asterisk-labs/geozl/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/asterisk-labs/geozl/compare/v0.19.0...v0.20.0
