@@ -38,8 +38,10 @@ tile through it. `geozl.lossless` and `geozl.lossy` hand you the individual node
 apart from the two PivCo codecs, to place in an OpenZL graph yourself, and `geozl.register_decoders` teaches a
 `DCtx` to read what they wrote.
 
-Wheels carry a prebuilt native library. A source install has to build it first,
-see the build instructions in the repository.
+Prebuilt wheels are published for Linux x86-64 with CUDA support and macOS arm64
+with Metal support. Device decode needs a compatible GPU. A source install on
+another platform has to build the native library first; see the build
+instructions in the repository.
 
 The full documentation, the codec catalogue and the wire format live in the
 [repository](https://github.com/asterisk-labs/geozl).

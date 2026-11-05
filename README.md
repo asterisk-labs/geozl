@@ -30,6 +30,11 @@ Julia and JavaScript.
 | Julia | `Pkg.Registry.add(url="https://github.com/asterisk-labs/AsteriskRegistry"); Pkg.add("GeoZL")` | graph, compress, decompress, profile | [README](bindings/julia/README.md) |
 | JavaScript | `npm install @asterisk-labs/geozl` | compress, decompress | [README](tools/wasm/README.md) |
 
+Prebuilt Python wheels are published for Linux x86-64 (CUDA runtime) and macOS
+arm64 (Metal runtime). Device decode still needs a compatible GPU. The
+[platform matrix](https://github.com/asterisk-labs/geozl/actions/workflows/platforms.yml)
+also tests source builds on Linux arm64, macOS x86-64 and Windows.
+
 ## Quick start
 
 ```python

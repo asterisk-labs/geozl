@@ -132,7 +132,8 @@ jobs:
           export MACOSX_DEPLOYMENT_TARGET=11.0
           pip install -q --upgrade pip cmake ninja build wheel delocate
           cmake -S core -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-                -DGEOZL_BUILD_FULL=ON -DGEOZL_BUILD_KERNELS_SHARED=ON
+                -DGEOZL_BUILD_FULL=ON -DGEOZL_BUILD_KERNELS_SHARED=ON \
+                -DGEOZL_BUILD_GPU=ON
           cmake --build build
           mkdir -p bindings/python/geozl/_lib
           cp -v build/libgeozl_kernels*.dylib bindings/python/geozl/_lib/
