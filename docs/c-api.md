@@ -12,7 +12,8 @@ API, apart from these changes:
   `GEOZL_CTID_BINOFFSET`, `GEOZL_CTID_INTMULT`, `GEOZL_CTID_FLOATQUANT` and
   `GEOZL_CTID_FLOATMULT`.
 
-A further breaking change requires a major release.
+A further breaking change requires a major release. From 0.30.0, this source
+compatibility policy includes `geozl/gpu.h`.
 
 Binary compatibility is not promised before 1.0. Recompile C applications when
 updating GeoZL or OpenZL.

@@ -23,7 +23,7 @@ Public headers live in `core/include/geozl/`. `geozl.h` includes all of them exc
   0.20.0; the four writer stubs `geozl_node_binoffset`, `geozl_node_intmult`,
   `geozl_node_floatquant`, `geozl_node_floatmult` and their `GEOZL_CTID_*` enumerators
   were removed after 0.20.0.
-- `geozl/gpu.h` is still changing and is outside the stable C API.
+- From 0.30.0, `geozl/gpu.h` joins the supported C source API.
 - The **ABI is not stable before 1.0**: recompile C applications after updating GeoZL or
   OpenZL.
 - History of source breaks before 0.13: `planes` arguments added to five node builders
