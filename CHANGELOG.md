@@ -7,12 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-11-05
+
 ### Changed
 
-- Pin OpenZL to upstream `dev` commit `b7f498b`, where #1253 landed, in place
-  of the PR snapshot `000f69b`. This also includes upstream bitSplit and
-  decompression changes made since that snapshot. The `range_pack` fix from
-  #1245 had already landed.
+- Pin OpenZL to upstream `dev` commit `b7f498b`, where OpenZL landed its
+  abort and logging hooks (#1253), in place of the PR snapshot `000f69b`.
+  OpenZL's `range_pack` fix (#1245) had already landed. The new pin also
+  includes OpenZL's later bitSplit and decompression changes.
 
 ## [0.30.0] - 2026-11-05
 
@@ -681,7 +683,8 @@ First release.
   `register_decoders` for reading frames back.
 - A libFuzzer harness over the decode path.
 
-[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.30.0...HEAD
+[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.31.0...HEAD
+[0.31.0]: https://github.com/asterisk-labs/geozl/compare/v0.30.0...v0.31.0
 [0.30.0]: https://github.com/asterisk-labs/geozl/compare/v0.21.1...v0.30.0
 [0.21.1]: https://github.com/asterisk-labs/geozl/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/asterisk-labs/geozl/compare/v0.20.0...v0.21.0
