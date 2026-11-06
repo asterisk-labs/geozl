@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Pin OpenZL to upstream `dev` commit `b7f498b`, where #1253 landed, in place
+  of the PR snapshot `000f69b`. This also includes upstream bitSplit and
+  decompression changes made since that snapshot. The `range_pack` fix from
+  #1245 had already landed.
+
 ## [0.30.0] - 2026-11-05
 
 ### Added
