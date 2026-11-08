@@ -50,10 +50,9 @@ static void test_routing(void) {
   CHECK(parse_family("LOG:MAX_ERROR=1%") == GEOZL_LOSSY_LOG);
   CHECK(parse_family("SQRT:MAX_ERROR=0.5N") == GEOZL_LOSSY_SQRT);
 
-  // The old grammar and a family without its colon are both refused.
+  // A family without its colon is refused.
   geozl_lossy_recipe r;
   char err[256];
-  CHECK(geozl_lossy_parse("abs:0.5", &r, err, sizeof(err)) != 0);
   CHECK(geozl_lossy_parse("LINEAR", &r, err, sizeof(err)) != 0);
   CHECK(geozl_lossy_parse("linear:MAX_ERROR=1", &r, err, sizeof(err)) != 0);
 

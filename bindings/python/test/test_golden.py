@@ -25,23 +25,16 @@ def _ids(entry):
 
 
 def test_manifest_matches_the_fixtures():
-    assert MANIFEST["written_by"] == "geozl 0.13.0"
     expected = {entry["file"] for entry in FRAMES}
     present = {path.name for path in (GOLDEN / "frames").glob("*.zl")}
     assert present == expected
 
 
 def test_every_frame_names_its_writer():
-    """A frame frozen after the baseline carries its own writer.
-
-    The manifest-level ``written_by`` covers the original 0.13.0 set only, so
-    anything added later has to say so itself or the corpus stops recording
-    which wire form each frame is evidence for. New frames say ``unreleased``
-    until their release is prepared.
-    """
-    assert sum("written_by" not in entry for entry in FRAMES) == 28
+    """Each frame records which wire form it is evidence for. New frames say
+    ``unreleased`` until their release is prepared."""
     for entry in FRAMES:
-        assert entry.get("written_by", MANIFEST["written_by"]).startswith("geozl ")
+        assert entry["written_by"].startswith("geozl ")
 
 
 @pytest.mark.parametrize("entry", FRAMES, ids=_ids)

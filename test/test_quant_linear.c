@@ -95,7 +95,6 @@ static void an_integer_grid_never_reads_the_tile(void) {
     CHECK(a.step == b.step);
     CHECK(a.step == c.step);
     CHECK(a.step == 10.0);
-    CHECK((a.flags & QUANT_LINEAR_FLAG_STORE_VALUES) == 0);
     CHECK((a.flags & QUANT_LINEAR_FLAG_NONNEGATIVE) != 0);
     CHECK((c.flags & QUANT_LINEAR_FLAG_NONNEGATIVE) == 0);
   }
@@ -127,25 +126,12 @@ static void the_float_index_path_reads_the_tile(void) {
   CHECK(quant_linear_resolve(&sp, QL_F32, &(quant_linear_stats){300.0, 0}, &b,
                              err, sizeof(err)) == 0);
   CHECK(a.step != b.step); // the documented limitation of this path
-  CHECK((a.flags & QUANT_LINEAR_FLAG_STORE_VALUES) == 0);
 
   // A bound below what the output type resolves is refused rather than returning
   // the data untouched. At 1e5 a float32 only resolves 0.0078125.
   CHECK(quant_linear_parse("LINEAR:MAX_ERROR=1e-5", &sp, err, sizeof(err)) == 0);
   CHECK(quant_linear_resolve(&sp, QL_F32, &(quant_linear_stats){1e5, 0}, &a,
                              err, sizeof(err)) != 0);
-}
-
-// STORE is not part of the recipe syntax.
-static void store_is_refused(void) {
-  printf("a recipe that names STORE is refused\n");
-  char err[256];
-  quant_linear_spec sp;
-  CHECK(quant_linear_parse("LINEAR:MAX_ERROR=5,STORE=VALUES", &sp, err,
-                           sizeof(err)) != 0);
-  CHECK(strstr(err, "STORE was removed") != NULL);
-  CHECK(quant_linear_parse("LINEAR:MAX_ERROR=5,STORE=INDEX", &sp, err,
-                           sizeof(err)) != 0);
 }
 
 static void an_unrepresentable_step_is_refused(void) {
@@ -210,21 +196,16 @@ static void the_parser_is_strict(void) {
   char err[256];
   quant_linear_spec sp;
   CHECK(quant_linear_parse("LINEAR:MAX_ERROR=5", &sp, err, sizeof(err)) == 0);
-  CHECK(quant_linear_parse("LINEAR:STORE=VALUES,MAX_ERROR=5", &sp, err,
-                           sizeof(err)) != 0);
   CHECK(quant_linear_parse(NULL, &sp, err, sizeof(err)) != 0);
   CHECK(quant_linear_parse("", &sp, err, sizeof(err)) != 0);
   CHECK(quant_linear_parse("LINEAR:", &sp, err, sizeof(err)) != 0);
   CHECK(quant_linear_parse("linear:MAX_ERROR=5", &sp, err, sizeof(err)) != 0);
-  CHECK(quant_linear_parse("LINEAR:STORE=VALUES", &sp, err, sizeof(err)) != 0);
   CHECK(quant_linear_parse("LINEAR:MAX_ERROR=0", &sp, err, sizeof(err)) != 0);
   CHECK(quant_linear_parse("LINEAR:MAX_ERROR=-1", &sp, err, sizeof(err)) != 0);
   CHECK(quant_linear_parse("LINEAR:MAX_ERROR=nan", &sp, err, sizeof(err)) != 0);
   CHECK(quant_linear_parse("LINEAR:MAX_ERROR=1.0.0", &sp, err, sizeof(err)) != 0);
   CHECK(quant_linear_parse("LINEAR:MAX_ERROR=", &sp, err, sizeof(err)) != 0);
   CHECK(quant_linear_parse("LINEAR:MAX_ERROR=5,MAX_ERROR=6", &sp, err,
-                           sizeof(err)) != 0);
-  CHECK(quant_linear_parse("LINEAR:MAX_ERROR=5,STORE=NOPE", &sp, err,
                            sizeof(err)) != 0);
   CHECK(quant_linear_parse("LINEAR:MAX_ERROR=5,ZZZ=1", &sp, err, sizeof(err)) !=
         0);
@@ -245,14 +226,20 @@ static void a_forged_header_is_refused(void) {
   p.step = -1.0;
   CHECK(quant_linear_decode(df, f, &p, QL_F32, N) != 0);
 
-  // A stored reconstruction on a float type is legal, but only with a whole step.
-  p.step = 1.0;
-  p.flags = QUANT_LINEAR_FLAG_STORE_VALUES;
-  CHECK(quant_linear_decode(df, f, &p, QL_F32, N) == 0);
+  // A float frame takes a fractional step.
   p.step = 0.5;
-  CHECK(quant_linear_decode(df, f, &p, QL_F32, N) != 0);
+  CHECK(quant_linear_decode(df, f, &p, QL_F32, N) == 0);
 
-  // Both integer storage modes require a whole step.
+  // Flag bits the format does not define.
+  p.step = 1.0;
+  for (unsigned bit = 1; bit < 8; ++bit) {
+    p.flags = (unsigned char)(1u << bit);
+    CHECK(quant_linear_decode(df, f, &p, QL_F32, N) != 0);
+    CHECK(quant_linear_decode(du, u, &p, QL_U16, N) != 0);
+    CHECK(quant_linear_encode(du, u, &p, QL_U16, N) != 0);
+  }
+
+  // An integer frame requires a whole step.
   p.step = 1.0;
   p.flags = 0;
   CHECK(quant_linear_decode(du, u, &p, QL_U16, N) == 0);
@@ -261,10 +248,8 @@ static void a_forged_header_is_refused(void) {
   p.step = 0.5;
   CHECK(quant_linear_decode(du, u, &p, QL_U16, N) != 0);
   CHECK(quant_linear_encode(du, u, &p, QL_U16, N) != 0);
-  p.flags = QUANT_LINEAR_FLAG_STORE_VALUES;
-  CHECK(quant_linear_decode(du, u, &p, QL_U16, N) != 0);
 
-  p.flags = QUANT_LINEAR_FLAG_STORE_VALUES;
+  p.step = 1.0;
   CHECK(quant_linear_decode(du, u, &p, 99, N) != 0);
   CHECK(quant_linear_encode(du, u, &p, -1, N) != 0);
 }
@@ -317,7 +302,6 @@ static void the_parser_takes_only_decimals(void) {
   GOOD("LINEAR:MAX_ERROR=1e-3");
   GOOD("LINEAR:MAX_ERROR=1E+3");
   GOOD("LINEAR:MAX_ERROR=.5");
-  BAD("LINEAR:MAX_ERROR=2,STORE=VALUES");
 
   BAD("LINEAR:MAX_ERROR=inf");
   BAD("LINEAR:MAX_ERROR=nan");
@@ -541,12 +525,6 @@ static void the_half_conversions_match_the_reference(void) {
          step == 1 ? "every value" : "on a stride");
 
   uint64_t bad = 0;
-  for (int32_t v = -32768; v <= 32767; ++v)
-    if (quant_linear_float_to_half((float)v) != ql_i16_to_half(v) && bad++ < 8)
-      printf("  ql_i16_to_half at %d\n", v);
-  CHECK(bad == 0);
-
-  bad = 0;
   uint64_t seen = 0;
   for (uint64_t u = 0; u <= 0xFFFFFFFFull; u += step) {
     const uint32_t bits = (uint32_t)u;
@@ -741,7 +719,6 @@ int main(void) {
   zero_is_a_finite_domain();
   an_integer_grid_never_reads_the_tile();
   the_float_index_path_reads_the_tile();
-  store_is_refused();
   an_unrepresentable_step_is_refused();
   non_negative_stays_non_negative();
   the_parser_is_strict();

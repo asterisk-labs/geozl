@@ -3,8 +3,8 @@ import pathlib
 import struct
 import sys
 
-# Codes from qlog_dtype, only the ones the tiles below use.
-U16, U32, I16, F32, F64 = 1, 2, 5, 9, 10
+# Codes from qlog_dtype, the ones the tiles below use and F16, the first float.
+U16, U32, I16, F16, F32, F64 = 1, 2, 5, 8, 9, 10
 
 RECIPES = 7  # length of kRecipes in the harness
 
@@ -91,13 +91,10 @@ PARSE_SEEDS = [
     "LOG:MAX_ERROR=1%",
     "LOG:MAX_ERROR=0.5%",
     "LOG:MAX_ERROR=0.001%",
-    "LOG:MAX_ERROR=1%,STORE=VALUES",
-    "LOG:MAX_ERROR=1%,STORE=INDEX",
     "LOG:MAX_ERROR=1e-3%",
     "LOG:MAX_ERROR=100%",
     "LOG:MAX_ERROR=1",
     "LOG:MAX_ERROR=1%,MAX_ERROR=2%",
-    "LOG:STORE=VALUES",
     "LOG:MAX_ERROR=1%,",
     "LOG:MAX_ERROR=0x1p0%",
     "LOG:MAX_ERROR=nan%",
@@ -123,11 +120,14 @@ def main(outdir):
             path.write_bytes(bytes([2, r, dtype]) + payload)
             n += 1
 
-    # mode_block. Mode, type, flags, step, then the stream. The step is a real
-    # one so the block starts inside the range a frame carries and mutates out.
+    # mode_block. Mode, type, flags, step, then the stream. The flags and step
+    # are what the resolver writes for the type, integers storing values and
+    # floats indices, so the block starts inside the range a frame carries and
+    # mutates out.
     for name, dtype, make in TILES:
         payload = make(256)
-        for flags, step in ((3, 0.0144), (2, 0.0144), (1, 0.0072), (0, 0.0072)):
+        blocks = ((3, 0.0144), (2, 0.0144)) if dtype < F16 else ((1, 0.0072), (0, 0.0072))
+        for flags, step in blocks:
             path = out / f"blk_{name}_{flags}"
             path.write_bytes(
                 bytes([1, dtype, flags]) + struct.pack("<d", step) + payload

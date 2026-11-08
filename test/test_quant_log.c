@@ -332,12 +332,6 @@ static void the_parser_is_strict(void) {
   char err[256];
   CHECK(quant_log_parse("LOG:MAX_ERROR=1%", &sp, err, sizeof err) == 0);
   CHECK(sp.rel_err == 0.01);
-  // The stream layout follows the dtype, so a recipe cannot pick it.
-  CHECK(quant_log_parse("LOG:MAX_ERROR=0.5%,STORE=VALUES", &sp, err,
-                        sizeof err) != 0);
-  CHECK(strstr(err, "STORE was removed") != NULL);
-  CHECK(quant_log_parse("LOG:STORE=INDEX,MAX_ERROR=2%", &sp, err, sizeof err) !=
-        0);
 
   const char *bad[] = {NULL,
                        "",
@@ -352,7 +346,6 @@ static void the_parser_is_strict(void) {
                        "LOG:MAX_ERROR=1.0.0%",
                        "LOG:MAX_ERROR=1%,MAX_ERROR=2%",
                        "LOG:MAX_ERROR=1%,",
-                       "LOG:MAX_ERROR=1%,STORE=BOTH",
                        "LOG:MIN=1,MAX_ERROR=1%",
                        "LINEAR:MAX_ERROR=1%"};
   for (size_t i = 0; i < sizeof bad / sizeof *bad; ++i)
@@ -441,17 +434,24 @@ static void a_forged_header_is_refused(void) {
     CHECK(quant_log_decode(du, u, &p, QLOG_U16, N) != 0);
   }
 
-  // An integer frame without the flag is one this codec never writes.
+  // An integer frame without the flag is one this codec never writes, and so
+  // is a float frame with it.
   p.step = 0.02;
   p.flags = 0;
   CHECK(quant_log_encode(du, u, &p, QLOG_U16, N) != 0);
   CHECK(quant_log_decode(du, u, &p, QLOG_U16, N) != 0);
+  p.flags = QUANT_LOG_FLAG_STORE_VALUES;
+  CHECK(quant_log_encode(sf, f, &p, QLOG_F32, N) != 0);
+  CHECK(quant_log_decode(df, sf, &p, QLOG_F32, N) != 0);
 
   // Flag bits the format does not define.
   for (unsigned bit = 2; bit < 8; ++bit) {
-    p.flags = (unsigned char)(QUANT_LOG_FLAG_STORE_VALUES | (1u << bit));
+    p.flags = (unsigned char)(1u << bit);
     CHECK(quant_log_encode(sf, f, &p, QLOG_F32, N) != 0);
     CHECK(quant_log_decode(df, sf, &p, QLOG_F32, N) != 0);
+    p.flags = (unsigned char)(QUANT_LOG_FLAG_STORE_VALUES | (1u << bit));
+    CHECK(quant_log_encode(du, u, &p, QLOG_U16, N) != 0);
+    CHECK(quant_log_decode(du, u, &p, QLOG_U16, N) != 0);
   }
 
   p.flags = QUANT_LOG_FLAG_STORE_VALUES;
@@ -475,20 +475,15 @@ static void a_forged_stream_stays_in_range(void) {
   const size_t n = sizeof forged / sizeof *forged;
   float out[8];
 
-  // Keep both legacy layouts covered.
   CHECK(quant_log_parse("LOG:MAX_ERROR=1%", &sp, err, sizeof err) == 0);
-  for (int values = 0; values < 2; ++values) {
-    for (int neg = 0; neg < 2; ++neg) {
-      sc.anyNegative = neg;
-      CHECK(quant_log_resolve(&sp, QLOG_F32, &sc, &p, err, sizeof err) == 0);
-      if (values)
-        p.flags |= QUANT_LOG_FLAG_STORE_VALUES;
-      CHECK(quant_log_decode(out, forged, &p, QLOG_F32, n) == 0);
-      for (size_t i = 0; i < n; ++i) {
-        CHECK(isfinite(out[i]));
-        if (!neg)
-          CHECK(out[i] >= 0.0f);
-      }
+  for (int neg = 0; neg < 2; ++neg) {
+    sc.anyNegative = neg;
+    CHECK(quant_log_resolve(&sp, QLOG_F32, &sc, &p, err, sizeof err) == 0);
+    CHECK(quant_log_decode(out, forged, &p, QLOG_F32, n) == 0);
+    for (size_t i = 0; i < n; ++i) {
+      CHECK(isfinite(out[i]));
+      if (!neg)
+        CHECK(out[i] >= 0.0f);
     }
   }
 }
@@ -691,15 +686,12 @@ static void report_streams(void) {
         if (v > hi)
           hi = v;
       }
-      const int values = (p.flags & QUANT_LOG_FLAG_STORE_VALUES) != 0;
       printf("  %-14s %-6s %-18s %.0f .. %.0f\n", t.name,
              t.dtype <= QLOG_LAST_INT  ? "int"
              : t.dtype == QLOG_F16     ? "f16"
              : t.dtype == QLOG_F32     ? "f32"
                                        : "f64",
-             t.dtype <= QLOG_LAST_INT ? "1 reconstruction"
-             : values                 ? "2 reconstruction"
-                                      : "3 index",
+             t.dtype <= QLOG_LAST_INT ? "1 reconstruction" : "2 index",
              lo, hi);
     }
     free(st);
@@ -721,8 +713,6 @@ static void the_parser_takes_only_decimals(void) {
       {"LOG:MAX_ERROR=1e-3%", 1},
       {"LOG:MAX_ERROR=1E+1%", 1},
       {"LOG:MAX_ERROR=.5%", 1},
-      {"LOG:MAX_ERROR=1%,STORE=VALUES", 0},
-      {"LOG:MAX_ERROR=1%,STORE=INDEX", 0},
       {"LOG:MAX_ERROR=1", 0},   // a bound of one is not what anybody means
       {"LOG:MAX_ERROR=0%", 0},
       {"LOG:MAX_ERROR=100%", 0},
@@ -736,7 +726,6 @@ static void the_parser_takes_only_decimals(void) {
       {"LOG:MAX_ERROR=1% ", 0},
       {"LOG:MAX_ERROR=1%,MAX_ERROR=2%", 0},
       {"LOG:MAX_ERROR=1%,", 0},
-      {"LOG:STORE=VALUES", 0},
       {"LOG:", 0},
       {"LINEAR:MAX_ERROR=1", 0},
   };

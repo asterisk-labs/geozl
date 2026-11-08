@@ -230,8 +230,6 @@ static void the_parser_takes_only_valid_recipes(void) {
       {"SQRT:MAX_ERROR=0.5N", 1},
       {"SQRT:MAX_ERROR=0.5N,A=100,B=1", 1},
       {"SQRT:MAX_ERROR=0.5N,B=1,A=100", 1},
-      {"SQRT:MAX_ERROR=0.5N,STORE=VALUES", 0},
-      {"SQRT:MAX_ERROR=0.5N,A=0,B=1,STORE=INDEX", 0},
       {"SQRT:MAX_ERROR=1N", 1},
       // without the N, half a sigma reads as half a count
       {"SQRT:MAX_ERROR=0.5", 0},
@@ -247,7 +245,6 @@ static void the_parser_takes_only_valid_recipes(void) {
       {"SQRT:MAX_ERROR=0.5N,A=1,B=0", 0},
       {"SQRT:MAX_ERROR=0.5N,A=1,B=-1", 0},
       {"SQRT:MAX_ERROR=0.5N,A=0x1p-1030,B=1", 0}, // subnormal
-      {"SQRT:MAX_ERROR=0.5N,STORE=BOTH", 0},
       {"SQRT:MAX_ERROR=0.5N,", 0},
       {"SQRT:MAX_ERROR=0.5N,,A=1", 0},
       {"SQRT:MAX_ERROR=0.5N,SIGMA=1", 0},
@@ -711,6 +708,25 @@ static void an_empty_raster_is_not_a_crash(void) {
   CHECK(quant_sqrt_decode(&dummy, &dummy, &p, QSQ_F32, 0) == 0);
 }
 
+// Only an integer frame falls back to the reconstruction.
+static void a_float_values_frame_is_refused(void) {
+  puts("a float values frame is refused");
+
+  quant_sqrt_params p;
+  memset(&p, 0, sizeof(p));
+  p.step = 0.5;
+  p.flags = QUANT_SQRT_FLAG_STORE_VALUES;
+  float f[4] = {0.0f, 1.0f, 2.0f, 3.0f}, df[4];
+  int32_t sf[4] = {0, 1, 2, 3};
+  CHECK(quant_sqrt_encode(sf, f, &p, QSQ_F32, 4) != 0);
+  CHECK(quant_sqrt_decode(df, sf, &p, QSQ_F32, 4) != 0);
+  uint16_t h[4] = {0}, dh[4];
+  CHECK(quant_sqrt_decode(dh, h, &p, QSQ_F16, 4) != 0);
+  int64_t s64[4] = {0}, d64[4];
+  CHECK(quant_sqrt_decode(d64, s64, &p, QSQ_F64, 4) != 0);
+  CHECK(quant_sqrt_decode(d64, s64, &p, QSQ_I64, 4) == 0);
+}
+
 // Every value of a type through the grid, one at a time. The small domains are
 // walked whole; f32 goes on a stride unless GEOZL_EXHAUSTIVE is set. The curve
 // is fixed in the recipe, so nothing here depends on a fit.
@@ -867,6 +883,7 @@ int main(void) {
   the_binary32_rebuild_is_charged_below_zero();
   the_floor_reaches_a_stored_integer();
   an_empty_raster_is_not_a_crash();
+  a_float_values_frame_is_refused();
   an_integer_raster_carries_the_index_where_it_fits();
   every_value_holds_the_bound();
 
