@@ -26,7 +26,7 @@ skipped. When none survive, `profile` raises `RuntimeError` with the last reason
 | `ValueError: give width for a 1d raster` | 1-D input | pass `width=` |
 | `ValueError: N planes do not split M elements into whole rows of W` | bad `planes` or `width` | fix the geometry |
 | `ValueError: method must be a recipe name` | `method` is not a non-empty `str` | pass a recipe string |
-| `RuntimeError: geozl.graph failed (...): unknown method "planar>entropy"` | misspelled recipe | copy from `profile` rows; predictors need `>zigzag>`; `id` and `delta_1d` must not have it; `store_lo` is gone |
+| `RuntimeError: geozl.graph failed (...): unknown method "planar>entropy"` | misspelled recipe | copy from `profile` rows; predictors need `>zigzag>`; `id` and `delta_1d` must not have it |
 | `RuntimeError: ... does not apply to 1-byte elements; the transpose terminals need 2 to 8, categorical needs 1 or 2, and pivco without transpose needs 1` | terminal vs element width | choose another terminal (`recipes.md` section 4) |
 | `ValueError: prior 'x' is not one of (...) or None` | bad `prior` | `planar med delta_w delta_n average wp_static delta_1d none` or `None` |
 | `ValueError: reps must be at least 1` | `reps=0` | use `reps >= 1` |
@@ -52,7 +52,6 @@ skipped. When none survive, `profile` raises `RuntimeError` with the last reason
 | `RuntimeError: geozl.compress failed (...): Code: Input does not respect conditions for this node` with `eltWidth != 2` in the message (ZL error code 55) | plain `entropy` terminal on 4 or 8 byte elements | pick a transpose, zstd, field_lz or pfor recipe |
 | `RuntimeError: geozl.compress failed (...): Code: Input does not respect conditions for this node ... Transform ID: ...` (ZL error code 55) with a predictor recipe | tile sample count not a multiple of the graph's row width | build a graph with this tile's column count |
 | `RuntimeError: ... the lossy graph was built without negative samples, but this tile contains them; build the graph from the full product` | domain frozen at `graph()` | build from data spanning the product |
-| `RuntimeError: ... STORE was removed, ...` | a 0.14 to 0.18 recipe with `STORE=` | drop the key; the codec picks what the stream carries |
 | `RuntimeError: ... built for magnitudes up to A, but this tile reaches B` | float LINEAR domain | same |
 | `RuntimeError: ... built for values from lo to hi, but this tile reaches ...` | SQRT domain | same |
 | `TypeError: coefficient is not an integer: 1.5` | float in `coeffs` | integers only |
@@ -80,7 +79,6 @@ Silent outcomes with no error, worth checking when results look wrong:
 | --- | --- | --- |
 | `RuntimeError: geozl.decompress: unreadable frame` | not an OpenZL frame, or the size field is unreadable | check the bytes and offsets you stored |
 | `RuntimeError: geozl.decompress failed: Code: Source size too small` | truncated frame | fix storage or range reads |
-| `RuntimeError: geozl.decompress failed: Code: Content checksum mismatch` on an older mixed-NaN frame | the old writer restored every NaN with the first payload | `verify=False` reads it with that payload loss; re-encode from the source data |
 | `RuntimeError: geozl.decompress failed: ...` on flipped bytes | checksum or corruption detection | the frame is damaged; `verify=False` will not repair it |
 | `... Custom decoder transform 7526160 not found!` | the reader lacks that codec | section 2 |
 | `ValueError: geozl.decompress: the frame declares N bytes of output, above the M allowed` | `max_output_size` guard | raise the limit only for trusted frames |
@@ -100,10 +98,10 @@ Silent outcomes with no error, worth checking when results look wrong:
 OpenZL prints CTids in decimal. Convert with `hex(7526160)` giving `0x72d710`, then look
 it up in `codecs.md`:
 
-- A geozl CTid the reader lacks means the reader is older than the writer (for example a
-  0.15.x reader and a 0.16.0 `planar>zigzag>pfor` frame). Upgrade the reader.
-- `0x72D780` means a 0.7.x lossy frame; no current reader decodes it.
-- `0x72D708` through `0x72D70B` are retired and have no decoder.
+- A geozl CTid the reader lacks means the reader is older than the writer. Upgrade the
+  reader.
+- `0x72D708` through `0x72D70B`, `0x72D70E` and `0x72D780` are retired and have no
+  decoder.
 - An id outside `0x72D700` to `0x72D7FF` is not a geozl codec; the frame needs that
   other library's decoders.
 

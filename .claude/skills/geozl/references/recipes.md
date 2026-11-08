@@ -27,8 +27,8 @@ id><terminal>                     no predictor
 
 That gives 80 candidates before width filtering. A 1-byte grid offers 56 and a
 2-byte grid offers 72. Anything else, such as
-`planar>entropy`, `id>zigzag>entropy`, `planar_zigzag>entropy` or the removed
-`store_lo`, is `unknown method`.
+`planar>entropy`, `id>zigzag>entropy` or `planar_zigzag>entropy`, is
+`unknown method`.
 
 The graph `geozl.graph` builds around a recipe:
 
@@ -91,21 +91,18 @@ With the default `prior="planar"` the sweep has 14, 18, 16 (14 usable) and 16
 
 ## 5. Fused codecs behind recipe names
 
-Since 0.16.0 the planar recipes do not build separate `planar` and `zigzag` nodes:
+The planar recipes do not build separate `planar` and `zigzag` nodes:
 
 | Recipe | Codec actually written |
 | --- | --- |
 | `planar>zigzag>pfor` | `planar_zigzag_pfor` (CTid `0x72D710`) into `store`; payload byte-identical to `planar_zigzag` then `pfor` |
-| `planar>zigzag>pivco` (1 byte), `planar>zigzag>transpose>pivco` (wider) | `planar_zigzag_transpose_pivco` (CTid `0x72D712`; the old C name remains an alias) |
+| `planar>zigzag>pivco` (1 byte), `planar>zigzag>transpose>pivco` (wider) | `planar_zigzag_transpose_pivco` (CTid `0x72D712`) |
 | any non-planar recipe ending in `pivco` or `transpose>pivco` | its predictor nodes, then `transpose_pivco` (CTid `0x72D713`) |
 | any other `planar>zigzag>...` | `planar_zigzag` (CTid `0x72D70F`) then the terminal |
 | `med>zigzag>...` | `med_zigzag` (CTid `0x72D711`) then the terminal |
 | every other predictor | predictor node, then OpenZL `zigzag`, then the terminal |
 
-Old frames written with separate nodes still decode. The planar PivCo fusion
-needs a 0.19.0 reader. The `transpose_pivco` codec needs a 0.20.0 reader; 0.19
-wrote the same recipe names with standard OpenZL nodes. The other
-fused planar codecs need 0.16.0 or later (`compatibility.md`).
+A reader needs the decoder for each of these CTids (`compatibility.md`).
 
 ## 6. Reading a profile and picking a row
 

@@ -141,8 +141,8 @@ predictors restart at each plane boundary, so nothing is predicted across bands:
 | `delta_w` | reads only to its left, takes no plane count (`DeltaW(width, planes=2)` raises `ValueError`) |
 | `delta_1d`, `id`, terminals | see a flat stream |
 
-Headers carry the plane count only when it is above one, so single-plane frames look
-exactly as before 0.12.0.
+Headers carry the plane count only when it is above one, so a single-plane header has no
+plane field.
 
 Options for multispectral data:
 

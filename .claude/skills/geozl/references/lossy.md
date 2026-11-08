@@ -40,8 +40,7 @@ Unknown keys, a trailing comma, or a repeated `MAX_ERROR` are refused.
 
 Python shorthand for `error=` (`graph`, `profile`): a positive number is
 `LINEAR:MAX_ERROR=<n>`, `"P%"` is `LOG:MAX_ERROR=P%`, zero in any form is lossless.
-SQRT always needs the full recipe. `STORE`, accepted from 0.14 to 0.18, is refused
-since 0.19 in every family.
+SQRT always needs the full recipe. Any other key is refused.
 
 ## 3. What the stream stores
 
@@ -56,8 +55,7 @@ grid and the bound do not depend on it.
 
 Indices are `step` times smaller than values, which bit packers (`pfor`) and
 transposed entropy coders exploit; entropy on the untransposed stream sees no
-change. Frames from 0.14 to 0.18 may hold values where the table says index (the
-`STORE=VALUES` of those releases, and SQRT's integer default); readers decode both.
+change. A reader refuses a frame whose layout is not the one this table names.
 
 ## 4. How each grid is cut
 

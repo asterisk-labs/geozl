@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking
+
+- Remove `geozl_node_planar_zigzag_pivco` and `GEOZL_CTID_PLANAR_ZIGZAG_PIVCO`;
+  use the `planar_zigzag_transpose_pivco` names.
+- Merge `geozl_gpu_decode_ex` into `geozl_gpu_decode`, which now takes the
+  `forceHost` argument before `error`. Pass `NULL` for automatic routing.
+- Readers refuse the quantizer value layouts written by 0.14 to 0.18: every
+  `quant_linear` values frame, and floating-point `quant_log` and `quant_sqrt`
+  values frames. Integer `quant_log` and the integer `quant_sqrt` fallback are
+  unchanged.
+- Every recipe writes OpenZL frame format 27, so frames need an OpenZL 0.3
+  reader. `geozl.coeffs` reports an error on a frame older than format 22
+  instead of reporting no coefficients.
+- The quantizer recipe parsers refuse `STORE` as an unknown key.
+
+### Removed
+
+- Golden frames written by 0.13, 0.14 and 0.18.
+
+### Fixed
+
+- `geozl.register_decoders` raises `ModuleNotFoundError` naming `openzl` when
+  the package imported without it, instead of a `NameError`.
+
 ## [0.31.0] - 2026-11-05
 
 ### Changed

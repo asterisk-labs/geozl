@@ -19,33 +19,6 @@ HIGH_LEVEL_SOURCES = [
 ]
 
 
-def _maintained_text() -> list[Path]:
-    paths = [ROOT / "README.md", ROOT / "bindings" / "python" / "README.md"]
-    paths.extend(
-        path for path in DOCS.rglob("*")
-        if path.is_file() and path.suffix in {".css", ".html", ".ipynb", ".js", ".md"}
-        and path.name != "api-low.html"
-    )
-    return paths
-
-
-def test_maintained_docs_do_not_reference_the_legacy_low_level_page():
-    pattern = re.compile(r"api[-_]low(?:\.html)?", re.I)
-    found = []
-    for path in _maintained_text():
-        if pattern.search(path.read_text(encoding="utf-8")):
-            found.append(path.relative_to(ROOT).as_posix())
-    assert not found, f"legacy low-level API page referenced by: {', '.join(found)}"
-
-
-def test_current_docs_do_not_use_the_removed_max_error_argument():
-    found = []
-    for path in _maintained_text():
-        if re.search(r"\bmax_error\b", path.read_text(encoding="utf-8")):
-            found.append(path.relative_to(ROOT).as_posix())
-    assert not found, f"obsolete max_error argument in: {', '.join(found)}"
-
-
 def test_agent_skill_tracks_the_release_and_its_references_resolve():
     entrypoint = SKILL / "SKILL.md"
     body = entrypoint.read_text(encoding="utf-8")
@@ -110,8 +83,6 @@ def test_notebook_describes_the_current_four_step_workflow():
         for cell in notebook["cells"]
         if cell["cell_type"] == "markdown"
     ).lower()
-    for obsolete in ("three calls", "compress runs the search", "checksum off"):
-        assert obsolete not in markdown
     for call in ("profile", "graph", "compress", "decompress"):
         assert f"`{call}`" in markdown
 

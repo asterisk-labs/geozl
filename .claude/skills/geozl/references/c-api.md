@@ -16,20 +16,9 @@ Public headers live in `core/include/geozl/`. `geozl.h` includes all of them exc
 
 ## 1. Stability
 
-- Since 0.13.0 the declarations in `geozl/geozl.h` are a **stable source API**: new
-  entry points may appear, and a further breaking change needs a major release.
-- Source breaks since 0.13.0: `geozl_node_nodata` gained `dtype` and `radius` in 0.17.0;
-  `geozl_node_blocked_transpose_zstd` left in 0.19.0 and its `GEOZL_CTID_*` enumerator in
-  0.20.0; the four writer stubs `geozl_node_binoffset`, `geozl_node_intmult`,
-  `geozl_node_floatquant`, `geozl_node_floatmult` and their `GEOZL_CTID_*` enumerators
-  were removed after 0.20.0.
-- From 0.30.0, `geozl/gpu.h` joins the supported C source API.
-- The **ABI is not stable before 1.0**: recompile C applications after updating GeoZL or
-  OpenZL.
-- History of source breaks before 0.13: `planes` arguments added to five node builders
-  and to `geozl_2d_compress_c`, `geozl_2d_graph_open_c`, `geozl_2d_bench_c` (0.12.0);
-  `nodataBits` as `uint64_t` replacing a `double` (0.8.1); `verify` and `checksum`
-  arguments (0.9.0).
+- `geozl/geozl.h` and `geozl/gpu.h` are the supported C source API. **Nothing is stable
+  before 1.0**: declarations may change or go in any release, with no alias left behind.
+- Recompile C applications after updating GeoZL or OpenZL.
 
 ## 2. What `geozl.h` declares
 
@@ -51,7 +40,6 @@ ZL_NodeID geozl_node_planar(ZL_Compressor *c, uint32_t width, uint32_t planes);
 ZL_NodeID geozl_node_planar_zigzag(ZL_Compressor *c, uint32_t width, uint32_t planes);
 ZL_NodeID geozl_node_planar_zigzag_pfor(ZL_Compressor *c, uint32_t width, uint32_t planes);
 ZL_NodeID geozl_node_planar_zigzag_transpose_pivco(ZL_Compressor *c, uint32_t width, uint32_t planes);
-ZL_NodeID geozl_node_planar_zigzag_pivco(ZL_Compressor *c, uint32_t width, uint32_t planes);   // same codec, older name
 ZL_NodeID geozl_node_transpose_pivco(ZL_Compressor *c);
 ZL_NodeID geozl_node_med(ZL_Compressor *c, uint32_t width, uint32_t planes);
 ZL_NodeID geozl_node_med_zigzag(ZL_Compressor *c, uint32_t width, uint32_t planes);
@@ -263,14 +251,16 @@ in between.
 
 `geozl/gpu.h` decodes frames into device memory. CUDA queues work on
 `target->stream` without waiting for completion. A later call on that stream
-may report an earlier failure. Metal finishes before returning.
+may report an earlier failure. Metal finishes before returning. The argument
+before `error` is `forceHost`: `NULL` routes every frame automatically, or one
+byte per frame where a nonzero byte decodes that frame on the host.
 
 ```c
 int failed = geozl_gpu_decode(gpu, framesA, countA, copiesA, nA, 2, 2,
-                              &targetA, error, sizeof(error));
+                              &targetA, NULL, error, sizeof(error));
 if (!failed)
   failed = geozl_gpu_decode(gpu, framesB, countB, copiesB, nB, 2, 2,
-                            &targetB, error, sizeof(error));
+                            &targetB, NULL, error, sizeof(error));
 int synced = geozl_gpu_synchronize(gpu, error, sizeof(error));
 if (failed || synced)
   return 1;

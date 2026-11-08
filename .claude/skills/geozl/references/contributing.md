@@ -102,7 +102,7 @@ otherwise Python keeps loading the previously staged libraries.
 | `test_golden.py` | frozen released frames still decode to the recorded hashes |
 | `test_malformed.py`, `test_headers.py` | decoders refuse forged headers and streams |
 | `test_catalog.py` | the codec catalog agrees across `ctids.h`, README, `docs/docs.html`, `docs/assets/js/main.js`, `docs/codecs/*.html` |
-| `test_docs.py` | `docs/api-high.html` signatures equal the source signatures; notebook mentions `profile`, `graph`, `compress`, `decompress`; no `max_error` or `api-low` in maintained docs; local links resolve; `SKILL.md` names `VERSION` and its links resolve |
+| `test_docs.py` | `docs/api-high.html` signatures equal the source signatures; notebook mentions `profile`, `graph`, `compress`, `decompress`; local links resolve; `SKILL.md` names `VERSION` and its links resolve |
 | `test_release.py` | `VERSION` has a `## [X.Y.Z] - date` entry and compare links in `CHANGELOG.md` |
 | `test_licenses.py` | `licenses/` copies equal the vendored upstream texts and `NOTICE` lists them |
 | `test_simd.py`, `test_ffi.py` | SIMD capping via `GEOZL_SIMD` in fresh processes; library lookup errors |

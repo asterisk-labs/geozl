@@ -86,9 +86,9 @@ recipes that fail. Treat these as starting points, not fixed recommendations.
   outside the lossy guarantees, and a later tile holding them is not refused, apart from
   LOG refusing `-inf` on a graph built without negatives. Handle them
   before compression.
-- Released CTids and wire layouts are compatibility contracts. GeoZL 0.16 planar recipes
-  use fused CTids that older readers do not know, so upgrade readers before writers.
-  Do not use frame-byte hashes as cross-version content identity.
+- Released CTids are never reassigned, but nothing else is stable before 1.0: a release
+  may drop a layout or a name outright. Upgrade readers before writers, and do not use
+  frame-byte hashes as cross-version content identity.
 - Low-level `openzl.ext` compression needs the current format version and must disable
   the content checksum for quantizers. `geozl.register_decoders` registers only codecs
   exposed by the Python packages; the high-level C-backed `geozl.decompress` also knows
@@ -109,6 +109,6 @@ files in the repository and is scoped to GeoZL 0.31.0.
 | `openzl.ext` graphs with geozl nodes, complex rasters, raw PFOR | [references/low-level-graphs.md](references/low-level-graphs.md) |
 | Codec catalog: CTids, streams, header layouts, retired CTids | [references/codecs.md](references/codecs.md) |
 | C API (`geozl.h`), linking, compiled examples | [references/c-api.md](references/c-api.md) |
-| Frame compatibility, version history, golden frames, wire changes | [references/compatibility.md](references/compatibility.md) |
+| Frame compatibility, golden frames, wire changes | [references/compatibility.md](references/compatibility.md) |
 | Repository layout, build, tests, fuzzing, adding a codec, CI, release | [references/contributing.md](references/contributing.md) |
 | Error message lookup, SIMD paths, library loading | [references/debugging.md](references/debugging.md) |

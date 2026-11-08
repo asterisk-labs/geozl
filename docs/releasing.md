@@ -5,10 +5,10 @@ publication, so review the candidate and its CI artifacts first.
 
 ## Compatibility
 
-- Keep reading frames written since the 0.20.0 compatibility baseline. Never
-  reassign a shipped CTid; preserve golden frames for each wire layout.
-- `geozl/gpu.h` joined the supported C source API in 0.30.0. The C ABI is not
-  promised before 1.0, so consumers should rebuild after an update.
+- Never reassign a shipped CTid; keep a golden frame for each wire layout the
+  current readers decode.
+- The C source API and ABI are not promised before 1.0, so consumers should
+  rebuild after an update.
 - Prebuilt Python wheels target Linux x86-64 with CUDA and macOS arm64 with
   Metal. The platform matrix also checks source builds elsewhere.
 - The OpenZL pin is the integrated `dev` commit `b7f498b`. Review the upstream

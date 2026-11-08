@@ -1,114 +1,59 @@
-# Frame compatibility and version history
+# Frame compatibility
 
-Sources: `docs/compatibility.md`, `docs/c-api.md`, `CHANGELOG.md`,
-`bindings/python/test/golden/`.
+Sources: `docs/compatibility.md`, `docs/c-api.md`, `bindings/python/test/golden/`.
 
 ## Contents
 
 1. The policy
 2. Deploying readers and writers
-3. Wire-affecting changes by version
-4. API changes that break old code
-5. Golden frames
-6. Changing the wire format of a shipped codec
+3. Golden frames
+4. Changing the wire format of a shipped codec
 
 ## 1. The policy
 
-- **0.20.0 is the first compatibility baseline.** Earlier releases were development
-  releases and their frames are not covered by the compatibility contract. Later readers
-  keep reading frames written by 0.20.0 and by compatible releases after it.
+- **Nothing is stable before 1.0.** A release may change a codec layout, and its readers
+  may refuse frames earlier releases wrote. Superseded layouts, names and aliases are
+  deleted, not kept behind a shim.
 - **Released CTids are never reassigned.** An incompatible layout gets a new CTid, so an
-  old reader fails to find a decoder instead of decoding garbage.
-- **Encoders may produce different bytes** in later releases without breaking
-  compatibility. Do not compare frame bytes or hashes across versions; compare decoded data.
+  old reader fails to find a decoder instead of decoding garbage. Retired CTids
+  (`0x72D708` to `0x72D70B`, `0x72D70E`, `0x72D780`) stay reserved in `ctids.h`.
+- **Encoders may produce different bytes** in later releases. Do not compare frame bytes or
+  hashes across versions; compare decoded data.
 - **Older readers may not understand newer codecs.**
 - GeoZL frames are OpenZL frames; container compatibility follows OpenZL. The Python
-  package supports OpenZL 0.3.x (`openzl>=0.3,<0.4`). The high-level API writes OpenZL
-  format 24, which OpenZL 0.2 readers accept, except `pivco`, `transpose>pivco` and
-  `sparse`, which write 27 and need an OpenZL 0.3 reader; readers take formats up to 27.
-  Frames containing `planar_zigzag_transpose_pivco` also need a GeoZL 0.19 reader.
-  GeoZL 0.20 writers use `transpose_pivco` (`0x72D713`) for non-planar PivCo
-  recipes; 0.19 readers reject those frames.
-- Python API: semantic versioning, may grow before 1.0. C: stable source API
-  from 0.13.0 apart from the breaks in section 4; `geozl/gpu.h` joins from
-  0.30.0. There is no ABI promise before 1.0.
+  package supports OpenZL 0.3.x (`openzl>=0.3,<0.4`). Every recipe writes OpenZL format 27,
+  so frames need an OpenZL 0.3 reader.
+- The Python API, the C source API (`geozl/geozl.h`, `geozl/gpu.h`) and the C ABI may change
+  in any release before 1.0. Rebuild C applications after an update.
 
 ## 2. Deploying readers and writers
 
-- **Upgrade every reader before any writer.** A 0.16.0 writer using a planar recipe emits
-  `planar_zigzag` (`0x72D70F`) or `planar_zigzag_pfor` (`0x72D710`); 0.15.x readers do
-  not have those decoders.
+- **Upgrade every reader before any writer.** A newer writer may emit a CTid an older
+  reader has no decoder for.
 - Pin the writer version in data products and record it next to the data (for example
   `geozl.__version__` in the dataset metadata) so readers know the minimum version.
 - `geozl.compress` output is deterministic for one version, input and graph; that is the
   scope in which byte equality means anything.
 
-## 3. Wire-affecting changes by version
+## 3. Golden frames
 
-| Version | Change | Consequence |
-| --- | --- | --- |
-| 0.21.0 | decoders for `0x72D708` to `0x72D70B` removed | frames using them no longer decode; the CTids stay reserved |
-| 0.20.0-alpha.2 (2026-11-01) | `blocked_transpose_zstd` decoder removed | frames using `0x72D70E` no longer decode; the CTid stays reserved |
-| 0.20.0-alpha.1 (2026-10-31) | non-planar `pivco` recipes use `transpose_pivco` (`0x72D713`) | 0.19 readers reject new frames; current readers retain the 0.19 standard-node path |
-| 0.19.0 (2026-10-08) | new `planar_zigzag_pivco` codec and `sparse` terminal | those frames need a 0.19 reader; PivCo and sparse frames use OpenZL format 27 |
-| 0.19.0 (2026-10-08) | lossy recipes no longer accept `STORE`; stream layout is automatic | no wire change; readers still decode both layouts |
-| 0.18.0 (2026-09-20) | new fused codec `med_zigzag`; `med>zigzag>...` recipes select it | frames need a 0.18.0 reader; older frames with separate nodes still decode |
-| 0.16.0 (2026-09-01) | new fused codecs `planar_zigzag` and `planar_zigzag_pfor`; `planar>zigzag>...` recipes select them | frames need a 0.16.0 reader; older frames with separate nodes still decode |
-| 0.15.1 | `quant_linear` accepts all-zero domains | no format change |
-| 0.15.0 | coefficient vectors in the frame header comment | frames without coeffs unchanged |
-| 0.14.0 | integer `quant_linear` stores the grid index by default (`STORE=VALUES` keeps the old contents); integer frames need a whole step; `STORE=INDEX` for integer `quant_sqrt`; integer LOG `STORE=INDEX` refused; `pfor` codec added | pre-baseline wire change; a flag bit that used to be implied by another field became meaningful |
-| 0.12.0 | predictor headers gain an optional trailing `u32 planes` | 4-byte (13 for `wp_static`) headers still mean one plane |
-| 0.11.0 | `nodata` header is the bit pattern only; `all valid` and `all hole` codes removed; empty tiles refused | 0.10.0 nodata frames using those codes no longer decode |
-| 0.8.1 | predictor readers refuse row width 0 or wider than the tile | forged or low-level frames with such widths from 0.8.0 are refused |
-| 0.8.0 | `quant_linear` moved from `0x72D780` to `0x72D781` with a 10-byte header; codec headers written little endian; new `quant_log`, `quant_sqrt`, `nodata` | 0.7.x lossy frames and big-endian lossless frames do not read |
-
-## 4. API changes that break old code
-
-| Version | Old | New |
-| --- | --- | --- |
-| 0.21.0 | `geozl_node_binoffset`, `geozl_node_intmult`, `geozl_node_floatquant`, `geozl_node_floatmult`, and their `GEOZL_CTID_*` enumerators | removed |
-| 0.20.0 | `GEOZL_CTID_BLOCKED_TRANSPOSE_ZSTD` | removed |
-| 0.19.0 | `geozl_node_blocked_transpose_zstd` | removed |
-| 0.19.0 | lossy recipe `STORE=...`; `Noise.recipe(..., store=...)` | removed; layout is automatic |
-| 0.17.0 | `geozl_node_nodata(c, width, mode, valueBits)` | `dtype` and `radius` added |
-| 0.14.0 | `store_lo` terminal | removed; `unknown method` |
-| 0.10.0 | `geozl.compress(tile, method=..., error=..., nodata=...)` | `g = geozl.graph(tile, method, error=..., nodata=...)`, then `geozl.compress(tile, graph=g)` |
-| 0.10.0 | `geozl.decompress(frame, dtype, width)` | `geozl.decompress(frame).view(dtype).reshape(shape)` |
-| 0.10.0 | `geozl.profile(..., method=...)` | `geozl.profile(..., prior=...)` |
-| 0.10.0 | lossy parameters per tile | frozen by `graph()` from its raster |
-| 0.9.0 | `geozl_2d_decompress_c(..., outSize, errCtx, ...)` | `int verify` added before `errCtx` |
-| 0.8.0 | `"full"` brute-force method | `geozl.profile` picks the recipe |
-| 0.8.0 | `QuantLinear(0.5, dtype)` | `QuantLinear("LINEAR:MAX_ERROR=0.5", dtype)` |
-| 0.8.0 | `register_decoders` on `geozl.lossless` and `geozl.lossy` | `geozl.register_decoders` |
-| 0.8.0 | Python nodes for CTids `0x72D708` to `0x72D70B` | removed; C decoders retired after 0.20.0 |
-| 0.8.0 | `geozl_2d_compress`, `GEOZL_2D_LOSSLESS` | `geozl_2d_compress_c` with a recipe name and an error string |
-
-Code or docs mentioning `max_error=` as a Python argument, `method=` on `compress`, or
-`api-low` pages predate 0.10.0.
-
-## 5. Golden frames
-
-- `bindings/python/test/golden/frames/*.zl` are 51 released frames: 28 written by 0.13.0
-  (all six predictors at 1 and 3 planes, `id`, `deinterleave`, `nodata` with an int32
-  sentinel and float32 NaN, float quantizers), 6 by 0.14.0 (integer quantizer frames in
-  both storage modes, including `planar>zigzag>pfor`, then written with separate nodes),
-  9 value-layout float frames by 0.18.0 (fused `0x72D70F`), 1 by 0.19.0 (`0x72D712`) and
-  5 by 0.20.0-alpha.1 (`0x72D713`), and 2 by 0.21.1 (`0x72D710` and
-  `0x72D711`).
+- `bindings/python/test/golden/frames/*.zl` hold one frame per wire layout the current
+  readers decode: `planar_zigzag_transpose_pivco` (`0x72D712`), `transpose_pivco`
+  (`0x72D713`) at 1, 2, 4 and 8 bytes and with Huffman lanes, `planar_zigzag_pfor`
+  (`0x72D710`) and `med_zigzag` (`0x72D711`).
 - `manifest.json` records per frame: `graph`, `error`, `nodata`, `dtype`, `shape`,
-  `sha256_frame`, `sha256_decoded`, `frame_bytes` (0.13.0 entries only), and `written_by`
-  for frames added after the 0.13.0 set. The manifest is frozen on purpose.
+  `written_by`, `sha256_frame` and `sha256_decoded`.
 - `test_golden.py` checks the frame hash and the decoded hash; CI runs it on x86-64 and
-  on macOS arm64.
+  on macOS arm64. The R, Julia and WASM tests decode the same corpus.
 - Adding a frame: write it with the release that defines the wire form, add a manifest
-  entry with its own `written_by`, never regenerate existing frames.
+  entry with its own `written_by`, never regenerate existing frames. When a layout is
+  removed, delete its frames and manifest entries with it.
 
-## 6. Changing the wire format of a shipped codec
+## 4. Changing the wire format of a shipped codec
 
 Checklist from `docs/compatibility.md`:
 
-1. Freeze a golden frame in every wire form the change touches, including the one being
-   retired, before the change lands.
+1. Freeze a golden frame in every wire form the change touches before the change lands.
 2. Confirm an older reader **refuses** the new frame rather than misreading it.
 3. Decide whether the change needs a new CTid or only widens which flag values are legal,
    and record the reasoning in `docs/compatibility.md`, not only in the changelog.

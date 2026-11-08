@@ -40,7 +40,7 @@ destroys data. Released CTids are never reassigned.
 | `planar_zigzag` | `0x72D70F` | fused | numeric -> numeric | `PlanarZigzag(width, planes)` | planar then Zigzag in one pass |
 | `planar_zigzag_pfor` | `0x72D710` | fused | numeric -> serial | `PlanarZigzagPfor(width, planes)` | planar, Zigzag and PFOR, one 256-value block at a time |
 | `med_zigzag` | `0x72D711` | fused | numeric -> numeric | `MedZigzag(width, planes)` | MED then Zigzag in one pass |
-| `planar_zigzag_transpose_pivco` | `0x72D712` | fused | numeric -> weights + serial | none, C only | planar and Zigzag, then PivCo Huffman or byte PFOR per residual byte lane; `planar_zigzag_pivco` remains a C source alias |
+| `planar_zigzag_transpose_pivco` | `0x72D712` | fused | numeric -> weights + serial | none, C only | planar and Zigzag, then PivCo Huffman or byte PFOR per residual byte lane |
 | `transpose_pivco` | `0x72D713` | terminal | numeric -> weights + serial | none, C only | byte lanes, each encoded with PivCo Huffman or byte PFOR |
 | `quant_linear` | `0x72D781` | lossy | numeric -> numeric | `QuantLinear(recipe, dtype)` | uniform grid, absolute bound |
 | `quant_log` | `0x72D782` | lossy | numeric -> numeric | `QuantLog(recipe, dtype)` | logarithmic grid, relative bound |
@@ -66,9 +66,9 @@ The README documents seventeen codecs: six predictors, four fused codecs,
 | `quant_sqrt` | 18 | `u8 dtype`, `u8 flags`, `f64 step`, `f64 offset` |
 | coefficient blob (not a codec) | 6 + 4 per vector + 4 per value | `"GZC1"`, `u8 version (1)`, `u8 vector count`, then per vector `u32 n` and `n` x `i32`; in the frame header comment |
 
-Quantizer flags: bit 0 `NONNEGATIVE` (clamp at zero); bit 1 `STORE_VALUES`
-(integer LOG, integer SQRT when the index does not fit, and 0.14 to 0.18 frames); and,
-for `quant_sqrt`, bit 2 `DECODE_F32` (rebuild f32 indices in binary32).
+Quantizer flags: bit 0 `NONNEGATIVE` (clamp at zero); bit 1 `STORE_VALUES` (always set
+on integer LOG, set on integer SQRT when the index does not fit, refused everywhere else);
+and, for `quant_sqrt`, bit 2 `DECODE_F32` (rebuild f32 indices in binary32).
 
 Width and planes must be nonzero and each plane must hold whole rows, or the frame is
 corrupt. PFOR readers bound the declared count by the payload (at most 128 elements per
@@ -92,9 +92,9 @@ Arithmetic wraps at the element width unless stated.
 | `transpose_pivco` | decode each byte lane (PivCo or byte PFOR), then join the lanes little endian |
 | `pfor` | per block: unpack the `b`-bit body, then OR `exception_bits << b` into each listed position |
 | `nodata` | plain: `out = mask == 0 ? pattern : values`; guarded (mask 0 hole, 1 above, 2 below, 3 other zero): a hole takes `pattern`, a value equal to `pattern` takes the replacement its code names, anything else is copied; codes above 3 or a replacement equal to `pattern` are corrupt |
-| `quant_linear` | integer index: `q * step` in integer arithmetic; float index: `q * step`; values: copy or cast; clamp to dtype (and to 0 when `NONNEGATIVE`) |
-| `quant_log` | index `q`: `0 -> 0`, else `sign(q) * 2^(A + (abs(q) - 1) * step)` with `A` of -24, -149, -1074 for f16, f32, f64; values: copy or cast |
-| `quant_sqrt` | index: `(q * step)^2 - offset` (rounded for integers); values: copy or cast |
+| `quant_linear` | integer index: `q * step` in integer arithmetic; float index: `q * step`; clamp to dtype (and to 0 when `NONNEGATIVE`) |
+| `quant_log` | float index `q`: `0 -> 0`, else `sign(q) * 2^(A + (abs(q) - 1) * step)` with `A` of -24, -149, -1074 for f16, f32, f64; integer values: copy |
+| `quant_sqrt` | index: `(q * step)^2 - offset` (rounded for integers); integer values: copy |
 
 PFOR body layout: 256 values per block interleaved over 16-byte groups
 (`L = 16 / W` lanes per group), `b` bits per value LSB first; exceptions listed as a
@@ -116,11 +116,6 @@ Part of the wire format (quantizer headers) and of the C API (`geozl_dtype` in `
 
 ## 6. Retired CTids
 
-- `0x72D780` was the first lossy CTid: `quant_linear` with a 9-byte header in 0.7.x
-  (the `ctids.h` comment calls it the combined `quant` codec). In 0.8.0 the quantizers
-  moved to `0x72D781` to `0x72D783` and `0x72D780` was retired, not reused: a 0.7.x lossy
-  frame fails to find a decoder instead of being misread.
-- `0x72D708` to `0x72D70B` are reserved. Their decoders were removed; frames
-  using these IDs are no longer readable.
-- `0x72D70E` belonged to a pre-baseline blocked-transpose experiment. It is
-  reserved and has no decoder.
+`0x72D708` to `0x72D70B`, `0x72D70E` and `0x72D780` are reserved and have no
+decoder. The comments in `ctids.h` keep them from being reused; a frame that names one
+fails to find a decoder instead of being misread.
