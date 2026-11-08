@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="The GeoZL quantizers, which trade a bounded error for smaller numbers.">
+<title>GeoZL · near-lossless</title>
+<link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/reading.css?v=5">
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <a class="lockup vt-lockup" href="index.html" aria-label="GeoZL home">
+      <img class="marksvg" src="assets/svg/mark-light.svg" alt="">
+      <span class="wm-sm">GeoZL</span>
+    </a>
+
+    <div class="offsite" aria-label="Project links">
+      <a href="https://github.com/asterisk-labs/geozl" title="GitHub" aria-label="GeoZL on GitHub" rel="noopener noreferrer">
+        <svg class="github" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg>
+      </a>
+      <a class="pypi" href="https://pypi.org/project/geozl/" title="PyPI" aria-label="GeoZL on PyPI" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.3 14.3 4.7v6.6L8 14.7l-6.3-3.4V4.7Z"></path><path d="M1.7 4.7 8 8.1l6.3-3.4M8 8.1v6.6"></path></svg>
+        <img class="mark-color" src="assets/svg/pypi-color.svg" alt="" width="18" height="16">
+      </a>
+      <a class="rumi" href="https://asterisk.coop/rumi/" title="Rumi" aria-label="Rumi, the raster format built with GeoZL" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 1h14v14H1zM1 5.5l6 .8 4.2 2.1L15 9.2M7 1l-.5 5.3 4.7 2.1L9.5 15"></path></svg>
+        <img class="mark-color" src="assets/svg/rumi-color.svg" alt="" width="16" height="16">
+      </a>
+      <a class="asterisk" href="https://asterisk.coop" title="asterisk labs" aria-label="asterisk labs" rel="noopener noreferrer">
+        <img class="mark-mono" src="assets/svg/asterisk-mark-black.svg" alt="" width="16" height="18">
+        <img class="mark-color" src="assets/svg/asterisk-mark-color.svg" alt="" width="16" height="18">
+      </a>
+    </div>
+
+    <nav class="nav" aria-label="Sections">
+      <a href="docs.html">Docs</a>
+      <a href="api-high.html">API</a>
+      <a href="benchmark.html">Benchmark</a>
+    </nav>
+  </header>
+
+  <main class="doc">
+    <nav class="toc" aria-label="Contents">
+      <p class="toc-title">Docs</p>
+      <ol class="toc-pages">
+        <li class="toc-group">Reference</li>
+        <li><a href="docs.html">Codecs</a></li>
+        <li><a href="predictors.html">Predictors</a></li>
+        <li><a href="fused.html">Fused</a></li>
+        <li><a href="streams.html">Streams</a></li>
+        <li><a href="near-lossless.html" class="here">Near-lossless</a></li>
+        <li class="toc-group">CPU decoding</li>
+        <li><a href="cpu.html">Inside the CPU decoder</a></li>
+        <li class="toc-group">GPU-friendly codecs</li>
+        <li><a href="gpu-codecs.html">Why they fit a GPU</a></li>
+        <li><a href="pfor.html">PFOR</a></li>
+        <li><a href="pivco.html">PivCo</a></li>
+        <li class="toc-group">GPU decoding</li>
+        <li><a href="gpu.html">API</a></li>
+        <li><a href="gpu-internals.html">Inside the decoder</a></li>
+      </ol>
+    </nav>
+
+    <article class="content">
+<h1>Near-lossless</h1>
+      <p>A <b>quantizer</b> snaps each sample to a grid, so the error never passes the bound you set. Every stage after it is lossless. <b>quant_linear</b> bounds the absolute error, <b>quant_log</b> the relative error, and <b>quant_sqrt</b> an error that grows with the signal, like sensor noise.</p>
+      <section class="codec" id="quant_linear" data-no="15" data-ctid="0x72D781" data-fam="orange" data-page="codecs/quant-linear.html" style="--fam:var(--orange)">
+        <h3><span class="num">15</span>quant_linear</h3>
+        <p><b>quant_linear</b> snaps samples to <b>one uniform grid</b>, so every sample comes back within MAX_ERROR of where it started, in the data&#8217;s own units.</p>
+        <figure class="diagram stepper" data-beats="2.2,4.5,9">
+          <img src="assets/svg/codecs-light/quant-linear.svg" alt="quant_linear snaps a continuous value to the nearest step of a uniform grid, staying within plus or minus MAX_ERROR, and stores the small integer index" loading="lazy">
+          <figcaption>each sample snaps to the nearest step of one uniform grid</figcaption>
+        </figure>
+        <p>Use it when precision does not depend on size, such as elevation in metres. A plain number such as <code>error=2</code> means LINEAR. Use <code>quant_log</code> for values spanning orders of magnitude.</p>
+        <table class="spec">
+          <tr><th>ctid</th><td>0x72D781</td></tr>
+          <tr><th>header</th><td>dtype + flags + step &middot; 10 bytes</td></tr>
+          <tr><th>recipe</th><td>LINEAR:MAX_ERROR=V</td></tr>
+          <tr><th>types</th><td>integers 8 to 64-bit &middot; floats 16 to 64-bit</td></tr>
+          <tr><th>decode</th><td>x = q &middot; step, or a copy when the stream holds the reconstruction</td></tr>
+        </table>
+        <pre class="algo"><code>// integer input
+step = max(1, floor(2 * MAX_ERROR));
+
+q = sign(s) * ((abs(s) + step / 2) / step);   // encode
+o = clamp(q * step);                           // decode</code></pre>
+        <pre><code>error="LINEAR:MAX_ERROR=5"</code></pre>
+        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/quant_linear" rel="noopener noreferrer">Source in core/src/quant_linear</a></p>
+      </section>
+      <section class="codec" id="quant_log" data-no="16" data-ctid="0x72D782" data-fam="orange" data-page="codecs/quant-log.html" style="--fam:var(--orange)">
+        <h3><span class="num">16</span>quant_log</h3>
+        <p><b>quant_log</b> bounds the error <b>relative to the value</b>. Its grid is uniform in log2. Values near 8 and 8,000 have the same percentage error bound.</p>
+        <figure class="diagram stepper" data-beats="2.2,4.5,6.8,9">
+          <img src="assets/svg/codecs-light/quant-log.svg" alt="quant_log holds a relative bound. The grid of levels around 8 and the grid around 8000 have the same shape, so a sample at either end comes back within the same one per cent, and in log2 the two grids share one uniform step" loading="lazy">
+          <figcaption>around 8 and around 8,000 the grid has the same shape, one uniform step in log2</figcaption>
+        </figure>
+        <p>Use it on proportional data such as precipitation, radiance or concentrations. A percentage such as <code>error="1%"</code> means LOG. Zero stays exact, and retiling a raster does not change a single value.</p>
+        <table class="spec">
+          <tr><th>ctid</th><td>0x72D782</td></tr>
+          <tr><th>header</th><td>dtype + flags + step &middot; 10 bytes</td></tr>
+          <tr><th>recipe</th><td>LOG:MAX_ERROR=P%</td></tr>
+          <tr><th>types</th><td>integers 8 to 64-bit &middot; floats 16 to 64-bit</td></tr>
+          <tr><th>decode</th><td>one table lookup, or a copy when the stream holds the reconstruction</td></tr>
+        </table>
+        <pre class="algo"><code>// float input, A is -24 for f16, -149 for f32, -1074 for f64
+q = index of the nearest level in log2 space;   // encode
+
+o = q == 0 ? 0                                  // decode
+           : sign(q) * exp2(A + (abs(q) - 1) * step);</code></pre>
+        <pre><code>error="LOG:MAX_ERROR=1%"</code></pre>
+        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/quant_log" rel="noopener noreferrer">Source in core/src/quant_log</a></p>
+      </section>
+      <section class="codec" id="quant_sqrt" data-no="17" data-ctid="0x72D783" data-fam="orange" data-page="codecs/quant-sqrt.html" style="--fam:var(--orange)">
+        <h3><span class="num">17</span>quant_sqrt</h3>
+        <p><b>quant_sqrt</b> bounds the error at <b>K standard deviations of the sensor noise</b>, whose variance grows as a + b&middot;x. Its levels spread out as the signal rises.</p>
+        <figure class="diagram stepper" data-beats="2.2,4.5,6.8,9">
+          <img src="assets/svg/codecs-light/quant-sqrt.svg" alt="quant_sqrt holds a bound that grows with the square root of the value. The levels sit further apart the higher the value goes, so the slack at 81 is three times the slack at 9, and the index behind them still steps by one throughout" loading="lazy">
+          <figcaption>the levels spread out as the value grows. The slack at 81 is three times the slack at 9</figcaption>
+        </figure>
+        <p>Use it on data from photon-counting sensors. Fit a and b once per product with <code>geozl.lossy.fit_noise()</code> and reuse its <code>recipe()</code>. Per-tile fitting gives tiles different grids.</p>
+        <table class="spec">
+          <tr><th>ctid</th><td>0x72D783</td></tr>
+          <tr><th>header</th><td>dtype + flags + step + offset &middot; 18 bytes</td></tr>
+          <tr><th>recipe</th><td>SQRT:MAX_ERROR=KN, optionally ,A=a,B=b</td></tr>
+          <tr><th>types</th><td>integers 8 to 64-bit &middot; floats 16 to 64-bit</td></tr>
+          <tr><th>decode</th><td>x = (q &middot; step)&#178; &minus; offset, or a copy when the stream holds the reconstruction</td></tr>
+        </table>
+        <pre class="algo"><code>// encode, the nearest level in the original units
+t = (s + offset) / (step * step);
+q = t &lt;= 0.25 ? 0 : floor(0.5 + sqrt(t - 0.25));
+
+// decode
+o = (q * step) * (q * step) - offset;</code></pre>
+        <pre><code>error="SQRT:MAX_ERROR=0.5N"</code></pre>
+        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/quant_sqrt" rel="noopener noreferrer">Source in core/src/quant_sqrt</a></p>
+      </section>
+
+      <nav class="pager" aria-label="Pages">
+        <a class="prev" href="streams.html"><span>Previous</span>Streams</a>
+        <a class="next" href="cpu.html"><span>Next</span>Inside the CPU decoder</a>
+      </nav>
+    </article>
+
+    <nav class="toc onpage" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ol class="toc-sections">
+        <li><a href="#quant_linear"><span class="toc-no">15</span><span>quant_<wbr>linear</span></a></li>
+        <li><a href="#quant_log"><span class="toc-no">16</span><span>quant_<wbr>log</span></a></li>
+        <li><a href="#quant_sqrt"><span class="toc-no">17</span><span>quant_<wbr>sqrt</span></a></li>
+      </ol>
+    </nav>
+  </main>
+
+  <footer class="colophon">
+    <span>Made with</span>
+    <span class="heart" aria-label="love" role="img"></span>
+    <span>by</span>
+    <a class="by" href="https://asterisk.coop" rel="noopener noreferrer">
+      <img src="assets/svg/asterisk-mark-black.svg" alt="" width="15" height="17">
+      <span>asterisk labs</span>
+    </a>
+  </footer>
+</div>
+<script src="assets/js/toc.js" defer></script>
+<script src="assets/js/stepper.js?v=4" defer></script>
+</body>
+</html>

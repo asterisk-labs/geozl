@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="The GeoZL stream codecs that split and pack.">
+<title>GeoZL · streams</title>
+<link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/reading.css?v=5">
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <a class="lockup vt-lockup" href="index.html" aria-label="GeoZL home">
+      <img class="marksvg" src="assets/svg/mark-light.svg" alt="">
+      <span class="wm-sm">GeoZL</span>
+    </a>
+
+    <div class="offsite" aria-label="Project links">
+      <a href="https://github.com/asterisk-labs/geozl" title="GitHub" aria-label="GeoZL on GitHub" rel="noopener noreferrer">
+        <svg class="github" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg>
+      </a>
+      <a class="pypi" href="https://pypi.org/project/geozl/" title="PyPI" aria-label="GeoZL on PyPI" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.3 14.3 4.7v6.6L8 14.7l-6.3-3.4V4.7Z"></path><path d="M1.7 4.7 8 8.1l6.3-3.4M8 8.1v6.6"></path></svg>
+        <img class="mark-color" src="assets/svg/pypi-color.svg" alt="" width="18" height="16">
+      </a>
+      <a class="rumi" href="https://asterisk.coop/rumi/" title="Rumi" aria-label="Rumi, the raster format built with GeoZL" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 1h14v14H1zM1 5.5l6 .8 4.2 2.1L15 9.2M7 1l-.5 5.3 4.7 2.1L9.5 15"></path></svg>
+        <img class="mark-color" src="assets/svg/rumi-color.svg" alt="" width="16" height="16">
+      </a>
+      <a class="asterisk" href="https://asterisk.coop" title="asterisk labs" aria-label="asterisk labs" rel="noopener noreferrer">
+        <img class="mark-mono" src="assets/svg/asterisk-mark-black.svg" alt="" width="16" height="18">
+        <img class="mark-color" src="assets/svg/asterisk-mark-color.svg" alt="" width="16" height="18">
+      </a>
+    </div>
+
+    <nav class="nav" aria-label="Sections">
+      <a href="docs.html">Docs</a>
+      <a href="api-high.html">API</a>
+      <a href="benchmark.html">Benchmark</a>
+    </nav>
+  </header>
+
+  <main class="doc">
+    <nav class="toc" aria-label="Contents">
+      <p class="toc-title">Docs</p>
+      <ol class="toc-pages">
+        <li class="toc-group">Reference</li>
+        <li><a href="docs.html">Codecs</a></li>
+        <li><a href="predictors.html">Predictors</a></li>
+        <li><a href="fused.html">Fused</a></li>
+        <li><a href="streams.html" class="here">Streams</a></li>
+        <li><a href="near-lossless.html">Near-lossless</a></li>
+        <li class="toc-group">CPU decoding</li>
+        <li><a href="cpu.html">Inside the CPU decoder</a></li>
+        <li class="toc-group">GPU-friendly codecs</li>
+        <li><a href="gpu-codecs.html">Why they fit a GPU</a></li>
+        <li><a href="pfor.html">PFOR</a></li>
+        <li><a href="pivco.html">PivCo</a></li>
+        <li class="toc-group">GPU decoding</li>
+        <li><a href="gpu.html">API</a></li>
+        <li><a href="gpu-internals.html">Inside the decoder</a></li>
+      </ol>
+    </nav>
+
+    <article class="content">
+<h1>Streams</h1>
+      <p><b>deinterleave</b> and <b>nodata</b> split one stream into two before anything else runs. <b>pfor</b> and <b>transpose_pivco</b> are <b>terminals</b> that turn numbers into bytes, after any predictor or none.</p>
+      <section class="codec" id="deinterleave" data-no="11" data-ctid="0x72D704" data-fam="green" data-page="codecs/deinterleave.html" style="--fam:var(--green)">
+        <h3><span class="num">11</span>deinterleave</h3>
+        <p><b>deinterleave</b> sends <b>even positions to one stream and odd positions to another</b>, without looking at the values. Each part of an interleaved raster, such as real and imaginary, can then follow its own path.</p>
+        <figure class="diagram stepper" data-beats="2.3,5.1,8">
+          <img src="assets/svg/codecs-light/deinterleave.svg" alt="deinterleave splits one interleaved stream into an even lane and an odd lane by position" loading="lazy">
+          <figcaption>even positions to one lane, odd positions to the other</figcaption>
+        </figure>
+        <p>Recipes do not use <code>deinterleave</code>. Use it in custom low-level OpenZL graphs.</p>
+        <table class="spec">
+          <tr><th>ctid</th><td>0x72D704</td></tr>
+          <tr><th>header</th><td>none &middot; rebuilt from the two lane counts</td></tr>
+          <tr><th>lanes</th><td>even &#8968;N/2&#8969; &middot; odd &#8970;N/2&#8971;</td></tr>
+          <tr><th>decode</th><td>element 2k from lane 0, 2k+1 from lane 1</td></tr>
+        </table>
+        <pre class="algo"><code>// encode
+even[k] = s[2 * k];
+odd[k]  = s[2 * k + 1];
+
+// decode
+o[2 * k]     = even[k];
+o[2 * k + 1] = odd[k];</code></pre>
+        <pre><code>geozl.lossless.Deinterleave()</code></pre>
+        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/deinterleave" rel="noopener noreferrer">Source in core/src/deinterleave</a></p>
+      </section>
+      <section class="codec" id="nodata" data-no="12" data-ctid="0x72D70C" data-fam="green" data-page="codecs/nodata.html" style="--fam:var(--green)">
+        <h3><span class="num">12</span>nodata</h3>
+        <p><b>nodata</b> takes the holes out before anything predicts. It writes a <b>validity mask</b> and fills each hole with the last valid sample of its row, or the sample above when the hole opens the row.</p>
+        <figure class="diagram stepper" data-beats="2.2,4.5,6.8,9">
+          <img src="assets/svg/codecs-light/nodata.svg" alt="nodata splits the raster into a filled value stream and a validity mask. Holes are filled from the west neighbour, and on decode the stored pattern is written back wherever the mask is zero" loading="lazy">
+          <figcaption>holes leave as a mask, and values are filled in behind them</figcaption>
+        </figure>
+        <p>We get it from <code>nodata=</code>, or automatically on a float raster that holds NaNs. It keeps quantized samples off the sentinel while preserving the error bound. Use it only on tiles that have holes.</p>
+        <table class="spec">
+          <tr><th>ctid</th><td>0x72D70C</td></tr>
+          <tr><th>header</th><td>the nodata pattern, optionally followed by three replacement values</td></tr>
+          <tr><th>modes</th><td>NaN payloads &middot; one declared sentinel</td></tr>
+          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit samples</td></tr>
+          <tr><th>decode</th><td>restore the nodata pattern where the mask marks a hole</td></tr>
+        </table>
+        <pre class="algo"><code>// encode, compared as bit patterns so -0.0 and NaN payloads count
+mask[i] = (s[i] == pattern) ? 0 : 1;
+v[i] = mask[i] ? s[i] : last valid sample of the row, or the one above;
+
+// decode
+o[i] = mask[i] == 0 ? pattern : v[i];</code></pre>
+        <pre><code>geozl.lossless.Nodata(width, value, dtype, radius)</code></pre>
+        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/nodata" rel="noopener noreferrer">Source in core/src/nodata</a></p>
+      </section>
+      <section class="codec" id="pfor" data-no="13" data-ctid="0x72D70D" data-fam="green" data-page="codecs/pfor.html" style="--fam:var(--green)">
+        <h3><span class="num">13</span>pfor</h3>
+        <p><b>pfor</b> packs each block at <b>the bit width that block needs</b> and patches the few values that overflow it.</p>
+        <figure class="diagram stepper" data-beats="1.4,3.1,4.8,6.3">
+          <img src="assets/svg/codecs-light/pfor.svg" alt="pfor packs a block of 256 values at the bit width the block needs and patches the values that overflow it" loading="lazy">
+          <figcaption>each block packed at its own width, with the values that overflow it patched</figcaption>
+        </figure>
+        <p>Use it after any predictor except planar, which has its own fused codec, as in <code>med&gt;zigzag&gt;pfor</code>. On skewed data, an entropy coder or PivCo does better. It also decodes on the GPU. <a href="pfor.html">How PFOR works</a> walks through the format.</p>
+        <table class="spec">
+          <tr><th>ctid</th><td>0x72D70D</td></tr>
+          <tr><th>header</th><td>uint64 count &middot; uint8 element width</td></tr>
+          <tr><th>block</th><td>256 values &middot; b bits each &middot; exceptions patched</td></tr>
+          <tr><th>layout</th><td>lane interleaved over a 16-byte group</td></tr>
+          <tr><th>credit</th><td>design after <a href="https://github.com/powturbo/TurboPFor-Integer-Compression/graphs/contributors" rel="noopener noreferrer" style="text-decoration:underline">TurboPFor</a> by powturbo and contributors</td></tr>
+        </table>
+        <pre class="algo"><code>// encode one block of 256 values
+b = the width that makes the block smallest;
+pack the low b bits of every value;
+for each value above 1 &lt;&lt; b: keep its position and its bits above b;
+
+// decode
+unpack 256 values of b bits;
+for (j = 0; j &lt; nexc; j++) v[pos[j]] |= hi[j] &lt;&lt; b;</code></pre>
+        <pre><code>geozl.lossless.Pfor()</code></pre>
+        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/pfor" rel="noopener noreferrer">Source in core/src/pfor</a></p>
+      </section>
+      <section class="codec" id="transpose_pivco" data-no="14" data-ctid="0x72D713" data-fam="green" data-page="codecs/transpose-pivco.html" style="--fam:var(--green)">
+        <h3><span class="num">14</span>transpose_pivco</h3>
+        <p><b>transpose_pivco</b> is the PivCo lane coder without a predictor. It splits each element into <b>byte lanes</b> and codes each lane with PivCo Huffman or byte PFOR, whichever is smaller.</p>
+        <figure class="diagram">
+          <img src="assets/svg/codecs-light/transpose-pivco.svg" alt="Numeric values split into byte lanes, each sent to PivCo Huffman or PFOR" loading="lazy">
+          <figcaption>one lane per byte of the element, each with its own coder</figcaption>
+        </figure>
+        <p>Use <code>id&gt;transpose&gt;pivco</code> on skewed data that is not smooth, such as class maps or quality flags. Frames that use PivCo need a reader built on OpenZL 0.3 or later. It also decodes on the GPU. <a href="pivco.html">How PivCo works</a> follows a lane to the GPU kernel.</p>
+        <table class="spec">
+          <tr><th>ctid</th><td>0x72D713</td></tr>
+          <tr><th>header</th><td>uint64 &middot; element count<br>+ uint8 &middot; element width<br>+ uint32 &middot; PivCo block size<br>+ per lane uint8 mode, uint16 weights, uint32 payload</td></tr>
+          <tr><th>values</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit numeric elements</td></tr>
+          <tr><th>lanes</th><td>one per byte, stored least-significant first</td></tr>
+          <tr><th>mode</th><td>PivCo Huffman, or byte PFOR when smaller</td></tr>
+        </table>
+        <pre class="algo"><code>// encode, byte k of every sample goes to lane k
+for (i = 0; i &lt; n; i++)
+  for (k = 0; k &lt; sizeof(T); k++) lane[k][i] = s[i] &gt;&gt; (8 * k);
+// each lane is then coded with PivCo or PFOR
+
+// decode
+for (i = 0; i &lt; n; i++) {
+  o[i] = 0;
+  for (k = 0; k &lt; sizeof(T); k++) o[i] |= (T)lane[k][i] &lt;&lt; (8 * k);
+}</code></pre>
+        <pre><code>geozl.graph(tile, "id&gt;transpose&gt;pivco")</code></pre>
+        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/transpose_pivco" rel="noopener noreferrer">Source in core/src/transpose_pivco</a></p>
+      </section>
+
+      <nav class="pager" aria-label="Pages">
+        <a class="prev" href="fused.html"><span>Previous</span>Fused</a>
+        <a class="next" href="near-lossless.html"><span>Next</span>Near-lossless</a>
+      </nav>
+    </article>
+
+    <nav class="toc onpage" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ol class="toc-sections">
+        <li><a href="#deinterleave"><span class="toc-no">11</span><span>deinterleave</span></a></li>
+        <li><a href="#nodata"><span class="toc-no">12</span><span>nodata</span></a></li>
+        <li><a href="#pfor"><span class="toc-no">13</span><span>pfor</span></a></li>
+        <li><a href="#transpose_pivco"><span class="toc-no">14</span><span>transpose_<wbr>pivco</span></a></li>
+      </ol>
+    </nav>
+  </main>
+
+  <footer class="colophon">
+    <span>Made with</span>
+    <span class="heart" aria-label="love" role="img"></span>
+    <span>by</span>
+    <a class="by" href="https://asterisk.coop" rel="noopener noreferrer">
+      <img src="assets/svg/asterisk-mark-black.svg" alt="" width="15" height="17">
+      <span>asterisk labs</span>
+    </a>
+  </footer>
+</div>
+<script src="assets/js/toc.js" defer></script>
+<script src="assets/js/stepper.js?v=4" defer></script>
+</body>
+</html>

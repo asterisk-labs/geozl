@@ -1,0 +1,175 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 222" width="640" height="222" role="img" aria-label="The GPU kernel decodes from the leaves up, one depth at a time, with two buffers that swap roles. At depth 2 the b and c leaves write b b c into the lane buffer. At depth 1 the a leaf writes five a into scratch and the b or c node merges with its bitmap 010, giving b c b. At depth 0 the root merges with 01010100 from scratch back into the lane buffer, giving a b a c a b a a.">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+    svg{ background:transparent; font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace; }
+    text{ font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace; }
+    .cap{ fill:#111111; font-size:12.5px; font-weight:500; }
+    .num{ fill:#492AE8; font-weight:600; }
+    .lab{ fill:#5C6370; font-size:11px; font-weight:500; }
+    .sym{ fill:#111111; font-size:15px; font-weight:500; text-anchor:middle; }
+    .bit{ fill:#111111; font-size:14px; font-weight:500; text-anchor:middle; }
+    .tag{ fill:#492AE8; font-size:11px; font-weight:500; text-anchor:middle; }
+    .note{ fill:#111111; font-size:11.5px; font-weight:500; }
+    g, rect, text, circle, path, line{ transform-box:fill-box; transform-origin:center; }
+    .pl1{animation:pl1 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl1{ 0%{opacity:0} 2.5%{opacity:1} 19.375%{opacity:1} 21.25%{opacity:0} 100%{opacity:0} }
+    .pl2{animation:pl2 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl2{ 0%{opacity:0} 21.25%{opacity:0} 23.75%{opacity:1} 45.625%{opacity:1} 47.5%{opacity:0} 100%{opacity:0} }
+    .pl3{animation:pl3 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl3{ 0%{opacity:0} 47.5%{opacity:0} 50%{opacity:1} 69.375%{opacity:1} 71.25%{opacity:0} 100%{opacity:0} }
+    .pl4{animation:pl4 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl4{ 0%{opacity:0} 71.25%{opacity:0} 73.75%{opacity:1} 96.25%{opacity:1} 100%{opacity:0} }
+    .pl5{animation:pl5 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl5{ 0%{opacity:0} 100%{opacity:0} }
+    .pl6{animation:pl6 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl6{ 0%{opacity:0;transform:translate(0px,-8px)} 2.5%{opacity:0;transform:translate(0px,-8px)} 5.312%{opacity:1;transform:translate(0px,0px)} 50%{opacity:1;transform:translate(0px,0px)} 52.5%{opacity:0;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl7{animation:pl7 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl7{ 0%{fill:#ECE9FD} 22.5%{fill:#ECE9FD} 25%{fill:#F3F3F1} 99.875%{fill:#F3F3F1} 100%{fill:#ECE9FD} }
+    .pl8{animation:pl8 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl8{ 0%{opacity:0;transform:translate(0px,-8px)} 2.5%{opacity:0;transform:translate(0px,-8px)} 5.312%{opacity:1;transform:translate(0px,0px)} 50%{opacity:1;transform:translate(0px,0px)} 52.5%{opacity:0;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl9{animation:pl9 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl9{ 0%{fill:#ECE9FD} 22.5%{fill:#ECE9FD} 25%{fill:#F3F3F1} 99.875%{fill:#F3F3F1} 100%{fill:#ECE9FD} }
+    .pl10{animation:pl10 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl10{ 0%{opacity:0;transform:translate(0px,-8px)} 2.5%{opacity:0;transform:translate(0px,-8px)} 5.312%{opacity:1;transform:translate(0px,0px)} 50%{opacity:1;transform:translate(0px,0px)} 52.5%{opacity:0;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl11{animation:pl11 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl11{ 0%{fill:#ECE9FD} 22.5%{fill:#ECE9FD} 25%{fill:#F3F3F1} 99.875%{fill:#F3F3F1} 100%{fill:#ECE9FD} }
+    .pl12{animation:pl12 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl12{ 0%{opacity:0;transform:translate(0px,-8px)} 23.75%{opacity:0;transform:translate(0px,-8px)} 26.562%{opacity:1;transform:translate(0px,0px)} 96.25%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl13{animation:pl13 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl13{ 0%{fill:#ECE9FD} 48.75%{fill:#ECE9FD} 51.25%{fill:#F3F3F1} 99.875%{fill:#F3F3F1} 100%{fill:#ECE9FD} }
+    .pl14{animation:pl14 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl14{ 0%{opacity:0;transform:translate(0px,-8px)} 23.75%{opacity:0;transform:translate(0px,-8px)} 26.562%{opacity:1;transform:translate(0px,0px)} 96.25%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl15{animation:pl15 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl15{ 0%{fill:#ECE9FD} 48.75%{fill:#ECE9FD} 51.25%{fill:#F3F3F1} 99.875%{fill:#F3F3F1} 100%{fill:#ECE9FD} }
+    .pl16{animation:pl16 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl16{ 0%{opacity:0;transform:translate(0px,-8px)} 23.75%{opacity:0;transform:translate(0px,-8px)} 26.562%{opacity:1;transform:translate(0px,0px)} 96.25%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl17{animation:pl17 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl17{ 0%{fill:#ECE9FD} 48.75%{fill:#ECE9FD} 51.25%{fill:#F3F3F1} 99.875%{fill:#F3F3F1} 100%{fill:#ECE9FD} }
+    .pl18{animation:pl18 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl18{ 0%{opacity:0;transform:translate(0px,-8px)} 23.75%{opacity:0;transform:translate(0px,-8px)} 26.562%{opacity:1;transform:translate(0px,0px)} 96.25%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl19{animation:pl19 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl19{ 0%{fill:#ECE9FD} 48.75%{fill:#ECE9FD} 51.25%{fill:#F3F3F1} 99.875%{fill:#F3F3F1} 100%{fill:#ECE9FD} }
+    .pl20{animation:pl20 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl20{ 0%{opacity:0;transform:translate(0px,-8px)} 23.75%{opacity:0;transform:translate(0px,-8px)} 26.562%{opacity:1;transform:translate(0px,0px)} 96.25%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl21{animation:pl21 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl21{ 0%{fill:#ECE9FD} 48.75%{fill:#ECE9FD} 51.25%{fill:#F3F3F1} 99.875%{fill:#F3F3F1} 100%{fill:#ECE9FD} }
+    .pl22{animation:pl22 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl22{ 0%{opacity:0;transform:translate(0px,-88px)} 26.25%{opacity:0;transform:translate(0px,-88px)} 28.125%{opacity:1;transform:translate(0px,-88px)} 35%{opacity:1;transform:translate(0px,0px)} 96.25%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl23{animation:pl23 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl23{ 0%{opacity:0;fill:#ECE9FD} 33.75%{opacity:0;fill:#ECE9FD} 36.25%{opacity:1;fill:#ECE9FD} 48.75%{opacity:1;fill:#ECE9FD} 51.25%{opacity:1;fill:#F3F3F1} 96.25%{opacity:1;fill:#F3F3F1} 100%{opacity:0;fill:#ECE9FD} }
+    .pl24{animation:pl24 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl24{ 0%{opacity:0;transform:translate(46px,-88px)} 26.25%{opacity:0;transform:translate(46px,-88px)} 28.125%{opacity:1;transform:translate(46px,-88px)} 30.625%{opacity:1;transform:translate(46px,-38px)} 33.125%{opacity:1;transform:translate(0px,-38px)} 35%{opacity:1;transform:translate(0px,0px)} 96.25%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl25{animation:pl25 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl25{ 0%{opacity:0;fill:#ECE9FD} 33.75%{opacity:0;fill:#ECE9FD} 36.25%{opacity:1;fill:#ECE9FD} 48.75%{opacity:1;fill:#ECE9FD} 51.25%{opacity:1;fill:#F3F3F1} 96.25%{opacity:1;fill:#F3F3F1} 100%{opacity:0;fill:#ECE9FD} }
+    .pl26{animation:pl26 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl26{ 0%{opacity:0;transform:translate(-46px,-88px)} 26.25%{opacity:0;transform:translate(-46px,-88px)} 28.125%{opacity:1;transform:translate(-46px,-88px)} 30%{opacity:1;transform:translate(-46px,-68px)} 32.5%{opacity:1;transform:translate(0px,-68px)} 35%{opacity:1;transform:translate(0px,0px)} 96.25%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl27{animation:pl27 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl27{ 0%{opacity:0;fill:#ECE9FD} 33.75%{opacity:0;fill:#ECE9FD} 36.25%{opacity:1;fill:#ECE9FD} 48.75%{opacity:1;fill:#ECE9FD} 51.25%{opacity:1;fill:#F3F3F1} 96.25%{opacity:1;fill:#F3F3F1} 100%{opacity:0;fill:#ECE9FD} }
+    .pl28{animation:pl28 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl28{ 0%{opacity:0;transform:translate(0px,0px)} 23.75%{opacity:0;transform:translate(0px,0px)} 26.562%{opacity:1;transform:translate(0px,0px)} 96.25%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl29{animation:pl29 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl29{ 0%{opacity:0;transform:translate(0px,88px)} 52.5%{opacity:0;transform:translate(0px,88px)} 54.375%{opacity:1;transform:translate(0px,88px)} 57.188%{opacity:1;transform:translate(0px,35px)} 61.875%{opacity:1;transform:translate(0px,0px)} 96.25%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl30{animation:pl30 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl30{ 0%{opacity:0;fill:#C4FFC2} 60.625%{opacity:0;fill:#C4FFC2} 63.125%{opacity:1;fill:#C4FFC2} 96.25%{opacity:1;fill:#C4FFC2} 100%{opacity:0;fill:#C4FFC2} }
+    .pl31{animation:pl31 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl31{ 0%{opacity:0;transform:translate(184px,88px)} 52.5%{opacity:0;transform:translate(184px,88px)} 54.375%{opacity:1;transform:translate(184px,88px)} 56.25%{opacity:1;transform:translate(184px,57px)} 59.688%{opacity:1;transform:translate(0px,57px)} 61.875%{opacity:1;transform:translate(0px,0px)} 96.25%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl32{animation:pl32 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl32{ 0%{opacity:0;fill:#C4FFC2} 60.625%{opacity:0;fill:#C4FFC2} 63.125%{opacity:1;fill:#C4FFC2} 96.25%{opacity:1;fill:#C4FFC2} 100%{opacity:0;fill:#C4FFC2} }
+    .pl33{animation:pl33 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl33{ 0%{opacity:0;transform:translate(-46px,88px)} 52.5%{opacity:0;transform:translate(-46px,88px)} 54.375%{opacity:1;transform:translate(-46px,88px)} 57.188%{opacity:1;transform:translate(-46px,35px)} 61.875%{opacity:1;transform:translate(0px,0px)} 96.25%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl34{animation:pl34 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl34{ 0%{opacity:0;fill:#C4FFC2} 60.625%{opacity:0;fill:#C4FFC2} 63.125%{opacity:1;fill:#C4FFC2} 96.25%{opacity:1;fill:#C4FFC2} 100%{opacity:0;fill:#C4FFC2} }
+    .pl35{animation:pl35 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl35{ 0%{opacity:0;transform:translate(138px,88px)} 52.5%{opacity:0;transform:translate(138px,88px)} 54.375%{opacity:1;transform:translate(138px,88px)} 56.25%{opacity:1;transform:translate(138px,57px)} 59.688%{opacity:1;transform:translate(0px,57px)} 61.875%{opacity:1;transform:translate(0px,0px)} 96.25%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl36{animation:pl36 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl36{ 0%{opacity:0;fill:#C4FFC2} 60.625%{opacity:0;fill:#C4FFC2} 63.125%{opacity:1;fill:#C4FFC2} 96.25%{opacity:1;fill:#C4FFC2} 100%{opacity:0;fill:#C4FFC2} }
+    .pl37{animation:pl37 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl37{ 0%{opacity:0;transform:translate(-92px,88px)} 52.5%{opacity:0;transform:translate(-92px,88px)} 54.375%{opacity:1;transform:translate(-92px,88px)} 57.188%{opacity:1;transform:translate(-92px,35px)} 61.875%{opacity:1;transform:translate(0px,0px)} 96.25%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl38{animation:pl38 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl38{ 0%{opacity:0;fill:#C4FFC2} 60.625%{opacity:0;fill:#C4FFC2} 63.125%{opacity:1;fill:#C4FFC2} 96.25%{opacity:1;fill:#C4FFC2} 100%{opacity:0;fill:#C4FFC2} }
+    .pl39{animation:pl39 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl39{ 0%{opacity:0;transform:translate(92px,88px)} 52.5%{opacity:0;transform:translate(92px,88px)} 54.375%{opacity:1;transform:translate(92px,88px)} 56.25%{opacity:1;transform:translate(92px,57px)} 59.688%{opacity:1;transform:translate(0px,57px)} 61.875%{opacity:1;transform:translate(0px,0px)} 96.25%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl40{animation:pl40 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl40{ 0%{opacity:0;fill:#C4FFC2} 60.625%{opacity:0;fill:#C4FFC2} 63.125%{opacity:1;fill:#C4FFC2} 96.25%{opacity:1;fill:#C4FFC2} 100%{opacity:0;fill:#C4FFC2} }
+    .pl41{animation:pl41 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl41{ 0%{opacity:0;transform:translate(-138px,88px)} 52.5%{opacity:0;transform:translate(-138px,88px)} 54.375%{opacity:1;transform:translate(-138px,88px)} 57.188%{opacity:1;transform:translate(-138px,35px)} 61.875%{opacity:1;transform:translate(0px,0px)} 96.25%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl42{animation:pl42 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl42{ 0%{opacity:0;fill:#C4FFC2} 60.625%{opacity:0;fill:#C4FFC2} 63.125%{opacity:1;fill:#C4FFC2} 96.25%{opacity:1;fill:#C4FFC2} 100%{opacity:0;fill:#C4FFC2} }
+    .pl43{animation:pl43 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl43{ 0%{opacity:0;transform:translate(-138px,88px)} 52.5%{opacity:0;transform:translate(-138px,88px)} 54.375%{opacity:1;transform:translate(-138px,88px)} 57.188%{opacity:1;transform:translate(-138px,35px)} 61.875%{opacity:1;transform:translate(0px,0px)} 96.25%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl44{animation:pl44 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl44{ 0%{opacity:0;fill:#C4FFC2} 60.625%{opacity:0;fill:#C4FFC2} 63.125%{opacity:1;fill:#C4FFC2} 96.25%{opacity:1;fill:#C4FFC2} 100%{opacity:0;fill:#C4FFC2} }
+    .pl45{animation:pl45 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl45{ 0%{opacity:0;transform:translate(0px,0px)} 49.375%{opacity:0;transform:translate(0px,0px)} 52.188%{opacity:1;transform:translate(0px,0px)} 96.25%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .pl46{animation:pl46 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl46{ 0%{fill:#F3F3F1;stroke:#5C6370} 47.5%{fill:#F3F3F1;stroke:#5C6370} 50%{fill:#ECE9FD;stroke:#492AE8} 71.25%{fill:#ECE9FD;stroke:#492AE8} 73.75%{fill:#F3F3F1;stroke:#5C6370} 96.25%{fill:#F3F3F1;stroke:#5C6370} 100%{fill:#F3F3F1;stroke:#5C6370} }
+    .pl47{animation:pl47 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl47{ 0%{fill:#F3F3F1;stroke:#5C6370} 21.25%{fill:#F3F3F1;stroke:#5C6370} 23.75%{fill:#ECE9FD;stroke:#492AE8} 47.5%{fill:#ECE9FD;stroke:#492AE8} 50%{fill:#F3F3F1;stroke:#5C6370} 96.25%{fill:#F3F3F1;stroke:#5C6370} 100%{fill:#F3F3F1;stroke:#5C6370} }
+    .pl48{animation:pl48 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl48{ 0%{fill:#F3F3F1;stroke:#5C6370} 21.25%{fill:#F3F3F1;stroke:#5C6370} 23.75%{fill:#ECE9FD;stroke:#492AE8} 47.5%{fill:#ECE9FD;stroke:#492AE8} 50%{fill:#F3F3F1;stroke:#5C6370} 96.25%{fill:#F3F3F1;stroke:#5C6370} 100%{fill:#F3F3F1;stroke:#5C6370} }
+    .pl49{animation:pl49 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl49{ 0%{fill:#F3F3F1;stroke:#5C6370} 1.25%{fill:#F3F3F1;stroke:#5C6370} 3.75%{fill:#ECE9FD;stroke:#492AE8} 21.25%{fill:#ECE9FD;stroke:#492AE8} 23.75%{fill:#F3F3F1;stroke:#5C6370} 96.25%{fill:#F3F3F1;stroke:#5C6370} 100%{fill:#F3F3F1;stroke:#5C6370} }
+    .pl50{animation:pl50 16s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes pl50{ 0%{fill:#F3F3F1;stroke:#5C6370} 1.25%{fill:#F3F3F1;stroke:#5C6370} 3.75%{fill:#ECE9FD;stroke:#492AE8} 21.25%{fill:#ECE9FD;stroke:#492AE8} 23.75%{fill:#F3F3F1;stroke:#5C6370} 96.25%{fill:#F3F3F1;stroke:#5C6370} 100%{fill:#F3F3F1;stroke:#5C6370} }
+    @media (prefers-reduced-motion: reduce){ *{ animation:none !important; } }
+  ]]></style>
+  <text class="cap pl1" x="16" y="22" style="opacity:0"><tspan class="num">1</tspan>  at depth 2 the leaves b and c write b b c into the lane buffer</text>
+  <text class="cap pl2" x="16" y="22" style="opacity:0"><tspan class="num">2</tspan>  at depth 1 a writes five a; b or c merges with 010 into scratch</text>
+  <text class="cap pl3" x="16" y="22" style="opacity:0"><tspan class="num">3</tspan>  at depth 0 the root merges with 01010100 back into the lane buffer</text>
+  <text class="cap pl4" x="16" y="22" style="opacity:0"><tspan class="num">4</tspan>  two buffers that swap roles at every level, no third one needed</text>
+  <text class="cap pl5" x="16" y="22">from leaves to root, each node merges its two children by its bitmap</text>
+  <text class="lab" x="16" y="83">lane buffer</text>
+  <text class="lab" x="16" y="171">scratch</text>
+  <text class="lab" x="16" y="52">bitmap</text>
+  <text class="lab" x="16" y="200">bitmap</text>
+  <rect x="100" y="62" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <rect x="100" y="150" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <rect x="146" y="62" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <rect x="146" y="150" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <rect x="192" y="62" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <rect x="192" y="150" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <rect x="238" y="62" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <rect x="238" y="150" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <rect x="284" y="62" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <rect x="284" y="150" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <rect x="330" y="62" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <rect x="330" y="150" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <rect x="376" y="62" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <rect x="376" y="150" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <rect x="422" y="62" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <rect x="422" y="150" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <g class="pl6" style="opacity:0"><rect class="pl7" x="330.0" y="62" width="40" height="30" rx="3" fill="#F3F3F1"/><text class="sym" x="350.0" y="83">b</text></g>
+  <g class="pl8" style="opacity:0"><rect class="pl9" x="376.0" y="62" width="40" height="30" rx="3" fill="#F3F3F1"/><text class="sym" x="396.0" y="83">b</text></g>
+  <g class="pl10" style="opacity:0"><rect class="pl11" x="422.0" y="62" width="40" height="30" rx="3" fill="#F3F3F1"/><text class="sym" x="442.0" y="83">c</text></g>
+  <g class="pl12"><rect class="pl13" x="100.0" y="150" width="40" height="30" rx="3" fill="#F3F3F1"/><text class="sym" x="120.0" y="171">a</text></g>
+  <g class="pl14"><rect class="pl15" x="146.0" y="150" width="40" height="30" rx="3" fill="#F3F3F1"/><text class="sym" x="166.0" y="171">a</text></g>
+  <g class="pl16"><rect class="pl17" x="192.0" y="150" width="40" height="30" rx="3" fill="#F3F3F1"/><text class="sym" x="212.0" y="171">a</text></g>
+  <g class="pl18"><rect class="pl19" x="238.0" y="150" width="40" height="30" rx="3" fill="#F3F3F1"/><text class="sym" x="258.0" y="171">a</text></g>
+  <g class="pl20"><rect class="pl21" x="284.0" y="150" width="40" height="30" rx="3" fill="#F3F3F1"/><text class="sym" x="304.0" y="171">a</text></g>
+  <g class="pl22"><rect class="pl23" x="330.0" y="150" width="40" height="30" rx="3" fill="#F3F3F1"/><text class="sym" x="350.0" y="171">b</text></g>
+  <g class="pl24"><rect class="pl25" x="376.0" y="150" width="40" height="30" rx="3" fill="#F3F3F1"/><text class="sym" x="396.0" y="171">c</text></g>
+  <g class="pl26"><rect class="pl27" x="422.0" y="150" width="40" height="30" rx="3" fill="#F3F3F1"/><text class="sym" x="442.0" y="171">b</text></g>
+  <g class="pl28"><text class="bit" x="350.0" y="200" style="fill:#5C6370">0</text><text class="bit" x="396.0" y="200" style="fill:#492AE8">1</text><text class="bit" x="442.0" y="200" style="fill:#5C6370">0</text></g>
+  <g class="pl29"><rect class="pl30" x="100.0" y="62" width="40" height="30" rx="3" fill="#C4FFC2"/><text class="sym" x="120.0" y="83">a</text></g>
+  <g class="pl31"><rect class="pl32" x="146.0" y="62" width="40" height="30" rx="3" fill="#C4FFC2"/><text class="sym" x="166.0" y="83">b</text></g>
+  <g class="pl33"><rect class="pl34" x="192.0" y="62" width="40" height="30" rx="3" fill="#C4FFC2"/><text class="sym" x="212.0" y="83">a</text></g>
+  <g class="pl35"><rect class="pl36" x="238.0" y="62" width="40" height="30" rx="3" fill="#C4FFC2"/><text class="sym" x="258.0" y="83">c</text></g>
+  <g class="pl37"><rect class="pl38" x="284.0" y="62" width="40" height="30" rx="3" fill="#C4FFC2"/><text class="sym" x="304.0" y="83">a</text></g>
+  <g class="pl39"><rect class="pl40" x="330.0" y="62" width="40" height="30" rx="3" fill="#C4FFC2"/><text class="sym" x="350.0" y="83">b</text></g>
+  <g class="pl41"><rect class="pl42" x="376.0" y="62" width="40" height="30" rx="3" fill="#C4FFC2"/><text class="sym" x="396.0" y="83">a</text></g>
+  <g class="pl43"><rect class="pl44" x="422.0" y="62" width="40" height="30" rx="3" fill="#C4FFC2"/><text class="sym" x="442.0" y="83">a</text></g>
+  <g class="pl45"><text class="bit" x="120.0" y="52" style="fill:#5C6370">0</text><text class="bit" x="166.0" y="52" style="fill:#492AE8">1</text><text class="bit" x="212.0" y="52" style="fill:#5C6370">0</text><text class="bit" x="258.0" y="52" style="fill:#492AE8">1</text><text class="bit" x="304.0" y="52" style="fill:#5C6370">0</text><text class="bit" x="350.0" y="52" style="fill:#492AE8">1</text><text class="bit" x="396.0" y="52" style="fill:#5C6370">0</text><text class="bit" x="442.0" y="52" style="fill:#5C6370">0</text></g>
+  <line x1="560" y1="72" x2="524" y2="114" stroke="#9AA1AB" stroke-width="1"/>
+  <line x1="560" y1="72" x2="596" y2="114" stroke="#9AA1AB" stroke-width="1"/>
+  <line x1="596" y1="114" x2="570" y2="158" stroke="#9AA1AB" stroke-width="1"/>
+  <line x1="596" y1="114" x2="622" y2="158" stroke="#9AA1AB" stroke-width="1"/>
+  <circle class="pl46" cx="560" cy="72" r="10" fill="#F3F3F1" stroke="#5C6370" stroke-width="1.2"/>
+  <circle class="pl47" cx="524" cy="114" r="10" fill="#F3F3F1" stroke="#5C6370" stroke-width="1.2"/>
+  <text class="lab" x="524" y="118" style="text-anchor:middle;fill:#111111">a</text>
+  <circle class="pl48" cx="596" cy="114" r="10" fill="#F3F3F1" stroke="#5C6370" stroke-width="1.2"/>
+  <circle class="pl49" cx="570" cy="158" r="10" fill="#F3F3F1" stroke="#5C6370" stroke-width="1.2"/>
+  <text class="lab" x="570" y="162" style="text-anchor:middle;fill:#111111">b</text>
+  <circle class="pl50" cx="622" cy="158" r="10" fill="#F3F3F1" stroke="#5C6370" stroke-width="1.2"/>
+  <text class="lab" x="622" y="162" style="text-anchor:middle;fill:#111111">c</text>
+  <text class="lab" x="560" y="56" style="text-anchor:middle">tree</text>
+</svg>

@@ -1,167 +1,132 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1" name="viewport"/>
-<meta content="GeoZL codec catalog, every raster transform with a diagram." name="description"/>
-<meta content="#080b10" name="theme-color"/>
-<title>GeoZL · documentation</title>
-<link href="assets/svg/favicon.svg" rel="icon" type="image/svg+xml"/>
-<link href="https://fonts.googleapis.com" rel="preconnect"/>
-<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
-<link href="assets/css/style.css" rel="stylesheet"/>
-<link rel="stylesheet" href="assets/css/dark.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="Every GeoZL codec, with what it does, its CTid, its header and how to call it.">
+<title>GeoZL · docs</title>
+<link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/reading.css?v=5">
 </head>
-<body class="is-catalog" style="--page:var(--purple)">
-<div class="sheet">
-<span class="reg tl">+</span><span class="reg tr">+</span>
-<span class="reg bl">+</span><span class="reg br">+</span>
-<header class="masthead">
-<a aria-label="GeoZL home" class="lockup vt-lockup" href="index.html">
-<img alt="" class="marksvg" src="assets/svg/mark.svg"/>
-<span class="wm-sm">GeoZL</span>
-</a>
-<div aria-label="Project links" class="offsite">
-<a aria-label="GeoZL on GitHub" href="https://github.com/asterisk-labs/geozl" rel="noopener noreferrer" title="GitHub"><svg aria-hidden="true" class="github" viewbox="0 0 24 24"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg></a>
-<a aria-label="GeoZL on PyPI" href="https://pypi.org/project/geozl/" rel="noopener noreferrer" title="PyPI"><svg aria-hidden="true" viewbox="0 0 16 16"><path d="M8 1.3 14.3 4.7v6.6L8 14.7l-6.3-3.4V4.7Z"></path><path d="M1.7 4.7 8 8.1l6.3-3.4M8 8.1v6.6"></path></svg></a>
-<a aria-label="Rumi, the raster format built with GeoZL" href="https://asterisk.coop/rumi/" rel="noopener noreferrer" title="Rumi"><svg aria-hidden="true" viewbox="0 0 16 16"><path d="M1 1h14v14H1zM1 5.5l6 .8 4.2 2.1L15 9.2M7 1l-.5 5.3 4.7 2.1L9.5 15"></path></svg></a>
+<body>
+<div class="page">
+  <header class="masthead">
+    <a class="lockup vt-lockup" href="index.html" aria-label="GeoZL home">
+      <img class="marksvg" src="assets/svg/mark-light.svg" alt="">
+      <span class="wm-sm">GeoZL</span>
+    </a>
+
+    <div class="offsite" aria-label="Project links">
+      <a href="https://github.com/asterisk-labs/geozl" title="GitHub" aria-label="GeoZL on GitHub" rel="noopener noreferrer">
+        <svg class="github" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg>
+      </a>
+      <a class="pypi" href="https://pypi.org/project/geozl/" title="PyPI" aria-label="GeoZL on PyPI" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.3 14.3 4.7v6.6L8 14.7l-6.3-3.4V4.7Z"></path><path d="M1.7 4.7 8 8.1l6.3-3.4M8 8.1v6.6"></path></svg>
+        <img class="mark-color" src="assets/svg/pypi-color.svg" alt="" width="18" height="16">
+      </a>
+      <a class="rumi" href="https://asterisk.coop/rumi/" title="Rumi" aria-label="Rumi, the raster format built with GeoZL" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 1h14v14H1zM1 5.5l6 .8 4.2 2.1L15 9.2M7 1l-.5 5.3 4.7 2.1L9.5 15"></path></svg>
+        <img class="mark-color" src="assets/svg/rumi-color.svg" alt="" width="16" height="16">
+      </a>
+      <a class="asterisk" href="https://asterisk.coop" title="asterisk labs" aria-label="asterisk labs" rel="noopener noreferrer">
+        <img class="mark-mono" src="assets/svg/asterisk-mark-black.svg" alt="" width="16" height="18">
+        <img class="mark-color" src="assets/svg/asterisk-mark-color.svg" alt="" width="16" height="18">
+      </a>
+    </div>
+
+    <nav class="nav" aria-label="Sections">
+      <a href="docs.html">Docs</a>
+      <a href="api-high.html">API</a>
+      <a href="benchmark.html">Benchmark</a>
+    </nav>
+  </header>
+
+  <main class="doc">
+    <nav class="toc" aria-label="Contents">
+      <p class="toc-title">Docs</p>
+      <ol class="toc-pages">
+        <li class="toc-group">Reference</li>
+        <li><a href="docs.html" class="here">Codecs</a></li>
+        <li><a href="predictors.html">Predictors</a></li>
+        <li><a href="fused.html">Fused</a></li>
+        <li><a href="streams.html">Streams</a></li>
+        <li><a href="near-lossless.html">Near-lossless</a></li>
+        <li class="toc-group">CPU decoding</li>
+        <li><a href="cpu.html">Inside the CPU decoder</a></li>
+        <li class="toc-group">GPU-friendly codecs</li>
+        <li><a href="gpu-codecs.html">Why they fit a GPU</a></li>
+        <li><a href="pfor.html">PFOR</a></li>
+        <li><a href="pivco.html">PivCo</a></li>
+        <li class="toc-group">GPU decoding</li>
+        <li><a href="gpu.html">API</a></li>
+        <li><a href="gpu-internals.html">Inside the decoder</a></li>
+      </ol>
+    </nav>
+
+    <article class="content">
+      <h1>GeoZL codecs</h1>
+      <ul class="facts">
+        <li>Version 0.31.0</li>
+        <li>Codecs 17</li>
+        <li>License BSD-3-Clause</li>
+      </ul>
+      <p><b>zstd</b>, <b>Deflate</b> and <b>Blosc</b> treat a raster as a line of bytes. They do not use pixel neighbours, the −32768 no-data value, or the slowly changing high byte of a 16-bit elevation. GeoZL adds small codecs for these raster properties. GeoZL supplies these codecs to <a href="https://github.com/facebook/openzl" rel="noopener noreferrer">OpenZL</a>, a compression framework built from <b>graphs of codecs</b>.</p>
+      <p>The figure follows one row of an elevation tile through a graph. Use the <b>buttons</b> or <b>arrow keys</b> to follow each codec.</p>
+      <figure class="diagram wide stepper" data-steps="6" data-src="assets/svg/codecs-light/graph-step-#.svg">
+        <img class="stepper-view" tabindex="0" src="assets/svg/codecs-light/graph-step-6.svg" alt="One row of an int16 elevation tile, 412 415 -32768 418 421 423, through a GeoZL graph in six steps. The nodata step moves the hole to a mask and fills the gap with 415. The planar step leaves 412 3 0 3 3 2. The zigzag step makes it 824 6 0 6 6 4. The transpose step splits it into a low byte lane 56 6 0 6 6 4 and a high byte lane 3 0 0 0 0 0. The entropy step codes each stream, and the frame stores them with the graph.">
+        <div class="stepper-bar">
+          <button type="button" class="stepper-prev" aria-label="Previous step"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg></button>
+          <ol class="stepper-dots"><li><button type="button" data-go="1" aria-label="Step 1, a row of an int16 elevation tile, with one hole"></button></li><li><button type="button" data-go="2" aria-label="Step 2, nodata moves the hole to a mask and fills the gap"></button></li><li><button type="button" data-go="3" aria-label="Step 3, planar keeps only how far each guess was off"></button></li><li><button type="button" data-go="4" aria-label="Step 4, zigzag makes the residuals unsigned, so n becomes 2n"></button></li><li><button type="button" data-go="5" aria-label="Step 5, transpose splits each residual into a low and a high byte"></button></li><li><button type="button" data-go="6" aria-label="Step 6, entropy codes each stream. The frame keeps the graph"></button></li></ol>
+          <span class="stepper-count" aria-live="polite">6 / 6</span>
+          <button type="button" class="stepper-next">Next<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg></button>
+        </div>
+        <figcaption>Each step is reversible. The last step compresses the small numbers and zeros.</figcaption>
+      </figure>
+      <p>Each frame stores its graph as a decode recipe. A reader looks up the codecs by CTid. A shipped CTid is never renumbered or reused.</p>
+      <p>Graphs can vary between frames. A DEM and a land cover map can use different graphs. They can also vary by band, season or location, including ocean, mountain and city tiles. Frames for a training loop can use a GPU recipe.</p>
+      <p>A <b>recipe</b> names the graph in data-flow order. The first code line builds the graph shown above.</p>
+      <pre><code>g = geozl.graph(tile, "planar&gt;zigzag&gt;transpose&gt;entropy", nodata=-32768)
+frame = geozl.compress(tile, graph=g)
+out = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)</code></pre>
+      <p><code>nodata=</code> adds the first step, and <code>error=</code> would add a quantizer right after it. <code>decompress</code> returns <b>bytes</b>. The frame stores neither dtype nor shape, so retain both separately. <code>geozl.profile</code> tries candidate recipes on a tile and <b>ranks them</b>.</p>
+      <p>All GeoZL codecs fit into this chain. The map places all <b>seventeen codecs</b> beside the OpenZL codecs they work with.</p>
+      <figure class="diagram wide">
+        <img src="assets/svg/codecs-light/geozl-map.svg" alt="The seventeen GeoZL codecs by where they sit in a graph. Split, nodata and deinterleave. Quantize, quant_linear, quant_log and quant_sqrt. Predict, delta_w, delta_n, planar, med, average and wp_static. Code, pfor and transpose_pivco, next to OpenZL's zigzag, transpose, entropy and zstd. Fused codecs run predict and code in one pass, planar_zigzag, med_zigzag, planar_zigzag_pfor and planar_zigzag_transpose_pivco. pfor, transpose_pivco and the two fused codecs ending in them also decode on the GPU." loading="lazy">
+        <figcaption>The first two slots are optional. Codecs marked <b>gpu</b> also decode on the GPU.</figcaption>
+      </figure>
+      <p>The four codec families are on separate pages. <a href="predictors.html"><b>Predictors</b></a> turn samples into small residuals. <a href="fused.html"><b>Fused</b></a> codecs run a common chain in one pass, and <code>planar&gt;zigzag</code> in the picture above is really one of them. <a href="streams.html"><b>Stream</b></a> codecs split and pack. <a href="near-lossless.html"><b>Quantizers</b></a> trade a bounded error for smaller numbers. Each codec ends with its CTid, its header and the call that builds it.</p>
+
+      <nav class="pager" aria-label="Pages">
+        <a class="next" href="predictors.html"><span>Next</span>Predictors</a>
+      </nav>
+    </article>
+
+    <nav class="toc onpage" aria-label="On this page">
+      <p class="toc-title">Families</p>
+      <ol class="toc-sections">
+        <li><a href="predictors.html"><span>Predictors</span></a></li>
+        <li><a href="fused.html"><span>Fused</span></a></li>
+        <li><a href="streams.html"><span>Streams</span></a></li>
+        <li><a href="near-lossless.html"><span>Near-lossless</span></a></li>
+      </ol>
+    </nav>
+  </main>
+
+  <footer class="colophon">
+    <span>Made with</span>
+    <span class="heart" aria-label="love" role="img"></span>
+    <span>by</span>
+    <a class="by" href="https://asterisk.coop" rel="noopener noreferrer">
+      <img src="assets/svg/asterisk-mark-black.svg" alt="" width="15" height="17">
+      <span>asterisk labs</span>
+    </a>
+  </footer>
 </div>
-<nav aria-label="Sections" class="nav">
-<a class="here" href="docs.html">Docs</a>
-<a href="api-high.html">API</a>
-<a href="benchmark.html">Benchmark</a>
-</nav>
-</header>
-<main class="cat">
-<div class="cat-head">
-<p class="kicker"><span class="k-sq"></span> documentation</p>
-<h1>Each transform, <span class="u">drawn</span>.</h1>
-</div>
-<div class="catalog">
-<p class="legend">
-<span class="lg" style="--fam:var(--purple)"><span class="lg-sq"></span> predictors <b>6</b></span>
-<span class="lg" style="--fam:var(--gold)"><span class="lg-sq"></span> fused <b>4</b></span>
-<span class="lg" style="--fam:var(--green)"><span class="lg-sq"></span> stream <b>4</b></span>
-<span class="lg" style="--fam:var(--orange)"><span class="lg-sq"></span> near-lossless <b>3</b></span>
-<span class="legend-count">17 codecs</span>
-</p>
-<div class="cards">
-<a class="card" href="codecs/delta-w.html" style="--fam:var(--purple)">
-<div class="card-top"><span class="card-no">01</span><span class="card-ct">0x72D701</span></div>
-<div class="card-name">delta_w</div>
-<p class="card-what">Difference from the west neighbour.</p>
-<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-<a class="card" href="codecs/delta-n.html" style="--fam:var(--purple)">
-<div class="card-top"><span class="card-no">02</span><span class="card-ct">0x72D702</span></div>
-<div class="card-name">delta_n</div>
-<p class="card-what">Difference from the north neighbour.</p>
-<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-<a class="card" href="codecs/planar.html" style="--fam:var(--purple)">
-<div class="card-top"><span class="card-no">03</span><span class="card-ct">0x72D703</span></div>
-<div class="card-name">planar</div>
-<p class="card-what">The plane W + N − NW.</p>
-<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-<a class="card" href="codecs/med.html" style="--fam:var(--purple)">
-<div class="card-top"><span class="card-no">04</span><span class="card-ct">0x72D705</span></div>
-<div class="card-name">med</div>
-<p class="card-what">Median edge detector, clamps across edges.</p>
-<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-<a class="card" href="codecs/average.html" style="--fam:var(--purple)">
-<div class="card-top"><span class="card-no">05</span><span class="card-ct">0x72D706</span></div>
-<div class="card-name">average</div>
-<p class="card-what">Floor average of W and N.</p>
-<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-<a class="card" href="codecs/wp-static.html" style="--fam:var(--purple)">
-<div class="card-top"><span class="card-no">06</span><span class="card-ct">0x72D707</span></div>
-<div class="card-name">wp_static</div>
-<p class="card-what">Frozen weighted predictor, P = W + K.</p>
-<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-<a class="card" href="codecs/planar-zigzag.html" style="--fam:var(--gold)">
-<div class="card-top"><span class="card-no">07</span><span class="card-ct">0x72D70F</span></div>
-<div class="card-name">planar_zigzag</div>
-<p class="card-what">Planar + Zigzag in one codec.</p>
-<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-<a class="card" href="codecs/planar-zigzag-pfor.html" style="--fam:var(--gold)">
-<div class="card-top"><span class="card-no">08</span><span class="card-ct">0x72D710</span></div>
-<div class="card-name">planar_zigzag_pfor</div>
-<p class="card-what">Planar + Zigzag + PFOR in one codec.</p>
-<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-<a class="card" href="codecs/planar-zigzag-transpose-pivco.html" style="--fam:var(--gold)">
-<div class="card-top"><span class="card-no">09</span><span class="card-ct">0x72D712</span></div>
-<div class="card-name">planar_zigzag_transpose_pivco</div>
-<p class="card-what">Planar + Zigzag + PivCo per byte lane.</p>
-<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-<a class="card" href="codecs/med-zigzag.html" style="--fam:var(--gold)">
-<div class="card-top"><span class="card-no">10</span><span class="card-ct">0x72D711</span></div>
-<div class="card-name">med_zigzag</div>
-<p class="card-what">MED + Zigzag in one codec.</p>
-<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-<a class="card" href="codecs/deinterleave.html" style="grid-column:1;--fam:var(--green)">
-<div class="card-top"><span class="card-no">11</span><span class="card-ct">0x72D704</span></div>
-<div class="card-name">deinterleave</div>
-<p class="card-what">Splits one stream into two lanes by position.</p>
-<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-<a class="card" href="codecs/nodata.html" style="--fam:var(--green)">
-<div class="card-top"><span class="card-no">12</span><span class="card-ct">0x72D70C</span></div>
-<div class="card-name">nodata</div>
-<p class="card-what">Splits the holes out into a validity mask.</p>
-<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-<a class="card" href="codecs/pfor.html" style="--fam:var(--green)">
-<div class="card-top"><span class="card-no">13</span><span class="card-ct">0x72D70D</span></div>
-<div class="card-name">pfor</div>
-<p class="card-what">Packs each block of 256 to the bits it needs.</p>
-<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-<a class="card" href="codecs/transpose-pivco.html" style="--fam:var(--green)">
-<div class="card-top"><span class="card-no">14</span><span class="card-ct">0x72D713</span></div>
-<div class="card-name">transpose_pivco</div>
-<p class="card-what">PivCo or PFOR on each byte lane.</p>
-<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-<a class="card" href="codecs/quant-linear.html" style="--fam:var(--orange)">
-<div class="card-top"><span class="card-no">15</span><span class="card-ct">0x72D781</span></div>
-<div class="card-name">quant_linear</div>
-<p class="card-what">A flat bound on a uniform grid.</p>
-<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-<a class="card" href="codecs/quant-log.html" style="--fam:var(--orange)">
-<div class="card-top"><span class="card-no">16</span><span class="card-ct">0x72D782</span></div>
-<div class="card-name">quant_log</div>
-<p class="card-what">A relative bound, the same per cent everywhere.</p>
-<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-<a class="card" href="codecs/quant-sqrt.html" style="--fam:var(--orange)">
-<div class="card-top"><span class="card-no">17</span><span class="card-ct">0x72D783</span></div>
-<div class="card-name">quant_sqrt</div>
-<p class="card-what">A shot-noise bound, wider where the noise is.</p>
-<span class="card-cta"><svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span>
-</a>
-</div>
-</div>
-</main>
-<footer class="colophon">
-<span>Made with</span>
-<span class="heart" aria-label="love" role="img"></span>
-<span>by</span>
-<a class="by" href="https://asterisk.coop" rel="noopener noreferrer">
-<img src="assets/svg/asterisk-mark.svg" alt="" width="15" height="17"/>
-<span>asterisk labs</span>
-</a>
-</footer>
-</div>
+<script src="assets/js/toc.js" defer></script>
+<script src="assets/js/stepper.js?v=4" defer></script>
 </body>
 </html>

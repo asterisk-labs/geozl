@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 266" width="640" height="266" role="img" aria-label="One GeozlGpuCopy per tile. The 128 by 128 window starts at source byte 32832, row 64 and column 32 of the decoded 256 by 256 tile, its rows are read sourceRow 512 bytes apart and written destinationRow 256 bytes apart, and copy i lands at destination i times 32768 in the 4 by 128 by 128 batch">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+    svg{ background:transparent; font-family:"IBM Plex Mono",ui-monospace,monospace; }
+    .lab{ fill:#5C6370; font:500 11px/1 "IBM Plex Mono",monospace; }
+    .ink{ fill:#111111; font:500 11px/1 "IBM Plex Mono",monospace; }
+    .ttl{ font:600 11px/1 "IBM Plex Mono",monospace; }
+    .cap{ fill:#111111; font:500 13px/1 "IBM Plex Mono",monospace; }
+    .cap tspan.n{ fill:#492AE8; font-weight:600; }
+    .mid{ text-anchor:middle; }
+    .tile{ fill:#F3F3F1; stroke:#9AA1AB; stroke-width:1; }
+    .back{ fill:#FFFFFF; stroke:#9AA1AB; stroke-width:1; }
+    .slot{ fill:#FFFFFF; stroke:#9AA1AB; stroke-width:1; }
+    #win{ fill:#ECE9FD; stroke:#5C6370; stroke-width:1.4; }
+    #src{ fill:#5C6370; }
+    .rows{ fill:#ECE9FD; stroke:#5C6370; stroke-width:.8; }
+    #g1,#g2,#g3{ stroke:#492AE8; }
+    #g0{ transform:translate(240px,0px); } #g1{ transform:translate(320px,0px); }
+    #g2{ transform:translate(400px,0px); } #g3{ transform:translate(480px,0px); }
+    #band{ fill:none; stroke-width:1.2; stroke-dasharray:3 2; }
+    #srow,#drow{ stroke:#9AA1AB; fill:#5C6370; } #band{ stroke:#9AA1AB; }
+    .br{ fill:none; stroke-width:1; }
+    #srow text,#drow text{ stroke:none; }
+    #dest{ fill:#492AE8; }
+    #c1,#c2,#c3,#c4{ opacity:0; }
+    #c1{ animation:k1 14.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k1{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 2.143%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 4.643%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 22.143%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 24.286%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #c2{ animation:k2 14.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k2{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 24.286%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 26.786%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 42.143%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 44.286%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #c3{ animation:k3 14.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k3{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 44.286%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 46.786%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 66.429%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 68.571%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #c4{ animation:k4 14.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k4{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 68.571%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 71.071%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 95.714%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #cs{ animation:k5 14.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k5{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #win{ animation:k6 14.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k6{ 0.0%{opacity:0;stroke:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 3.571%{opacity:0;stroke:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 7.143%{opacity:1;stroke:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 24.286%{opacity:1;stroke:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 27.857%{opacity:1;stroke:#5C6370;animation-timing-function:cubic-bezier(.4,0,.2,1)} 95.714%{opacity:1;stroke:#5C6370;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;stroke:#5C6370;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #src{ animation:k7 14.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k7{ 0.0%{opacity:0;fill:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 3.571%{opacity:0;fill:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 7.143%{opacity:1;fill:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 24.286%{opacity:1;fill:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 27.857%{opacity:1;fill:#5C6370;animation-timing-function:cubic-bezier(.4,0,.2,1)} 95.714%{opacity:1;fill:#5C6370;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;fill:#5C6370;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #band{ animation:k8 14.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k8{ 0.0%{opacity:0;stroke:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 26.429%{opacity:0;stroke:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 30.0%{opacity:1;stroke:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 44.286%{opacity:1;stroke:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 47.857%{opacity:1;stroke:#9AA1AB;animation-timing-function:cubic-bezier(.4,0,.2,1)} 95.714%{opacity:1;stroke:#9AA1AB;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;stroke:#9AA1AB;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #srow{ animation:k9 14.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k9{ 0.0%{opacity:0;stroke:#492AE8;fill:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 26.429%{opacity:0;stroke:#492AE8;fill:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 30.0%{opacity:1;stroke:#492AE8;fill:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 44.286%{opacity:1;stroke:#492AE8;fill:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 47.857%{opacity:1;stroke:#9AA1AB;fill:#5C6370;animation-timing-function:cubic-bezier(.4,0,.2,1)} 95.714%{opacity:1;stroke:#9AA1AB;fill:#5C6370;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;stroke:#9AA1AB;fill:#5C6370;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #g0{ animation:k10 14.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k10{ 0.0%{opacity:0;transform:translate(0px,0px);stroke:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 45.714%{opacity:0;transform:translate(0px,0px);stroke:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 48.214%{opacity:1;transform:translate(0px,0px);stroke:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 49.286%{opacity:1;transform:translate(0px,0px);stroke:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 57.143%{opacity:1;transform:translate(240px,0px);stroke:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 68.571%{opacity:1;transform:translate(240px,0px);stroke:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 72.143%{opacity:1;transform:translate(240px,0px);stroke:#5C6370;animation-timing-function:cubic-bezier(.4,0,.2,1)} 95.714%{opacity:1;transform:translate(240px,0px);stroke:#5C6370;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;transform:translate(240px,0px);stroke:#5C6370;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #drow{ animation:k11 14.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k11{ 0.0%{opacity:0;stroke:#492AE8;fill:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 56.429%{opacity:0;stroke:#492AE8;fill:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 60.0%{opacity:1;stroke:#492AE8;fill:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 68.571%{opacity:1;stroke:#492AE8;fill:#492AE8;animation-timing-function:cubic-bezier(.4,0,.2,1)} 72.143%{opacity:1;stroke:#9AA1AB;fill:#5C6370;animation-timing-function:cubic-bezier(.4,0,.2,1)} 95.714%{opacity:1;stroke:#9AA1AB;fill:#5C6370;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;stroke:#9AA1AB;fill:#5C6370;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #g1{ animation:k12 14.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k12{ 0.0%{opacity:0;transform:translate(0px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 70.0%{opacity:0;transform:translate(0px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 72.5%{opacity:1;transform:translate(0px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 73.571%{opacity:1;transform:translate(0px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 82.143%{opacity:1;transform:translate(320px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 95.714%{opacity:1;transform:translate(320px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;transform:translate(320px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #g2{ animation:k13 14.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k13{ 0.0%{opacity:0;transform:translate(0px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 70.0%{opacity:0;transform:translate(0px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 72.5%{opacity:1;transform:translate(0px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 73.571%{opacity:1;transform:translate(0px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 82.143%{opacity:1;transform:translate(400px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 95.714%{opacity:1;transform:translate(400px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;transform:translate(400px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #g3{ animation:k14 14.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k14{ 0.0%{opacity:0;transform:translate(0px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 70.0%{opacity:0;transform:translate(0px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 72.5%{opacity:1;transform:translate(0px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 73.571%{opacity:1;transform:translate(0px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 82.143%{opacity:1;transform:translate(480px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 95.714%{opacity:1;transform:translate(480px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;transform:translate(480px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #dest{ animation:k15 14.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k15{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 80.714%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 84.286%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 95.714%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    @media (prefers-reduced-motion:reduce){
+      *{ animation:none !important; }
+    }
+  ]]></style>
+  <text id="c1" class="cap" x="40" y="24"><tspan class="n">1</tspan><tspan dx="10">source 32832, so the window starts at row 64, col 32</tspan></text>
+  <text id="c2" class="cap" x="40" y="24"><tspan class="n">2</tspan><tspan dx="10">sourceRow 512, so window rows are one tile row apart</tspan></text>
+  <text id="c3" class="cap" x="40" y="24"><tspan class="n">3</tspan><tspan dx="10">the rows travel to the batch, destinationRow 256 apart</tspan></text>
+  <text id="c4" class="cap" x="40" y="24"><tspan class="n">4</tspan><tspan dx="10">all four copies run at once, destination = i * 32768</tspan></text>
+  <text id="cs" class="cap" x="40" y="24">a copy reads rows 512 apart and writes them 256 apart</text>
+
+  <text class="lab" x="40" y="48">decoded frames 0 to 3, 256 x 256 u16</text>
+  <text class="lab" x="300" y="48">batch 4 x 128 x 128 u16, on the device</text>
+
+  <rect class="back" x="52" y="52" width="160" height="160" rx="3"/>
+  <rect class="back" x="48" y="56" width="160" height="160" rx="3"/>
+  <rect class="back" x="44" y="60" width="160" height="160" rx="3"/>
+  <rect class="tile" x="40" y="64" width="160" height="160" rx="3"/>
+
+  <rect class="slot" x="300" y="104" width="80" height="80"/>
+  <rect class="slot" x="380" y="104" width="80" height="80"/>
+  <rect class="slot" x="460" y="104" width="80" height="80"/>
+  <rect class="slot" x="540" y="104" width="80" height="80"/>
+
+  <rect id="win" x="60" y="104" width="80" height="80"/>
+  <g id="src">
+    <circle cx="60" cy="104" r="3"/>
+    <text class="ttl" x="60" y="82" fill="inherit">source 32832</text>
+    <text x="60" y="96" style="font:500 11px/1 'IBM Plex Mono',monospace">row 64, col 32</text>
+    <text x="60" y="198" style="font:500 11px/1 'IBM Plex Mono',monospace">128 x 128 window</text>
+  </g>
+
+  <rect id="band" x="40.5" y="104" width="159" height="10"/>
+  <g id="srow">
+    <path class="br" d="M40 232 V238 H200 V232"/>
+    <text x="120" y="254" class="mid" style="font:500 11px/1 'IBM Plex Mono',monospace">sourceRow 512, a tile row</text>
+  </g>
+
+  <g id="g0" class="rows"><rect x="60" y="104" width="80" height="10"/><rect x="60" y="114" width="80" height="10"/><rect x="60" y="124" width="80" height="10"/><rect x="60" y="134" width="80" height="10"/><rect x="60" y="144" width="80" height="10"/><rect x="60" y="154" width="80" height="10"/><rect x="60" y="164" width="80" height="10"/><rect x="60" y="174" width="80" height="10"/></g>
+  <g id="g1" class="rows"><rect x="60" y="104" width="80" height="10"/><rect x="60" y="114" width="80" height="10"/><rect x="60" y="124" width="80" height="10"/><rect x="60" y="134" width="80" height="10"/><rect x="60" y="144" width="80" height="10"/><rect x="60" y="154" width="80" height="10"/><rect x="60" y="164" width="80" height="10"/><rect x="60" y="174" width="80" height="10"/></g>
+  <g id="g2" class="rows"><rect x="60" y="104" width="80" height="10"/><rect x="60" y="114" width="80" height="10"/><rect x="60" y="124" width="80" height="10"/><rect x="60" y="134" width="80" height="10"/><rect x="60" y="144" width="80" height="10"/><rect x="60" y="154" width="80" height="10"/><rect x="60" y="164" width="80" height="10"/><rect x="60" y="174" width="80" height="10"/></g>
+  <g id="g3" class="rows"><rect x="60" y="104" width="80" height="10"/><rect x="60" y="114" width="80" height="10"/><rect x="60" y="124" width="80" height="10"/><rect x="60" y="134" width="80" height="10"/><rect x="60" y="144" width="80" height="10"/><rect x="60" y="154" width="80" height="10"/><rect x="60" y="164" width="80" height="10"/><rect x="60" y="174" width="80" height="10"/></g>
+
+  <g id="drow">
+    <path class="br" d="M300 96 V90 H380 V96"/>
+    <text x="300" y="80" style="font:500 11px/1 'IBM Plex Mono',monospace">destinationRow 256, a window row</text>
+  </g>
+
+  <g id="dest">
+    <text class="ttl mid" x="340" y="202">0</text>
+    <text class="ttl mid" x="420" y="202">32768</text>
+    <text class="ttl mid" x="500" y="202">65536</text>
+    <text class="ttl mid" x="580" y="202">98304</text>
+    <text class="mid" x="460" y="220" style="font:500 11px/1 'IBM Plex Mono',monospace">destination = i * 32768</text>
+  </g>
+</svg>

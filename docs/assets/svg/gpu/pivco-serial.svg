@@ -1,0 +1,162 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 200" width="640" height="200" role="img" aria-label="Plain Huffman glues the codes into one string, 01001101000. A single reader walks it one bit at a time and knows a code only when it reaches the code's last bit, so the fourth symbol can only be found after the three codes before it.">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+    svg{ background:transparent; font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace; }
+    text{ font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace; }
+    .cap{ fill:#111111; font-size:12.5px; font-weight:500; }
+    .num{ fill:#492AE8; font-weight:600; }
+    .lab{ fill:#5C6370; font-size:11px; font-weight:500; }
+    .sym{ fill:#111111; font-size:15px; font-weight:500; text-anchor:middle; }
+    .bit{ fill:#111111; font-size:14px; font-weight:500; text-anchor:middle; }
+    .tag{ fill:#492AE8; font-size:11px; font-weight:500; text-anchor:middle; }
+    .note{ fill:#111111; font-size:11.5px; font-weight:500; }
+    g, rect, text, circle, path, line{ transform-box:fill-box; transform-origin:center; }
+    .hs1{animation:hs1 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs1{ 0%{opacity:0} 2.857%{opacity:1} 16.429%{opacity:1} 18.571%{opacity:0} 100%{opacity:0} }
+    .hs2{animation:hs2 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs2{ 0%{opacity:0} 18.571%{opacity:0} 21.429%{opacity:1} 63.571%{opacity:1} 65.714%{opacity:0} 100%{opacity:0} }
+    .hs3{animation:hs3 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs3{ 0%{opacity:0} 65.714%{opacity:0} 68.571%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    .hs4{animation:hs4 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs4{ 0%{opacity:0} 100%{opacity:0} }
+    .hs5{animation:hs5 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs5{ 0%{opacity:0;transform:translate(0px,0px)} 21.429%{opacity:0;transform:translate(0px,0px)} 23.571%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs6{animation:hs6 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs6{ 0%{stroke:#492AE8} 25%{stroke:#492AE8} 27.857%{stroke:#9AA1AB} 99.857%{stroke:#9AA1AB} 100%{stroke:#492AE8} }
+    .hs7{animation:hs7 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs7{ 0%{opacity:0;transform:translate(0px,0px)} 28.571%{opacity:0;transform:translate(0px,0px)} 30.714%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs8{animation:hs8 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs8{ 0%{stroke:#492AE8} 32.143%{stroke:#492AE8} 35%{stroke:#9AA1AB} 99.857%{stroke:#9AA1AB} 100%{stroke:#492AE8} }
+    .hs9{animation:hs9 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs9{ 0%{opacity:0;transform:translate(0px,0px)} 32.143%{opacity:0;transform:translate(0px,0px)} 34.286%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs10{animation:hs10 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs10{ 0%{stroke:#492AE8} 35.714%{stroke:#492AE8} 38.571%{stroke:#9AA1AB} 99.857%{stroke:#9AA1AB} 100%{stroke:#492AE8} }
+    .hs11{animation:hs11 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs11{ 0%{opacity:0;transform:translate(0px,0px)} 39.286%{opacity:0;transform:translate(0px,0px)} 41.429%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs12{animation:hs12 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs12{ 0%{stroke:#492AE8} 42.857%{stroke:#492AE8} 45.714%{stroke:#9AA1AB} 67.143%{stroke:#9AA1AB} 70%{stroke:#F7CC09} 99.857%{stroke:#F7CC09} 100%{stroke:#492AE8} }
+    .hs13{animation:hs13 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs13{ 0%{opacity:0;transform:translate(0px,0px)} 42.857%{opacity:0;transform:translate(0px,0px)} 45%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs14{animation:hs14 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs14{ 0%{stroke:#492AE8} 46.429%{stroke:#492AE8} 49.286%{stroke:#9AA1AB} 99.857%{stroke:#9AA1AB} 100%{stroke:#492AE8} }
+    .hs15{animation:hs15 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs15{ 0%{opacity:0;transform:translate(0px,0px)} 50%{opacity:0;transform:translate(0px,0px)} 52.143%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs16{animation:hs16 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs16{ 0%{stroke:#492AE8} 53.571%{stroke:#492AE8} 56.429%{stroke:#9AA1AB} 99.857%{stroke:#9AA1AB} 100%{stroke:#492AE8} }
+    .hs17{animation:hs17 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs17{ 0%{opacity:0;transform:translate(0px,0px)} 53.571%{opacity:0;transform:translate(0px,0px)} 55.714%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs18{animation:hs18 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs18{ 0%{stroke:#492AE8} 57.143%{stroke:#492AE8} 60%{stroke:#9AA1AB} 99.857%{stroke:#9AA1AB} 100%{stroke:#492AE8} }
+    .hs19{animation:hs19 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs19{ 0%{opacity:0;transform:translate(0px,0px)} 57.143%{opacity:0;transform:translate(0px,0px)} 59.286%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs20{animation:hs20 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs20{ 0%{stroke:#492AE8} 60.714%{stroke:#492AE8} 63.571%{stroke:#9AA1AB} 99.857%{stroke:#9AA1AB} 100%{stroke:#492AE8} }
+    .hs21{animation:hs21 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs21{ 0%{opacity:0;transform:translate(-400px,0px)} 18.571%{opacity:0;transform:translate(-400px,0px)} 21.429%{opacity:1;transform:translate(-400px,0px)} 22.857%{opacity:1;transform:translate(-400px,0px)} 25%{opacity:1;transform:translate(-360px,0px)} 26.429%{opacity:1;transform:translate(-360px,0px)} 28.571%{opacity:1;transform:translate(-320px,0px)} 30%{opacity:1;transform:translate(-320px,0px)} 32.143%{opacity:1;transform:translate(-280px,0px)} 33.571%{opacity:1;transform:translate(-280px,0px)} 35.714%{opacity:1;transform:translate(-240px,0px)} 37.143%{opacity:1;transform:translate(-240px,0px)} 39.286%{opacity:1;transform:translate(-200px,0px)} 40.714%{opacity:1;transform:translate(-200px,0px)} 42.857%{opacity:1;transform:translate(-160px,0px)} 44.286%{opacity:1;transform:translate(-160px,0px)} 46.429%{opacity:1;transform:translate(-120px,0px)} 47.857%{opacity:1;transform:translate(-120px,0px)} 50%{opacity:1;transform:translate(-80px,0px)} 51.429%{opacity:1;transform:translate(-80px,0px)} 53.571%{opacity:1;transform:translate(-40px,0px)} 55%{opacity:1;transform:translate(-40px,0px)} 57.143%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs22{animation:hs22 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs22{ 0%{fill:#492AE8} 61.429%{fill:#492AE8} 64.286%{fill:#9AA1AB} 99.857%{fill:#9AA1AB} 100%{fill:#492AE8} }
+    .hs23{animation:hs23 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs23{ 0%{opacity:0} 3.571%{opacity:0} 6.429%{opacity:1} 44.286%{opacity:1} 46.429%{opacity:0} 100%{opacity:0} }
+    .hs24{animation:hs24 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs24{ 0%{opacity:0;transform:translate(0px,0px)} 25.714%{opacity:0;transform:translate(0px,0px)} 28.214%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs25{animation:hs25 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs25{ 0%{opacity:0;transform:translate(-4px,-39px)} 21.429%{opacity:0;transform:translate(-4px,-39px)} 23.214%{opacity:1;transform:translate(-4px,-39px)} 23.571%{opacity:1;transform:translate(-4px,-39px)} 27.5%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs26{animation:hs26 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs26{ 0%{opacity:0;transform:translate(0px,0px)} 32.857%{opacity:0;transform:translate(0px,0px)} 35.357%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs27{animation:hs27 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs27{ 0%{opacity:0;transform:translate(6px,-39px)} 28.571%{opacity:0;transform:translate(6px,-39px)} 30.357%{opacity:1;transform:translate(6px,-39px)} 30.714%{opacity:1;transform:translate(6px,-39px)} 34.643%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs28{animation:hs28 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs28{ 0%{opacity:0;transform:translate(0px,0px)} 36.429%{opacity:0;transform:translate(0px,0px)} 38.929%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs29{animation:hs29 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs29{ 0%{opacity:0;transform:translate(16px,-39px)} 32.143%{opacity:0;transform:translate(16px,-39px)} 33.929%{opacity:1;transform:translate(16px,-39px)} 34.286%{opacity:1;transform:translate(16px,-39px)} 38.214%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs30{animation:hs30 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs30{ 0%{opacity:0;transform:translate(0px,0px)} 43.571%{opacity:0;transform:translate(0px,0px)} 46.071%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs31{animation:hs31 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs31{ 0%{opacity:0;transform:translate(26px,-39px)} 39.286%{opacity:0;transform:translate(26px,-39px)} 41.071%{opacity:1;transform:translate(26px,-39px)} 41.429%{opacity:1;transform:translate(26px,-39px)} 45.357%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs32{animation:hs32 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs32{ 0%{opacity:0;transform:translate(0px,0px)} 47.143%{opacity:0;transform:translate(0px,0px)} 49.643%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs33{animation:hs33 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs33{ 0%{opacity:0;transform:translate(36px,-39px)} 42.857%{opacity:0;transform:translate(36px,-39px)} 44.643%{opacity:1;transform:translate(36px,-39px)} 45%{opacity:1;transform:translate(36px,-39px)} 48.929%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs34{animation:hs34 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs34{ 0%{opacity:0;transform:translate(0px,0px)} 54.286%{opacity:0;transform:translate(0px,0px)} 56.786%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs35{animation:hs35 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs35{ 0%{opacity:0;transform:translate(46px,-39px)} 50%{opacity:0;transform:translate(46px,-39px)} 51.786%{opacity:1;transform:translate(46px,-39px)} 52.143%{opacity:1;transform:translate(46px,-39px)} 56.071%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs36{animation:hs36 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs36{ 0%{opacity:0;transform:translate(0px,0px)} 57.857%{opacity:0;transform:translate(0px,0px)} 60.357%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs37{animation:hs37 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs37{ 0%{opacity:0;transform:translate(56px,-39px)} 53.571%{opacity:0;transform:translate(56px,-39px)} 55.357%{opacity:1;transform:translate(56px,-39px)} 55.714%{opacity:1;transform:translate(56px,-39px)} 59.643%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs38{animation:hs38 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs38{ 0%{opacity:0;transform:translate(0px,0px)} 61.429%{opacity:0;transform:translate(0px,0px)} 63.929%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs39{animation:hs39 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs39{ 0%{opacity:0;transform:translate(46px,-39px)} 57.143%{opacity:0;transform:translate(46px,-39px)} 58.929%{opacity:1;transform:translate(46px,-39px)} 59.286%{opacity:1;transform:translate(46px,-39px)} 63.214%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs40{animation:hs40 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs40{ 0%{opacity:0;transform:translate(0px,-4px)} 67.143%{opacity:0;transform:translate(0px,-4px)} 70.357%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .hs41{animation:hs41 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes hs41{ 0%{opacity:0;transform:translate(0px,0px)} 70%{opacity:0;transform:translate(0px,0px)} 73.214%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    @media (prefers-reduced-motion: reduce){ *{ animation:none !important; } }
+  ]]></style>
+  <text class="cap hs1" x="16" y="22" style="opacity:0"><tspan class="num">1</tspan>  eight codes glued into 11 bits, so where does the 4th symbol start?</text>
+  <text class="cap hs2" x="16" y="22" style="opacity:0"><tspan class="num">2</tspan>  one reader, one bit at a time, so a code is known at its last bit</text>
+  <text class="cap hs3" x="16" y="22" style="opacity:0"><tspan class="num">3</tspan>  the 4th symbol starts only once the 3 codes before it are read</text>
+  <text class="cap hs4" x="16" y="22">a code is known only at its last bit, so each symbol waits for all before it</text>
+  <text class="lab" x="16" y="80">bits</text>
+  <rect x="100" y="60" width="36" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <text class="bit" x="118.0" y="80">0</text>
+  <rect x="140" y="60" width="36" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <text class="bit" x="158.0" y="80">1</text>
+  <rect x="180" y="60" width="36" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <text class="bit" x="198.0" y="80">0</text>
+  <rect x="220" y="60" width="36" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <text class="bit" x="238.0" y="80">0</text>
+  <rect x="260" y="60" width="36" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <text class="bit" x="278.0" y="80">1</text>
+  <rect x="300" y="60" width="36" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <text class="bit" x="318.0" y="80">1</text>
+  <rect x="340" y="60" width="36" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <text class="bit" x="358.0" y="80">0</text>
+  <rect x="380" y="60" width="36" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <text class="bit" x="398.0" y="80">1</text>
+  <rect x="420" y="60" width="36" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <text class="bit" x="438.0" y="80">0</text>
+  <rect x="460" y="60" width="36" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <text class="bit" x="478.0" y="80">0</text>
+  <rect x="500" y="60" width="36" height="30" rx="3" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="1"/>
+  <text class="bit" x="518.0" y="80">0</text>
+  <g class="hs5"><rect class="hs6" x="99" y="57" width="38" height="36" rx="4" fill="none" stroke="#9AA1AB" stroke-width="1.5"/></g>
+  <g class="hs7"><rect class="hs8" x="139" y="57" width="78" height="36" rx="4" fill="none" stroke="#9AA1AB" stroke-width="1.5"/></g>
+  <g class="hs9"><rect class="hs10" x="219" y="57" width="38" height="36" rx="4" fill="none" stroke="#9AA1AB" stroke-width="1.5"/></g>
+  <g class="hs11"><rect class="hs12" x="259" y="57" width="78" height="36" rx="4" fill="none" stroke="#F7CC09" stroke-width="1.5"/></g>
+  <g class="hs13"><rect class="hs14" x="339" y="57" width="38" height="36" rx="4" fill="none" stroke="#9AA1AB" stroke-width="1.5"/></g>
+  <g class="hs15"><rect class="hs16" x="379" y="57" width="78" height="36" rx="4" fill="none" stroke="#9AA1AB" stroke-width="1.5"/></g>
+  <g class="hs17"><rect class="hs18" x="459" y="57" width="38" height="36" rx="4" fill="none" stroke="#9AA1AB" stroke-width="1.5"/></g>
+  <g class="hs19"><rect class="hs20" x="499" y="57" width="38" height="36" rx="4" fill="none" stroke="#9AA1AB" stroke-width="1.5"/></g>
+  <g class="hs21"><path class="hs22" d="M512.0,47 L524.0,47 L518.0,55 z" fill="#9AA1AB"/><text class="tag" x="518.0" y="42">reader</text></g>
+  <text class="lab" x="16" y="151">out</text>
+  <rect x="100" y="130" width="44" height="30" rx="3" fill="#F3F3F1" stroke="none" stroke-width="1"/>
+  <rect x="150" y="130" width="44" height="30" rx="3" fill="#F3F3F1" stroke="none" stroke-width="1"/>
+  <rect x="200" y="130" width="44" height="30" rx="3" fill="#F3F3F1" stroke="none" stroke-width="1"/>
+  <rect x="250" y="130" width="44" height="30" rx="3" fill="#F3F3F1" stroke="none" stroke-width="1"/>
+  <rect x="300" y="130" width="44" height="30" rx="3" fill="#F3F3F1" stroke="none" stroke-width="1"/>
+  <rect x="350" y="130" width="44" height="30" rx="3" fill="#F3F3F1" stroke="none" stroke-width="1"/>
+  <rect x="400" y="130" width="44" height="30" rx="3" fill="#F3F3F1" stroke="none" stroke-width="1"/>
+  <rect x="450" y="130" width="44" height="30" rx="3" fill="#F3F3F1" stroke="none" stroke-width="1"/>
+  <g class="hs23" style="opacity:0"><rect x="250" y="130" width="44" height="30" rx="3" fill="#FEF6D3" stroke="#F7CC09" stroke-width="1"/><text class="sym" x="272.0" y="151" style="fill:#7A5D00">?</text></g>
+  <g class="hs24"><rect x="100" y="130" width="44" height="30" rx="3" fill="#C4FFC2" stroke="none" stroke-width="1"/></g>
+  <g class="hs25"><text class="sym" x="122.0" y="151">a</text></g>
+  <g class="hs26"><rect x="150" y="130" width="44" height="30" rx="3" fill="#C4FFC2" stroke="none" stroke-width="1"/></g>
+  <g class="hs27"><text class="sym" x="172.0" y="151">b</text></g>
+  <g class="hs28"><rect x="200" y="130" width="44" height="30" rx="3" fill="#C4FFC2" stroke="none" stroke-width="1"/></g>
+  <g class="hs29"><text class="sym" x="222.0" y="151">a</text></g>
+  <g class="hs30"><rect x="250" y="130" width="44" height="30" rx="3" fill="#C4FFC2" stroke="none" stroke-width="1"/></g>
+  <g class="hs31"><text class="sym" x="272.0" y="151">c</text></g>
+  <g class="hs32"><rect x="300" y="130" width="44" height="30" rx="3" fill="#C4FFC2" stroke="none" stroke-width="1"/></g>
+  <g class="hs33"><text class="sym" x="322.0" y="151">a</text></g>
+  <g class="hs34"><rect x="350" y="130" width="44" height="30" rx="3" fill="#C4FFC2" stroke="none" stroke-width="1"/></g>
+  <g class="hs35"><text class="sym" x="372.0" y="151">b</text></g>
+  <g class="hs36"><rect x="400" y="130" width="44" height="30" rx="3" fill="#C4FFC2" stroke="none" stroke-width="1"/></g>
+  <g class="hs37"><text class="sym" x="422.0" y="151">a</text></g>
+  <g class="hs38"><rect x="450" y="130" width="44" height="30" rx="3" fill="#C4FFC2" stroke="none" stroke-width="1"/></g>
+  <g class="hs39"><text class="sym" x="472.0" y="151">a</text></g>
+  <g class="hs40"><path d="M100,100 L100,105 L256,105 L256,100" fill="none" stroke="#F7CC09" stroke-width="1.5"/><text class="lab" x="178.0" y="118" style="fill:#7A5D00;text-anchor:middle">decode these first</text></g>
+  <g class="hs41"><text class="note" x="100" y="186">11 bits, one reader, every code after the one before it</text></g>
+</svg>

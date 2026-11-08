@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 104 104" role="img" aria-label="rumi">
+  <g stroke="#ffffff" stroke-width="3" stroke-linejoin="round">
+    <polygon fill="#7457ff" points="0,0 47,0 43,38 0,32"/>
+    <polygon fill="#ffd54a" points="47,0 100,0 100,55 70,50 43,38"/>
+    <polygon fill="#91f2bc" points="70,50 100,55 100,100 58,100 50,72"/>
+    <polygon fill="#ff7a4f" points="0,32 43,38 70,50 50,72 58,100 0,100"/>
+  </g>
+</svg>

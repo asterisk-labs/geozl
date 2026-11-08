@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 390" width="640" height="390" role="img" aria-label="Step 1 of 6, a row of an int16 elevation tile, with one hole"><style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap');
+svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
+.sv-lab{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.sv-ink{fill:#111111;font:500 11px "IBM Plex Mono",monospace;text-anchor:middle}
+.sv-ttl{fill:#492AE8;font:600 11px "IBM Plex Mono",monospace}
+.sv-green{fill:#1D7A3E}
+.sv-num{fill:#111111;font:500 12px "IBM Plex Mono",monospace;text-anchor:middle}
+.sv-cap{fill:#111111;font:500 13px "IBM Plex Mono",monospace}
+.sv-n{fill:#492AE8;font-weight:600}
+.sv-cell{fill:#F3F3F1;stroke:#9AA1AB;stroke-width:1}
+.sv-hole{fill:#FEF6D3;stroke:#F7CC09}
+.sv-holet{fill:#7A5D00}
+.sv-node{fill:#FFFFFF;stroke:#9AA1AB;stroke-width:1}
+.sv-link{fill:none;stroke:#9AA1AB;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}
+.sv-frame{fill:none;stroke:#492AE8;stroke-width:1.2;stroke-dasharray:4 3}
+.sv-bar{fill:#C4FFC2;stroke:#1D7A3E;stroke-width:1}
+.sv-hl{fill:none;stroke:#492AE8;stroke-width:1.6}
+.new{animation:in .45s cubic-bezier(.4,0,.2,1) both}
+@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.new{animation:none}}]]></style><text class="sv-cap" data-only="1" x="20" y="28"><tspan class="sv-n">1</tspan>  a row of an int16 elevation tile, with one hole</text><text class="sv-lab" x="20" y="62">codec</text><text class="sv-lab" x="140" y="62">one row of the tile</text><text class="sv-lab" x="452" y="62">streams of their own</text><g><rect class="sv-node" x="20" y="80" width="104" height="24" rx="12"/><text class="sv-ink" x="72" y="96">tile</text><rect class="sv-cell" x="140" y="79" width="44" height="26" rx="3"/><text class="sv-num" x="162.0" y="96">412</text><rect class="sv-cell" x="188" y="79" width="44" height="26" rx="3"/><text class="sv-num" x="210.0" y="96">415</text><rect class="sv-cell sv-hole" x="236" y="79" width="44" height="26" rx="3"/><text class="sv-num sv-holet" x="258.0" y="96" style="font-size:10px">-32768</text><rect class="sv-cell" x="284" y="79" width="44" height="26" rx="3"/><text class="sv-num" x="306.0" y="96">418</text><rect class="sv-cell" x="332" y="79" width="44" height="26" rx="3"/><text class="sv-num" x="354.0" y="96">421</text><rect class="sv-cell" x="380" y="79" width="44" height="26" rx="3"/><text class="sv-num" x="402.0" y="96">423</text></g><rect class="sv-hl" data-only="1" x="17" y="77" width="110" height="30" rx="15"/></svg>

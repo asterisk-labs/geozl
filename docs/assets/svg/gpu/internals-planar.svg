@@ -1,0 +1,627 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 186" width="640" height="186" role="img" aria-label="Undoing planar prediction is a two-dimensional prefix sum. A 3 by 16 grid of residuals, columns 0 to 7 owned by thread t0 and 8 to 15 by t1. Both threads add up their own eight columns along each row at the same time, a wave prefix sum hands the total of t0 to t1, which adds it to its values, and running sums down the columns turn every cell into its sample.">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+    svg{
+      --ink:#111111; --ink-2:#5C6370; --faint:#9AA1AB; --hair:#E6E6E3; --tile:#F3F3F1;
+      --indigo:#492AE8; --indigo-t:#ECE9FD; --yellow:#F7CC09; --yellow-t:#FEF6D3; --yellow-x:#7A5D00;
+      --mint:#C4FFC2; --green:#1D7A3E;
+      --e:cubic-bezier(.4,0,.2,1);
+      background:transparent;
+      font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+    text{ font-family:"IBM Plex Mono",ui-monospace,monospace; }
+    .cap{ fill:var(--ink); font-size:12.5px; font-weight:500; }
+    .capn{ fill:var(--indigo); font-size:12.5px; font-weight:600; }
+    .lab{ fill:var(--ink-2); font-size:11px; font-weight:500; letter-spacing:.02em; }
+    .dim{ fill:var(--faint); font-size:11px; font-weight:500; }
+    .num{ fill:var(--ink); font-size:11px; font-weight:500; }
+    .tag{ fill:#FFFFFF; stroke:var(--indigo); stroke-width:1; }
+    .tagt{ fill:var(--indigo); font-size:11px; font-weight:500; }
+    .anim{ transform-box:fill-box; }
+    #cap0{ opacity:0; animation:k1 16.0s var(--e) infinite; }
+    @keyframes k1{ 0%{opacity:0;opacity:0} 1.875%{opacity:1} 14.375%{opacity:1} 16.25%{opacity:0} 100%{opacity:0} }
+    #cap1{ opacity:0; animation:k2 16.0s var(--e) infinite; }
+    @keyframes k2{ 0%{opacity:0} 16.25%{opacity:0} 18.125%{opacity:1} 38.125%{opacity:1} 40%{opacity:0} 100%{opacity:0} }
+    #cap2{ opacity:0; animation:k3 16.0s var(--e) infinite; }
+    @keyframes k3{ 0%{opacity:0} 40%{opacity:0} 41.875%{opacity:1} 58.125%{opacity:1} 60%{opacity:0} 100%{opacity:0} }
+    #cap3{ opacity:0; animation:k4 16.0s var(--e) infinite; }
+    @keyframes k4{ 0%{opacity:0} 60%{opacity:0} 61.875%{opacity:1} 79.375%{opacity:1} 81.25%{opacity:0} 100%{opacity:0} }
+    #capS{ opacity:1; animation:k5 16.0s var(--e) infinite; }
+    @keyframes k5{ 0%{opacity:0} 81.25%{opacity:0} 83.125%{opacity:1} 96.25%{opacity:1} 100%{opacity:0} }
+    .cell{ fill:#FFFFFF; stroke:var(--hair); stroke-width:1; }
+    .brk{ stroke:var(--indigo); stroke-width:1; fill:none; }
+    .sweep{ fill:var(--indigo); fill-opacity:.10; stroke:var(--indigo); stroke-width:1; }
+    .chip{ fill:var(--indigo); }
+    .chipt{ fill:#FFFFFF; font-size:11px; font-weight:600; }
+    #sw0{ opacity:0; animation:k6 16.0s var(--e) infinite; }
+    @keyframes k6{ 0%{opacity:0;transform:translate(0,0);animation-timing-function:var(--e)} 17.5%{opacity:0;transform:translate(0,0)} 19.375%{opacity:1;transform:translate(0,0);animation-timing-function:linear} 32.5%{opacity:1;transform:translate(224px,0);animation-timing-function:var(--e)} 35%{opacity:0} 100%{opacity:0;transform:translate(224px,0)} }
+    #sw1{ opacity:0; animation:k7 16.0s var(--e) infinite; }
+    @keyframes k7{ 0%{opacity:0;transform:translate(0,0);animation-timing-function:var(--e)} 17.5%{opacity:0;transform:translate(0,0)} 19.375%{opacity:1;transform:translate(0,0);animation-timing-function:linear} 32.5%{opacity:1;transform:translate(224px,0);animation-timing-function:var(--e)} 35%{opacity:0} 100%{opacity:0;transform:translate(224px,0)} }
+    #swr{ opacity:0; animation:k8 16.0s var(--e) infinite; }
+    @keyframes k8{ 0%{opacity:0;transform:translate(0,0)} 61.25%{opacity:0;transform:translate(0,0)} 63.125%{opacity:1;transform:translate(0,0)} 66.25%{transform:translate(0,0)} 69.375%{transform:translate(0,28px)} 71.875%{transform:translate(0,28px)} 75%{transform:translate(0,56px)} 76.875%{opacity:1} 79.375%{opacity:0} 100%{opacity:0;transform:translate(0,56px)} }
+    #n0_0_0{ opacity:1;fill:var(--ink); animation:k9 16.0s var(--e) infinite; }
+    @keyframes k9{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 96.25%{opacity:1} 100%{opacity:0} }
+    #cl0_0{ fill:var(--mint); animation:k10 16.0s var(--e) infinite; }
+    @keyframes k10{ 0%{fill:#FFFFFF} 65.625%{fill:#FFFFFF} 68.125%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n0_1_0{ opacity:0;fill:var(--ink); animation:k11 16.0s var(--e) infinite; }
+    @keyframes k11{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 21.25%{opacity:1} 22.5%{opacity:0} 100%{opacity:0} }
+    #n0_1_1{ opacity:1;fill:var(--ink); animation:k12 16.0s var(--e) infinite; }
+    @keyframes k12{ 0%{opacity:0;fill:var(--indigo)} 22.5%{opacity:0} 23.75%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl0_1{ fill:var(--mint); animation:k13 16.0s var(--e) infinite; }
+    @keyframes k13{ 0%{fill:#FFFFFF} 65.625%{fill:#FFFFFF} 68.125%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n0_2_0{ opacity:0;fill:var(--ink); animation:k14 16.0s var(--e) infinite; }
+    @keyframes k14{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 23.125%{opacity:1} 24.375%{opacity:0} 100%{opacity:0} }
+    #n0_2_1{ opacity:1;fill:var(--ink); animation:k15 16.0s var(--e) infinite; }
+    @keyframes k15{ 0%{opacity:0;fill:var(--indigo)} 24.375%{opacity:0} 25.625%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl0_2{ fill:var(--mint); animation:k16 16.0s var(--e) infinite; }
+    @keyframes k16{ 0%{fill:#FFFFFF} 65.625%{fill:#FFFFFF} 68.125%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n0_3_0{ opacity:0;fill:var(--ink); animation:k17 16.0s var(--e) infinite; }
+    @keyframes k17{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 25%{opacity:1} 26.25%{opacity:0} 100%{opacity:0} }
+    #n0_3_1{ opacity:1;fill:var(--ink); animation:k18 16.0s var(--e) infinite; }
+    @keyframes k18{ 0%{opacity:0;fill:var(--indigo)} 26.25%{opacity:0} 27.5%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl0_3{ fill:var(--mint); animation:k19 16.0s var(--e) infinite; }
+    @keyframes k19{ 0%{fill:#FFFFFF} 65.625%{fill:#FFFFFF} 68.125%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n0_4_0{ opacity:0;fill:var(--ink); animation:k20 16.0s var(--e) infinite; }
+    @keyframes k20{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 26.875%{opacity:1} 28.125%{opacity:0} 100%{opacity:0} }
+    #n0_4_1{ opacity:1;fill:var(--ink); animation:k21 16.0s var(--e) infinite; }
+    @keyframes k21{ 0%{opacity:0;fill:var(--indigo)} 28.125%{opacity:0} 29.375%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl0_4{ fill:var(--mint); animation:k22 16.0s var(--e) infinite; }
+    @keyframes k22{ 0%{fill:#FFFFFF} 65.625%{fill:#FFFFFF} 68.125%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n0_5_0{ opacity:0;fill:var(--ink); animation:k23 16.0s var(--e) infinite; }
+    @keyframes k23{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 28.75%{opacity:1} 30%{opacity:0} 100%{opacity:0} }
+    #n0_5_1{ opacity:1;fill:var(--ink); animation:k24 16.0s var(--e) infinite; }
+    @keyframes k24{ 0%{opacity:0;fill:var(--indigo)} 30%{opacity:0} 31.25%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl0_5{ fill:var(--mint); animation:k25 16.0s var(--e) infinite; }
+    @keyframes k25{ 0%{fill:#FFFFFF} 65.625%{fill:#FFFFFF} 68.125%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n0_6_0{ opacity:0;fill:var(--ink); animation:k26 16.0s var(--e) infinite; }
+    @keyframes k26{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 30.625%{opacity:1} 31.875%{opacity:0} 100%{opacity:0} }
+    #n0_6_1{ opacity:1;fill:var(--ink); animation:k27 16.0s var(--e) infinite; }
+    @keyframes k27{ 0%{opacity:0;fill:var(--indigo)} 31.875%{opacity:0} 33.125%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl0_6{ fill:var(--mint); animation:k28 16.0s var(--e) infinite; }
+    @keyframes k28{ 0%{fill:#FFFFFF} 65.625%{fill:#FFFFFF} 68.125%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n0_7_0{ opacity:0;fill:var(--ink); animation:k29 16.0s var(--e) infinite; }
+    @keyframes k29{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 32.5%{opacity:1} 33.75%{opacity:0} 100%{opacity:0} }
+    #n0_7_1{ opacity:1;fill:var(--ink); animation:k30 16.0s var(--e) infinite; }
+    @keyframes k30{ 0%{opacity:0;fill:var(--indigo)} 33.75%{opacity:0} 35%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl0_7{ fill:var(--mint); animation:k31 16.0s var(--e) infinite; }
+    @keyframes k31{ 0%{fill:#FFFFFF} 65.625%{fill:#FFFFFF} 68.125%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n0_8_0{ opacity:0;fill:var(--ink); animation:k32 16.0s var(--e) infinite; }
+    @keyframes k32{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0} }
+    #n0_8_1{ opacity:1;fill:var(--ink); animation:k33 16.0s var(--e) infinite; }
+    @keyframes k33{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl0_8{ fill:var(--mint); animation:k34 16.0s var(--e) infinite; }
+    @keyframes k34{ 0%{fill:#FFFFFF} 65.625%{fill:#FFFFFF} 68.125%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n0_9_0{ opacity:0;fill:var(--ink); animation:k35 16.0s var(--e) infinite; }
+    @keyframes k35{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0} }
+    #n0_9_1{ opacity:1;fill:var(--ink); animation:k36 16.0s var(--e) infinite; }
+    @keyframes k36{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl0_9{ fill:var(--mint); animation:k37 16.0s var(--e) infinite; }
+    @keyframes k37{ 0%{fill:#FFFFFF} 65.625%{fill:#FFFFFF} 68.125%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n0_10_0{ opacity:0;fill:var(--ink); animation:k38 16.0s var(--e) infinite; }
+    @keyframes k38{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 23.125%{opacity:1} 24.375%{opacity:0} 100%{opacity:0} }
+    #n0_10_1{ opacity:0;fill:var(--ink); animation:k39 16.0s var(--e) infinite; }
+    @keyframes k39{ 0%{opacity:0;fill:var(--indigo)} 24.375%{opacity:0} 25.625%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n0_10_2{ opacity:1;fill:var(--ink); animation:k40 16.0s var(--e) infinite; }
+    @keyframes k40{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl0_10{ fill:var(--mint); animation:k41 16.0s var(--e) infinite; }
+    @keyframes k41{ 0%{fill:#FFFFFF} 65.625%{fill:#FFFFFF} 68.125%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n0_11_0{ opacity:0;fill:var(--ink); animation:k42 16.0s var(--e) infinite; }
+    @keyframes k42{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 25%{opacity:1} 26.25%{opacity:0} 100%{opacity:0} }
+    #n0_11_1{ opacity:0;fill:var(--ink); animation:k43 16.0s var(--e) infinite; }
+    @keyframes k43{ 0%{opacity:0;fill:var(--indigo)} 26.25%{opacity:0} 27.5%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n0_11_2{ opacity:1;fill:var(--ink); animation:k44 16.0s var(--e) infinite; }
+    @keyframes k44{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl0_11{ fill:var(--mint); animation:k45 16.0s var(--e) infinite; }
+    @keyframes k45{ 0%{fill:#FFFFFF} 65.625%{fill:#FFFFFF} 68.125%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n0_12_0{ opacity:0;fill:var(--ink); animation:k46 16.0s var(--e) infinite; }
+    @keyframes k46{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 26.875%{opacity:1} 28.125%{opacity:0} 100%{opacity:0} }
+    #n0_12_1{ opacity:0;fill:var(--ink); animation:k47 16.0s var(--e) infinite; }
+    @keyframes k47{ 0%{opacity:0;fill:var(--indigo)} 28.125%{opacity:0} 29.375%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n0_12_2{ opacity:1;fill:var(--ink); animation:k48 16.0s var(--e) infinite; }
+    @keyframes k48{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl0_12{ fill:var(--mint); animation:k49 16.0s var(--e) infinite; }
+    @keyframes k49{ 0%{fill:#FFFFFF} 65.625%{fill:#FFFFFF} 68.125%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n0_13_0{ opacity:0;fill:var(--ink); animation:k50 16.0s var(--e) infinite; }
+    @keyframes k50{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 28.75%{opacity:1} 30%{opacity:0} 100%{opacity:0} }
+    #n0_13_1{ opacity:0;fill:var(--ink); animation:k51 16.0s var(--e) infinite; }
+    @keyframes k51{ 0%{opacity:0;fill:var(--indigo)} 30%{opacity:0} 31.25%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n0_13_2{ opacity:1;fill:var(--ink); animation:k52 16.0s var(--e) infinite; }
+    @keyframes k52{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl0_13{ fill:var(--mint); animation:k53 16.0s var(--e) infinite; }
+    @keyframes k53{ 0%{fill:#FFFFFF} 65.625%{fill:#FFFFFF} 68.125%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n0_14_0{ opacity:0;fill:var(--ink); animation:k54 16.0s var(--e) infinite; }
+    @keyframes k54{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 30.625%{opacity:1} 31.875%{opacity:0} 100%{opacity:0} }
+    #n0_14_1{ opacity:0;fill:var(--ink); animation:k55 16.0s var(--e) infinite; }
+    @keyframes k55{ 0%{opacity:0;fill:var(--indigo)} 31.875%{opacity:0} 33.125%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n0_14_2{ opacity:1;fill:var(--ink); animation:k56 16.0s var(--e) infinite; }
+    @keyframes k56{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl0_14{ fill:var(--mint); animation:k57 16.0s var(--e) infinite; }
+    @keyframes k57{ 0%{fill:#FFFFFF} 65.625%{fill:#FFFFFF} 68.125%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n0_15_0{ opacity:0;fill:var(--ink); animation:k58 16.0s var(--e) infinite; }
+    @keyframes k58{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 32.5%{opacity:1} 33.75%{opacity:0} 100%{opacity:0} }
+    #n0_15_1{ opacity:0;fill:var(--ink); animation:k59 16.0s var(--e) infinite; }
+    @keyframes k59{ 0%{opacity:0;fill:var(--indigo)} 33.75%{opacity:0} 35%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n0_15_2{ opacity:1;fill:var(--ink); animation:k60 16.0s var(--e) infinite; }
+    @keyframes k60{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl0_15{ fill:var(--mint); animation:k61 16.0s var(--e) infinite; }
+    @keyframes k61{ 0%{fill:#FFFFFF} 65.625%{fill:#FFFFFF} 68.125%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n1_0_0{ opacity:0;fill:var(--ink); animation:k62 16.0s var(--e) infinite; }
+    @keyframes k62{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 68.125%{opacity:1} 69.375%{opacity:0} 100%{opacity:0} }
+    #n1_0_1{ opacity:1;fill:var(--ink); animation:k63 16.0s var(--e) infinite; }
+    @keyframes k63{ 0%{opacity:0;fill:var(--indigo)} 69.375%{opacity:0} 70.625%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl1_0{ fill:var(--mint); animation:k64 16.0s var(--e) infinite; }
+    @keyframes k64{ 0%{fill:#FFFFFF} 68.75%{fill:#FFFFFF} 71.25%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n1_1_0{ opacity:0;fill:var(--ink); animation:k65 16.0s var(--e) infinite; }
+    @keyframes k65{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 68.125%{opacity:1} 69.375%{opacity:0} 100%{opacity:0} }
+    #n1_1_1{ opacity:1;fill:var(--ink); animation:k66 16.0s var(--e) infinite; }
+    @keyframes k66{ 0%{opacity:0;fill:var(--indigo)} 69.375%{opacity:0} 70.625%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl1_1{ fill:var(--mint); animation:k67 16.0s var(--e) infinite; }
+    @keyframes k67{ 0%{fill:#FFFFFF} 68.75%{fill:#FFFFFF} 71.25%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n1_2_0{ opacity:0;fill:var(--ink); animation:k68 16.0s var(--e) infinite; }
+    @keyframes k68{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 23.125%{opacity:1} 24.375%{opacity:0} 100%{opacity:0} }
+    #n1_2_1{ opacity:0;fill:var(--ink); animation:k69 16.0s var(--e) infinite; }
+    @keyframes k69{ 0%{opacity:0;fill:var(--indigo)} 24.375%{opacity:0} 25.625%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 68.125%{opacity:1} 69.375%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n1_2_2{ opacity:1;fill:var(--ink); animation:k70 16.0s var(--e) infinite; }
+    @keyframes k70{ 0%{opacity:0;fill:var(--indigo)} 69.375%{opacity:0} 70.625%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl1_2{ fill:var(--mint); animation:k71 16.0s var(--e) infinite; }
+    @keyframes k71{ 0%{fill:#FFFFFF} 68.75%{fill:#FFFFFF} 71.25%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n1_3_0{ opacity:0;fill:var(--ink); animation:k72 16.0s var(--e) infinite; }
+    @keyframes k72{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 25%{opacity:1} 26.25%{opacity:0} 100%{opacity:0} }
+    #n1_3_1{ opacity:0;fill:var(--ink); animation:k73 16.0s var(--e) infinite; }
+    @keyframes k73{ 0%{opacity:0;fill:var(--indigo)} 26.25%{opacity:0} 27.5%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 68.125%{opacity:1} 69.375%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n1_3_2{ opacity:1;fill:var(--ink); animation:k74 16.0s var(--e) infinite; }
+    @keyframes k74{ 0%{opacity:0;fill:var(--indigo)} 69.375%{opacity:0} 70.625%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl1_3{ fill:var(--mint); animation:k75 16.0s var(--e) infinite; }
+    @keyframes k75{ 0%{fill:#FFFFFF} 68.75%{fill:#FFFFFF} 71.25%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n1_4_0{ opacity:0;fill:var(--ink); animation:k76 16.0s var(--e) infinite; }
+    @keyframes k76{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 26.875%{opacity:1} 28.125%{opacity:0} 100%{opacity:0} }
+    #n1_4_1{ opacity:0;fill:var(--ink); animation:k77 16.0s var(--e) infinite; }
+    @keyframes k77{ 0%{opacity:0;fill:var(--indigo)} 28.125%{opacity:0} 29.375%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 68.125%{opacity:1} 69.375%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n1_4_2{ opacity:1;fill:var(--ink); animation:k78 16.0s var(--e) infinite; }
+    @keyframes k78{ 0%{opacity:0;fill:var(--indigo)} 69.375%{opacity:0} 70.625%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl1_4{ fill:var(--mint); animation:k79 16.0s var(--e) infinite; }
+    @keyframes k79{ 0%{fill:#FFFFFF} 68.75%{fill:#FFFFFF} 71.25%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n1_5_0{ opacity:0;fill:var(--ink); animation:k80 16.0s var(--e) infinite; }
+    @keyframes k80{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 28.75%{opacity:1} 30%{opacity:0} 100%{opacity:0} }
+    #n1_5_1{ opacity:0;fill:var(--ink); animation:k81 16.0s var(--e) infinite; }
+    @keyframes k81{ 0%{opacity:0;fill:var(--indigo)} 30%{opacity:0} 31.25%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 68.125%{opacity:1} 69.375%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n1_5_2{ opacity:1;fill:var(--ink); animation:k82 16.0s var(--e) infinite; }
+    @keyframes k82{ 0%{opacity:0;fill:var(--indigo)} 69.375%{opacity:0} 70.625%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl1_5{ fill:var(--mint); animation:k83 16.0s var(--e) infinite; }
+    @keyframes k83{ 0%{fill:#FFFFFF} 68.75%{fill:#FFFFFF} 71.25%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n1_6_0{ opacity:0;fill:var(--ink); animation:k84 16.0s var(--e) infinite; }
+    @keyframes k84{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 30.625%{opacity:1} 31.875%{opacity:0} 100%{opacity:0} }
+    #n1_6_1{ opacity:0;fill:var(--ink); animation:k85 16.0s var(--e) infinite; }
+    @keyframes k85{ 0%{opacity:0;fill:var(--indigo)} 31.875%{opacity:0} 33.125%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 68.125%{opacity:1} 69.375%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n1_6_2{ opacity:1;fill:var(--ink); animation:k86 16.0s var(--e) infinite; }
+    @keyframes k86{ 0%{opacity:0;fill:var(--indigo)} 69.375%{opacity:0} 70.625%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl1_6{ fill:var(--mint); animation:k87 16.0s var(--e) infinite; }
+    @keyframes k87{ 0%{fill:#FFFFFF} 68.75%{fill:#FFFFFF} 71.25%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n1_7_0{ opacity:0;fill:var(--ink); animation:k88 16.0s var(--e) infinite; }
+    @keyframes k88{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 32.5%{opacity:1} 33.75%{opacity:0} 100%{opacity:0} }
+    #n1_7_1{ opacity:0;fill:var(--ink); animation:k89 16.0s var(--e) infinite; }
+    @keyframes k89{ 0%{opacity:0;fill:var(--indigo)} 33.75%{opacity:0} 35%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 68.125%{opacity:1} 69.375%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n1_7_2{ opacity:1;fill:var(--ink); animation:k90 16.0s var(--e) infinite; }
+    @keyframes k90{ 0%{opacity:0;fill:var(--indigo)} 69.375%{opacity:0} 70.625%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl1_7{ fill:var(--mint); animation:k91 16.0s var(--e) infinite; }
+    @keyframes k91{ 0%{fill:#FFFFFF} 68.75%{fill:#FFFFFF} 71.25%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n1_8_0{ opacity:0;fill:var(--ink); animation:k92 16.0s var(--e) infinite; }
+    @keyframes k92{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0} }
+    #n1_8_1{ opacity:0;fill:var(--ink); animation:k93 16.0s var(--e) infinite; }
+    @keyframes k93{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 68.125%{opacity:1} 69.375%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n1_8_2{ opacity:1;fill:var(--ink); animation:k94 16.0s var(--e) infinite; }
+    @keyframes k94{ 0%{opacity:0;fill:var(--indigo)} 69.375%{opacity:0} 70.625%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl1_8{ fill:var(--mint); animation:k95 16.0s var(--e) infinite; }
+    @keyframes k95{ 0%{fill:#FFFFFF} 68.75%{fill:#FFFFFF} 71.25%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n1_9_0{ opacity:0;fill:var(--ink); animation:k96 16.0s var(--e) infinite; }
+    @keyframes k96{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 21.25%{opacity:1} 22.5%{opacity:0} 100%{opacity:0} }
+    #n1_9_1{ opacity:0;fill:var(--ink); animation:k97 16.0s var(--e) infinite; }
+    @keyframes k97{ 0%{opacity:0;fill:var(--indigo)} 22.5%{opacity:0} 23.75%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n1_9_2{ opacity:0;fill:var(--ink); animation:k98 16.0s var(--e) infinite; }
+    @keyframes k98{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 68.125%{opacity:1} 69.375%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n1_9_3{ opacity:1;fill:var(--ink); animation:k99 16.0s var(--e) infinite; }
+    @keyframes k99{ 0%{opacity:0;fill:var(--indigo)} 69.375%{opacity:0} 70.625%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl1_9{ fill:var(--mint); animation:k100 16.0s var(--e) infinite; }
+    @keyframes k100{ 0%{fill:#FFFFFF} 68.75%{fill:#FFFFFF} 71.25%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n1_10_0{ opacity:0;fill:var(--ink); animation:k101 16.0s var(--e) infinite; }
+    @keyframes k101{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0} }
+    #n1_10_1{ opacity:0;fill:var(--ink); animation:k102 16.0s var(--e) infinite; }
+    @keyframes k102{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 68.125%{opacity:1} 69.375%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n1_10_2{ opacity:1;fill:var(--ink); animation:k103 16.0s var(--e) infinite; }
+    @keyframes k103{ 0%{opacity:0;fill:var(--indigo)} 69.375%{opacity:0} 70.625%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl1_10{ fill:var(--mint); animation:k104 16.0s var(--e) infinite; }
+    @keyframes k104{ 0%{fill:#FFFFFF} 68.75%{fill:#FFFFFF} 71.25%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n1_11_0{ opacity:0;fill:var(--ink); animation:k105 16.0s var(--e) infinite; }
+    @keyframes k105{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0} }
+    #n1_11_1{ opacity:0;fill:var(--ink); animation:k106 16.0s var(--e) infinite; }
+    @keyframes k106{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 68.125%{opacity:1} 69.375%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n1_11_2{ opacity:1;fill:var(--ink); animation:k107 16.0s var(--e) infinite; }
+    @keyframes k107{ 0%{opacity:0;fill:var(--indigo)} 69.375%{opacity:0} 70.625%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl1_11{ fill:var(--mint); animation:k108 16.0s var(--e) infinite; }
+    @keyframes k108{ 0%{fill:#FFFFFF} 68.75%{fill:#FFFFFF} 71.25%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n1_12_0{ opacity:0;fill:var(--ink); animation:k109 16.0s var(--e) infinite; }
+    @keyframes k109{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0} }
+    #n1_12_1{ opacity:0;fill:var(--ink); animation:k110 16.0s var(--e) infinite; }
+    @keyframes k110{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 68.125%{opacity:1} 69.375%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n1_12_2{ opacity:1;fill:var(--ink); animation:k111 16.0s var(--e) infinite; }
+    @keyframes k111{ 0%{opacity:0;fill:var(--indigo)} 69.375%{opacity:0} 70.625%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl1_12{ fill:var(--mint); animation:k112 16.0s var(--e) infinite; }
+    @keyframes k112{ 0%{fill:#FFFFFF} 68.75%{fill:#FFFFFF} 71.25%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n1_13_0{ opacity:0;fill:var(--ink); animation:k113 16.0s var(--e) infinite; }
+    @keyframes k113{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0} }
+    #n1_13_1{ opacity:0;fill:var(--ink); animation:k114 16.0s var(--e) infinite; }
+    @keyframes k114{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 68.125%{opacity:1} 69.375%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n1_13_2{ opacity:1;fill:var(--ink); animation:k115 16.0s var(--e) infinite; }
+    @keyframes k115{ 0%{opacity:0;fill:var(--indigo)} 69.375%{opacity:0} 70.625%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl1_13{ fill:var(--mint); animation:k116 16.0s var(--e) infinite; }
+    @keyframes k116{ 0%{fill:#FFFFFF} 68.75%{fill:#FFFFFF} 71.25%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n1_14_0{ opacity:0;fill:var(--ink); animation:k117 16.0s var(--e) infinite; }
+    @keyframes k117{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 30.625%{opacity:1} 31.875%{opacity:0} 100%{opacity:0} }
+    #n1_14_1{ opacity:0;fill:var(--ink); animation:k118 16.0s var(--e) infinite; }
+    @keyframes k118{ 0%{opacity:0;fill:var(--indigo)} 31.875%{opacity:0} 33.125%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n1_14_2{ opacity:0;fill:var(--ink); animation:k119 16.0s var(--e) infinite; }
+    @keyframes k119{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 68.125%{opacity:1} 69.375%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n1_14_3{ opacity:1;fill:var(--ink); animation:k120 16.0s var(--e) infinite; }
+    @keyframes k120{ 0%{opacity:0;fill:var(--indigo)} 69.375%{opacity:0} 70.625%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl1_14{ fill:var(--mint); animation:k121 16.0s var(--e) infinite; }
+    @keyframes k121{ 0%{fill:#FFFFFF} 68.75%{fill:#FFFFFF} 71.25%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n1_15_0{ opacity:0;fill:var(--ink); animation:k122 16.0s var(--e) infinite; }
+    @keyframes k122{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 32.5%{opacity:1} 33.75%{opacity:0} 100%{opacity:0} }
+    #n1_15_1{ opacity:0;fill:var(--ink); animation:k123 16.0s var(--e) infinite; }
+    @keyframes k123{ 0%{opacity:0;fill:var(--indigo)} 33.75%{opacity:0} 35%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n1_15_2{ opacity:0;fill:var(--ink); animation:k124 16.0s var(--e) infinite; }
+    @keyframes k124{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 68.125%{opacity:1} 69.375%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n1_15_3{ opacity:1;fill:var(--ink); animation:k125 16.0s var(--e) infinite; }
+    @keyframes k125{ 0%{opacity:0;fill:var(--indigo)} 69.375%{opacity:0} 70.625%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl1_15{ fill:var(--mint); animation:k126 16.0s var(--e) infinite; }
+    @keyframes k126{ 0%{fill:#FFFFFF} 68.75%{fill:#FFFFFF} 71.25%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n2_0_0{ opacity:0;fill:var(--ink); animation:k127 16.0s var(--e) infinite; }
+    @keyframes k127{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 73.75%{opacity:1} 75%{opacity:0} 100%{opacity:0} }
+    #n2_0_1{ opacity:1;fill:var(--ink); animation:k128 16.0s var(--e) infinite; }
+    @keyframes k128{ 0%{opacity:0;fill:var(--indigo)} 75%{opacity:0} 76.25%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl2_0{ fill:var(--mint); animation:k129 16.0s var(--e) infinite; }
+    @keyframes k129{ 0%{fill:#FFFFFF} 74.375%{fill:#FFFFFF} 76.875%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n2_1_0{ opacity:0;fill:var(--ink); animation:k130 16.0s var(--e) infinite; }
+    @keyframes k130{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 21.25%{opacity:1} 22.5%{opacity:0} 100%{opacity:0} }
+    #n2_1_1{ opacity:0;fill:var(--ink); animation:k131 16.0s var(--e) infinite; }
+    @keyframes k131{ 0%{opacity:0;fill:var(--indigo)} 22.5%{opacity:0} 23.75%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 73.75%{opacity:1} 75%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n2_1_2{ opacity:1;fill:var(--ink); animation:k132 16.0s var(--e) infinite; }
+    @keyframes k132{ 0%{opacity:0;fill:var(--indigo)} 75%{opacity:0} 76.25%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl2_1{ fill:var(--mint); animation:k133 16.0s var(--e) infinite; }
+    @keyframes k133{ 0%{fill:#FFFFFF} 74.375%{fill:#FFFFFF} 76.875%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n2_2_0{ opacity:0;fill:var(--ink); animation:k134 16.0s var(--e) infinite; }
+    @keyframes k134{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 23.125%{opacity:1} 24.375%{opacity:0} 100%{opacity:0} }
+    #n2_2_1{ opacity:0;fill:var(--ink); animation:k135 16.0s var(--e) infinite; }
+    @keyframes k135{ 0%{opacity:0;fill:var(--indigo)} 24.375%{opacity:0} 25.625%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 73.75%{opacity:1} 75%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n2_2_2{ opacity:1;fill:var(--ink); animation:k136 16.0s var(--e) infinite; }
+    @keyframes k136{ 0%{opacity:0;fill:var(--indigo)} 75%{opacity:0} 76.25%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl2_2{ fill:var(--mint); animation:k137 16.0s var(--e) infinite; }
+    @keyframes k137{ 0%{fill:#FFFFFF} 74.375%{fill:#FFFFFF} 76.875%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n2_3_0{ opacity:0;fill:var(--ink); animation:k138 16.0s var(--e) infinite; }
+    @keyframes k138{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 25%{opacity:1} 26.25%{opacity:0} 100%{opacity:0} }
+    #n2_3_1{ opacity:0;fill:var(--ink); animation:k139 16.0s var(--e) infinite; }
+    @keyframes k139{ 0%{opacity:0;fill:var(--indigo)} 26.25%{opacity:0} 27.5%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 73.75%{opacity:1} 75%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n2_3_2{ opacity:1;fill:var(--ink); animation:k140 16.0s var(--e) infinite; }
+    @keyframes k140{ 0%{opacity:0;fill:var(--indigo)} 75%{opacity:0} 76.25%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl2_3{ fill:var(--mint); animation:k141 16.0s var(--e) infinite; }
+    @keyframes k141{ 0%{fill:#FFFFFF} 74.375%{fill:#FFFFFF} 76.875%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n2_4_0{ opacity:0;fill:var(--ink); animation:k142 16.0s var(--e) infinite; }
+    @keyframes k142{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 73.75%{opacity:1} 75%{opacity:0} 100%{opacity:0} }
+    #n2_4_1{ opacity:1;fill:var(--ink); animation:k143 16.0s var(--e) infinite; }
+    @keyframes k143{ 0%{opacity:0;fill:var(--indigo)} 75%{opacity:0} 76.25%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl2_4{ fill:var(--mint); animation:k144 16.0s var(--e) infinite; }
+    @keyframes k144{ 0%{fill:#FFFFFF} 74.375%{fill:#FFFFFF} 76.875%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n2_5_0{ opacity:0;fill:var(--ink); animation:k145 16.0s var(--e) infinite; }
+    @keyframes k145{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 28.75%{opacity:1} 30%{opacity:0} 100%{opacity:0} }
+    #n2_5_1{ opacity:0;fill:var(--ink); animation:k146 16.0s var(--e) infinite; }
+    @keyframes k146{ 0%{opacity:0;fill:var(--indigo)} 30%{opacity:0} 31.25%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 73.75%{opacity:1} 75%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n2_5_2{ opacity:1;fill:var(--ink); animation:k147 16.0s var(--e) infinite; }
+    @keyframes k147{ 0%{opacity:0;fill:var(--indigo)} 75%{opacity:0} 76.25%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl2_5{ fill:var(--mint); animation:k148 16.0s var(--e) infinite; }
+    @keyframes k148{ 0%{fill:#FFFFFF} 74.375%{fill:#FFFFFF} 76.875%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n2_6_0{ opacity:0;fill:var(--ink); animation:k149 16.0s var(--e) infinite; }
+    @keyframes k149{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 30.625%{opacity:1} 31.875%{opacity:0} 100%{opacity:0} }
+    #n2_6_1{ opacity:0;fill:var(--ink); animation:k150 16.0s var(--e) infinite; }
+    @keyframes k150{ 0%{opacity:0;fill:var(--indigo)} 31.875%{opacity:0} 33.125%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 73.75%{opacity:1} 75%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n2_6_2{ opacity:1;fill:var(--ink); animation:k151 16.0s var(--e) infinite; }
+    @keyframes k151{ 0%{opacity:0;fill:var(--indigo)} 75%{opacity:0} 76.25%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl2_6{ fill:var(--mint); animation:k152 16.0s var(--e) infinite; }
+    @keyframes k152{ 0%{fill:#FFFFFF} 74.375%{fill:#FFFFFF} 76.875%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n2_7_0{ opacity:0;fill:var(--ink); animation:k153 16.0s var(--e) infinite; }
+    @keyframes k153{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 32.5%{opacity:1} 33.75%{opacity:0} 100%{opacity:0} }
+    #n2_7_1{ opacity:0;fill:var(--ink); animation:k154 16.0s var(--e) infinite; }
+    @keyframes k154{ 0%{opacity:0;fill:var(--indigo)} 33.75%{opacity:0} 35%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 73.75%{opacity:1} 75%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n2_7_2{ opacity:1;fill:var(--ink); animation:k155 16.0s var(--e) infinite; }
+    @keyframes k155{ 0%{opacity:0;fill:var(--indigo)} 75%{opacity:0} 76.25%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl2_7{ fill:var(--mint); animation:k156 16.0s var(--e) infinite; }
+    @keyframes k156{ 0%{fill:#FFFFFF} 74.375%{fill:#FFFFFF} 76.875%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n2_8_0{ opacity:0;fill:var(--ink); animation:k157 16.0s var(--e) infinite; }
+    @keyframes k157{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0} }
+    #n2_8_1{ opacity:0;fill:var(--ink); animation:k158 16.0s var(--e) infinite; }
+    @keyframes k158{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 73.75%{opacity:1} 75%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n2_8_2{ opacity:1;fill:var(--ink); animation:k159 16.0s var(--e) infinite; }
+    @keyframes k159{ 0%{opacity:0;fill:var(--indigo)} 75%{opacity:0} 76.25%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl2_8{ fill:var(--mint); animation:k160 16.0s var(--e) infinite; }
+    @keyframes k160{ 0%{fill:#FFFFFF} 74.375%{fill:#FFFFFF} 76.875%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n2_9_0{ opacity:0;fill:var(--ink); animation:k161 16.0s var(--e) infinite; }
+    @keyframes k161{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 21.25%{opacity:1} 22.5%{opacity:0} 100%{opacity:0} }
+    #n2_9_1{ opacity:0;fill:var(--ink); animation:k162 16.0s var(--e) infinite; }
+    @keyframes k162{ 0%{opacity:0;fill:var(--indigo)} 22.5%{opacity:0} 23.75%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n2_9_2{ opacity:0;fill:var(--ink); animation:k163 16.0s var(--e) infinite; }
+    @keyframes k163{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 73.75%{opacity:1} 75%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n2_9_3{ opacity:1;fill:var(--ink); animation:k164 16.0s var(--e) infinite; }
+    @keyframes k164{ 0%{opacity:0;fill:var(--indigo)} 75%{opacity:0} 76.25%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl2_9{ fill:var(--mint); animation:k165 16.0s var(--e) infinite; }
+    @keyframes k165{ 0%{fill:#FFFFFF} 74.375%{fill:#FFFFFF} 76.875%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n2_10_0{ opacity:0;fill:var(--ink); animation:k166 16.0s var(--e) infinite; }
+    @keyframes k166{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0} }
+    #n2_10_1{ opacity:0;fill:var(--ink); animation:k167 16.0s var(--e) infinite; }
+    @keyframes k167{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 73.75%{opacity:1} 75%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n2_10_2{ opacity:1;fill:var(--ink); animation:k168 16.0s var(--e) infinite; }
+    @keyframes k168{ 0%{opacity:0;fill:var(--indigo)} 75%{opacity:0} 76.25%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl2_10{ fill:var(--mint); animation:k169 16.0s var(--e) infinite; }
+    @keyframes k169{ 0%{fill:#FFFFFF} 74.375%{fill:#FFFFFF} 76.875%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n2_11_0{ opacity:0;fill:var(--ink); animation:k170 16.0s var(--e) infinite; }
+    @keyframes k170{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 25%{opacity:1} 26.25%{opacity:0} 100%{opacity:0} }
+    #n2_11_1{ opacity:0;fill:var(--ink); animation:k171 16.0s var(--e) infinite; }
+    @keyframes k171{ 0%{opacity:0;fill:var(--indigo)} 26.25%{opacity:0} 27.5%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n2_11_2{ opacity:0;fill:var(--ink); animation:k172 16.0s var(--e) infinite; }
+    @keyframes k172{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 73.75%{opacity:1} 75%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n2_11_3{ opacity:1;fill:var(--ink); animation:k173 16.0s var(--e) infinite; }
+    @keyframes k173{ 0%{opacity:0;fill:var(--indigo)} 75%{opacity:0} 76.25%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl2_11{ fill:var(--mint); animation:k174 16.0s var(--e) infinite; }
+    @keyframes k174{ 0%{fill:#FFFFFF} 74.375%{fill:#FFFFFF} 76.875%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n2_12_0{ opacity:0;fill:var(--ink); animation:k175 16.0s var(--e) infinite; }
+    @keyframes k175{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 26.875%{opacity:1} 28.125%{opacity:0} 100%{opacity:0} }
+    #n2_12_1{ opacity:0;fill:var(--ink); animation:k176 16.0s var(--e) infinite; }
+    @keyframes k176{ 0%{opacity:0;fill:var(--indigo)} 28.125%{opacity:0} 29.375%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n2_12_2{ opacity:0;fill:var(--ink); animation:k177 16.0s var(--e) infinite; }
+    @keyframes k177{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 73.75%{opacity:1} 75%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n2_12_3{ opacity:1;fill:var(--ink); animation:k178 16.0s var(--e) infinite; }
+    @keyframes k178{ 0%{opacity:0;fill:var(--indigo)} 75%{opacity:0} 76.25%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl2_12{ fill:var(--mint); animation:k179 16.0s var(--e) infinite; }
+    @keyframes k179{ 0%{fill:#FFFFFF} 74.375%{fill:#FFFFFF} 76.875%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n2_13_0{ opacity:0;fill:var(--ink); animation:k180 16.0s var(--e) infinite; }
+    @keyframes k180{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0} }
+    #n2_13_1{ opacity:0;fill:var(--ink); animation:k181 16.0s var(--e) infinite; }
+    @keyframes k181{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 73.75%{opacity:1} 75%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n2_13_2{ opacity:1;fill:var(--ink); animation:k182 16.0s var(--e) infinite; }
+    @keyframes k182{ 0%{opacity:0;fill:var(--indigo)} 75%{opacity:0} 76.25%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl2_13{ fill:var(--mint); animation:k183 16.0s var(--e) infinite; }
+    @keyframes k183{ 0%{fill:#FFFFFF} 74.375%{fill:#FFFFFF} 76.875%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n2_14_0{ opacity:0;fill:var(--ink); animation:k184 16.0s var(--e) infinite; }
+    @keyframes k184{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 30.625%{opacity:1} 31.875%{opacity:0} 100%{opacity:0} }
+    #n2_14_1{ opacity:0;fill:var(--ink); animation:k185 16.0s var(--e) infinite; }
+    @keyframes k185{ 0%{opacity:0;fill:var(--indigo)} 31.875%{opacity:0} 33.125%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n2_14_2{ opacity:0;fill:var(--ink); animation:k186 16.0s var(--e) infinite; }
+    @keyframes k186{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 73.75%{opacity:1} 75%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n2_14_3{ opacity:1;fill:var(--ink); animation:k187 16.0s var(--e) infinite; }
+    @keyframes k187{ 0%{opacity:0;fill:var(--indigo)} 75%{opacity:0} 76.25%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl2_14{ fill:var(--mint); animation:k188 16.0s var(--e) infinite; }
+    @keyframes k188{ 0%{fill:#FFFFFF} 74.375%{fill:#FFFFFF} 76.875%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #n2_15_0{ opacity:0;fill:var(--ink); animation:k189 16.0s var(--e) infinite; }
+    @keyframes k189{ 0%{opacity:0;fill:var(--ink)} 1.875%{opacity:1} 32.5%{opacity:1} 33.75%{opacity:0} 100%{opacity:0} }
+    #n2_15_1{ opacity:0;fill:var(--ink); animation:k190 16.0s var(--e) infinite; }
+    @keyframes k190{ 0%{opacity:0;fill:var(--indigo)} 33.75%{opacity:0} 35%{opacity:1} 38.75%{fill:var(--indigo)} 41.25%{fill:var(--ink)} 49.375%{opacity:1} 50.625%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n2_15_2{ opacity:0;fill:var(--ink); animation:k191 16.0s var(--e) infinite; }
+    @keyframes k191{ 0%{opacity:0;fill:var(--indigo)} 50.625%{opacity:0} 51.875%{opacity:1} 58.75%{fill:var(--indigo)} 61.25%{fill:var(--ink)} 73.75%{opacity:1} 75%{opacity:0} 100%{opacity:0;fill:var(--ink)} }
+    #n2_15_3{ opacity:1;fill:var(--ink); animation:k192 16.0s var(--e) infinite; }
+    @keyframes k192{ 0%{opacity:0;fill:var(--indigo)} 75%{opacity:0} 76.25%{opacity:1} 81.25%{fill:var(--indigo)} 83.75%{fill:var(--ink)} 96.25%{opacity:1} 100%{opacity:0;fill:var(--ink)} }
+    #cl2_15{ fill:var(--mint); animation:k193 16.0s var(--e) infinite; }
+    @keyframes k193{ 0%{fill:#FFFFFF} 74.375%{fill:#FFFFFF} 76.875%{fill:var(--mint)} 96.25%{fill:var(--mint)} 100%{fill:#FFFFFF} }
+    #cy0{ opacity:0; animation:k194 16.0s var(--e) infinite; }
+    @keyframes k194{ 0%{opacity:0;transform:translate(0,0)} 41.25%{opacity:0;transform:translate(0,0)} 43.125%{opacity:1} 43.75%{transform:translate(0,0)} 48.75%{transform:translate(144.0px,0)} 49.375%{opacity:1} 51.25%{opacity:0} 100%{opacity:0;transform:translate(144.0px,0)} }
+    #cy1{ opacity:0; animation:k195 16.0s var(--e) infinite; }
+    @keyframes k195{ 0%{opacity:0;transform:translate(0,0)} 41.25%{opacity:0;transform:translate(0,0)} 43.125%{opacity:1} 43.75%{transform:translate(0,0)} 48.75%{transform:translate(144.0px,0)} 49.375%{opacity:1} 51.25%{opacity:0} 100%{opacity:0;transform:translate(144.0px,0)} }
+    #cy2{ opacity:0; animation:k196 16.0s var(--e) infinite; }
+    @keyframes k196{ 0%{opacity:0;transform:translate(0,0)} 41.25%{opacity:0;transform:translate(0,0)} 43.125%{opacity:1} 43.75%{transform:translate(0,0)} 48.75%{transform:translate(144.0px,0)} 49.375%{opacity:1} 51.25%{opacity:0} 100%{opacity:0;transform:translate(144.0px,0)} }
+    #wl{ opacity:0; animation:k197 16.0s var(--e) infinite; }
+    @keyframes k197{ 0%{opacity:0} 41.25%{opacity:0} 43.75%{opacity:1} 58.75%{opacity:1} 60.625%{opacity:0} 100%{opacity:0} }
+    #cl{ opacity:0; animation:k198 16.0s var(--e) infinite; }
+    @keyframes k198{ 0%{opacity:0} 61.875%{opacity:0} 64.375%{opacity:1} 80%{opacity:1} 81.875%{opacity:0} 100%{opacity:0} }
+    @media (prefers-reduced-motion:reduce){ *{ animation:none !important; } }
+  ]]></style>
+  <g id="cap0"><text class="capn" x="8" y="20">1</text><text class="cap" x="28" y="20">each cell stores the residual x - (W + N - NW)</text></g>
+  <g id="cap1"><text class="capn" x="8" y="20">2</text><text class="cap" x="28" y="20">t0 and t1 each add up their own 8 columns, at once</text></g>
+  <g id="cap2"><text class="capn" x="8" y="20">3</text><text class="cap" x="28" y="20">a wave prefix sum hands t0's total to t1</text></g>
+  <g id="cap3"><text class="capn" x="8" y="20">4</text><text class="cap" x="28" y="20">running sums down the columns give the samples</text></g>
+  <text id="capS" class="cap" x="8" y="20">each sample is the sum of every residual above and to its left</text>
+  <path class="brk" d="M106,58 v-5 H358 v5"/><rect class="tag" x="218" y="37" width="28" height="17" rx="3"/><text class="tagt" x="232" y="49.5" text-anchor="middle">t0</text>
+  <path class="brk" d="M362,58 v-5 H614 v5"/><rect class="tag" x="474" y="37" width="28" height="17" rx="3"/><text class="tagt" x="488" y="49.5" text-anchor="middle">t1</text>
+  <text class="lab" x="8" y="82">row 0</text>
+  <rect id="cl0_0" class="cell" x="104" y="64" width="32" height="28"/>
+  <rect id="cl0_1" class="cell" x="136" y="64" width="32" height="28"/>
+  <rect id="cl0_2" class="cell" x="168" y="64" width="32" height="28"/>
+  <rect id="cl0_3" class="cell" x="200" y="64" width="32" height="28"/>
+  <rect id="cl0_4" class="cell" x="232" y="64" width="32" height="28"/>
+  <rect id="cl0_5" class="cell" x="264" y="64" width="32" height="28"/>
+  <rect id="cl0_6" class="cell" x="296" y="64" width="32" height="28"/>
+  <rect id="cl0_7" class="cell" x="328" y="64" width="32" height="28"/>
+  <rect id="cl0_8" class="cell" x="360" y="64" width="32" height="28"/>
+  <rect id="cl0_9" class="cell" x="392" y="64" width="32" height="28"/>
+  <rect id="cl0_10" class="cell" x="424" y="64" width="32" height="28"/>
+  <rect id="cl0_11" class="cell" x="456" y="64" width="32" height="28"/>
+  <rect id="cl0_12" class="cell" x="488" y="64" width="32" height="28"/>
+  <rect id="cl0_13" class="cell" x="520" y="64" width="32" height="28"/>
+  <rect id="cl0_14" class="cell" x="552" y="64" width="32" height="28"/>
+  <rect id="cl0_15" class="cell" x="584" y="64" width="32" height="28"/>
+  <text class="lab" x="8" y="110">row 1</text>
+  <rect id="cl1_0" class="cell" x="104" y="92" width="32" height="28"/>
+  <rect id="cl1_1" class="cell" x="136" y="92" width="32" height="28"/>
+  <rect id="cl1_2" class="cell" x="168" y="92" width="32" height="28"/>
+  <rect id="cl1_3" class="cell" x="200" y="92" width="32" height="28"/>
+  <rect id="cl1_4" class="cell" x="232" y="92" width="32" height="28"/>
+  <rect id="cl1_5" class="cell" x="264" y="92" width="32" height="28"/>
+  <rect id="cl1_6" class="cell" x="296" y="92" width="32" height="28"/>
+  <rect id="cl1_7" class="cell" x="328" y="92" width="32" height="28"/>
+  <rect id="cl1_8" class="cell" x="360" y="92" width="32" height="28"/>
+  <rect id="cl1_9" class="cell" x="392" y="92" width="32" height="28"/>
+  <rect id="cl1_10" class="cell" x="424" y="92" width="32" height="28"/>
+  <rect id="cl1_11" class="cell" x="456" y="92" width="32" height="28"/>
+  <rect id="cl1_12" class="cell" x="488" y="92" width="32" height="28"/>
+  <rect id="cl1_13" class="cell" x="520" y="92" width="32" height="28"/>
+  <rect id="cl1_14" class="cell" x="552" y="92" width="32" height="28"/>
+  <rect id="cl1_15" class="cell" x="584" y="92" width="32" height="28"/>
+  <text class="lab" x="8" y="138">row 2</text>
+  <rect id="cl2_0" class="cell" x="104" y="120" width="32" height="28"/>
+  <rect id="cl2_1" class="cell" x="136" y="120" width="32" height="28"/>
+  <rect id="cl2_2" class="cell" x="168" y="120" width="32" height="28"/>
+  <rect id="cl2_3" class="cell" x="200" y="120" width="32" height="28"/>
+  <rect id="cl2_4" class="cell" x="232" y="120" width="32" height="28"/>
+  <rect id="cl2_5" class="cell" x="264" y="120" width="32" height="28"/>
+  <rect id="cl2_6" class="cell" x="296" y="120" width="32" height="28"/>
+  <rect id="cl2_7" class="cell" x="328" y="120" width="32" height="28"/>
+  <rect id="cl2_8" class="cell" x="360" y="120" width="32" height="28"/>
+  <rect id="cl2_9" class="cell" x="392" y="120" width="32" height="28"/>
+  <rect id="cl2_10" class="cell" x="424" y="120" width="32" height="28"/>
+  <rect id="cl2_11" class="cell" x="456" y="120" width="32" height="28"/>
+  <rect id="cl2_12" class="cell" x="488" y="120" width="32" height="28"/>
+  <rect id="cl2_13" class="cell" x="520" y="120" width="32" height="28"/>
+  <rect id="cl2_14" class="cell" x="552" y="120" width="32" height="28"/>
+  <rect id="cl2_15" class="cell" x="584" y="120" width="32" height="28"/>
+  <rect id="sw0" class="sweep" x="105" y="65" width="30" height="82" rx="2"/>
+  <rect id="sw1" class="sweep" x="361" y="65" width="30" height="82" rx="2"/>
+  <rect id="swr" class="sweep" x="105" y="65" width="510" height="26" rx="2"/>
+  <text id="n0_0_0" class="num" x="120.0" y="82" text-anchor="middle">41</text>
+  <text id="n0_1_0" class="num" x="152.0" y="82" text-anchor="middle">-1</text>
+  <text id="n0_1_1" class="num" x="152.0" y="82" text-anchor="middle">40</text>
+  <text id="n0_2_0" class="num" x="184.0" y="82" text-anchor="middle">1</text>
+  <text id="n0_2_1" class="num" x="184.0" y="82" text-anchor="middle">41</text>
+  <text id="n0_3_0" class="num" x="216.0" y="82" text-anchor="middle">0</text>
+  <text id="n0_3_1" class="num" x="216.0" y="82" text-anchor="middle">41</text>
+  <text id="n0_4_0" class="num" x="248.0" y="82" text-anchor="middle">1</text>
+  <text id="n0_4_1" class="num" x="248.0" y="82" text-anchor="middle">42</text>
+  <text id="n0_5_0" class="num" x="280.0" y="82" text-anchor="middle">1</text>
+  <text id="n0_5_1" class="num" x="280.0" y="82" text-anchor="middle">43</text>
+  <text id="n0_6_0" class="num" x="312.0" y="82" text-anchor="middle">0</text>
+  <text id="n0_6_1" class="num" x="312.0" y="82" text-anchor="middle">43</text>
+  <text id="n0_7_0" class="num" x="344.0" y="82" text-anchor="middle">1</text>
+  <text id="n0_7_1" class="num" x="344.0" y="82" text-anchor="middle">44</text>
+  <text id="n0_8_0" class="num" x="376.0" y="82" text-anchor="middle">0</text>
+  <text id="n0_8_1" class="num" x="376.0" y="82" text-anchor="middle">44</text>
+  <text id="n0_9_0" class="num" x="408.0" y="82" text-anchor="middle">1</text>
+  <text id="n0_9_1" class="num" x="408.0" y="82" text-anchor="middle">45</text>
+  <text id="n0_10_0" class="num" x="440.0" y="82" text-anchor="middle">1</text>
+  <text id="n0_10_1" class="num" x="440.0" y="82" text-anchor="middle">2</text>
+  <text id="n0_10_2" class="num" x="440.0" y="82" text-anchor="middle">46</text>
+  <text id="n0_11_0" class="num" x="472.0" y="82" text-anchor="middle">1</text>
+  <text id="n0_11_1" class="num" x="472.0" y="82" text-anchor="middle">3</text>
+  <text id="n0_11_2" class="num" x="472.0" y="82" text-anchor="middle">47</text>
+  <text id="n0_12_0" class="num" x="504.0" y="82" text-anchor="middle">0</text>
+  <text id="n0_12_1" class="num" x="504.0" y="82" text-anchor="middle">3</text>
+  <text id="n0_12_2" class="num" x="504.0" y="82" text-anchor="middle">47</text>
+  <text id="n0_13_0" class="num" x="536.0" y="82" text-anchor="middle">0</text>
+  <text id="n0_13_1" class="num" x="536.0" y="82" text-anchor="middle">3</text>
+  <text id="n0_13_2" class="num" x="536.0" y="82" text-anchor="middle">47</text>
+  <text id="n0_14_0" class="num" x="568.0" y="82" text-anchor="middle">1</text>
+  <text id="n0_14_1" class="num" x="568.0" y="82" text-anchor="middle">4</text>
+  <text id="n0_14_2" class="num" x="568.0" y="82" text-anchor="middle">48</text>
+  <text id="n0_15_0" class="num" x="600.0" y="82" text-anchor="middle">1</text>
+  <text id="n0_15_1" class="num" x="600.0" y="82" text-anchor="middle">5</text>
+  <text id="n0_15_2" class="num" x="600.0" y="82" text-anchor="middle">49</text>
+  <text id="n1_0_0" class="num" x="120.0" y="110" text-anchor="middle">0</text>
+  <text id="n1_0_1" class="num" x="120.0" y="110" text-anchor="middle">41</text>
+  <text id="n1_1_0" class="num" x="152.0" y="110" text-anchor="middle">2</text>
+  <text id="n1_1_1" class="num" x="152.0" y="110" text-anchor="middle">42</text>
+  <text id="n1_2_0" class="num" x="184.0" y="110" text-anchor="middle">-1</text>
+  <text id="n1_2_1" class="num" x="184.0" y="110" text-anchor="middle">1</text>
+  <text id="n1_2_2" class="num" x="184.0" y="110" text-anchor="middle">42</text>
+  <text id="n1_3_0" class="num" x="216.0" y="110" text-anchor="middle">2</text>
+  <text id="n1_3_1" class="num" x="216.0" y="110" text-anchor="middle">3</text>
+  <text id="n1_3_2" class="num" x="216.0" y="110" text-anchor="middle">44</text>
+  <text id="n1_4_0" class="num" x="248.0" y="110" text-anchor="middle">-2</text>
+  <text id="n1_4_1" class="num" x="248.0" y="110" text-anchor="middle">1</text>
+  <text id="n1_4_2" class="num" x="248.0" y="110" text-anchor="middle">43</text>
+  <text id="n1_5_0" class="num" x="280.0" y="110" text-anchor="middle">0</text>
+  <text id="n1_5_1" class="num" x="280.0" y="110" text-anchor="middle">1</text>
+  <text id="n1_5_2" class="num" x="280.0" y="110" text-anchor="middle">44</text>
+  <text id="n1_6_0" class="num" x="312.0" y="110" text-anchor="middle">1</text>
+  <text id="n1_6_1" class="num" x="312.0" y="110" text-anchor="middle">2</text>
+  <text id="n1_6_2" class="num" x="312.0" y="110" text-anchor="middle">45</text>
+  <text id="n1_7_0" class="num" x="344.0" y="110" text-anchor="middle">-1</text>
+  <text id="n1_7_1" class="num" x="344.0" y="110" text-anchor="middle">1</text>
+  <text id="n1_7_2" class="num" x="344.0" y="110" text-anchor="middle">45</text>
+  <text id="n1_8_0" class="num" x="376.0" y="110" text-anchor="middle">1</text>
+  <text id="n1_8_1" class="num" x="376.0" y="110" text-anchor="middle">2</text>
+  <text id="n1_8_2" class="num" x="376.0" y="110" text-anchor="middle">46</text>
+  <text id="n1_9_0" class="num" x="408.0" y="110" text-anchor="middle">-1</text>
+  <text id="n1_9_1" class="num" x="408.0" y="110" text-anchor="middle">0</text>
+  <text id="n1_9_2" class="num" x="408.0" y="110" text-anchor="middle">1</text>
+  <text id="n1_9_3" class="num" x="408.0" y="110" text-anchor="middle">46</text>
+  <text id="n1_10_0" class="num" x="440.0" y="110" text-anchor="middle">0</text>
+  <text id="n1_10_1" class="num" x="440.0" y="110" text-anchor="middle">1</text>
+  <text id="n1_10_2" class="num" x="440.0" y="110" text-anchor="middle">47</text>
+  <text id="n1_11_0" class="num" x="472.0" y="110" text-anchor="middle">0</text>
+  <text id="n1_11_1" class="num" x="472.0" y="110" text-anchor="middle">1</text>
+  <text id="n1_11_2" class="num" x="472.0" y="110" text-anchor="middle">48</text>
+  <text id="n1_12_0" class="num" x="504.0" y="110" text-anchor="middle">0</text>
+  <text id="n1_12_1" class="num" x="504.0" y="110" text-anchor="middle">1</text>
+  <text id="n1_12_2" class="num" x="504.0" y="110" text-anchor="middle">48</text>
+  <text id="n1_13_0" class="num" x="536.0" y="110" text-anchor="middle">1</text>
+  <text id="n1_13_1" class="num" x="536.0" y="110" text-anchor="middle">2</text>
+  <text id="n1_13_2" class="num" x="536.0" y="110" text-anchor="middle">49</text>
+  <text id="n1_14_0" class="num" x="568.0" y="110" text-anchor="middle">0</text>
+  <text id="n1_14_1" class="num" x="568.0" y="110" text-anchor="middle">1</text>
+  <text id="n1_14_2" class="num" x="568.0" y="110" text-anchor="middle">2</text>
+  <text id="n1_14_3" class="num" x="568.0" y="110" text-anchor="middle">50</text>
+  <text id="n1_15_0" class="num" x="600.0" y="110" text-anchor="middle">-1</text>
+  <text id="n1_15_1" class="num" x="600.0" y="110" text-anchor="middle">0</text>
+  <text id="n1_15_2" class="num" x="600.0" y="110" text-anchor="middle">1</text>
+  <text id="n1_15_3" class="num" x="600.0" y="110" text-anchor="middle">50</text>
+  <text id="n2_0_0" class="num" x="120.0" y="138" text-anchor="middle">1</text>
+  <text id="n2_0_1" class="num" x="120.0" y="138" text-anchor="middle">42</text>
+  <text id="n2_1_0" class="num" x="152.0" y="138" text-anchor="middle">0</text>
+  <text id="n2_1_1" class="num" x="152.0" y="138" text-anchor="middle">1</text>
+  <text id="n2_1_2" class="num" x="152.0" y="138" text-anchor="middle">43</text>
+  <text id="n2_2_0" class="num" x="184.0" y="138" text-anchor="middle">1</text>
+  <text id="n2_2_1" class="num" x="184.0" y="138" text-anchor="middle">2</text>
+  <text id="n2_2_2" class="num" x="184.0" y="138" text-anchor="middle">44</text>
+  <text id="n2_3_0" class="num" x="216.0" y="138" text-anchor="middle">-2</text>
+  <text id="n2_3_1" class="num" x="216.0" y="138" text-anchor="middle">0</text>
+  <text id="n2_3_2" class="num" x="216.0" y="138" text-anchor="middle">44</text>
+  <text id="n2_4_0" class="num" x="248.0" y="138" text-anchor="middle">2</text>
+  <text id="n2_4_1" class="num" x="248.0" y="138" text-anchor="middle">45</text>
+  <text id="n2_5_0" class="num" x="280.0" y="138" text-anchor="middle">-1</text>
+  <text id="n2_5_1" class="num" x="280.0" y="138" text-anchor="middle">1</text>
+  <text id="n2_5_2" class="num" x="280.0" y="138" text-anchor="middle">45</text>
+  <text id="n2_6_0" class="num" x="312.0" y="138" text-anchor="middle">1</text>
+  <text id="n2_6_1" class="num" x="312.0" y="138" text-anchor="middle">2</text>
+  <text id="n2_6_2" class="num" x="312.0" y="138" text-anchor="middle">47</text>
+  <text id="n2_7_0" class="num" x="344.0" y="138" text-anchor="middle">0</text>
+  <text id="n2_7_1" class="num" x="344.0" y="138" text-anchor="middle">2</text>
+  <text id="n2_7_2" class="num" x="344.0" y="138" text-anchor="middle">47</text>
+  <text id="n2_8_0" class="num" x="376.0" y="138" text-anchor="middle">-1</text>
+  <text id="n2_8_1" class="num" x="376.0" y="138" text-anchor="middle">1</text>
+  <text id="n2_8_2" class="num" x="376.0" y="138" text-anchor="middle">47</text>
+  <text id="n2_9_0" class="num" x="408.0" y="138" text-anchor="middle">1</text>
+  <text id="n2_9_1" class="num" x="408.0" y="138" text-anchor="middle">0</text>
+  <text id="n2_9_2" class="num" x="408.0" y="138" text-anchor="middle">2</text>
+  <text id="n2_9_3" class="num" x="408.0" y="138" text-anchor="middle">48</text>
+  <text id="n2_10_0" class="num" x="440.0" y="138" text-anchor="middle">-1</text>
+  <text id="n2_10_1" class="num" x="440.0" y="138" text-anchor="middle">1</text>
+  <text id="n2_10_2" class="num" x="440.0" y="138" text-anchor="middle">48</text>
+  <text id="n2_11_0" class="num" x="472.0" y="138" text-anchor="middle">0</text>
+  <text id="n2_11_1" class="num" x="472.0" y="138" text-anchor="middle">-1</text>
+  <text id="n2_11_2" class="num" x="472.0" y="138" text-anchor="middle">1</text>
+  <text id="n2_11_3" class="num" x="472.0" y="138" text-anchor="middle">49</text>
+  <text id="n2_12_0" class="num" x="504.0" y="138" text-anchor="middle">1</text>
+  <text id="n2_12_1" class="num" x="504.0" y="138" text-anchor="middle">0</text>
+  <text id="n2_12_2" class="num" x="504.0" y="138" text-anchor="middle">2</text>
+  <text id="n2_12_3" class="num" x="504.0" y="138" text-anchor="middle">50</text>
+  <text id="n2_13_0" class="num" x="536.0" y="138" text-anchor="middle">-1</text>
+  <text id="n2_13_1" class="num" x="536.0" y="138" text-anchor="middle">1</text>
+  <text id="n2_13_2" class="num" x="536.0" y="138" text-anchor="middle">50</text>
+  <text id="n2_14_0" class="num" x="568.0" y="138" text-anchor="middle">0</text>
+  <text id="n2_14_1" class="num" x="568.0" y="138" text-anchor="middle">-1</text>
+  <text id="n2_14_2" class="num" x="568.0" y="138" text-anchor="middle">1</text>
+  <text id="n2_14_3" class="num" x="568.0" y="138" text-anchor="middle">51</text>
+  <text id="n2_15_0" class="num" x="600.0" y="138" text-anchor="middle">0</text>
+  <text id="n2_15_1" class="num" x="600.0" y="138" text-anchor="middle">-1</text>
+  <text id="n2_15_2" class="num" x="600.0" y="138" text-anchor="middle">1</text>
+  <text id="n2_15_3" class="num" x="600.0" y="138" text-anchor="middle">51</text>
+  <g id="cy0"><rect class="chip" x="326.0" y="69" width="36" height="18" rx="3"/><text class="chipt" x="344.0" y="82" text-anchor="middle">+44</text></g>
+  <g id="cy1"><rect class="chip" x="326.0" y="97" width="36" height="18" rx="3"/><text class="chipt" x="344.0" y="110" text-anchor="middle">+1</text></g>
+  <g id="cy2"><rect class="chip" x="326.0" y="125" width="36" height="18" rx="3"/><text class="chipt" x="344.0" y="138" text-anchor="middle">+2</text></g>
+  <text id="wl" class="lab" x="360" y="168" text-anchor="middle">the wave prefix sum adds what t0 holds to t1</text>
+  <text id="cl" class="lab" x="360" y="168" text-anchor="middle">each thread keeps its 8 column sums in registers, row after row</text>
+</svg>

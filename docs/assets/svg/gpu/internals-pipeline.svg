@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 250" width="640" height="250" role="img" aria-label="A timeline with a CPU track, a GPU track and the two staging arenas. The CPU plans call N into arena 0 and returns; the GPU decodes N while the CPU plans N+1 into arena 1; call N+2 needs arena 0, so it waits until decode N finishes, then plans into arena 0 while the GPU decodes N+1 and N+2 back to back.">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+    svg{
+      --ink:#111111; --ink-2:#5C6370; --faint:#9AA1AB; --hair:#E6E6E3; --tile:#F3F3F1;
+      --indigo:#492AE8; --indigo-t:#ECE9FD; --yellow:#F7CC09; --yellow-t:#FEF6D3; --yellow-x:#7A5D00;
+      --mint:#C4FFC2; --green:#1D7A3E;
+      --e:cubic-bezier(.4,0,.2,1);
+      background:transparent;
+      font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+    text{ font-family:"IBM Plex Mono",ui-monospace,monospace; }
+    .cap{ fill:var(--ink); font-size:12.5px; font-weight:500; }
+    .capn{ fill:var(--indigo); font-size:12.5px; font-weight:600; }
+    .lab{ fill:var(--ink-2); font-size:11px; font-weight:500; letter-spacing:.02em; }
+    .dim{ fill:var(--faint); font-size:11px; font-weight:500; }
+    .num{ fill:var(--ink); font-size:11px; font-weight:500; }
+    .tag{ fill:#FFFFFF; stroke:var(--indigo); stroke-width:1; }
+    .tagt{ fill:var(--indigo); font-size:11px; font-weight:500; }
+    .anim{ transform-box:fill-box; }
+    #cap0{ opacity:0; animation:k1 16.0s var(--e) infinite; }
+    @keyframes k1{ 0%{opacity:0;opacity:0} 1.875%{opacity:1} 16.875%{opacity:1} 18.75%{opacity:0} 100%{opacity:0} }
+    #cap1{ opacity:0; animation:k2 16.0s var(--e) infinite; }
+    @keyframes k2{ 0%{opacity:0} 18.75%{opacity:0} 20.625%{opacity:1} 36.875%{opacity:1} 38.75%{opacity:0} 100%{opacity:0} }
+    #cap2{ opacity:0; animation:k3 16.0s var(--e) infinite; }
+    @keyframes k3{ 0%{opacity:0} 38.75%{opacity:0} 40.625%{opacity:1} 53.125%{opacity:1} 55%{opacity:0} 100%{opacity:0} }
+    #cap3{ opacity:0; animation:k4 16.0s var(--e) infinite; }
+    @keyframes k4{ 0%{opacity:0} 55%{opacity:0} 56.875%{opacity:1} 78.125%{opacity:1} 80%{opacity:0} 100%{opacity:0} }
+    #capS{ opacity:1; animation:k5 16.0s var(--e) infinite; }
+    @keyframes k5{ 0%{opacity:0} 80%{opacity:0} 81.875%{opacity:1} 96.25%{opacity:1} 100%{opacity:0} }
+    .blk{ fill:var(--tile); stroke:var(--ink-2); stroke-width:1; }
+    .bt{ fill:var(--ink); font-size:11px; font-weight:500; }
+    .bar{ fill:var(--hair); }
+    .wait{ fill:var(--yellow-t); stroke:var(--yellow); stroke-width:1; }
+    .waitt{ fill:var(--yellow-x); font-size:11px; font-weight:600; }
+    .ret{ fill:var(--ink-2); }
+    .axis{ stroke:var(--faint); stroke-width:1; }
+    #pNt{ opacity:1; animation:k6 16.0s var(--e) infinite; }
+    @keyframes k6{ 0%{opacity:0} 7.5%{opacity:0} 9.375%{opacity:1} 96.25%{opacity:1} 100%{opacity:0} }
+    #pN{ transform-box:fill-box;transform-origin:0 50%; animation:k7 16.0s var(--e) infinite; }
+    @keyframes k7{ 0%{transform:scaleX(0);opacity:1;fill:var(--indigo-t);stroke:var(--indigo)} 2.5%{transform:scaleX(0);animation-timing-function:linear} 7.5%{transform:scaleX(1)} 18.125%{fill:var(--indigo-t);stroke:var(--indigo)} 21.25%{fill:var(--tile);stroke:var(--ink-2)} 96.25%{opacity:1} 100%{transform:scaleX(1);opacity:0;fill:var(--tile);stroke:var(--ink-2)} }
+    #a0N{ transform-box:fill-box;transform-origin:0 50%; animation:k8 16.0s var(--e) infinite; }
+    @keyframes k8{ 0%{transform:scaleX(0);opacity:1;fill:var(--indigo-t)} 2.5%{transform:scaleX(0);animation-timing-function:linear} 7.5%{transform:scaleX(1)} 18.125%{fill:var(--indigo-t)} 21.25%{fill:var(--hair)} 96.25%{opacity:1} 100%{transform:scaleX(1);opacity:0;fill:var(--hair)} }
+    #r0{ opacity:1; animation:k9 16.0s var(--e) infinite; }
+    @keyframes k9{ 0%{opacity:0} 7.5%{opacity:0} 9.375%{opacity:1} 96.25%{opacity:1} 100%{opacity:0} }
+    #pN1t{ opacity:1; animation:k10 16.0s var(--e) infinite; }
+    @keyframes k10{ 0%{opacity:0} 25.625%{opacity:0} 27.5%{opacity:1} 96.25%{opacity:1} 100%{opacity:0} }
+    #pN1{ transform-box:fill-box;transform-origin:0 50%; animation:k11 16.0s var(--e) infinite; }
+    @keyframes k11{ 0%{transform:scaleX(0);opacity:1;fill:var(--indigo-t);stroke:var(--indigo)} 20.625%{transform:scaleX(0);animation-timing-function:linear} 25.625%{transform:scaleX(1)} 38.125%{fill:var(--indigo-t);stroke:var(--indigo)} 41.25%{fill:var(--tile);stroke:var(--ink-2)} 96.25%{opacity:1} 100%{transform:scaleX(1);opacity:0;fill:var(--tile);stroke:var(--ink-2)} }
+    #dNt{ opacity:1; animation:k12 16.0s var(--e) infinite; }
+    @keyframes k12{ 0%{opacity:0} 28.75%{opacity:0} 30.625%{opacity:1} 96.25%{opacity:1} 100%{opacity:0} }
+    #dN{ transform-box:fill-box;transform-origin:0 50%; animation:k13 16.0s var(--e) infinite; }
+    @keyframes k13{ 0%{transform:scaleX(0);opacity:1;fill:var(--indigo-t);stroke:var(--indigo)} 20.625%{transform:scaleX(0);animation-timing-function:linear} 28.75%{transform:scaleX(1)} 38.125%{fill:var(--indigo-t);stroke:var(--indigo)} 41.25%{fill:var(--tile);stroke:var(--ink-2)} 96.25%{opacity:1} 100%{transform:scaleX(1);opacity:0;fill:var(--tile);stroke:var(--ink-2)} }
+    #a0Nb{ transform-box:fill-box;transform-origin:0 50%; animation:k14 16.0s var(--e) infinite; }
+    @keyframes k14{ 0%{transform:scaleX(0);opacity:1;fill:var(--indigo-t)} 20.625%{transform:scaleX(0);animation-timing-function:linear} 28.75%{transform:scaleX(1)} 38.125%{fill:var(--indigo-t)} 41.25%{fill:var(--hair)} 96.25%{opacity:1} 100%{transform:scaleX(1);opacity:0;fill:var(--hair)} }
+    #a1N{ transform-box:fill-box;transform-origin:0 50%; animation:k15 16.0s var(--e) infinite; }
+    @keyframes k15{ 0%{transform:scaleX(0);opacity:1;fill:var(--indigo-t)} 20.625%{transform:scaleX(0);animation-timing-function:linear} 25.625%{transform:scaleX(1)} 38.125%{fill:var(--indigo-t)} 41.25%{fill:var(--hair)} 96.25%{opacity:1} 100%{transform:scaleX(1);opacity:0;fill:var(--hair)} }
+    #r1{ opacity:1; animation:k16 16.0s var(--e) infinite; }
+    @keyframes k16{ 0%{opacity:0} 25.625%{opacity:0} 27.5%{opacity:1} 96.25%{opacity:1} 100%{opacity:0} }
+    #l0{ opacity:1; animation:k17 16.0s var(--e) infinite; }
+    @keyframes k17{ 0%{opacity:0} 28.75%{opacity:0} 31.25%{opacity:1} 96.25%{opacity:1} 100%{opacity:0} }
+    #wt{ transform-box:fill-box;transform-origin:0 50%; animation:k18 16.0s var(--e) infinite; }
+    @keyframes k18{ 0%{transform:scaleX(0);opacity:1} 40.625%{transform:scaleX(0);animation-timing-function:linear} 43.75%{transform:scaleX(1)} 96.25%{opacity:1} 100%{transform:scaleX(1);opacity:0} }
+    #wtt{ opacity:1; animation:k19 16.0s var(--e) infinite; }
+    @keyframes k19{ 0%{opacity:0} 42.5%{opacity:0} 44.375%{opacity:1} 96.25%{opacity:1} 100%{opacity:0} }
+    #a1Nw{ transform-box:fill-box;transform-origin:0 50%; animation:k20 16.0s var(--e) infinite; }
+    @keyframes k20{ 0%{transform:scaleX(0);opacity:1;fill:var(--indigo-t)} 40.625%{transform:scaleX(0);animation-timing-function:linear} 43.75%{transform:scaleX(1)} 76.875%{fill:var(--indigo-t)} 80%{fill:var(--hair)} 96.25%{opacity:1} 100%{transform:scaleX(1);opacity:0;fill:var(--hair)} }
+    #wl{ opacity:1; animation:k21 16.0s var(--e) infinite; }
+    @keyframes k21{ 0%{opacity:0} 44.375%{opacity:0} 46.875%{opacity:1} 96.25%{opacity:1} 100%{opacity:0} }
+    #wf{ opacity:1; animation:k22 16.0s var(--e) infinite; }
+    @keyframes k22{ 0%{opacity:0} 45%{opacity:0} 47.5%{opacity:1} 96.25%{opacity:1} 100%{opacity:0} }
+    #pN2t{ opacity:1; animation:k23 16.0s var(--e) infinite; }
+    @keyframes k23{ 0%{opacity:0} 61.875%{opacity:0} 63.75%{opacity:1} 96.25%{opacity:1} 100%{opacity:0} }
+    #pN2{ transform-box:fill-box;transform-origin:0 50%; animation:k24 16.0s var(--e) infinite; }
+    @keyframes k24{ 0%{transform:scaleX(0);opacity:1;fill:var(--indigo-t);stroke:var(--indigo)} 56.875%{transform:scaleX(0);animation-timing-function:linear} 61.875%{transform:scaleX(1)} 76.875%{fill:var(--indigo-t);stroke:var(--indigo)} 80%{fill:var(--tile);stroke:var(--ink-2)} 96.25%{opacity:1} 100%{transform:scaleX(1);opacity:0;fill:var(--tile);stroke:var(--ink-2)} }
+    #dN1t{ opacity:1; animation:k25 16.0s var(--e) infinite; }
+    @keyframes k25{ 0%{opacity:0} 65%{opacity:0} 66.875%{opacity:1} 96.25%{opacity:1} 100%{opacity:0} }
+    #dN1{ transform-box:fill-box;transform-origin:0 50%; animation:k26 16.0s var(--e) infinite; }
+    @keyframes k26{ 0%{transform:scaleX(0);opacity:1;fill:var(--indigo-t);stroke:var(--indigo)} 56.875%{transform:scaleX(0);animation-timing-function:linear} 65%{transform:scaleX(1)} 76.875%{fill:var(--indigo-t);stroke:var(--indigo)} 80%{fill:var(--tile);stroke:var(--ink-2)} 96.25%{opacity:1} 100%{transform:scaleX(1);opacity:0;fill:var(--tile);stroke:var(--ink-2)} }
+    #a0N2{ transform-box:fill-box;transform-origin:0 50%; animation:k27 16.0s var(--e) infinite; }
+    @keyframes k27{ 0%{transform:scaleX(0);opacity:1;fill:var(--indigo-t)} 56.875%{transform:scaleX(0);animation-timing-function:linear} 73.125%{transform:scaleX(1)} 76.875%{fill:var(--indigo-t)} 80%{fill:var(--hair)} 96.25%{opacity:1} 100%{transform:scaleX(1);opacity:0;fill:var(--hair)} }
+    #a1N1{ transform-box:fill-box;transform-origin:0 50%; animation:k28 16.0s var(--e) infinite; }
+    @keyframes k28{ 0%{transform:scaleX(0);opacity:1;fill:var(--indigo-t)} 56.875%{transform:scaleX(0);animation-timing-function:linear} 65%{transform:scaleX(1)} 76.875%{fill:var(--indigo-t)} 80%{fill:var(--hair)} 96.25%{opacity:1} 100%{transform:scaleX(1);opacity:0;fill:var(--hair)} }
+    #dN2t{ opacity:1; animation:k29 16.0s var(--e) infinite; }
+    @keyframes k29{ 0%{opacity:0} 73.125%{opacity:0} 75%{opacity:1} 96.25%{opacity:1} 100%{opacity:0} }
+    #dN2{ transform-box:fill-box;transform-origin:0 50%; animation:k30 16.0s var(--e) infinite; }
+    @keyframes k30{ 0%{transform:scaleX(0);opacity:1;fill:var(--indigo-t);stroke:var(--indigo)} 65%{transform:scaleX(0);animation-timing-function:linear} 73.125%{transform:scaleX(1)} 76.875%{fill:var(--indigo-t);stroke:var(--indigo)} 80%{fill:var(--tile);stroke:var(--ink-2)} 96.25%{opacity:1} 100%{transform:scaleX(1);opacity:0;fill:var(--tile);stroke:var(--ink-2)} }
+    #r2{ opacity:1; animation:k31 16.0s var(--e) infinite; }
+    @keyframes k31{ 0%{opacity:0} 61.875%{opacity:0} 63.75%{opacity:1} 96.25%{opacity:1} 100%{opacity:0} }
+    #l1{ opacity:1; animation:k32 16.0s var(--e) infinite; }
+    @keyframes k32{ 0%{opacity:0} 65%{opacity:0} 67.5%{opacity:1} 96.25%{opacity:1} 100%{opacity:0} }
+    #l2{ opacity:1; animation:k33 16.0s var(--e) infinite; }
+    @keyframes k33{ 0%{opacity:0} 62.5%{opacity:0} 65%{opacity:1} 96.25%{opacity:1} 100%{opacity:0} }
+    @media (prefers-reduced-motion:reduce){ *{ animation:none !important; } }
+  ]]></style>
+  <g id="cap0"><text class="capn" x="8" y="20">1</text><text class="cap" x="28" y="20">for call N the cpu captures and plans into arena 0</text></g>
+  <g id="cap1"><text class="capn" x="8" y="20">2</text><text class="cap" x="28" y="20">the gpu decodes N while the cpu plans N+1 in arena 1</text></g>
+  <g id="cap2"><text class="capn" x="8" y="20">3</text><text class="cap" x="28" y="20">call N+2 needs arena 0, so it waits for decode N</text></g>
+  <g id="cap3"><text class="capn" x="8" y="20">4</text><text class="cap" x="28" y="20">then it plans into arena 0 while the gpu decodes N+1</text></g>
+  <text id="capS" class="cap" x="8" y="20">the only wait comes when a call reuses the arena of the call two before it</text>
+  <text class="lab" x="8" y="55">cpu</text><text class="lab" x="8" y="68">capture, plan</text>
+  <text class="lab" x="8" y="103">gpu</text><text class="lab" x="8" y="116">decode</text>
+  <text class="lab" x="8" y="174">arena 0</text>
+  <text class="lab" x="8" y="200">arena 1</text>
+  <line class="axis" x1="104" y1="150" x2="624" y2="152" stroke-dasharray="2 3"/>
+  <text class="lab" x="104" y="146">staging held by</text>
+  <line class="axis" x1="104" y1="222" x2="624" y2="222"/><path d="M624,222 l-6,-3 v6 z" fill="var(--faint)"/><text class="lab" x="618" y="238" text-anchor="end">time</text>
+  <path class="ret" d="M108,232 l-4,7 h8 z"/><text class="lab" x="118" y="239">geozl_gpu_decode returns</text>
+  <rect id="pN" class="blk" x="104" y="44" width="80" height="26" rx="3"/>
+  <text id="pNt" class="bt" x="144.0" y="61.0" text-anchor="middle">plan N</text>
+  <rect id="a0N" class="bar" x="104" y="162" width="80" height="18" rx="3"/>
+  <path id="r0" class="ret" d="M184,74 l-4,7 h8 z"/>
+  <rect id="pN1" class="blk" x="184" y="44" width="80" height="26" rx="3"/>
+  <text id="pN1t" class="bt" x="224.0" y="61.0" text-anchor="middle">plan N+1</text>
+  <rect id="dN" class="blk" x="184" y="92" width="130" height="26" rx="3"/>
+  <text id="dNt" class="bt" x="249.0" y="109.0" text-anchor="middle">decode N</text>
+  <rect id="a0Nb" class="bar" x="184" y="162" width="130" height="18" rx="3"/>
+  <rect id="a1N" class="bar" x="184" y="188" width="80" height="18" rx="3"/>
+  <path id="r1" class="ret" d="M264,74 l-4,7 h8 z"/>
+  <text id="l0" class="bt" x="209" y="175" text-anchor="middle">N</text>
+  <rect id="wt" class="wait" x="264" y="44" width="50" height="26" rx="3"/><text id="wtt" class="waitt" x="289" y="61" text-anchor="middle">wait</text>
+  <rect id="a1Nw" class="bar" x="264" y="188" width="50" height="18" rx="3"/>
+  <path id="wl" d="M314,180 V70" stroke="var(--yellow-x)" stroke-width="1.2" stroke-dasharray="3 2" fill="none"/>
+  <text id="wf" class="waitt" x="318" y="146">arena 0 free</text>
+  <rect id="pN2" class="blk" x="314" y="44" width="80" height="26" rx="3"/>
+  <text id="pN2t" class="bt" x="354.0" y="61.0" text-anchor="middle">plan N+2</text>
+  <rect id="dN1" class="blk" x="314" y="92" width="130" height="26" rx="3"/>
+  <text id="dN1t" class="bt" x="379.0" y="109.0" text-anchor="middle">decode N+1</text>
+  <rect id="a0N2" class="bar" x="314" y="162" width="260" height="18" rx="3"/>
+  <rect id="a1N1" class="bar" x="314" y="188" width="130" height="18" rx="3"/>
+  <rect id="dN2" class="blk" x="444" y="92" width="130" height="26" rx="3"/>
+  <text id="dN2t" class="bt" x="509.0" y="109.0" text-anchor="middle">decode N+2</text>
+  <path id="r2" class="ret" d="M394,74 l-4,7 h8 z"/>
+  <text id="l1" class="bt" x="314" y="201" text-anchor="middle">N+1</text>
+  <text id="l2" class="bt" x="444" y="175" text-anchor="middle">N+2</text>
+</svg>

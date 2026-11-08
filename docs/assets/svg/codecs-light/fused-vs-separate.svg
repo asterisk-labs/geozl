@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 330" width="680" height="330" role="img" aria-label="planar, zigzag and pfor as separate nodes read and write 10 MiB of a 2 MiB tile plus the frame; fused into one codec they read 2 MiB plus the frame">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&display=swap');
+    svg { --paper:#FFFFFF; --ink:#111111; --muted:#5C6370; --gold:#B8900A; --green:#1D9A4A; --purple:#492AE8; --orange:#E0532A;
+      --hot:color-mix(in srgb,var(--purple) 14%,var(--paper)); --ease:cubic-bezier(.22,.7,.2,1);
+      background:transparent; font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace; }
+    .title { fill:var(--muted); font:500 11px "IBM Plex Mono",monospace; letter-spacing:.08em; }
+    .gold { fill:var(--gold); }
+    .box { fill:var(--paper); stroke:var(--ink); stroke-width:1.2; }
+    .mem { fill:#F3F4F6; stroke:var(--muted); stroke-width:1; stroke-dasharray:3 2; }
+    .end { fill:#E6F7EC; stroke:var(--green); stroke-width:1.4; }
+    .frame { fill:none; stroke:var(--gold); stroke-width:2; }
+    .name { fill:var(--ink); font:700 12px "IBM Plex Mono",monospace; text-anchor:middle; }
+    .mlab { fill:var(--ink); font:600 11px "IBM Plex Mono",monospace; text-anchor:middle; }
+    .msize { fill:var(--muted); font:500 10px "IBM Plex Mono",monospace; text-anchor:middle; }
+    .note { fill:var(--gold); font:500 10px "IBM Plex Mono",monospace; }
+    .clab { fill:var(--muted); font:500 11px "IBM Plex Mono",monospace; }
+    .cval { fill:var(--orange); font:700 14px "IBM Plex Mono",monospace; }
+    .cval.gold { fill:var(--gold); }
+    .arr { fill:none; stroke-width:2; stroke-dasharray:1; stroke-dashoffset:1; opacity:0; marker-end:url(#tip); }
+    .read { stroke:var(--purple); } .write { stroke:var(--orange); } .reg { stroke:var(--gold); }
+    #s-res, #s-uns, #s-frame, #f-frame, #f-box, #s-c0, #s-c1, #s-c2, #f-c0 { opacity:0; }
+        #s-a0{animation:k0 10.0s var(--ease) infinite} @keyframes k0{0%,2.00%{stroke-dashoffset:1;opacity:0} 2.10%{opacity:1} 8.00%,97.50%{stroke-dashoffset:0;opacity:1} 99.00%,100%{stroke-dashoffset:1;opacity:0}}
+    #s-planar rect{animation:k1 10.0s var(--ease) infinite} @keyframes k1{0%,8.00%{fill:var(--paper)} 10.00%,97.50%{fill:var(--hot)} 99.00%,100%{fill:var(--paper)}}
+    #s-a1{animation:k2 10.0s var(--ease) infinite} @keyframes k2{0%,11.00%{stroke-dashoffset:1;opacity:0} 11.10%{opacity:1} 17.00%,97.50%{stroke-dashoffset:0;opacity:1} 99.00%,100%{stroke-dashoffset:1;opacity:0}}
+    #s-res{animation:k3 10.0s var(--ease) infinite} @keyframes k3{0%,16.00%{opacity:0} 19.00%,97.50%{opacity:1} 99.50%,100%{opacity:0}}
+    #s-c0{animation:k4 10.0s var(--ease) infinite} @keyframes k4{0%,18.00%{opacity:0} 20.00%,40.00%{opacity:1} 42.00%,100%{opacity:0}}
+    #s-a2{animation:k5 10.0s var(--ease) infinite} @keyframes k5{0%,24.00%{stroke-dashoffset:1;opacity:0} 24.10%{opacity:1} 30.00%,97.50%{stroke-dashoffset:0;opacity:1} 99.00%,100%{stroke-dashoffset:1;opacity:0}}
+    #s-zig rect{animation:k6 10.0s var(--ease) infinite} @keyframes k6{0%,30.00%{fill:var(--paper)} 32.00%,97.50%{fill:var(--hot)} 99.00%,100%{fill:var(--paper)}}
+    #s-a3{animation:k7 10.0s var(--ease) infinite} @keyframes k7{0%,33.00%{stroke-dashoffset:1;opacity:0} 33.10%{opacity:1} 39.00%,97.50%{stroke-dashoffset:0;opacity:1} 99.00%,100%{stroke-dashoffset:1;opacity:0}}
+    #s-uns{animation:k8 10.0s var(--ease) infinite} @keyframes k8{0%,38.00%{opacity:0} 41.00%,97.50%{opacity:1} 99.50%,100%{opacity:0}}
+    #s-c1{animation:k9 10.0s var(--ease) infinite} @keyframes k9{0%,40.00%{opacity:0} 42.00%,62.00%{opacity:1} 64.00%,100%{opacity:0}}
+    #s-a4{animation:k10 10.0s var(--ease) infinite} @keyframes k10{0%,46.00%{stroke-dashoffset:1;opacity:0} 46.10%{opacity:1} 52.00%,97.50%{stroke-dashoffset:0;opacity:1} 99.00%,100%{stroke-dashoffset:1;opacity:0}}
+    #s-pfor rect{animation:k11 10.0s var(--ease) infinite} @keyframes k11{0%,52.00%{fill:var(--paper)} 54.00%,97.50%{fill:var(--hot)} 99.00%,100%{fill:var(--paper)}}
+    #s-a5{animation:k12 10.0s var(--ease) infinite} @keyframes k12{0%,55.00%{stroke-dashoffset:1;opacity:0} 55.10%{opacity:1} 61.00%,97.50%{stroke-dashoffset:0;opacity:1} 99.00%,100%{stroke-dashoffset:1;opacity:0}}
+    #s-frame{animation:k13 10.0s var(--ease) infinite} @keyframes k13{0%,60.00%{opacity:0} 63.00%,97.50%{opacity:1} 99.50%,100%{opacity:0}}
+    #s-c2{animation:k14 10.0s var(--ease) infinite} @keyframes k14{0%,62.00%{opacity:0} 64.00%,97.50%{opacity:1} 99.50%,100%{opacity:0}}
+    #f-a0{animation:k15 10.0s var(--ease) infinite} @keyframes k15{0%,68.00%{stroke-dashoffset:1;opacity:0} 68.10%{opacity:1} 73.00%,97.50%{stroke-dashoffset:0;opacity:1} 99.00%,100%{stroke-dashoffset:1;opacity:0}}
+    #f-box{animation:k16 10.0s var(--ease) infinite} @keyframes k16{0%,72.00%{opacity:0} 75.00%,97.50%{opacity:1} 99.50%,100%{opacity:0}}
+    #f-i0{animation:k17 10.0s var(--ease) infinite} @keyframes k17{0%,75.00%{stroke-dashoffset:1;opacity:0} 75.10%{opacity:1} 79.00%,97.50%{stroke-dashoffset:0;opacity:1} 99.00%,100%{stroke-dashoffset:1;opacity:0}}
+    #f-i1{animation:k18 10.0s var(--ease) infinite} @keyframes k18{0%,79.00%{stroke-dashoffset:1;opacity:0} 79.10%{opacity:1} 83.00%,97.50%{stroke-dashoffset:0;opacity:1} 99.00%,100%{stroke-dashoffset:1;opacity:0}}
+    #f-a1{animation:k19 10.0s var(--ease) infinite} @keyframes k19{0%,83.00%{stroke-dashoffset:1;opacity:0} 83.10%{opacity:1} 87.00%,97.50%{stroke-dashoffset:0;opacity:1} 99.00%,100%{stroke-dashoffset:1;opacity:0}}
+    #f-frame{animation:k20 10.0s var(--ease) infinite} @keyframes k20{0%,86.00%{opacity:0} 89.00%,97.50%{opacity:1} 99.50%,100%{opacity:0}}
+    #f-c0{animation:k21 10.0s var(--ease) infinite} @keyframes k21{0%,88.00%{opacity:0} 90.00%,97.50%{opacity:1} 99.50%,100%{opacity:0}}
+    @media (prefers-reduced-motion:reduce) {
+      * { animation:none !important; }
+      #s-res, #s-uns, #s-frame, #f-frame, #f-box, #s-c2, #f-c0 { opacity:1; }
+      .arr { stroke-dashoffset:0; opacity:1; }
+    }
+  ]]></style>
+  <defs><marker id="tip" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="var(--muted)"/></marker></defs>
+    <text x="16" y="34" class="title">SEPARATE NODES</text>
+  <g><rect x="16" y="50" width="74" height="46" rx="4" class="mem"/><text x="53.0" y="69" class="mlab">tile</text><text x="53.0" y="85" class="msize">2 MiB</text></g>
+  <g id="s-planar"><rect x="112" y="50" width="74" height="46" rx="4" class="box"/><text x="149.0" y="78" class="name">PLANAR</text></g>
+  <g id="s-res"><rect x="208" y="50" width="84" height="46" rx="4" class="mem"/><text x="250.0" y="69" class="mlab">residuals</text><text x="250.0" y="85" class="msize">2 MiB</text></g>
+  <g id="s-zig"><rect x="314" y="50" width="74" height="46" rx="4" class="box"/><text x="351.0" y="78" class="name">ZIGZAG</text></g>
+  <g id="s-uns"><rect x="410" y="50" width="84" height="46" rx="4" class="mem"/><text x="452.0" y="69" class="mlab">unsigned</text><text x="452.0" y="85" class="msize">2 MiB</text></g>
+  <g id="s-pfor"><rect x="516" y="50" width="62" height="46" rx="4" class="box"/><text x="547.0" y="78" class="name">PFOR</text></g>
+  <g id="s-frame"><rect x="600" y="50" width="64" height="46" rx="4" class="end"/><text x="632.0" y="69" class="mlab">frame</text><text x="632.0" y="85" class="msize"></text></g>
+  <path id="s-a0" d="M90 73 H110" pathLength="1" class="arr read"/>
+  <path id="s-a1" d="M186 73 H206" pathLength="1" class="arr write"/>
+  <path id="s-a2" d="M292 73 H312" pathLength="1" class="arr read"/>
+  <path id="s-a3" d="M388 73 H408" pathLength="1" class="arr write"/>
+  <path id="s-a4" d="M494 73 H514" pathLength="1" class="arr read"/>
+  <path id="s-a5" d="M578 73 H598" pathLength="1" class="arr write"/>
+  <text x="16" y="132" class="clab">memory read and written</text>
+  <text id="s-c0" x="200" y="132" class="cval">4 MiB</text>
+  <text id="s-c1" x="200" y="132" class="cval">8 MiB</text>
+  <text id="s-c2" x="200" y="132" class="cval">10 MiB plus the frame</text>
+  <text x="16" y="194" class="title gold">FUSED</text>
+  <g><rect x="16" y="210" width="74" height="46" rx="4" class="mem"/><text x="53.0" y="229" class="mlab">tile</text><text x="53.0" y="245" class="msize">2 MiB</text></g>
+  <rect x="112" y="204" width="466" height="58" rx="5" class="frame"/><text id="f-box" x="345" y="276" class="note" text-anchor="middle">each sample stays in registers</text>
+  <g class="inner"><rect x="150" y="210" width="74" height="46" rx="4" class="box"/><text x="187.0" y="238" class="name">PLANAR</text></g>
+  <g class="inner"><rect x="308" y="210" width="74" height="46" rx="4" class="box"/><text x="345.0" y="238" class="name">ZIGZAG</text></g>
+  <g class="inner"><rect x="466" y="210" width="62" height="46" rx="4" class="box"/><text x="497.0" y="238" class="name">PFOR</text></g>
+  <path id="f-i0" d="M226 233 H304" pathLength="1" class="arr reg"/>
+  <path id="f-i1" d="M384 233 H462" pathLength="1" class="arr reg"/>
+  <g id="f-frame"><rect x="600" y="210" width="64" height="46" rx="4" class="end"/><text x="632.0" y="229" class="mlab">frame</text><text x="632.0" y="245" class="msize"></text></g>
+  <path id="f-a0" d="M90 233 H110" pathLength="1" class="arr read"/>
+  <path id="f-a1" d="M578 233 H598" pathLength="1" class="arr write"/>
+  <text x="16" y="302" class="clab">memory read and written</text>
+  <text id="f-c0" x="200" y="302" class="cval gold">2 MiB plus the frame</text>
+</svg>

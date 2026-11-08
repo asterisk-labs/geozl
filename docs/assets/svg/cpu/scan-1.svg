@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" width="640" height="220" role="img" aria-label="Step 1 of 5, one row of c in a 128-bit register, 8 lanes"><style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap');
+svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
+.ttl{fill:#111111;font:600 13px "IBM Plex Mono",monospace}
+.cap{fill:#111111;font:500 13px "IBM Plex Mono",monospace}
+.n{fill:#492AE8;font-weight:600}
+.lab{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.num{font:600 13px "IBM Plex Mono",monospace;text-anchor:middle}
+.mid{text-anchor:middle}
+.grey{fill:#F3F3F1;stroke:#9AA1AB}.greyt{fill:#5C6370}
+.ink{fill:#FFFFFF;stroke:#111111}.inkt{fill:#111111}
+.ind{fill:#ECE9FD;stroke:#492AE8;stroke-width:1.3}.indt{fill:#492AE8}
+.mint{fill:#C4FFC2;stroke:#1D7A3E;stroke-width:1.3}.mintt{fill:#1D7A3E}
+.yel{fill:#FEF6D3;stroke:#F7CC09;stroke-width:1.3}.yelt{fill:#7A5D00}
+.faint{fill:#FFFFFF;stroke:#E6E6E3}.faintt{fill:#C4C8CE}
+.reg{fill:none;stroke:#111111;stroke-width:1.4}
+.arr{fill:none;stroke:#492AE8;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.arrg{fill:none;stroke:#9AA1AB;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}
+.arrm{fill:none;stroke:#1D7A3E;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.in{animation:in .45s cubic-bezier(.4,0,.2,1) both}
+@keyframes in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.in{animation:none}}]]></style><text class="cap" x="20" y="26"><tspan class="n">1</tspan>  one row of c in a 128-bit register, 8 lanes</text><text class="lab mid" x="176.0" y="56">lane 0</text><text class="lab mid" x="236.0" y="56">lane 1</text><text class="lab mid" x="296.0" y="56">lane 2</text><text class="lab mid" x="356.0" y="56">lane 3</text><text class="lab mid" x="416.0" y="56">lane 4</text><text class="lab mid" x="476.0" y="56">lane 5</text><text class="lab mid" x="536.0" y="56">lane 6</text><text class="lab mid" x="596.0" y="56">lane 7</text><text class="lab" x="20" y="88">c</text><rect class="ind" x="150" y="68" width="52" height="30" rx="4"/><text class="num indt" x="176.0" y="88">11</text><rect class="ind" x="210" y="68" width="52" height="30" rx="4"/><text class="num indt" x="236.0" y="88">2</text><rect class="ind" x="270" y="68" width="52" height="30" rx="4"/><text class="num indt" x="296.0" y="88">2</text><rect class="ind" x="330" y="68" width="52" height="30" rx="4"/><text class="num indt" x="356.0" y="88">2</text><rect class="ind" x="390" y="68" width="52" height="30" rx="4"/><text class="num indt" x="416.0" y="88">1</text><rect class="ind" x="450" y="68" width="52" height="30" rx="4"/><text class="num indt" x="476.0" y="88">3</text><rect class="ind" x="510" y="68" width="52" height="30" rx="4"/><text class="num indt" x="536.0" y="88">&#8722;1</text><rect class="ind" x="570" y="68" width="52" height="30" rx="4"/><text class="num indt" x="596.0" y="88">&#8722;1</text><text class="lab" x="20" y="124">r + N &#8722; N on the left,</text><text class="lab" x="20" y="140">from the row step</text></svg>

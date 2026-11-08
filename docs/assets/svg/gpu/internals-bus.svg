@@ -1,0 +1,188 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 278" width="640" height="278" role="img" aria-label="Two rows. Decoding on the CPU keeps the cores busy expanding the frame into the full raster, and then the whole raster crosses the bus. Decoding on the GPU sends only the compressed frame and a short task list across the bus, and the waves expand the raster in device memory while the CPU cores stay free.">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+    svg{
+      --ink:#111111; --ink-2:#5C6370; --faint:#9AA1AB; --hair:#E6E6E3; --tile:#F3F3F1;
+      --indigo:#492AE8; --indigo-t:#ECE9FD; --yellow:#F7CC09; --yellow-t:#FEF6D3; --yellow-x:#7A5D00;
+      --mint:#C4FFC2; --green:#1D7A3E;
+      --e:cubic-bezier(.4,0,.2,1);
+      background:transparent;
+      font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+    text{ font-family:"IBM Plex Mono",ui-monospace,monospace; }
+    .cap{ fill:var(--ink); font-size:12.5px; font-weight:500; }
+    .capn{ fill:var(--indigo); font-size:12.5px; font-weight:600; }
+    .lab{ fill:var(--ink-2); font-size:11px; font-weight:500; letter-spacing:.02em; }
+    .dim{ fill:var(--faint); font-size:11px; font-weight:500; }
+    .num{ fill:var(--ink); font-size:11px; font-weight:500; }
+    .tag{ fill:#FFFFFF; stroke:var(--indigo); stroke-width:1; }
+    .tagt{ fill:var(--indigo); font-size:11px; font-weight:500; }
+    .anim{ transform-box:fill-box; }
+    #cap0{ opacity:0; animation:k1 14.0s var(--e) infinite; }
+    @keyframes k1{ 0%{opacity:0;opacity:0} 2.143%{opacity:1} 20.714%{opacity:1} 22.857%{opacity:0} 100%{opacity:0} }
+    #cap1{ opacity:0; animation:k2 14.0s var(--e) infinite; }
+    @keyframes k2{ 0%{opacity:0} 22.857%{opacity:0} 25%{opacity:1} 43.571%{opacity:1} 45.714%{opacity:0} 100%{opacity:0} }
+    #cap2{ opacity:0; animation:k3 14.0s var(--e) infinite; }
+    @keyframes k3{ 0%{opacity:0} 45.714%{opacity:0} 47.857%{opacity:1} 63.571%{opacity:1} 65.714%{opacity:0} 100%{opacity:0} }
+    #cap3{ opacity:0; animation:k4 14.0s var(--e) infinite; }
+    @keyframes k4{ 0%{opacity:0} 65.714%{opacity:0} 67.857%{opacity:1} 79.286%{opacity:1} 81.429%{opacity:0} 100%{opacity:0} }
+    #capS{ opacity:1; animation:k5 14.0s var(--e) infinite; }
+    @keyframes k5{ 0%{opacity:0} 81.429%{opacity:0} 83.571%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    .box{ fill:var(--tile); stroke:var(--hair); stroke-width:1; }
+    .wire{ stroke:var(--faint); stroke-width:1; }
+    .chip{ fill:var(--indigo-t); stroke:var(--indigo); stroke-width:1; }
+    .rast{ fill:#FFFFFF; stroke:var(--ink-2); stroke-width:1; }
+    .cell{ fill:var(--mint); }
+    .grid{ stroke:var(--ink-2); stroke-opacity:.25; stroke-width:1; }
+    .core{ fill:#FFFFFF; stroke:var(--ink-2); stroke-width:1; }
+    #ac0{  animation:k6 14.0s var(--e) infinite; }
+    @keyframes k6{ 0%{fill:#FFFFFF;stroke:var(--ink-2)} 3.571%{fill:#FFFFFF;stroke:var(--ink-2)} 6.429%{fill:var(--indigo);stroke:var(--indigo)} 15.714%{fill:var(--indigo);stroke:var(--indigo)} 19.286%{fill:#FFFFFF;stroke:var(--ink-2)} 100%{fill:#FFFFFF;stroke:var(--ink-2)} }
+    #ac1{  animation:k7 14.0s var(--e) infinite; }
+    @keyframes k7{ 0%{fill:#FFFFFF;stroke:var(--ink-2)} 3.571%{fill:#FFFFFF;stroke:var(--ink-2)} 6.429%{fill:var(--indigo);stroke:var(--indigo)} 15.714%{fill:var(--indigo);stroke:var(--indigo)} 19.286%{fill:#FFFFFF;stroke:var(--ink-2)} 100%{fill:#FFFFFF;stroke:var(--ink-2)} }
+    #ac2{  animation:k8 14.0s var(--e) infinite; }
+    @keyframes k8{ 0%{fill:#FFFFFF;stroke:var(--ink-2)} 3.571%{fill:#FFFFFF;stroke:var(--ink-2)} 6.429%{fill:var(--indigo);stroke:var(--indigo)} 15.714%{fill:var(--indigo);stroke:var(--indigo)} 19.286%{fill:#FFFFFF;stroke:var(--ink-2)} 100%{fill:#FFFFFF;stroke:var(--ink-2)} }
+    #ac3{  animation:k9 14.0s var(--e) infinite; }
+    @keyframes k9{ 0%{fill:#FFFFFF;stroke:var(--ink-2)} 3.571%{fill:#FFFFFF;stroke:var(--ink-2)} 6.429%{fill:var(--indigo);stroke:var(--indigo)} 15.714%{fill:var(--indigo);stroke:var(--indigo)} 19.286%{fill:#FFFFFF;stroke:var(--ink-2)} 100%{fill:#FFFFFF;stroke:var(--ink-2)} }
+    #ax0{ opacity:1; animation:k10 14.0s var(--e) infinite; }
+    @keyframes k10{ 0%{opacity:0} 5.714%{opacity:0} 7.857%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #ax1{ opacity:1; animation:k11 14.0s var(--e) infinite; }
+    @keyframes k11{ 0%{opacity:0} 6.929%{opacity:0} 9.071%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #ax2{ opacity:1; animation:k12 14.0s var(--e) infinite; }
+    @keyframes k12{ 0%{opacity:0} 8.143%{opacity:0} 10.286%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #ax3{ opacity:1; animation:k13 14.0s var(--e) infinite; }
+    @keyframes k13{ 0%{opacity:0} 9.357%{opacity:0} 11.5%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #ax4{ opacity:1; animation:k14 14.0s var(--e) infinite; }
+    @keyframes k14{ 0%{opacity:0} 10.571%{opacity:0} 12.714%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #ax5{ opacity:1; animation:k15 14.0s var(--e) infinite; }
+    @keyframes k15{ 0%{opacity:0} 11.786%{opacity:0} 13.929%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #ax6{ opacity:1; animation:k16 14.0s var(--e) infinite; }
+    @keyframes k16{ 0%{opacity:0} 13%{opacity:0} 15.143%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #ax7{ opacity:1; animation:k17 14.0s var(--e) infinite; }
+    @keyframes k17{ 0%{opacity:0} 14.214%{opacity:0} 16.357%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #aR{ transform:translate(390px,0); animation:k18 14.0s var(--e) infinite; }
+    @keyframes k18{ 0%{opacity:0;transform:translate(0,0)} 2.857%{opacity:0} 5.714%{opacity:1} 25%{transform:translate(0,0)} 36.429%{transform:translate(390px,0)} 95.714%{opacity:1} 100%{opacity:0;transform:translate(390px,0)} }
+    #aw1{  animation:k19 14.0s var(--e) infinite; }
+    @keyframes k19{ 0%{stroke:var(--faint)} 24.286%{stroke:var(--faint)} 26.429%{stroke:var(--indigo)} 36.429%{stroke:var(--indigo)} 40%{stroke:var(--faint)} 100%{stroke:var(--faint)} }
+    #aw2{  animation:k20 14.0s var(--e) infinite; }
+    @keyframes k20{ 0%{stroke:var(--faint)} 24.286%{stroke:var(--faint)} 26.429%{stroke:var(--indigo)} 36.429%{stroke:var(--indigo)} 40%{stroke:var(--faint)} 100%{stroke:var(--faint)} }
+    #aL{ opacity:1; animation:k21 14.0s var(--e) infinite; }
+    @keyframes k21{ 0%{opacity:0} 25%{opacity:0} 27.857%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #bc0{  animation:k22 14.0s var(--e) infinite; }
+    @keyframes k22{ 0%{fill:#FFFFFF;stroke:var(--ink-2)} 47.143%{fill:#FFFFFF;stroke:var(--ink-2)} 49.286%{fill:var(--indigo-t);stroke:var(--indigo)} 51.429%{fill:var(--indigo-t);stroke:var(--indigo)} 54.286%{fill:#FFFFFF;stroke:var(--ink-2)} 100%{fill:#FFFFFF;stroke:var(--ink-2)} }
+    #bc1{  animation:k23 14.0s var(--e) infinite; }
+    @keyframes k23{ 0%{fill:#FFFFFF;stroke:var(--ink-2)} 47.143%{fill:#FFFFFF;stroke:var(--ink-2)} 49.286%{fill:var(--indigo-t);stroke:var(--indigo)} 51.429%{fill:var(--indigo-t);stroke:var(--indigo)} 54.286%{fill:#FFFFFF;stroke:var(--ink-2)} 100%{fill:#FFFFFF;stroke:var(--ink-2)} }
+    #bc2{  animation:k24 14.0s var(--e) infinite; }
+    @keyframes k24{ 0%{fill:#FFFFFF;stroke:var(--ink-2)} 47.143%{fill:#FFFFFF;stroke:var(--ink-2)} 49.286%{fill:var(--indigo-t);stroke:var(--indigo)} 51.429%{fill:var(--indigo-t);stroke:var(--indigo)} 54.286%{fill:#FFFFFF;stroke:var(--ink-2)} 100%{fill:#FFFFFF;stroke:var(--ink-2)} }
+    #bc3{  animation:k25 14.0s var(--e) infinite; }
+    @keyframes k25{ 0%{fill:#FFFFFF;stroke:var(--ink-2)} 47.143%{fill:#FFFFFF;stroke:var(--ink-2)} 49.286%{fill:var(--indigo-t);stroke:var(--indigo)} 51.429%{fill:var(--indigo-t);stroke:var(--indigo)} 54.286%{fill:#FFFFFF;stroke:var(--ink-2)} 100%{fill:#FFFFFF;stroke:var(--ink-2)} }
+    #bF{ opacity:1; animation:k26 14.0s var(--e) infinite; }
+    @keyframes k26{ 0%{opacity:0;opacity:0} 2.857%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #bT{ opacity:1; animation:k27 14.0s var(--e) infinite; }
+    @keyframes k27{ 0%{opacity:0} 47.143%{opacity:0} 49.643%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #bS{ transform:translate(376px,0); animation:k28 14.0s var(--e) infinite; }
+    @keyframes k28{ 0%{transform:translate(0,0)} 54.286%{transform:translate(0,0)} 60.714%{transform:translate(376px,0)} 100%{transform:translate(376px,0)} }
+    #bw1{  animation:k29 14.0s var(--e) infinite; }
+    @keyframes k29{ 0%{stroke:var(--faint)} 53.571%{stroke:var(--faint)} 55.714%{stroke:var(--indigo)} 60.714%{stroke:var(--indigo)} 64.286%{stroke:var(--faint)} 100%{stroke:var(--faint)} }
+    #bw2{  animation:k30 14.0s var(--e) infinite; }
+    @keyframes k30{ 0%{stroke:var(--faint)} 53.571%{stroke:var(--faint)} 55.714%{stroke:var(--indigo)} 60.714%{stroke:var(--indigo)} 64.286%{stroke:var(--faint)} 100%{stroke:var(--faint)} }
+    #bL{ opacity:1; animation:k31 14.0s var(--e) infinite; }
+    @keyframes k31{ 0%{opacity:0} 54.286%{opacity:0} 57.143%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #bx0{ opacity:1; animation:k32 14.0s var(--e) infinite; }
+    @keyframes k32{ 0%{opacity:0} 70%{opacity:0} 72.143%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #bx1{ opacity:1; animation:k33 14.0s var(--e) infinite; }
+    @keyframes k33{ 0%{opacity:0} 70%{opacity:0} 72.143%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #bx2{ opacity:1; animation:k34 14.0s var(--e) infinite; }
+    @keyframes k34{ 0%{opacity:0} 70%{opacity:0} 72.143%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #bx3{ opacity:1; animation:k35 14.0s var(--e) infinite; }
+    @keyframes k35{ 0%{opacity:0} 70%{opacity:0} 72.143%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #bx4{ opacity:1; animation:k36 14.0s var(--e) infinite; }
+    @keyframes k36{ 0%{opacity:0} 70%{opacity:0} 72.143%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #bx5{ opacity:1; animation:k37 14.0s var(--e) infinite; }
+    @keyframes k37{ 0%{opacity:0} 70%{opacity:0} 72.143%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #bx6{ opacity:1; animation:k38 14.0s var(--e) infinite; }
+    @keyframes k38{ 0%{opacity:0} 70%{opacity:0} 72.143%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #bx7{ opacity:1; animation:k39 14.0s var(--e) infinite; }
+    @keyframes k39{ 0%{opacity:0} 70%{opacity:0} 72.143%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #bR{ opacity:1; animation:k40 14.0s var(--e) infinite; }
+    @keyframes k40{ 0%{opacity:0} 67.143%{opacity:0} 70%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    #bW{ opacity:1; animation:k41 14.0s var(--e) infinite; }
+    @keyframes k41{ 0%{opacity:0} 68.571%{opacity:0} 71.429%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    @media (prefers-reduced-motion:reduce){ *{ animation:none !important; } }
+  ]]></style>
+  <g id="cap0"><text class="capn" x="8" y="20">1</text><text class="cap" x="28" y="20">cpu decode, where the cores expand the frame into the raster</text></g>
+  <g id="cap1"><text class="capn" x="8" y="20">2</text><text class="cap" x="28" y="20">then the whole raster crosses the bus</text></g>
+  <g id="cap2"><text class="capn" x="8" y="20">3</text><text class="cap" x="28" y="20">gpu decode, where only the frame and a task list cross</text></g>
+  <g id="cap3"><text class="capn" x="8" y="20">4</text><text class="cap" x="28" y="20">waves expand it in device memory, cpu cores free</text></g>
+  <text id="capS" class="cap" x="8" y="20">cpu decode moves the raster; gpu decode moves only the frame</text>
+  <text class="lab" x="16" y="50">decode on the cpu, then copy</text>
+  <rect class="box" x="16" y="58" width="234" height="86" rx="4"/>
+  <rect class="box" x="390" y="58" width="234" height="86" rx="4"/>
+  <text class="lab" x="26" y="75">host memory</text>
+  <text class="lab" x="400" y="75">device memory</text>
+  <text class="lab" x="320" y="78" text-anchor="middle">bus</text>
+  <line id="aw1" class="wire" x1="250" y1="84" x2="390" y2="84"/>
+  <line id="aw2" class="wire" x1="250" y1="118" x2="390" y2="118"/>
+  <rect id="ac0" class="core" x="26" y="124" width="10" height="10" rx="2"/>
+  <rect id="ac1" class="core" x="40" y="124" width="10" height="10" rx="2"/>
+  <rect id="ac2" class="core" x="54" y="124" width="10" height="10" rx="2"/>
+  <rect id="ac3" class="core" x="68" y="124" width="10" height="10" rx="2"/>
+  <text class="lab" x="86" y="133">cpu cores</text>
+  <rect class="chip" x="28" y="90" width="44" height="20" rx="3"/><text class="tagt" x="50" y="104" text-anchor="middle">frame</text>
+  <g id="aR">
+    <rect class="rast" x="104" y="90" width="120" height="20" rx="3"/>
+    <rect id="ax0" class="cell" x="104.5" y="90.5" width="15" height="19"/>
+    <rect id="ax1" class="cell" x="119.5" y="90.5" width="15" height="19"/>
+    <rect id="ax2" class="cell" x="134.5" y="90.5" width="15" height="19"/>
+    <rect id="ax3" class="cell" x="149.5" y="90.5" width="15" height="19"/>
+    <rect id="ax4" class="cell" x="164.5" y="90.5" width="15" height="19"/>
+    <rect id="ax5" class="cell" x="179.5" y="90.5" width="15" height="19"/>
+    <rect id="ax6" class="cell" x="194.5" y="90.5" width="15" height="19"/>
+    <rect id="ax7" class="cell" x="209.5" y="90.5" width="15" height="19"/>
+    <line class="grid" x1="119" y1="91" x2="119" y2="109"/>
+    <line class="grid" x1="134" y1="91" x2="134" y2="109"/>
+    <line class="grid" x1="149" y1="91" x2="149" y2="109"/>
+    <line class="grid" x1="164" y1="91" x2="164" y2="109"/>
+    <line class="grid" x1="179" y1="91" x2="179" y2="109"/>
+    <line class="grid" x1="194" y1="91" x2="194" y2="109"/>
+    <line class="grid" x1="209" y1="91" x2="209" y2="109"/>
+    <rect x="104" y="90" width="120" height="20" rx="3" fill="none" stroke="var(--ink-2)"/>
+    <text class="num" x="164" y="104" text-anchor="middle">raster</text>
+  </g>
+  <text id="aL" class="lab" x="320" y="135" text-anchor="middle">full raster</text>
+  <text class="lab" x="16" y="174">copy the frame, decode on the gpu</text>
+  <rect class="box" x="16" y="182" width="234" height="86" rx="4"/>
+  <rect class="box" x="390" y="182" width="234" height="86" rx="4"/>
+  <text class="lab" x="26" y="199">host memory</text>
+  <text class="lab" x="400" y="199">device memory</text>
+  <text class="lab" x="320" y="202" text-anchor="middle">bus</text>
+  <line id="bw1" class="wire" x1="250" y1="208" x2="390" y2="208"/>
+  <line id="bw2" class="wire" x1="250" y1="242" x2="390" y2="242"/>
+  <rect id="bc0" class="core" x="26" y="248" width="10" height="10" rx="2"/>
+  <rect id="bc1" class="core" x="40" y="248" width="10" height="10" rx="2"/>
+  <rect id="bc2" class="core" x="54" y="248" width="10" height="10" rx="2"/>
+  <rect id="bc3" class="core" x="68" y="248" width="10" height="10" rx="2"/>
+  <text class="lab" x="86" y="257">cpu cores</text>
+  <g id="bS"><g id="bF"><rect class="chip" x="28" y="214" width="40" height="20" rx="3"/><text class="tagt" x="48" y="228" text-anchor="middle">frame</text></g><g id="bT"><rect class="chip" x="72" y="214" width="40" height="20" rx="3"/><text class="tagt" x="92" y="228" text-anchor="middle">tasks</text></g></g>
+  <text id="bL" class="lab" x="320" y="259" text-anchor="middle">frame + tasks</text>
+  <g id="bR">
+    <rect class="rast" x="494" y="214" width="120" height="20" rx="3"/>
+    <rect id="bx0" class="cell" x="494.5" y="214.5" width="15" height="19"/>
+    <rect id="bx1" class="cell" x="509.5" y="214.5" width="15" height="19"/>
+    <rect id="bx2" class="cell" x="524.5" y="214.5" width="15" height="19"/>
+    <rect id="bx3" class="cell" x="539.5" y="214.5" width="15" height="19"/>
+    <rect id="bx4" class="cell" x="554.5" y="214.5" width="15" height="19"/>
+    <rect id="bx5" class="cell" x="569.5" y="214.5" width="15" height="19"/>
+    <rect id="bx6" class="cell" x="584.5" y="214.5" width="15" height="19"/>
+    <rect id="bx7" class="cell" x="599.5" y="214.5" width="15" height="19"/>
+    <line class="grid" x1="509" y1="215" x2="509" y2="233"/>
+    <line class="grid" x1="524" y1="215" x2="524" y2="233"/>
+    <line class="grid" x1="539" y1="215" x2="539" y2="233"/>
+    <line class="grid" x1="554" y1="215" x2="554" y2="233"/>
+    <line class="grid" x1="569" y1="215" x2="569" y2="233"/>
+    <line class="grid" x1="584" y1="215" x2="584" y2="233"/>
+    <line class="grid" x1="599" y1="215" x2="599" y2="233"/>
+    <rect x="494" y="214" width="120" height="20" rx="3" fill="none" stroke="var(--ink-2)"/>
+    <text class="num" x="554" y="228" text-anchor="middle">raster</text>
+  </g>
+  <text id="bW" class="lab" x="554" y="257" text-anchor="middle">waves decode</text>
+</svg>

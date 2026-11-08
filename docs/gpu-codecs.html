@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="Why PFOR and PivCo decode well on a GPU, and how they compare.">
+<title>GeoZL · GPU-friendly codecs</title>
+<link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/reading.css?v=5">
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <a class="lockup vt-lockup" href="index.html" aria-label="GeoZL home">
+      <img class="marksvg" src="assets/svg/mark-light.svg" alt="">
+      <span class="wm-sm">GeoZL</span>
+    </a>
+
+    <div class="offsite" aria-label="Project links">
+      <a href="https://github.com/asterisk-labs/geozl" title="GitHub" aria-label="GeoZL on GitHub" rel="noopener noreferrer">
+        <svg class="github" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg>
+      </a>
+      <a class="pypi" href="https://pypi.org/project/geozl/" title="PyPI" aria-label="GeoZL on PyPI" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.3 14.3 4.7v6.6L8 14.7l-6.3-3.4V4.7Z"></path><path d="M1.7 4.7 8 8.1l6.3-3.4M8 8.1v6.6"></path></svg>
+        <img class="mark-color" src="assets/svg/pypi-color.svg" alt="" width="18" height="16">
+      </a>
+      <a class="rumi" href="https://asterisk.coop/rumi/" title="Rumi" aria-label="Rumi, the raster format built with GeoZL" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 1h14v14H1zM1 5.5l6 .8 4.2 2.1L15 9.2M7 1l-.5 5.3 4.7 2.1L9.5 15"></path></svg>
+        <img class="mark-color" src="assets/svg/rumi-color.svg" alt="" width="16" height="16">
+      </a>
+      <a class="asterisk" href="https://asterisk.coop" title="asterisk labs" aria-label="asterisk labs" rel="noopener noreferrer">
+        <img class="mark-mono" src="assets/svg/asterisk-mark-black.svg" alt="" width="16" height="18">
+        <img class="mark-color" src="assets/svg/asterisk-mark-color.svg" alt="" width="16" height="18">
+      </a>
+    </div>
+
+    <nav class="nav" aria-label="Sections">
+      <a href="docs.html">Docs</a>
+      <a href="api-high.html">API</a>
+      <a href="benchmark.html">Benchmark</a>
+    </nav>
+  </header>
+
+  <main class="doc">
+    <nav class="toc" aria-label="Contents">
+      <p class="toc-title">Docs</p>
+      <ol class="toc-pages">
+        <li class="toc-group">Reference</li>
+        <li><a href="docs.html">Codecs</a></li>
+        <li><a href="predictors.html">Predictors</a></li>
+        <li><a href="fused.html">Fused</a></li>
+        <li><a href="streams.html">Streams</a></li>
+        <li><a href="near-lossless.html">Near-lossless</a></li>
+        <li class="toc-group">CPU decoding</li>
+        <li><a href="cpu.html">Inside the CPU decoder</a></li>
+        <li class="toc-group">GPU-friendly codecs</li>
+        <li><a href="gpu-codecs.html" class="here">Why they fit a GPU</a></li>
+        <li><a href="pfor.html">PFOR</a></li>
+        <li><a href="pivco.html">PivCo</a></li>
+        <li class="toc-group">GPU decoding</li>
+        <li><a href="gpu.html">API</a></li>
+        <li><a href="gpu-internals.html">Inside the decoder</a></li>
+      </ol>
+    </nav>
+
+    <article class="content">
+      <h1>GPU-friendly codecs</h1>
+      <ul class="facts">
+        <li><a href="pfor.html">PFOR</a>, CTid <code>0x72D70D</code></li>
+        <li><a href="pivco.html">PivCo-Huffman</a>, CTids <code>0x72D713</code> and <code>0x72D712</code></li>
+      </ul>
+      <p>A GPU runs the same small program on thousands of threads at once. Each thread must find its own input without waiting for another. GeoZL ends GPU recipes with PFOR or PivCo to meet that requirement.</p>
+
+      <h2 class="part" id="waiting">The problem is finding where you start</h2>
+      <p>DEFLATE, zstd and plain Huffman streams use variable-length tokens. Each token has a variable length, and the only way to know where token i begins is to decode tokens 0 to <i>i − 1</i> first. Each thread must wait for the previous thread to locate the next token. A CPU can hide much of the few-cycle cost per token. On a GPU, one thread works while thousands idle.</p>
+      <p>The animation codes the same eight symbols twice. In the Huffman row, watch the blue read position. The read position passes from thread to thread, so eight threads take eight turns. In the fixed-width row every thread computes its offset as <code>2 × i</code> and all eight start together, at the price of a few more bits.</p>
+      <figure class="diagram wide stepper" data-beats="5.8,8.8,13.2"><img src="assets/svg/gpu/codecs-relay.svg" alt="The symbols a b a c a b a a as Huffman codes 0 10 0 11 0 10 0 0, one read position moves from t0 to t7, revealing offsets 0, 1, 3, 4, 6, 7, 9 and 10 in eight steps. As fixed 2-bit codes, threads t0 to t7 get offsets 0, 2 to 14 in the same instant and decode in one step." loading="lazy"><figcaption>Variable-length codes form a relay. Fixed-width codes let every thread start at once.</figcaption></figure>
+      <p>A GPU format must let thread <code>t</code> locate its value without asking thread <code><i>t − 1</i></code>. PFOR and PivCo use register arithmetic in a wave of 32 threads.</p>
+
+      <h2 class="part" id="pfor">PFOR, where every value has the same width</h2>
+      <p>PFOR stores a block of 256 residuals with one bit width b for the whole block. In a flat fixed-width stream, value <code>i</code> starts at bit <code>i × b</code>. GeoZL interleaves the body into lanes, so a thread computes its physical offset from the lane and slot. The few values that do not fit in b bits keep their low bits in place and put their high bits in a short side list. A thread finds its exception rank by counting earlier set bits across the 256-bit mask.</p>
+      <p>One 32-thread wave handles a 256-value block at 8 values per thread. The exception mask and counts stay within that wave. <a href="pfor.html">How PFOR works</a> walks through the format with one small example.</p>
+
+      <h2 class="part" id="pivco">PivCo, Huffman stored in a different order</h2>
+      <p>Huffman codes skewed data with variable-length codes, but its single stream makes GPU decoding serial. PivCo-Huffman keeps exactly the same codes and changes only the order of the bits. Instead of writing each symbol's code in one piece, it writes, for every node of the Huffman tree, one bit per symbol that reaches that node, 0 for left and 1 for right.</p>
+      <p>Node bitmaps let each thread locate its next bit without a neighbour. The right-child slot comes from the number of preceding 1s in that node's bitmap. Popcount and a wave prefix sum provide those counts together. <a href="pivco.html">How PivCo works</a> builds this up from a three-letter example.</p>
+
+      <h2 class="part" id="together">One idea, two shapes</h2>
+      <p>Both codecs make data offsets computable per thread. PFOR uses multiplication. PivCo counts 1s. In the animation, watch each row of offsets appear in one instant, every thread at once, before any value is decoded. PFOR's thread t7 then pulls its exception bits 1011 up from the side list to make 90, and PivCo's threads holding a 1 carry their count down to their slot in the child bitmap.</p>
+      <figure class="diagram wide stepper" data-beats="3.3,6.5,9.3,15.2"><img src="assets/svg/gpu/codecs-answers.svg" alt="Left, PFOR with b = 3, where threads t0 to t7 get bit offsets 0, 3 to 21 at once and decode 3 5 2 7 4 6 1, then t7 adds the exception bits 1011 shifted by 3 to decode 90. Right, PivCo, where on the root bitmap 0 1 0 1 0 1 0 0 each thread counts the 1s before it, so t1, t3 and t5 read child slots 0, 1 and 2, and the threads decode a b a c a b a a." loading="lazy"><figcaption>PFOR multiplies, PivCo counts. Either way no thread waits for another.</figcaption></figure>
+      <p>Both work in independent blocks, 256 values for PFOR and 32 768 symbols per byte lane for PivCo. A 32-thread wave handles one PFOR block, and a four-wave group handles one PivCo block. The GPU can spread thousands of blocks across its cores. The animation shows each block running on its own waves.</p>
+      <figure class="diagram wide stepper" data-beats="3.1,6.8,13.2"><img src="assets/svg/gpu/codecs-blocks.svg" alt="Three frames split into independent blocks, two PFOR frames into blocks of 256 values, one PivCo frame into two byte lanes of 32 768-symbol blocks. All blocks move to a grid of GPU waves at once, one wave per PFOR block and four per PivCo block, and all decode together." loading="lazy"><figcaption>A batch splits into blocks, and every block decodes together.</figcaption></figure>
+      <p>Both use wave popcount, prefix sum and broadcast without memory traffic.</p>
+      <table class="spec">
+        <tr><th></th><td><b>PFOR</b></td><td><b>PivCo</b></td></tr>
+        <tr><th>position</th><td><code>slot × b</code></td><td>count of 1s before you</td></tr>
+        <tr><th>block</th><td>256 values</td><td>32 768 symbols per byte lane</td></tr>
+        <tr><th>best for</th><td>small residuals that do not repeat</td><td>bytes with a skewed distribution</td></tr>
+        <tr><th>recipes</th><td><code>planar&gt;zigzag&gt;pfor</code>, <code>id&gt;pfor</code></td><td><code>planar&gt;zigzag&gt;transpose&gt;pivco</code>, <code>id&gt;transpose&gt;pivco</code></td></tr>
+      </table>
+      <p>A frame can use both codecs. PivCo works on bytes, so a 16-bit raster is first split into a low-byte lane and a high-byte lane. The encoder codes each lane separately and keeps byte PFOR instead of PivCo for any lane where PFOR comes out smaller, so a single frame can use both.</p>
+      <p>The recipe selects the codec. Frames that end in one of these codecs, with one- or two-byte samples, decode on the GPU through the <a href="gpu.html">GPU API</a>. Frames that end in zstd or the generic entropy coder still decode, but on the CPU, and their samples are uploaded afterwards. <a href="gpu-internals.html">Inside the GPU decoder</a> follows a batch through both paths.</p>
+
+      <nav class="pager" aria-label="Pages">
+        <a class="prev" href="cpu.html"><span>Previous</span>Inside the CPU decoder</a>
+        <a class="next" href="pfor.html"><span>Next</span>How PFOR works</a>
+      </nav>
+    </article>
+
+    <nav class="toc onpage" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ol class="toc-sections">
+        <li><a href="#waiting">The problem is finding where you start</a></li>
+        <li><a href="#pfor">PFOR, where every value has the same width</a></li>
+        <li><a href="#pivco">PivCo, Huffman stored in a different order</a></li>
+        <li><a href="#together">One idea, two shapes</a></li>
+      </ol>
+    </nav>
+  </main>
+
+  <footer class="colophon">
+    <span>Made with</span>
+    <span class="heart" aria-label="love" role="img"></span>
+    <span>by</span>
+    <a class="by" href="https://asterisk.coop" rel="noopener noreferrer">
+      <img src="assets/svg/asterisk-mark-black.svg" alt="" width="15" height="17">
+      <span>asterisk labs</span>
+    </a>
+  </footer>
+</div>
+<script src="assets/js/toc.js" defer></script>
+<script src="assets/js/stepper.js?v=4" defer></script>
+</body>
+</html>

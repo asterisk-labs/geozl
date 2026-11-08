@@ -3,7 +3,7 @@ agree, since a static site with no build step has nothing else that would
 notice when they stop.
 
 The codec catalog lives in five places: the CTid in ctids.h, the README table,
-the cards in docs/docs.html, the CODECS array in docs/assets/js/main.js and the
+the sections of the four family pages, the CODECS array in docs/assets/js/main.js and the
 individual codec pages. The four public copies have to match. ctids.h is checked
 one way only, since a codec can exist in C before it is documented.
 
@@ -18,7 +18,9 @@ ROOT = Path(__file__).resolve().parents[3]
 
 CTIDS = ROOT / "core" / "include" / "geozl" / "ctids.h"
 README = ROOT / "README.md"
-CATALOG = ROOT / "docs" / "docs.html"
+DOCS = ROOT / "docs"
+OVERVIEW = DOCS / "docs.html"
+FAMILIES = [DOCS / f"{name}.html" for name in ("predictors", "fused", "streams", "near-lossless")]
 PAGER = ROOT / "docs" / "assets" / "js" / "main.js"
 
 pytestmark = pytest.mark.skipif(
@@ -49,18 +51,17 @@ def readme_rows() -> list[tuple[str, int]]:
     return [(n, int(v, 16)) for n, v in rows]
 
 
-def catalog_cards() -> list[dict[str, str]]:
-    """The cards on docs.html, in page order."""
-    body = _read(CATALOG)
+def catalog_cards(pages: list[Path] = FAMILIES) -> list[dict[str, str]]:
+    """The codec sections of the family pages, in reading order."""
+    body = "".join(_read(page) for page in pages)
     pattern = (
-        r'<a class="card" href="codecs/([\w.-]+)"[^>]*--fam:var\(--(\w+)\)"[^>]*>\s*'
-        r'<div class="card-top"><span class="card-no">(\d+)</span>'
-        r'<span class="card-ct">(0x[0-9A-Fa-f]+)</span></div>\s*'
-        r'<div class="card-name">(\w+)</div>'
+        r'<section class="codec" id="(\w+)" data-no="(\d+)" '
+        r'data-ctid="(0x[0-9A-Fa-f]+)" data-fam="(\w+)" data-page="codecs/([\w.-]+)"'
+        r'[^>]*>\s*<h3><span class="num">\2</span>\1</h3>'
     )
     return [
         {"file": f, "fam": fam, "no": no, "ctid": ct, "name": name}
-        for f, fam, no, ct, name in re.findall(pattern, body)
+        for name, no, ct, fam, f in re.findall(pattern, body)
     ]
 
 
@@ -138,7 +139,7 @@ def test_documented_ctids_exist_in_the_header():
 
 def test_every_codec_page_exists():
     for card in catalog_cards():
-        page = CATALOG.parent / "codecs" / card["file"]
+        page = DOCS / "codecs" / card["file"]
         assert page.exists(), f"{card['name']} links to a missing {card['file']}"
 
 
@@ -148,7 +149,7 @@ def test_codec_pages_match_the_catalog():
         assert card["file"] == expected_file, (
             f"{card['name']} uses unexpected page name {card['file']}"
         )
-        page = CATALOG.parent / "codecs" / card["file"]
+        page = DOCS / "codecs" / card["file"]
         assert page.exists(), f"{card['name']} links to a missing {card['file']}"
         identity = codec_page_identity(page)
         assert identity["title"] == card["name"]
@@ -157,27 +158,19 @@ def test_codec_pages_match_the_catalog():
         assert int(identity["footer_ctid"], 16) == int(card["ctid"], 16)
 
 
-def test_catalog_legend_counts_the_cards():
-    body = _read(CATALOG)
-    families = dict(
-        (fam, int(n))
-        for fam, n in re.findall(
-            r'--fam:var\(--(\w+)\)"><span class="lg-sq"></span>[^<]*<b>(\d+)</b>', body
-        )
-    )
-    counted: dict[str, int] = {}
-    for card in catalog_cards():
-        counted[card["fam"]] = counted.get(card["fam"], 0) + 1
-    assert families == counted
+def test_catalog_contents_list_every_section():
+    for page in FAMILIES:
+        listed = re.findall(r'<li><a href="#(\w+)"><span class="toc-no">(\d+)</span>', _read(page))
+        assert listed == [(c["name"], c["no"]) for c in catalog_cards([page])]
 
-    total = re.search(r'<span class="legend-count">(\d+) codecs</span>', body)
+    total = re.search(r"<li>Codecs (\d+)</li>", _read(OVERVIEW))
     assert total is not None
     assert int(total.group(1)) == len(catalog_cards())
 
 
 def test_no_codec_page_ships_a_dead_link():
     """No codec page links to href="#" or carries a TODO."""
-    for page in sorted((CATALOG.parent / "codecs").glob("*.html")):
+    for page in sorted((DOCS / "codecs").glob("*.html")):
         body = _read(page)
         assert 'href="#"' not in body, f"{page.name} still has a placeholder link"
         assert "TODO" not in body, f"{page.name} still carries a TODO"
@@ -187,12 +180,10 @@ def test_code_button_points_at_the_codec_source():
     """The button resolves to core/src/<codec>, which has to be a real folder
     with a binding in it, or the glob in CMakeLists would not call it a codec."""
     for card in catalog_cards():
-        page = CATALOG.parent / "codecs" / card["file"]
+        page = DOCS / "codecs" / card["file"]
         found = re.search(r'class="btn-code" href="([^"]+)"', _read(page))
         assert found is not None, f"{card['name']} has no Code button"
         name = found.group(1).rsplit("/", 1)[-1]
-        assert name == card["name"], (
-            f"{card['name']} links to core/src/{name}"
-        )
+        assert name == card["name"], f"{card['name']} links to core/src/{name}"
         binding = ROOT / "core" / "src" / name / f"encode_{name}_binding.c"
         assert binding.exists(), f"core/src/{name} is not a codec folder"

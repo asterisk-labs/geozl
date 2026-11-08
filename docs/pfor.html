@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="How GeoZL stores residuals with PFOR, and why it decodes in parallel on a GPU.">
+<title>GeoZL · How PFOR works</title>
+<link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/reading.css?v=5">
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <a class="lockup vt-lockup" href="index.html" aria-label="GeoZL home">
+      <img class="marksvg" src="assets/svg/mark-light.svg" alt="">
+      <span class="wm-sm">GeoZL</span>
+    </a>
+
+    <div class="offsite" aria-label="Project links">
+      <a href="https://github.com/asterisk-labs/geozl" title="GitHub" aria-label="GeoZL on GitHub" rel="noopener noreferrer">
+        <svg class="github" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg>
+      </a>
+      <a class="pypi" href="https://pypi.org/project/geozl/" title="PyPI" aria-label="GeoZL on PyPI" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.3 14.3 4.7v6.6L8 14.7l-6.3-3.4V4.7Z"></path><path d="M1.7 4.7 8 8.1l6.3-3.4M8 8.1v6.6"></path></svg>
+        <img class="mark-color" src="assets/svg/pypi-color.svg" alt="" width="18" height="16">
+      </a>
+      <a class="rumi" href="https://asterisk.coop/rumi/" title="Rumi" aria-label="Rumi, the raster format built with GeoZL" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 1h14v14H1zM1 5.5l6 .8 4.2 2.1L15 9.2M7 1l-.5 5.3 4.7 2.1L9.5 15"></path></svg>
+        <img class="mark-color" src="assets/svg/rumi-color.svg" alt="" width="16" height="16">
+      </a>
+      <a class="asterisk" href="https://asterisk.coop" title="asterisk labs" aria-label="asterisk labs" rel="noopener noreferrer">
+        <img class="mark-mono" src="assets/svg/asterisk-mark-black.svg" alt="" width="16" height="18">
+        <img class="mark-color" src="assets/svg/asterisk-mark-color.svg" alt="" width="16" height="18">
+      </a>
+    </div>
+
+    <nav class="nav" aria-label="Sections">
+      <a href="docs.html">Docs</a>
+      <a href="api-high.html">API</a>
+      <a href="benchmark.html">Benchmark</a>
+    </nav>
+  </header>
+
+  <main class="doc">
+    <nav class="toc" aria-label="Contents">
+      <p class="toc-title">Docs</p>
+      <ol class="toc-pages">
+        <li class="toc-group">Reference</li>
+        <li><a href="docs.html">Codecs</a></li>
+        <li><a href="predictors.html">Predictors</a></li>
+        <li><a href="fused.html">Fused</a></li>
+        <li><a href="streams.html">Streams</a></li>
+        <li><a href="near-lossless.html">Near-lossless</a></li>
+        <li class="toc-group">CPU decoding</li>
+        <li><a href="cpu.html">Inside the CPU decoder</a></li>
+        <li class="toc-group">GPU-friendly codecs</li>
+        <li><a href="gpu-codecs.html">Why they fit a GPU</a></li>
+        <li><a href="pfor.html" class="here">PFOR</a></li>
+        <li><a href="pivco.html">PivCo</a></li>
+        <li class="toc-group">GPU decoding</li>
+        <li><a href="gpu.html">API</a></li>
+        <li><a href="gpu-internals.html">Inside the decoder</a></li>
+      </ol>
+    </nav>
+
+    <article class="content">
+      <h1>How PFOR works</h1>
+      <ul class="facts">
+        <li>Codec <code>pfor</code>, CTid <code>0x72D70D</code></li>
+        <li>Blocks of 256 values</li>
+        <li>After Zukowski, Héman, Nes and Boncz, ICDE 2006</li>
+      </ul>
+      <p>A spatial predictor changes a raster tile into residuals. Once each sample is replaced by how far it lands from its prediction, most of what is left is small numbers. Prediction does not make residuals repeat. Residuals are small but rarely form the long runs used by dictionary compressors.</p>
+      <p>PFOR (patched frame of reference) writes residuals with fewer bits. GPU threads can decode them at once. The eight-value example shows how.</p>
+
+      <h2 class="part" id="width">One width, and a patch for the rest</h2>
+      <p>The example has eight predictor residuals, including one outlier. Written in binary, most of them need two or three bits. The last one needs seven.</p>
+      <figure class="figure">
+        <div class="row"><span class="label">in</span><span class="cells even"><span class="cell">3</span><span class="cell">5</span><span class="cell">2</span><span class="cell">7</span><span class="cell">4</span><span class="cell">6</span><span class="cell">1</span><span class="cell hot">90</span></span></div>
+        <div class="row"><span class="label">binary</span><span class="cells"><span class="cell">11<small>2 bits</small></span><span class="cell">101<small>3 bits</small></span><span class="cell">10<small>2 bits</small></span><span class="cell">111<small>3 bits</small></span><span class="cell">100<small>3 bits</small></span><span class="cell">110<small>3 bits</small></span><span class="cell">1<small>1 bit</small></span><span class="cell hot">1011010<small>7 bits</small></span></span></div>
+        <figcaption>seven values fit in 3 bits, one needs 7</figcaption>
+      </figure>
+      <p>Plain frame of reference packing uses seven bits for every value. It is easy to decode but wastes four bits on each of the seven small values. Real residuals look like this all the time, such as a cloud edge, a road crossing a field or a single noisy pixel.</p>
+      <p>PFOR chooses one width <code>b</code> per block, here <code>b = 3</code>, and uses it for every value. The values that do not fit are called <b>exceptions</b>. Here, 90 is the only exception.</p>
+      <p>An exception stays in the body, with its low bits in place. Its high bits and position go in a side list. For 90, or <code>1011010</code> in binary, the body keeps <code>010</code> and the side list keeps <code>1011</code>.</p>
+      <p>The animation stacks each value's bits, lowest first, and moves a line at <code>b</code>. At b = 7 nothing sticks out, but every value pays seven bits. At b = 2 the body is thin, but five values stick out. At b = 3 only the 90 does. Its four high bits leave for the exception list together with its position, and its low bits <code>010</code> stay where they were.</p>
+      <figure class="diagram wide stepper" data-beats="2.35,5.55,8.15,12.3"><img src="assets/svg/gpu/pfor-pick-b.svg" alt="The values 3 5 2 7 4 6 1 90 as stacks of bits. A line at b = 7 leaves no exceptions but a 56-bit body. At b = 2 the body is 16 bits but five values stick out. At b = 3 only the 90 sticks out, its high bits 1011 move to the exception list with position 7, 010 stays in the body, and the short values are padded with zeros to three bits." loading="lazy"><figcaption>a wider b means a bigger body, a narrower b means more exceptions. At b = 3 only the 90 carries 1011 on the side</figcaption></figure>
+      <p>Zero padding gives the body eight uniform three-bit slots. Decoding first reads the body as if there were no exceptions at all, which gives 3 5 2 7 4 6 1 2. Then it patches the exceptions with one shift and one OR, <code>value = body | (high &lt;&lt; b)</code>. For our outlier that is <code>2 | (11 &lt;&lt; 3)</code>, which is 2 + 88 = 90. Every body slot holds a real value, so no sentinel bit pattern is needed.</p>
+
+      <h2 class="part" id="block">What a block looks like</h2>
+      <p>Real frames use 256-value blocks. A frame starts with a nine-byte codec header that holds the element count as a 64-bit integer and the element width in bytes, which is 1, 2, 4 or 8. Blocks follow back to back. When the count is not a multiple of 256, the encoder pads the last block with zeros and the decoder drops them again.</p>
+      <p>Each block opens with two bytes, <code>b</code> and the exception count, up to 255. With no exceptions, the packed body follows. Otherwise a third byte gives the exception format. Its low seven bits give <code>eb</code>, the number of high bits per exception. Its top bit selects how positions are written.</p>
+      <p>Every exception in the block uses the same <code>eb</code>, the difference between the widest value's bit width and <code>b</code>. In the example, 7 minus 3 gives four bits, and 90 uses all four.</p>
+      <p>Exception positions use a list or bitmap. A short ascending list uses one byte per position. When there are many, a 32-byte bitmap with one bit for each of the 256 values is smaller, since a list of 32 positions would already cost the same. After the positions, the stream packs each exception's <code>eb</code> high bits in position order. The body follows with 256 values of <code>b</code> bits, exactly 32 × <code>b</code> bytes.</p>
+      <p>The eight-value example fits into one block. A b byte of 3, one exception, a descriptor saying four high bits and list mode, one position byte pointing at the 90, half a byte holding <code>1011</code>, and then the body. The block size and this layout are part of the wire format, so changing either would need a new CTid. The full field-by-field description lives in <code>core/src/pfor/spec.md</code>.</p>
+
+      <h2 class="part" id="choosing">How the encoder chooses b</h2>
+      <p>Choosing <code>b</code> trades body size against exceptions. Every bit we take off b saves 32 bytes of body across the 256 values, but it also turns more values into exceptions, and each one costs a position plus its <b>eb</b> high bits. The encoder searches for the smallest block size.</p>
+      <p>The encoder builds a histogram of required bit widths, then checks <code>b</code> from the widest value down to zero. The histogram gives the exception count at each width without packing values. The encoder uses that count to compute the block size. It chooses a list below 32 exceptions and a bitmap from 32 onward. It skips widths needing more than 255 exceptions and keeps the smallest result.</p>
+      <p>Each exception also gets a four-bit penalty in the size calculation. This favours fewer exceptions when two widths are nearly the same size.</p>
+      <p>The eight-value example shows the width search. At seven bits there are no exceptions but the body is fat. At three bits only the 90 is left over. At two bits the 5, 7, 4 and 6 join it as exceptions, each carrying five high bits, and that costs more than the bit it saves on the body.</p>
+      <p>The width-selection strategy is not part of the format. A decoder accepts whatever b a block declares, so a different encoder could use a different strategy and every reader would still decode its frames.</p>
+
+      <h2 class="part" id="lanes">Why the body comes in 16-byte groups</h2>
+      <p>The figure shows values in one bit string. GeoZL stores them in lanes to suit memory access. In one long bit string, value <code>i</code> starts at bit <code>i × b</code>, which with b = 3 lands at arbitrary places inside bytes. A decoder that wants to unpack many values at once has to shuffle bits across byte and word boundaries for each of them.</p>
+      <p>The body uses 16-byte groups split into lanes. With W-byte elements a group holds 16 / W lanes, so sixteen lanes for one-byte values, eight for two-byte values. Value <code>i</code> goes to lane <code>i mod L</code>, at slot <code>i div L</code> inside that lane, and every lane is its own little bit stream of b-bit values. A 256-value block fills exactly 2 × b groups whatever the element width.</p>
+      <p>For two-byte elements, the eight example values each go to a different lane at slot 0. The next eight values go to slot 1 of those lanes. One 16-byte load brings in the same word of every lane. One shift and one mask recover the slot across all lanes. No value needs bits from a neighbouring lane.</p>
+      <p>The figure deals the first sixteen values into lanes. <code>x8</code> onward represent values after the first eight. The 16-byte load takes two bytes per lane, enough for slots 0 to 4. The animation then highlights slot 0 at bits 0 to 2 and slot 1 at bits 3 to 5 across all eight lanes.</p>
+      <figure class="diagram wide stepper" data-beats="2.55,5.55,8.15,10.55,14.3"><img src="assets/svg/gpu/pfor-lanes.svg" alt="Values dealt into eight lanes, where 3 5 2 7 4 6 1 90 fill slot 0 of lanes 0 to 7 and the next eight fill slot 1. One 16-byte load covers two bytes of every lane, and slot 0 at bits 0 to 2, then slot 1 at bits 3 to 5, is recovered across all lanes with one shift and mask." loading="lazy"><figcaption>value i goes to lane i mod 8 at slot i div 8. One load serves the same slot of every lane</figcaption></figure>
+      <p>A 16-byte group matches a common SIMD register width on CPUs, but the number is fixed by the format rather than by the machine. The group stays 16 bytes on every machine, with or without SIMD.</p>
+
+      <h2 class="part" id="gpu">Every thread starts at once</h2>
+      <p>In a sequential format, finding value 100 can require decoding the 99 values before it. PFOR gives each body value a computable bit offset because all values in the block have the same width. In the example, eight threads read their three bits at once. Then t7 counts earlier 1s in the exception mask and patches the 90.</p>
+      <figure class="diagram wide stepper" data-beats="2.55,5.35,8.35,14.3"><img src="assets/svg/gpu/pfor-patch.svg" alt="Threads t0 to t7 read bits 0, 3, 6 up to 21 of the body at the same moment and produce 3 5 2 7 4 6 1 2. Then the exception mask with bit 7 set gives t7 a popcount of 0 before it, so t7 reads 1011 from the start of the list, shifts it up by 3 and ORs it onto 010 to get 1011010, which is 90." loading="lazy"><figcaption>Each thread finds its own three bits. t7 adds 1011 at rank 0.</figcaption></figure>
+      <p>Thread t7 also patches its value with the high bits <code>1011</code>. It needs to locate them in the side list.</p>
+      <p>The real kernel assigns one 256-value block to a wave of 32 threads, with eight values per thread. Thread <code>t</code> owns values <code>8t</code> to <code>8t + 7</code>, which occupy adjacent lanes at the same slot. It computes one bit offset, <code>slot × b</code>, and makes one 16-byte load. It needs a second load only when its bits straddle two groups. In the two-byte example, all eight values belong to thread t0.</p>
+      <p>In the top row of the next animation each value waits for the one before it and lights up only when that one is done. In the bottom rows every thread of the wave first knows its offset, bit <code>t</code> × 3, and then all 32 light up at the same instant.</p>
+      <figure class="diagram wide stepper" data-beats="5.35,7.55,12.3"><img src="assets/svg/gpu/pfor-wave.svg" alt="At the top, a chain where each value starts only after the one before, lighting up one at a time. At the bottom, the 32 threads of a wave each know their offset, bit t times 3, from 0 up to 93, and all start at the same instant." loading="lazy"><figcaption>a chain moves one value at a time. A wave starts all 32 threads at once</figcaption></figure>
+      <p>Walking the side list from its start would make threads wait on earlier threads. The wave instead turns exception positions into one 256-bit mask shared by its threads. In bitmap mode, eight threads each load four bytes of the mask and share them across the wave. In list mode, threads read 32 positions at a time and OR them into the mask.</p>
+      <p>Each thread counts set bits before its first value to find its exception rank. It sums popcounts over preceding mask words, with each popcount counting 1s in one word. Its high bits start at <code>rank × eb</code> in the side list. The 90 is the only exception, so its rank is zero and it reads <code>1011</code> from the start.</p>
+      <p>Each thread computes offsets, loads bits, counts, shifts and ORs locally. That is why a whole block can be decoded by one wave with every thread starting at once. In fused <code>planar&gt;zigzag&gt;pfor</code>, this pass also undoes Zigzag. Later passes undo planar, as described in <a href="gpu-internals.html">Inside the GPU decoder</a>.</p>
+
+      <h2 class="part" id="geozl">Where GeoZL uses PFOR</h2>
+      <p>GeoZL uses PFOR in three places. The <code>pfor</code> codec can be the last node of a recipe, as in <code>delta_1d&gt;pfor</code>. The fused codec <code>planar_zigzag_pfor</code>, behind the recipe <code>planar&gt;zigzag&gt;pfor</code>, uses the same block format for its residuals. Inside <a href="pivco.html">PivCo</a> frames, a byte lane uses PFOR when it is smaller.</p>
+      <p>PFOR was introduced by Zukowski, Héman, Nes and Boncz in <i>Super-Scalar RAM-CPU Cache Compression</i>, ICDE 2006. The GeoZL block design follows TurboPFor by powturbo and contributors. It is an independent implementation and its frames are not bitstream compatible with TurboPFor.</p>
+
+      <nav class="pager" aria-label="Pages">
+        <a class="prev" href="gpu-codecs.html"><span>Previous</span>GPU-friendly codecs</a>
+        <a class="next" href="pivco.html"><span>Next</span>How PivCo works</a>
+      </nav>
+    </article>
+
+    <nav class="toc onpage" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ol class="toc-sections">
+        <li><a href="#width">One width, and a patch for the rest</a></li>
+        <li><a href="#block">What a block looks like</a></li>
+        <li><a href="#choosing">How the encoder chooses b</a></li>
+        <li><a href="#lanes">Why the body comes in 16-byte groups</a></li>
+        <li><a href="#gpu">Every thread starts at once</a></li>
+        <li><a href="#geozl">Where GeoZL uses PFOR</a></li>
+      </ol>
+    </nav>
+  </main>
+
+  <footer class="colophon">
+    <span>Made with</span>
+    <span class="heart" aria-label="love" role="img"></span>
+    <span>by</span>
+    <a class="by" href="https://asterisk.coop" rel="noopener noreferrer">
+      <img src="assets/svg/asterisk-mark-black.svg" alt="" width="15" height="17">
+      <span>asterisk labs</span>
+    </a>
+  </footer>
+</div>
+<script src="assets/js/toc.js" defer></script>
+<script src="assets/js/stepper.js?v=4" defer></script>
+</body>
+</html>

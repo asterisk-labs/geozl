@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 228" width="640" height="228" role="img" aria-label="geozl_gpu_decode returns once its work is queued on the stream; the device keeps running while the host prepares the next call, synchronize waits until the queued work is finished, and only after it returns may the target be freed or reused">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+    svg{ background:transparent; font-family:"IBM Plex Mono",ui-monospace,monospace; }
+    .lab{ fill:#5C6370; font:500 11px/1 "IBM Plex Mono",monospace; }
+    .ink{ fill:#111111; font:500 11px/1 "IBM Plex Mono",monospace; }
+    .ttl{ font:600 11px/1 "IBM Plex Mono",monospace; }
+    .cap{ fill:#111111; font:500 13px/1 "IBM Plex Mono",monospace; }
+    .cap tspan.n{ fill:#492AE8; font-weight:600; }
+    .mid{ text-anchor:middle; }
+    .host{ fill:#FFFFFF; stroke:#492AE8; stroke-width:1.2; }
+    .dev{ fill:#ECE9FD; stroke:#492AE8; stroke-width:1.2; }
+    .wait{ fill:#F3F3F1; stroke:#9AA1AB; stroke-width:1; stroke-dasharray:3 2; }
+    .busy{ fill:#FEF6D3; stroke:#F7CC09; stroke-width:1; }
+    .safe{ fill:#C4FFC2; stroke:#1D7A3E; stroke-width:1; }
+    .axis{ stroke:#E6E6E3; stroke-width:1; }
+    .grow{ transform-box:fill-box; transform-origin:left center; }
+    #c1,#c2,#c3,#c4{ opacity:0; }
+    #now,#q{ opacity:0; }
+    #c1{ animation:k1 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k1{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 2.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 4.333%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 24.0%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 26.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #c2{ animation:k2 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k2{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 26.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 28.333%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 52.0%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 54.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #c3{ animation:k3 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k3{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 54.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 56.333%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 75.333%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 77.333%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #c4{ animation:k4 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k4{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 77.333%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 79.667%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 96.0%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #cs{ animation:k5 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k5{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #now{ animation:k6 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k6{ 0.0%{opacity:0;transform:translate(0px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 2.0%{opacity:0;transform:translate(0px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 4.667%{opacity:1;transform:translate(0px,0px);animation-timing-function:linear} 14.667%{opacity:1;transform:translate(90px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 26.667%{opacity:1;transform:translate(90px,0px);animation-timing-function:linear} 42.667%{opacity:1;transform:translate(260px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 54.667%{opacity:1;transform:translate(260px,0px);animation-timing-function:linear} 66.0%{opacity:1;transform:translate(380px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 68.667%{opacity:0;transform:translate(380px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;transform:translate(380px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #h1{ animation:k7 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k7{ 0.0%{opacity:0;transform:scaleX(0);animation-timing-function:cubic-bezier(.4,0,.2,1)} 4.6%{opacity:0;transform:scaleX(0);animation-timing-function:cubic-bezier(.4,0,.2,1)} 4.667%{opacity:1;transform:scaleX(0);animation-timing-function:linear} 14.667%{opacity:1;transform:scaleX(1);animation-timing-function:cubic-bezier(.4,0,.2,1)} 96.0%{opacity:1;transform:scaleX(1);animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;transform:scaleX(1);animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #k1{ animation:k8 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k8{ 0.0%{opacity:0;transform:scaleX(0);animation-timing-function:cubic-bezier(.4,0,.2,1)} 26.6%{opacity:0;transform:scaleX(0);animation-timing-function:cubic-bezier(.4,0,.2,1)} 26.667%{opacity:1;transform:scaleX(0);animation-timing-function:linear} 42.667%{opacity:1;transform:scaleX(1);animation-timing-function:cubic-bezier(.4,0,.2,1)} 96.0%{opacity:1;transform:scaleX(1);animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;transform:scaleX(1);animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #h2{ animation:k9 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k9{ 0.0%{opacity:0;transform:scaleX(0);animation-timing-function:cubic-bezier(.4,0,.2,1)} 26.6%{opacity:0;transform:scaleX(0);animation-timing-function:cubic-bezier(.4,0,.2,1)} 26.667%{opacity:1;transform:scaleX(0);animation-timing-function:linear} 42.102%{opacity:1;transform:scaleX(1);animation-timing-function:cubic-bezier(.4,0,.2,1)} 96.0%{opacity:1;transform:scaleX(1);animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;transform:scaleX(1);animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #k2{ animation:k10 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k10{ 0.0%{opacity:0;transform:scaleX(0);animation-timing-function:cubic-bezier(.4,0,.2,1)} 54.6%{opacity:0;transform:scaleX(0);animation-timing-function:cubic-bezier(.4,0,.2,1)} 54.667%{opacity:1;transform:scaleX(0);animation-timing-function:linear} 66.0%{opacity:1;transform:scaleX(1);animation-timing-function:cubic-bezier(.4,0,.2,1)} 96.0%{opacity:1;transform:scaleX(1);animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;transform:scaleX(1);animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #hs{ animation:k11 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k11{ 0.0%{opacity:0;transform:scaleX(0);animation-timing-function:cubic-bezier(.4,0,.2,1)} 54.6%{opacity:0;transform:scaleX(0);animation-timing-function:cubic-bezier(.4,0,.2,1)} 54.667%{opacity:1;transform:scaleX(0);animation-timing-function:linear} 66.0%{opacity:1;transform:scaleX(1);animation-timing-function:cubic-bezier(.4,0,.2,1)} 96.0%{opacity:1;transform:scaleX(1);animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;transform:scaleX(1);animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #use{ animation:k12 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k12{ 0.0%{opacity:0;transform:scaleX(0);animation-timing-function:cubic-bezier(.4,0,.2,1)} 14.667%{opacity:0;transform:scaleX(0);animation-timing-function:cubic-bezier(.4,0,.2,1)} 17.333%{opacity:1;transform:scaleX(0);animation-timing-function:cubic-bezier(.4,0,.2,1)} 26.667%{opacity:1;transform:scaleX(0);animation-timing-function:linear} 42.667%{opacity:1;transform:scaleX(0.5862);animation-timing-function:cubic-bezier(.4,0,.2,1)} 54.667%{opacity:1;transform:scaleX(0.5862);animation-timing-function:linear} 66.0%{opacity:1;transform:scaleX(1);animation-timing-function:cubic-bezier(.4,0,.2,1)} 96.0%{opacity:1;transform:scaleX(1);animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;transform:scaleX(1);animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #th1{ animation:k13 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k13{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 11.008%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 13.008%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 96.0%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #ret{ animation:k14 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k14{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 14.667%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 17.333%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 96.0%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #tuse{ animation:k15 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k15{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 37.165%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 39.165%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 96.0%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #q{ animation:k16 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k16{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 16.667%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 19.333%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 27.333%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 29.333%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #tk1{ animation:k17 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k17{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 32.286%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 34.286%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 96.0%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #th2{ animation:k18 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k18{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 31.575%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 33.575%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 96.0%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #tk2{ animation:k19 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k19{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 60.483%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 62.483%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 96.0%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #ths{ animation:k20 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k20{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 61.128%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 63.128%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 96.0%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #done{ animation:k21 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k21{ 0.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 67.333%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} 70.0%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 96.0%{opacity:1;animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    #free{ animation:k22 15.0s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes k22{ 0.0%{opacity:0;transform:translate(-16px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 78.667%{opacity:0;transform:translate(-16px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 82.667%{opacity:1;transform:translate(0px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 96.0%{opacity:1;transform:translate(0px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} 100.0%{opacity:0;transform:translate(0px,0px);animation-timing-function:cubic-bezier(.4,0,.2,1)} }
+    @media (prefers-reduced-motion:reduce){
+      *{ animation:none !important; }
+    }
+  ]]></style>
+  <text id="c1" class="cap" x="40" y="24"><tspan class="n">1</tspan><tspan dx="10">decode returns once its work is queued</tspan></text>
+  <text id="c2" class="cap" x="40" y="24"><tspan class="n">2</tspan><tspan dx="10">the device runs while the host prepares the next call</tspan></text>
+  <text id="c3" class="cap" x="40" y="24"><tspan class="n">3</tspan><tspan dx="10">synchronize waits until the queued work is finished</tspan></text>
+  <text id="c4" class="cap" x="40" y="24"><tspan class="n">4</tspan><tspan dx="10">only then may the target be freed or reused</tspan></text>
+  <text id="cs" class="cap" x="40" y="24">decode returns once queued; free the target after synchronize</text>
+
+  <line class="axis" x1="140" y1="90" x2="620" y2="90"/>
+  <line class="axis" x1="140" y1="144" x2="620" y2="144"/>
+  <line class="axis" x1="140" y1="194" x2="620" y2="194"/>
+  <text class="ink" x="40" y="84">host</text>
+  <text class="ink" x="40" y="138">device stream</text>
+  <text class="ink" x="40" y="188">target</text>
+  <text class="lab" x="140" y="216">time</text>
+  <path d="M176 212 H226 M221 208 L226 212 L221 216" fill="none" stroke="#9AA1AB" stroke-width="1"/>
+
+  <rect id="h1" class="host grow" x="140" y="68" width="88" height="22" rx="3"/>
+  <rect id="h2" class="host grow" x="232" y="68" width="164" height="22" rx="3"/>
+  <rect id="hs" class="wait grow" x="404" y="68" width="116" height="22" rx="3"/>
+  <rect id="k1" class="dev grow" x="230" y="122" width="168" height="22" rx="3"/>
+  <rect id="k2" class="dev grow" x="400" y="122" width="120" height="22" rx="3"/>
+  <rect id="use" class="busy grow" x="230" y="174" width="290" height="20" rx="3"/>
+
+  <text id="th1" class="ink" x="148" y="83">decode #1</text>
+  <text id="th2" class="ink" x="240" y="83">decode #2</text>
+  <text id="ths" class="lab" x="412" y="83">synchronize</text>
+  <text id="q" x="238" y="137" style="fill:#492AE8;font:500 11px/1 'IBM Plex Mono',monospace">work queued</text>
+  <text id="tk1" class="ink" x="238" y="137">kernels #1</text>
+  <text id="tk2" class="ink" x="408" y="137">kernels #2</text>
+  <text id="tuse" x="238" y="188" style="fill:#7A5D00;font:500 11px/1 'IBM Plex Mono',monospace">in use, keep alive</text>
+
+  <g id="ret">
+    <line x1="230" y1="52" x2="230" y2="148" stroke="#492AE8" stroke-width="1.4"/>
+    <text class="ttl" x="236" y="56" fill="#492AE8">returns, queued</text>
+  </g>
+  <g id="done">
+    <line x1="520" y1="52" x2="520" y2="198" stroke="#1D7A3E" stroke-width="1.4" stroke-dasharray="3 2"/>
+    <text class="ttl" x="526" y="56" fill="#1D7A3E">returns</text>
+  </g>
+  <g id="free">
+    <rect class="safe" x="520" y="174" width="100" height="20" rx="3"/>
+    <text class="ttl" x="528" y="188" fill="#1D7A3E">free, reuse</text>
+  </g>
+
+  <line id="now" x1="140" y1="62" x2="140" y2="200" stroke="#111111" stroke-width="1" stroke-dasharray="2 3"/>
+</svg>

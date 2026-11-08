@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="Decode GeoZL frames straight into GPU memory with geozl/gpu.h.">
+<title>GeoZL · GPU API</title>
+<link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/reading.css?v=5">
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <a class="lockup vt-lockup" href="index.html" aria-label="GeoZL home">
+      <img class="marksvg" src="assets/svg/mark-light.svg" alt="">
+      <span class="wm-sm">GeoZL</span>
+    </a>
+
+    <div class="offsite" aria-label="Project links">
+      <a href="https://github.com/asterisk-labs/geozl" title="GitHub" aria-label="GeoZL on GitHub" rel="noopener noreferrer">
+        <svg class="github" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg>
+      </a>
+      <a class="pypi" href="https://pypi.org/project/geozl/" title="PyPI" aria-label="GeoZL on PyPI" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.3 14.3 4.7v6.6L8 14.7l-6.3-3.4V4.7Z"></path><path d="M1.7 4.7 8 8.1l6.3-3.4M8 8.1v6.6"></path></svg>
+        <img class="mark-color" src="assets/svg/pypi-color.svg" alt="" width="18" height="16">
+      </a>
+      <a class="rumi" href="https://asterisk.coop/rumi/" title="Rumi" aria-label="Rumi, the raster format built with GeoZL" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 1h14v14H1zM1 5.5l6 .8 4.2 2.1L15 9.2M7 1l-.5 5.3 4.7 2.1L9.5 15"></path></svg>
+        <img class="mark-color" src="assets/svg/rumi-color.svg" alt="" width="16" height="16">
+      </a>
+      <a class="asterisk" href="https://asterisk.coop" title="asterisk labs" aria-label="asterisk labs" rel="noopener noreferrer">
+        <img class="mark-mono" src="assets/svg/asterisk-mark-black.svg" alt="" width="16" height="18">
+        <img class="mark-color" src="assets/svg/asterisk-mark-color.svg" alt="" width="16" height="18">
+      </a>
+    </div>
+
+    <nav class="nav" aria-label="Sections">
+      <a href="docs.html">Docs</a>
+      <a href="api-high.html">API</a>
+      <a href="benchmark.html">Benchmark</a>
+    </nav>
+  </header>
+
+  <main class="doc">
+    <nav class="toc" aria-label="Contents">
+      <p class="toc-title">Docs</p>
+      <ol class="toc-pages">
+        <li class="toc-group">Reference</li>
+        <li><a href="docs.html">Codecs</a></li>
+        <li><a href="predictors.html">Predictors</a></li>
+        <li><a href="fused.html">Fused</a></li>
+        <li><a href="streams.html">Streams</a></li>
+        <li><a href="near-lossless.html">Near-lossless</a></li>
+        <li class="toc-group">CPU decoding</li>
+        <li><a href="cpu.html">Inside the CPU decoder</a></li>
+        <li class="toc-group">GPU-friendly codecs</li>
+        <li><a href="gpu-codecs.html">Why they fit a GPU</a></li>
+        <li><a href="pfor.html">PFOR</a></li>
+        <li><a href="pivco.html">PivCo</a></li>
+        <li class="toc-group">GPU decoding</li>
+        <li><a href="gpu.html" class="here">API</a></li>
+        <li><a href="gpu-internals.html">Inside the decoder</a></li>
+      </ol>
+    </nav>
+
+    <article class="content">
+      <h1>GPU API</h1>
+      <ul class="facts">
+        <li>Header <code>geozl/gpu.h</code>, C</li>
+        <li>Part of the stable source API from 0.30.0</li>
+        <li>One API for every GPU backend</li>
+      </ul>
+      <p>An Earth observation training batch holds windows and bands in device memory. A typical path decodes tiles on the CPU, cuts windows, stacks them and copies the result to the GPU. The CPU does not use those decoded bytes after the copy.</p>
+      <p>GeoZL's GPU API accepts compressed frames and a device destination. The caller specifies where each decoded rectangle lands in a device buffer. It decodes on the GPU where the frame allows it, on the CPU where it must, and writes the samples in place. For the frames that decode on the device, the decompressed raster never exists in host memory at all.</p>
+
+      <h2 class="part" id="callers">Who calls it</h2>
+      <p>The C API is in <code>geozl/gpu.h</code> and has been stable at the source level since 0.30.0. There is no Python API for it yet. <a href="https://asterisk.coop/rumi">Rumi</a> uses it to fill training batches from <code>.rumi</code> files. A Python binding is planned on the same calls.</p>
+      <p>The header uses DLPack device type numbers, so a tensor's device type can pass through unchanged. The rest of the API is vendor independent. Device memory is a backend buffer handle passed as a pointer-sized value. Calls, copies and rules are the same across supported GPUs. <code>geozl_gpu_available(type)</code> reports whether the build supports a device type.</p>
+      <p>The example uses four 256 by 256 tiles of unsigned 16-bit samples. Each tile has one compressed frame. The output is four 128 by 128 windows, each starting at row 64 and column 32, in a 4 by 128 by 128 GPU tensor.</p>
+
+      <h2 class="part" id="decoder">A decoder you make once</h2>
+      <p>Create one <code>GeozlGpu</code> and reuse it across batches. It holds the device, compiled kernels, host staging that the GPU reads directly, and a small cache of device scratch. Creation opens the device, so a missing driver fails before training starts.</p>
+      <pre><code>char error[512];
+// deviceType and deviceId come from the tensor's DLPack device
+GeozlGpu *gpu = geozl_gpu_create(deviceType, deviceId, 4, 64 &lt;&lt; 20, 1,
+                                 error, sizeof error);
+if (gpu == NULL) {
+  fprintf(stderr, "%s\n", error);
+  return 1;
+}</code></pre>
+      <p>The first two arguments pick the device type and the device index. The third, <code>threads</code>, caps the host threads one decode may use. GPU frames still need OpenZL to parse them and GeoZL to check and plan the payload on the CPU. Those threads take frames from a shared counter, so more threads help when a batch has many frames. 0 means one.</p>
+      <p><code>maxDecodedBytes</code> limits the sum of decoded frame sizes per call and must be nonzero. The decoder checks it before reserving staging or device memory. Our four tiles decode to 512 KiB in total. A 64 MiB limit allows bigger batches. <code>verifyChecksums</code> enables frame checksum verification.</p>
+      <p>All calls use the same error convention. Each function takes a character buffer and its capacity, returns 0 on success (or a non-NULL pointer, for the constructors), and on failure writes a short message into the buffer.</p>
+      <p>A decoder serves one call at a time. If two threads decode in parallel, each needs its own.</p>
+
+      <h2 class="part" id="call">Frames, copies and the target</h2>
+      <p>A call takes frames, copies and a target buffer.</p>
+      <p>A <code>GeozlGpuFrame</code> is the compressed bytes plus the exact number of bytes the frame decodes to. Caller metadata supplies the decoded byte count before payload parsing. Each of our tiles decodes to 256 times 256 samples of 2 bytes.</p>
+      <pre><code>enum { TILES = 4, TILE = 256, WINDOW = 128, SAMPLE = 2 };
+
+GeozlGpuFrame frames[TILES];
+for (size_t i = 0; i &lt; TILES; ++i)
+  frames[i] = (GeozlGpuFrame){data[i], size[i], TILE * TILE * SAMPLE};</code></pre>
+      <p>Copies select windows and place them in the target. A <code>GeozlGpuCopy</code> reads <code>rows</code> rows of <code>width</code> samples out of one decoded frame and writes them into the target. Every offset and stride is in bytes and must be a multiple of the sample size. On each side there is a starting offset, a row stride, and a step between the samples of one row.</p>
+      <p>The first sample is at row 64, column 32 of a 256-sample row. Its byte offset is <code>(64 * 256 + 32) * 2 = 32832</code>. A tile row is <code>256 * 2 = 512</code> bytes, and neighbouring samples are 2 bytes apart. On the target side, window i starts after i earlier windows of <code>128 * 128 * 2 = 32768</code> bytes each, and a window row is <code>128 * 2 = 256</code> bytes.</p>
+      <pre><code>GeozlGpuCopy copies[TILES];
+for (size_t i = 0; i &lt; TILES; ++i)
+  copies[i] = (GeozlGpuCopy){
+      .frame = i,
+      .source = (64 * TILE + 32) * SAMPLE, // row 64, column 32
+      .sourceRow = TILE * SAMPLE,          // 512 bytes per tile row
+      .sourceStep = SAMPLE,
+      .destination = i * WINDOW * WINDOW * SAMPLE,
+      .destinationRow = WINDOW * SAMPLE,   // 256 bytes per window row
+      .destinationStep = SAMPLE,
+      .width = WINDOW,
+      .rows = WINDOW,
+  };</code></pre>
+      <p>The animation follows one of these copies. The animation starts at byte 32832 of the tile. Source rows are 512 bytes apart, target rows are 256 bytes apart, and the four window slots start at multiples of 32768.</p>
+      <figure class="diagram wide stepper" data-beats="2.95,5.75,9.15,13.3"><img src="assets/svg/gpu/api-copy.svg" alt="A stack of four decoded 256 by 256 tiles with a 128 by 128 window at row 64, column 32, labelled source 32832. A dashed band and a bracket under the tile mark sourceRow 512, one tile row. The window rows travel into the first slot of a four-slot batch, where a bracket marks destinationRow 256, one window row. Then the windows of the other three tiles travel into their slots together, labelled with destinations 0, 32768, 65536 and 98304." loading="lazy"><figcaption>One copy per tile. <code>source</code> and <code>sourceRow</code> describe where the window sits in the decoded frame. <code>destination</code> and <code>destinationRow</code> describe where it goes in the batch.</figcaption></figure>
+      <p>Here, both step fields equal the sample size, but they also support other layouts. Suppose instead that our four frames were four bands of the same 128 by 128 window and the model wanted them interleaved, channels last. Band b starts at <code>destination = b * 2</code>. Its <code>destinationStep = 4 * 2 = 8</code> bytes, and <code>destinationRow = 128 * 8 = 1024</code> bytes. Nothing else changes. The same fields can also place tiles side by side in a larger mosaic, or take only every other column.</p>
+      <p>Copies must not overlap in the target. No two copies in a call may write the same target sample. Copies run in parallel on the device, so overlapping writes would have no defined winner, and the decoder rejects them instead of guessing. A copy also may not reach outside its frame or the target, and a copy with more than one row or column needs nonzero destination strides.</p>
+      <p>The target is a <code>GeozlGpuTarget</code>, which holds the device memory, a byte offset into it, how many bytes are writable after that offset, and the stream the work should join. The target may be a framework-owned device buffer. Its device handle goes in as a pointer-sized value.</p>
+      <pre><code>GeozlGpuTarget target = {
+    .memory = (void *)(uintptr_t)batch, // the tensor's device handle
+    .offset = 0,
+    .bytes = TILES * WINDOW * WINDOW * SAMPLE,
+    .stream = stream,                   // the framework's stream, or NULL
+};</code></pre>
+      <p>A framework stream can consume the batch after decode on the same queue. Passing that stream lets the decode join the same queue, so the model's next kernel runs after the samples land without any extra waiting on the host. <code>NULL</code> means the default stream. A backend without streams ignores the field.</p>
+      <p><code>sampleBytes</code> is the width of one target sample, and the target address must be aligned to it. <code>elementBytes</code> is the width of values stored in each frame. Both are 2 in this example because the frames and target use 16-bit samples.</p>
+      <pre><code>if (geozl_gpu_decode(gpu, frames, TILES, copies, TILES, SAMPLE, SAMPLE,
+                     &amp;target, NULL, error, sizeof error) != 0)
+  fprintf(stderr, "decode failed: %s\n", error);</code></pre>
+      <p>The two sizes may differ, but <code>elementBytes</code> must divide <code>sampleBytes</code>. A frame that stores the bytes of 16-bit samples as plain bytes, for example, decodes with <code>elementBytes</code> of 1 into 2-byte samples. As the next section shows, only frames where the two are equal can decode on the device.</p>
+
+      <h2 class="part" id="routing">What runs on the GPU</h2>
+      <p>The API accepts any GeoZL frame. Decode location is chosen per frame.</p>
+      <p>A frame uses the GPU if its last codec is PFOR or PivCo, it has one chunk, and its elements match 1- or 2-byte target samples. In terms of recipes, that is <code>id&gt;pfor</code>, <code>planar&gt;zigzag&gt;pfor</code>, <code>id&gt;pivco</code>, <code>id&gt;transpose&gt;pivco</code> and <code>planar&gt;zigzag&gt;transpose&gt;pivco</code>. </p>
+      <p>The CPU still parses device-routed frames. OpenZL reads the frame. GeoZL captures the payload before the last codec expands it, validates and plans its blocks, and places them in GPU-readable staging. The expansion, any inverse planar step, and the copies into the target all happen on the device.</p>
+      <p>Other frames decode with OpenZL on the CPU. Their samples enter host staging, then are uploaded and placed by the same copies. This includes zstd and other entropy graphs, NoData and quantized frames, raw frames, and frames with more than one chunk. Multi-plane planar frames with planes shorter than 256 samples also use the host path.</p>
+      <p>GPU kernels need threads to locate values independently. PFOR and PivCo provide that property. <a href="pfor.html">How PFOR works</a> and <a href="pivco.html">How PivCo works</a> explain why.</p>
+      <p>In the picture below, one call carries five frames. The animation routes single-chunk PFOR and PivCo frames through CPU planning and GPU expansion. Zstd, NoData and a two-chunk PFOR frame decode on the CPU and upload to the same target.</p>
+      <figure class="diagram wide stepper" data-beats="2.75,6.95,10.95,14.3"><img src="assets/svg/gpu/api-routing.svg" alt="Five frames in one call, f0 to f4. Frame f0 planar&gt;zigzag&gt;pfor and f2 id&gt;transpose&gt;pivco take the device path, for PFOR or PivCo frames with one chunk and 1 or 2 byte samples, where the CPU parses and plans and then the GPU expands the payload. Frame f1 zstd, f3 id&gt;pfor with 2 chunks and f4 nodata take the host path, where OpenZL decodes on the CPU and the samples are uploaded. All five then move into the same target through the same copies." loading="lazy"><figcaption>Routing is per frame, so a PFOR frame with two chunks goes to the host like any other graph. The device path still starts on the CPU, but its raster is only ever expanded on the GPU.</figcaption></figure>
+      <p>Host and device frames can share one call and reach the same target through the same copies. For GPU reading, write frames with PFOR or PivCo recipes. Its <code>forceHost</code> argument takes one byte per frame, or <code>NULL</code> for automatic routing. A nonzero byte routes that frame through the host. <a href="gpu-internals.html">Inside the GPU decoder</a> covers staging and kernels.</p>
+
+      <h2 class="part" id="timing">When the work is done</h2>
+      <p><code>geozl_gpu_decode</code> can return before samples are ready.</p>
+      <p>On CUDA, the call returns when work is queued on <code>target-&gt;stream</code>. Kernels may still be running. Metal finishes before returning. On CUDA, host threads can parse and plan the next batch while the GPU decodes this one. Two staging areas let a call wait only for the call two before it on the same stream. A later call may report an earlier device failure without waiting for the earlier decode to finish.</p>
+      <p>The timeline below shows two calls on one stream. The host returns from the first queued decode, then prepares the second while GPU kernels run. The target stays in use until <code>geozl_gpu_synchronize</code> returns.</p>
+      <figure class="diagram wide stepper" data-beats="3.45,7.65,11.15,14.3"><img src="assets/svg/gpu/api-timing.svg" alt="A CUDA timeline with host, device stream and target rows and a time marker sweeping right. Decode #1 on the host returns once its work is queued. Kernels #1 then run on the device stream while the host runs decode #2, and kernels #2 follow. The host waits in synchronize while kernels #2 run. The target is marked in use, keep alive from the first return until synchronize returns, and free, reuse after that." loading="lazy"><figcaption>On CUDA, a return means queued. After <code>geozl_gpu_synchronize</code> returns, the target may be freed or reused.</figcaption></figure>
+      <p>Keep the target allocation and stream alive until queued work finishes. Do not free or reuse the target before then. Other work on the same stream may read it because the stream orders that work. Call <code>geozl_gpu_synchronize</code> to wait for queued work and receive any error.</p>
+      <pre><code>if (geozl_gpu_synchronize(gpu, error, sizeof error) != 0)
+  fprintf(stderr, "decode failed: %s\n", error);</code></pre>
+      <p>Switching a decoder to a different stream, synchronizing it and destroying it all wait for everything in flight, so <code>geozl_gpu_destroy</code> is always safe once no other call is running. A backend may also finish the work before it returns. Code written to these rules is correct either way.</p>
+
+      <h2 class="part" id="memory">Memory and checksums</h2>
+      <p>Most callers decode into memory their framework owns, as we did above. For tests or standalone tools, the decoder can allocate a target. <code>geozl_gpu_alloc</code> returns caller-owned memory on the decoder's device, <code>geozl_gpu_pointer</code> gives the device handle to put in <code>GeozlGpuTarget.memory</code>, and <code>geozl_gpu_free</code> releases it. The same lifetime rules apply, so synchronize before freeing.</p>
+      <pre><code>GeozlGpuMemory *memory =
+    geozl_gpu_alloc(gpu, TILES * WINDOW * WINDOW * SAMPLE, error, sizeof error);
+GeozlGpuTarget target = {geozl_gpu_pointer(memory), 0,
+                         TILES * WINDOW * WINDOW * SAMPLE, NULL};
+/* decode, synchronize, read */
+geozl_gpu_free(memory);
+geozl_gpu_destroy(gpu);</code></pre>
+      <p>OpenZL frames can carry two checksums, one over the compressed bytes and one over the decoded content. With <code>verifyChecksums</code> set, frames that decode on the host check both. Frames that decode on the device check only the compressed checksum, on the CPU, before their payload is staged. The device path cannot check the content checksum because decoded samples do not return to the host. The compressed checksum still catches a corrupted or truncated file, so keep it on for any frame that comes from outside the process.</p>
+
+      <nav class="pager" aria-label="Pages">
+        <a class="prev" href="pivco.html"><span>Previous</span>How PivCo works</a>
+        <a class="next" href="gpu-internals.html"><span>Next</span>Inside the GPU decoder</a>
+      </nav>
+    </article>
+
+    <nav class="toc onpage" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ol class="toc-sections">
+        <li><a href="#callers">Who calls it</a></li>
+        <li><a href="#decoder">A decoder you make once</a></li>
+        <li><a href="#call">Frames, copies and the target</a></li>
+        <li><a href="#routing">What runs on the GPU</a></li>
+        <li><a href="#timing">When the work is done</a></li>
+        <li><a href="#memory">Memory and checksums</a></li>
+      </ol>
+    </nav>
+  </main>
+
+  <footer class="colophon">
+    <span>Made with</span>
+    <span class="heart" aria-label="love" role="img"></span>
+    <span>by</span>
+    <a class="by" href="https://asterisk.coop" rel="noopener noreferrer">
+      <img src="assets/svg/asterisk-mark-black.svg" alt="" width="15" height="17">
+      <span>asterisk labs</span>
+    </a>
+  </footer>
+</div>
+<script src="assets/js/toc.js" defer></script>
+<script src="assets/js/stepper.js?v=4" defer></script>
+</body>
+</html>

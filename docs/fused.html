@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="The GeoZL fused codecs, the chains that run in one pass.">
+<title>GeoZL · fused</title>
+<link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/reading.css?v=5">
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <a class="lockup vt-lockup" href="index.html" aria-label="GeoZL home">
+      <img class="marksvg" src="assets/svg/mark-light.svg" alt="">
+      <span class="wm-sm">GeoZL</span>
+    </a>
+
+    <div class="offsite" aria-label="Project links">
+      <a href="https://github.com/asterisk-labs/geozl" title="GitHub" aria-label="GeoZL on GitHub" rel="noopener noreferrer">
+        <svg class="github" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg>
+      </a>
+      <a class="pypi" href="https://pypi.org/project/geozl/" title="PyPI" aria-label="GeoZL on PyPI" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.3 14.3 4.7v6.6L8 14.7l-6.3-3.4V4.7Z"></path><path d="M1.7 4.7 8 8.1l6.3-3.4M8 8.1v6.6"></path></svg>
+        <img class="mark-color" src="assets/svg/pypi-color.svg" alt="" width="18" height="16">
+      </a>
+      <a class="rumi" href="https://asterisk.coop/rumi/" title="Rumi" aria-label="Rumi, the raster format built with GeoZL" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 1h14v14H1zM1 5.5l6 .8 4.2 2.1L15 9.2M7 1l-.5 5.3 4.7 2.1L9.5 15"></path></svg>
+        <img class="mark-color" src="assets/svg/rumi-color.svg" alt="" width="16" height="16">
+      </a>
+      <a class="asterisk" href="https://asterisk.coop" title="asterisk labs" aria-label="asterisk labs" rel="noopener noreferrer">
+        <img class="mark-mono" src="assets/svg/asterisk-mark-black.svg" alt="" width="16" height="18">
+        <img class="mark-color" src="assets/svg/asterisk-mark-color.svg" alt="" width="16" height="18">
+      </a>
+    </div>
+
+    <nav class="nav" aria-label="Sections">
+      <a href="docs.html">Docs</a>
+      <a href="api-high.html">API</a>
+      <a href="benchmark.html">Benchmark</a>
+    </nav>
+  </header>
+
+  <main class="doc">
+    <nav class="toc" aria-label="Contents">
+      <p class="toc-title">Docs</p>
+      <ol class="toc-pages">
+        <li class="toc-group">Reference</li>
+        <li><a href="docs.html">Codecs</a></li>
+        <li><a href="predictors.html">Predictors</a></li>
+        <li><a href="fused.html" class="here">Fused</a></li>
+        <li><a href="streams.html">Streams</a></li>
+        <li><a href="near-lossless.html">Near-lossless</a></li>
+        <li class="toc-group">CPU decoding</li>
+        <li><a href="cpu.html">Inside the CPU decoder</a></li>
+        <li class="toc-group">GPU-friendly codecs</li>
+        <li><a href="gpu-codecs.html">Why they fit a GPU</a></li>
+        <li><a href="pfor.html">PFOR</a></li>
+        <li><a href="pivco.html">PivCo</a></li>
+        <li class="toc-group">GPU decoding</li>
+        <li><a href="gpu.html">API</a></li>
+        <li><a href="gpu-internals.html">Inside the decoder</a></li>
+      </ol>
+    </nav>
+
+    <article class="content">
+<h1>Fused</h1>
+      <p>A <b>fused</b> codec runs the chain in <b>one pass</b>. Separate nodes write each stage's full output to memory before the next stage reads it. A fused codec keeps samples in registers between stages, reading the input once and writing the output once. Both produce the same decoded data.</p>
+      <p>Fusion helps most when cheap steps such as planar, zigzag and pfor spend more time moving data than computing. Follow one 1024 × 1024 uint16 tile of 2 MiB through separate and fused <code>planar&gt;zigzag&gt;pfor</code>.</p>
+      <figure class="diagram wide stepper" data-beats="2.2,4.4,6.6,9.2"><img src="assets/svg/codecs-light/fused-vs-separate.svg" alt="As separate nodes, planar reads the 2 MiB tile and writes 2 MiB of residuals, zigzag reads them and writes 2 MiB of unsigned values, and pfor reads those and writes the frame, 10 MiB of memory plus the frame. Fused into one codec, the tile is read once and the frame written once, 2 MiB plus the frame, with each sample kept in registers." loading="lazy"><figcaption>Separate nodes pass the whole tile through memory between every step. The fused codec reads it once.</figcaption></figure>
+      <p>A recipe uses a fused codec when someone has implemented that exact chain. The ones that exist today are listed below.</p>
+      <section class="codec" id="planar_zigzag" data-no="07" data-ctid="0x72D70F" data-fam="gold" data-page="codecs/planar-zigzag.html" style="--fam:var(--gold)">
+        <h3><span class="num">07</span>planar_zigzag</h3>
+        <p><b>planar_zigzag</b> computes the planar residual and <b>maps it to unsigned</b> with Zigzag in the same pass, so a small negative residual stays a small number.</p>
+        <figure class="diagram">
+          <img src="assets/svg/codecs-light/planar-zigzag.svg" alt="Zigzag maps signed planar residuals 0, minus 1, 1, minus 2, 2 to unsigned values 0, 1, 2, 3, 4" loading="lazy">
+          <figcaption>Zigzag sends 0, &minus;1, 1, &minus;2, 2 to 0, 1, 2, 3, 4</figcaption>
+        </figure>
+        <p>Any terminal can follow <code>planar_zigzag</code>, as in <code>planar&gt;zigzag&gt;entropy</code>. For PFOR and PivCo, the fused versions below go further.</p>
+        <table class="spec">
+          <tr><th>ctid</th><td>0x72D70F</td></tr>
+          <tr><th>header</th><td>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</td></tr>
+          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit integers</td></tr>
+          <tr><th>decode</th><td>inverse Zigzag, then planar reconstruction</td></tr>
+          <tr><th>next</th><td>a packer or entropy stage, also folded into <a href="#planar_zigzag_pfor">planar_zigzag_pfor</a></td></tr>
+        </table>
+        <pre class="algo"><code>// encode
+r = s - (W + N - NW);
+z = (r &lt;&lt; 1) ^ (r &gt;&gt; (bits - 1));   // zigzag, small signed to small unsigned
+
+// decode
+r = (z &gt;&gt; 1) ^ -(z &amp; 1);
+o = r + W + N - NW;                  // a prefix sum per row, as planar</code></pre>
+        <pre><code>geozl.lossless.PlanarZigzag(width, planes=1)</code></pre>
+        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag" rel="noopener noreferrer">Source in core/src/planar_zigzag</a></p>
+      </section>
+      <section class="codec" id="planar_zigzag_pfor" data-no="08" data-ctid="0x72D710" data-fam="gold" data-page="codecs/planar-zigzag-pfor.html" style="--fam:var(--gold)">
+        <h3><span class="num">08</span>planar_zigzag_pfor</h3>
+        <p><b>planar_zigzag_pfor</b> predicts, maps and <b>packs 256 values at a time</b>, so the Zigzag stream of the tile never exists. Its payload matches planar_zigzag followed by pfor.</p>
+        <figure class="diagram">
+          <img src="assets/svg/codecs-light/planar-zigzag-pfor.svg" alt="Planar, Zigzag and PFOR fused into one codec" loading="lazy">
+          <figcaption>planar, Zigzag and PFOR in one node, one 256-value block at a time</figcaption>
+        </figure>
+        <p><code>planar_zigzag_pfor</code> implements <code>planar&gt;zigzag&gt;pfor</code> for small residuals that do not repeat. <a href="pfor.html">How PFOR works</a> covers the blocks.</p>
+        <table class="spec">
+          <tr><th>ctid</th><td>0x72D710</td></tr>
+          <tr><th>header</th><td>uint64 &middot; element count<br>+ uint8 &middot; element width<br>+ uint32 &middot; row width<br>+ uint32 &middot; plane count</td></tr>
+          <tr><th>values</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit numeric elements</td></tr>
+          <tr><th>geometry</th><td>width = columns<br>planes = contiguous independent rasters</td></tr>
+        </table>
+        <pre class="algo"><code>// decode, one block of 256 values at a time
+pfor_unpack(block, z);               // into a 2 KiB scratch buffer
+for (i = 0; i &lt; 256; i++) {
+  r = (z[i] &gt;&gt; 1) ^ -(z[i] &amp; 1);
+  o = r + W + N - NW;                // straight into the output
+}</code></pre>
+        <pre><code>geozl.lossless.PlanarZigzagPfor(width, planes=1)</code></pre>
+        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag_pfor" rel="noopener noreferrer">Source in core/src/planar_zigzag_pfor</a></p>
+      </section>
+      <section class="codec" id="planar_zigzag_transpose_pivco" data-no="09" data-ctid="0x72D712" data-fam="gold" data-page="codecs/planar-zigzag-transpose-pivco.html" style="--fam:var(--gold)">
+        <h3><span class="num">09</span>planar_zigzag_transpose_pivco</h3>
+        <p><b>planar_zigzag_transpose_pivco</b> runs planar and Zigzag, then codes <b>each residual byte lane</b> on its own with PivCo Huffman, or with byte PFOR when that is smaller.</p>
+        <figure class="diagram">
+          <img src="assets/svg/codecs-light/planar-zigzag-transpose-pivco.svg" alt="Planar and Zigzag followed by PivCo or PFOR byte lanes" loading="lazy">
+          <figcaption>planar and Zigzag, then one PivCo or PFOR coder per residual byte lane</figcaption>
+        </figure>
+        <p>Recipes spell it <code>planar&gt;zigzag&gt;transpose&gt;pivco</code>, or <code>planar&gt;zigzag&gt;pivco</code> for one-byte samples. It tends to beat planar_zigzag_pfor when residual bytes are skewed rather than merely small. <a href="pivco.html">How PivCo works</a> explains the format.</p>
+        <table class="spec">
+          <tr><th>ctid</th><td>0x72D712</td></tr>
+          <tr><th>header</th><td>uint64 &middot; element count<br>+ uint8 &middot; element width<br>+ uint32 &middot; row width<br>+ uint32 &middot; plane count<br>+ uint32 &middot; PivCo block size<br>+ per lane uint8 mode, uint16 weights, uint32 bitstream</td></tr>
+          <tr><th>values</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit numeric elements</td></tr>
+          <tr><th>lanes</th><td>one per residual byte, PivCo Huffman,<br>or byte PFOR where that is smaller</td></tr>
+          <tr><th>geometry</th><td>width = columns<br>planes = contiguous independent rasters</td></tr>
+        </table>
+        <pre class="algo"><code>// decode, one lane per byte of the sample
+for (k = 0; k &lt; sizeof(T); k++) decode_lane(k, lane[k]);   // PivCo or PFOR
+for (i = 0; i &lt; n; i++) {
+  z = 0;
+  for (k = 0; k &lt; sizeof(T); k++) z |= (T)lane[k][i] &lt;&lt; (8 * k);
+  r = (z &gt;&gt; 1) ^ -(z &amp; 1);
+  o = r + W + N - NW;
+}</code></pre>
+        <pre><code>geozl.graph(tile, "planar&gt;zigzag&gt;transpose&gt;pivco")</code></pre>
+        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag_transpose_pivco" rel="noopener noreferrer">Source in core/src/planar_zigzag_transpose_pivco</a></p>
+      </section>
+      <section class="codec" id="med_zigzag" data-no="10" data-ctid="0x72D711" data-fam="gold" data-page="codecs/med-zigzag.html" style="--fam:var(--gold)">
+        <h3><span class="num">10</span>med_zigzag</h3>
+        <p><b>med_zigzag</b> writes the <b>MED residual mapped by Zigzag</b> in one pass, identical to med followed by Zigzag. Every <code>med&gt;zigzag</code> recipe uses it.</p>
+        <figure class="diagram">
+          <img src="assets/svg/codecs-light/med-zigzag.svg" alt="MED clamps the prediction to the near side of an edge, then Zigzag maps the signed residuals 0, minus 1, 1, minus 2, 2, minus 3, 3 to unsigned values 0 through 6" loading="lazy">
+          <figcaption>the MED residual, mapped to unsigned in the same pass</figcaption>
+        </figure>
+        <p>It has no fused PFOR or PivCo version and decodes only on the CPU. The usual recipe is <code>med&gt;zigzag&gt;transpose&gt;entropy</code>.</p>
+        <table class="spec">
+          <tr><th>ctid</th><td>0x72D711</td></tr>
+          <tr><th>header</th><td>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</td></tr>
+          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit integers</td></tr>
+          <tr><th>decode</th><td>inverse Zigzag folded into the MED reconstruction</td></tr>
+          <tr><th>next</th><td>an entropy stage, usually after a byte transpose</td></tr>
+        </table>
+        <pre class="algo"><code>// encode
+r = s - med(W, N, NW);
+z = (r &lt;&lt; 1) ^ (r &gt;&gt; (bits - 1));
+
+// decode, one sample at a time along each row
+r = (z &gt;&gt; 1) ^ -(z &amp; 1);
+o = r + med(W, N, NW);</code></pre>
+        <pre><code>geozl.lossless.MedZigzag(width, planes=1)</code></pre>
+        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/med_zigzag" rel="noopener noreferrer">Source in core/src/med_zigzag</a></p>
+      </section>
+
+      <nav class="pager" aria-label="Pages">
+        <a class="prev" href="predictors.html"><span>Previous</span>Predictors</a>
+        <a class="next" href="streams.html"><span>Next</span>Streams</a>
+      </nav>
+    </article>
+
+    <nav class="toc onpage" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ol class="toc-sections">
+        <li><a href="#planar_zigzag"><span class="toc-no">07</span><span>planar_<wbr>zigzag</span></a></li>
+        <li><a href="#planar_zigzag_pfor"><span class="toc-no">08</span><span>planar_<wbr>zigzag_<wbr>pfor</span></a></li>
+        <li><a href="#planar_zigzag_transpose_pivco"><span class="toc-no">09</span><span>planar_<wbr>zigzag_<wbr>transpose_<wbr>pivco</span></a></li>
+        <li><a href="#med_zigzag"><span class="toc-no">10</span><span>med_<wbr>zigzag</span></a></li>
+      </ol>
+    </nav>
+  </main>
+
+  <footer class="colophon">
+    <span>Made with</span>
+    <span class="heart" aria-label="love" role="img"></span>
+    <span>by</span>
+    <a class="by" href="https://asterisk.coop" rel="noopener noreferrer">
+      <img src="assets/svg/asterisk-mark-black.svg" alt="" width="15" height="17">
+      <span>asterisk labs</span>
+    </a>
+  </footer>
+</div>
+<script src="assets/js/toc.js" defer></script>
+<script src="assets/js/stepper.js?v=4" defer></script>
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="Every GeoZL predictor, with what it does, its CTid, its header and how to call it.">
+<title>GeoZL · predictors</title>
+<link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/reading.css?v=5">
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <a class="lockup vt-lockup" href="index.html" aria-label="GeoZL home">
+      <img class="marksvg" src="assets/svg/mark-light.svg" alt="">
+      <span class="wm-sm">GeoZL</span>
+    </a>
+
+    <div class="offsite" aria-label="Project links">
+      <a href="https://github.com/asterisk-labs/geozl" title="GitHub" aria-label="GeoZL on GitHub" rel="noopener noreferrer">
+        <svg class="github" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg>
+      </a>
+      <a class="pypi" href="https://pypi.org/project/geozl/" title="PyPI" aria-label="GeoZL on PyPI" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.3 14.3 4.7v6.6L8 14.7l-6.3-3.4V4.7Z"></path><path d="M1.7 4.7 8 8.1l6.3-3.4M8 8.1v6.6"></path></svg>
+        <img class="mark-color" src="assets/svg/pypi-color.svg" alt="" width="18" height="16">
+      </a>
+      <a class="rumi" href="https://asterisk.coop/rumi/" title="Rumi" aria-label="Rumi, the raster format built with GeoZL" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 1h14v14H1zM1 5.5l6 .8 4.2 2.1L15 9.2M7 1l-.5 5.3 4.7 2.1L9.5 15"></path></svg>
+        <img class="mark-color" src="assets/svg/rumi-color.svg" alt="" width="16" height="16">
+      </a>
+      <a class="asterisk" href="https://asterisk.coop" title="asterisk labs" aria-label="asterisk labs" rel="noopener noreferrer">
+        <img class="mark-mono" src="assets/svg/asterisk-mark-black.svg" alt="" width="16" height="18">
+        <img class="mark-color" src="assets/svg/asterisk-mark-color.svg" alt="" width="16" height="18">
+      </a>
+    </div>
+
+    <nav class="nav" aria-label="Sections">
+      <a href="docs.html">Docs</a>
+      <a href="api-high.html">API</a>
+      <a href="benchmark.html">Benchmark</a>
+    </nav>
+  </header>
+
+  <main class="doc">
+    <nav class="toc" aria-label="Contents">
+      <p class="toc-title">Docs</p>
+      <ol class="toc-pages">
+        <li class="toc-group">Reference</li>
+        <li><a href="docs.html">Codecs</a></li>
+        <li><a href="predictors.html" class="here">Predictors</a></li>
+        <li><a href="fused.html">Fused</a></li>
+        <li><a href="streams.html">Streams</a></li>
+        <li><a href="near-lossless.html">Near-lossless</a></li>
+        <li class="toc-group">CPU decoding</li>
+        <li><a href="cpu.html">Inside the CPU decoder</a></li>
+        <li class="toc-group">GPU-friendly codecs</li>
+        <li><a href="gpu-codecs.html">Why they fit a GPU</a></li>
+        <li><a href="pfor.html">PFOR</a></li>
+        <li><a href="pivco.html">PivCo</a></li>
+        <li class="toc-group">GPU decoding</li>
+        <li><a href="gpu.html">API</a></li>
+        <li><a href="gpu-internals.html">Inside the decoder</a></li>
+      </ol>
+    </nav>
+
+    <article class="content">
+<h1>Predictors</h1>
+      <p>A predictor estimates a sample from decoded neighbours and stores the residual. Smooth tiles produce small residuals that terminal codecs can code well. The six predictors read different neighbours and decode at different speeds.</p>
+      <figure class="diagram wide">
+        <img src="assets/svg/codecs-light/predictors.svg" alt="The six predictors by the neighbours they read. delta_w reads W, delta_n reads N, planar W + N - NW, med the median of W, N and the planar guess, average the mean of W and N, wp_static W plus fitted weights over N, NW, NE and NN. delta_w, delta_n, planar and wp_static decode a whole row at once. Med and average decode one sample at a time." loading="lazy">
+        <figcaption>The black cell is the sample being predicted. Green rebuild a <b>whole row at once</b>, yellow <b>one sample at a time</b>.</figcaption>
+      </figure>
+      <p>The green four rebuild whole rows. <code>delta_n</code> adds the row above. The others use a prefix sum suited to SIMD. <code>med</code> and <code>average</code> decode one sample at a time. <a href="cpu.html#planar">Inside the CPU decoder</a> shows why.</p>
+      <p>Predictors reconstruct the original raster exactly. Predictors use wrapping unsigned arithmetic on raw bits. Data from 8 to 64 bits, including floats, round-trips bit for bit. Prediction restarts at each plane, so cube bands are predicted separately.</p>
+      <section class="codec" id="delta_w" data-no="01" data-ctid="0x72D701" data-fam="purple" data-page="codecs/delta-w.html" style="--fam:var(--purple)">
+        <h3><span class="num">01</span>delta_w</h3>
+        <p><b>delta_w</b> stores each sample minus the one on its left. The first sample of every row stays whole, so rows never depend on each other.</p>
+        <figure class="diagram stepper" data-beats="0.61,0.78,0.96,1.21,1.64,3.25">
+          <img src="assets/svg/codecs-light/delta-w.svg" alt="delta_w rewrites each value as a difference from its west neighbour. The first value of the row is a seed" loading="lazy">
+          <figcaption>each row starts from one whole value and then stores only steps</figcaption>
+        </figure>
+        <p>Use it when data is smooth <b>along rows but not across them</b>, such as a product written one scan line at a time. Try <code>planar</code> otherwise.</p>
+        <table class="spec">
+          <tr><th>ctid</th><td>0x72D701</td></tr>
+          <tr><th>header</th><td>uint32 &middot; row width in samples</td></tr>
+          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit integers</td></tr>
+          <tr><th>decode</th><td>r&#7522; + previous reconstructed, per row (prefix sum)</td></tr>
+        </table>
+        <pre class="algo"><code>// encode, each row on its own
+r[y][0] = s[y][0];
+for (x = 1; x &lt; w; x++) r[y][x] = s[y][x] - s[y][x - 1];
+
+// decode, a prefix sum along the row
+o[y][0] = r[y][0];
+for (x = 1; x &lt; w; x++) o[y][x] = r[y][x] + o[y][x - 1];</code></pre>
+        <pre><code>geozl.lossless.DeltaW(width)</code></pre>
+        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/delta_w" rel="noopener noreferrer">Source in core/src/delta_w</a></p>
+      </section>
+      <section class="codec" id="delta_n" data-no="02" data-ctid="0x72D702" data-fam="purple" data-page="codecs/delta-n.html" style="--fam:var(--purple)">
+        <h3><span class="num">02</span>delta_n</h3>
+        <p><b>delta_n</b> stores each sample minus the one <b>directly above it</b>. The first row of each plane stays whole, so columns never depend on each other.</p>
+        <figure class="diagram stepper" data-beats="0.65,0.86,1.12,1.57,3.03">
+          <img src="assets/svg/codecs-light/delta-n.svg" alt="delta_n rewrites each value as a difference from its north neighbour. The first row is a seed and columns are independent" loading="lazy">
+          <figcaption>the first row is kept whole and every column runs on its own</figcaption>
+        </figure>
+        <p>Use it when structure runs north to south, or when each row is a small change on the one before, as in a band stack with one band per row. <code>delta_n</code> is the <b>fastest predictor to decode</b>. Each row needs one SIMD add with the row above and no prefix sum.</p>
+        <table class="spec">
+          <tr><th>ctid</th><td>0x72D702</td></tr>
+          <tr><th>header</th><td>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</td></tr>
+          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit integers</td></tr>
+          <tr><th>decode</th><td>r&#7522; + row above, per column</td></tr>
+        </table>
+        <pre class="algo"><code>// encode, the first row stays whole
+for (y = 1; y &lt; h; y++)
+  for (x = 0; x &lt; w; x++) r[y][x] = s[y][x] - s[y - 1][x];
+
+// decode, each row is one vector add
+for (y = 1; y &lt; h; y++)
+  for (x = 0; x &lt; w; x++) o[y][x] = r[y][x] + o[y - 1][x];</code></pre>
+        <pre><code>geozl.lossless.DeltaN(width, planes=1)</code></pre>
+        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/delta_n" rel="noopener noreferrer">Source in core/src/delta_n</a></p>
+      </section>
+      <section class="codec" id="planar" data-no="03" data-ctid="0x72D703" data-fam="purple" data-page="codecs/planar.html" style="--fam:var(--purple)">
+        <h3><span class="num">03</span>planar</h3>
+        <p><b>planar</b> predicts each sample as <b>W + N &minus; NW</b>, which continues the local slope. On a perfect plane every residual is zero, and on real terrain they stay small.</p>
+        <figure class="diagram stepper" data-beats="1.54,3.15,4.76,6.3">
+          <img src="assets/svg/codecs-light/planar.svg" alt="planar predicts a pixel from the plane through its west, north and north-west neighbours. P equals W plus N minus NW" loading="lazy">
+          <figcaption>W + N &minus; NW continues the local slope, so any plane predicts with zero residual</figcaption>
+        </figure>
+        <p>Try <code>planar</code> first. Most recipes start with it. It overshoots sharp edges, where <code>med</code> does better.</p>
+        <table class="spec">
+          <tr><th>ctid</th><td>0x72D703</td></tr>
+          <tr><th>header</th><td>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</td></tr>
+          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit integers</td></tr>
+          <tr><th>decode</th><td>fold N&minus;NW from the row above, then prefix-sum the row</td></tr>
+        </table>
+        <pre class="algo"><code>// encode, neighbours outside the plane are zero
+r[y][x] = s[y][x] - (W + N - NW);
+
+// decode, N - NW comes from the row above, then a prefix sum
+t[x] = r[y][x] + o[y - 1][x] - o[y - 1][x - 1];
+o[y][x] = t[x] + o[y][x - 1];</code></pre>
+        <pre><code>geozl.lossless.Planar(width, planes=1)</code></pre>
+        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar" rel="noopener noreferrer">Source in core/src/planar</a></p>
+      </section>
+      <section class="codec" id="med" data-no="04" data-ctid="0x72D705" data-fam="purple" data-page="codecs/med.html" style="--fam:var(--purple)">
+        <h3><span class="num">04</span>med</h3>
+        <p><b>med</b> is the median edge detector from JPEG-LS. When NW sits <b>across an edge</b>, it predicts from the neighbour on the sample's own side. Otherwise it is planar.</p>
+        <figure class="diagram stepper" data-beats="2.2,4.5,6.8,9">
+          <img src="assets/svg/codecs-light/med.svg" alt="med is the median edge detector. Because NW sits above max of W and N, it predicts the minimum, clamping to the near side of the edge" loading="lazy">
+          <figcaption>NW above both neighbours points to an edge, so med takes the lower one</figcaption>
+        </figure>
+        <p>Use it on crisp edges between flat regions, such as field boundaries and built-up areas. It decodes one sample at a time, with no prefix sum.</p>
+        <table class="spec">
+          <tr><th>ctid</th><td>0x72D705</td></tr>
+          <tr><th>header</th><td>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</td></tr>
+          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit integers</td></tr>
+          <tr><th>decode</th><td>median(W, N, W+N&minus;NW) per sample, in order</td></tr>
+        </table>
+        <pre class="algo"><code>// prediction, from W, N and NW as unsigned integers
+if (NW &gt;= max(W, N))      p = min(W, N);
+else if (NW &lt;= min(W, N)) p = max(W, N);
+else                      p = W + N - NW;
+
+r = s - p;   // encode
+o = r + p;   // decode, one sample at a time</code></pre>
+        <pre><code>geozl.lossless.Med(width, planes=1)</code></pre>
+        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/med" rel="noopener noreferrer">Source in core/src/med</a></p>
+      </section>
+      <section class="codec" id="average" data-no="05" data-ctid="0x72D706" data-fam="purple" data-page="codecs/average.html" style="--fam:var(--purple)">
+        <h3><span class="num">05</span>average</h3>
+        <p><b>average</b> predicts each sample as the mean of W and N, so the guess <b>always lies between them</b>. It never overshoots at an edge, but it cannot follow a slope.</p>
+        <figure class="diagram stepper" data-beats="2.1,4.6,7.1">
+          <img src="assets/svg/codecs-light/average.svg" alt="average predicts each pixel from the floor average of its west and north neighbours" loading="lazy">
+          <figcaption>the guess always lies between W and N</figcaption>
+        </figure>
+        <p>Use it on textured or noisy surfaces, where neither a plane nor a clean edge fits. Like med it decodes one sample at a time.</p>
+        <table class="spec">
+          <tr><th>ctid</th><td>0x72D706</td></tr>
+          <tr><th>header</th><td>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</td></tr>
+          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit integers</td></tr>
+          <tr><th>decode</th><td>floor((W + N) / 2) per sample, in order</td></tr>
+        </table>
+        <pre class="algo"><code>// floor((W + N) / 2) without overflow
+p = (W &gt;&gt; 1) + (N &gt;&gt; 1) + (W &amp; N &amp; 1);
+
+r = s - p;   // encode
+o = r + p;   // decode, one sample at a time</code></pre>
+        <pre><code>geozl.lossless.Average(width, planes=1)</code></pre>
+        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/average" rel="noopener noreferrer">Source in core/src/average</a></p>
+      </section>
+      <section class="codec" id="wp_static" data-no="06" data-ctid="0x72D707" data-fam="purple" data-page="codecs/wp-static.html" style="--fam:var(--purple)">
+        <h3><span class="num">06</span>wp_static</h3>
+        <p><b>wp_static</b> predicts W plus a weighted sum of N, NW, NE and NN, with <b>weights fitted to each tile</b>. The encoder keeps the fitted weights only if they beat planar.</p>
+        <figure class="diagram stepper" data-beats="2.2,4.5,6.8,9">
+          <img src="assets/svg/codecs-light/wp-static.svg" alt="wp_static predicts a pixel as W plus a weighted kernel over N, NW, NE and NN, using fixed weights carried in the header" loading="lazy">
+          <figcaption>W plus a kernel over the rows above, with weights carried in the header</figcaption>
+        </figure>
+        <p>Use it when a tile has a dominant direction that is neither horizontal nor vertical. The fit costs encode time, and one set of weights covers the whole tile.</p>
+        <table class="spec">
+          <tr><th>ctid</th><td>0x72D707</td></tr>
+          <tr><th>header</th><td>uint32 width &middot; uint8 shift &middot; 4&times;int16 coeffs<br>+ uint32 &middot; plane count, when above one</td></tr>
+          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit integers</td></tr>
+          <tr><th>decode</th><td>P = W + ((&#931; c&#7522;&middot;tap&#7522; + round) &gt;&gt; shift), prefix sum per row</td></tr>
+        </table>
+        <pre class="algo"><code>// weights cN, cNW, cNE, cNN and shift are in the header
+rnd = shift ? 1 &lt;&lt; (shift - 1) : 0;
+K = (cN * N + cNW * NW + cNE * NE + cNN * NN + rnd) &gt;&gt; shift;
+
+r = s - (W + K);   // encode
+o = r + W + K;     // decode, K is known from the rows above</code></pre>
+        <pre><code>geozl.lossless.WpStatic(width, planes=1)</code></pre>
+        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/wp_static" rel="noopener noreferrer">Source in core/src/wp_static</a></p>
+      </section>
+
+      <nav class="pager" aria-label="Pages">
+        <a class="prev" href="docs.html"><span>Previous</span>Codecs</a>
+        <a class="next" href="fused.html"><span>Next</span>Fused</a>
+      </nav>
+    </article>
+
+    <nav class="toc onpage" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ol class="toc-sections">
+        <li><a href="#delta_w"><span class="toc-no">01</span><span>delta_<wbr>w</span></a></li>
+        <li><a href="#delta_n"><span class="toc-no">02</span><span>delta_<wbr>n</span></a></li>
+        <li><a href="#planar"><span class="toc-no">03</span><span>planar</span></a></li>
+        <li><a href="#med"><span class="toc-no">04</span><span>med</span></a></li>
+        <li><a href="#average"><span class="toc-no">05</span><span>average</span></a></li>
+        <li><a href="#wp_static"><span class="toc-no">06</span><span>wp_<wbr>static</span></a></li>
+      </ol>
+    </nav>
+  </main>
+
+  <footer class="colophon">
+    <span>Made with</span>
+    <span class="heart" aria-label="love" role="img"></span>
+    <span>by</span>
+    <a class="by" href="https://asterisk.coop" rel="noopener noreferrer">
+      <img src="assets/svg/asterisk-mark-black.svg" alt="" width="15" height="17">
+      <span>asterisk labs</span>
+    </a>
+  </footer>
+</div>
+<script src="assets/js/toc.js" defer></script>
+<script src="assets/js/stepper.js?v=4" defer></script>
+</body>
+</html>

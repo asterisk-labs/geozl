@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="How GeoZL decodes fast on a CPU with SIMD, and why a CPU and a GPU ask different things of a codec.">
+<title>GeoZL · Inside the CPU decoder</title>
+<link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/reading.css?v=5">
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <a class="lockup vt-lockup" href="index.html" aria-label="GeoZL home">
+      <img class="marksvg" src="assets/svg/mark-light.svg" alt="">
+      <span class="wm-sm">GeoZL</span>
+    </a>
+
+    <div class="offsite" aria-label="Project links">
+      <a href="https://github.com/asterisk-labs/geozl" title="GitHub" aria-label="GeoZL on GitHub" rel="noopener noreferrer">
+        <svg class="github" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg>
+      </a>
+      <a class="pypi" href="https://pypi.org/project/geozl/" title="PyPI" aria-label="GeoZL on PyPI" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.3 14.3 4.7v6.6L8 14.7l-6.3-3.4V4.7Z"></path><path d="M1.7 4.7 8 8.1l6.3-3.4M8 8.1v6.6"></path></svg>
+        <img class="mark-color" src="assets/svg/pypi-color.svg" alt="" width="18" height="16">
+      </a>
+      <a class="rumi" href="https://asterisk.coop/rumi/" title="Rumi" aria-label="Rumi, the raster format built with GeoZL" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 1h14v14H1zM1 5.5l6 .8 4.2 2.1L15 9.2M7 1l-.5 5.3 4.7 2.1L9.5 15"></path></svg>
+        <img class="mark-color" src="assets/svg/rumi-color.svg" alt="" width="16" height="16">
+      </a>
+      <a class="asterisk" href="https://asterisk.coop" title="asterisk labs" aria-label="asterisk labs" rel="noopener noreferrer">
+        <img class="mark-mono" src="assets/svg/asterisk-mark-black.svg" alt="" width="16" height="18">
+        <img class="mark-color" src="assets/svg/asterisk-mark-color.svg" alt="" width="16" height="18">
+      </a>
+    </div>
+
+    <nav class="nav" aria-label="Sections">
+      <a href="docs.html">Docs</a>
+      <a href="api-high.html">API</a>
+      <a href="benchmark.html">Benchmark</a>
+    </nav>
+  </header>
+
+  <main class="doc">
+    <nav class="toc" aria-label="Contents">
+      <p class="toc-title">Docs</p>
+      <ol class="toc-pages">
+        <li class="toc-group">Reference</li>
+        <li><a href="docs.html">Codecs</a></li>
+        <li><a href="predictors.html">Predictors</a></li>
+        <li><a href="fused.html">Fused</a></li>
+        <li><a href="streams.html">Streams</a></li>
+        <li><a href="near-lossless.html">Near-lossless</a></li>
+        <li class="toc-group">CPU decoding</li>
+        <li><a href="cpu.html" class="here">Inside the CPU decoder</a></li>
+        <li class="toc-group">GPU-friendly codecs</li>
+        <li><a href="gpu-codecs.html">Why they fit a GPU</a></li>
+        <li><a href="pfor.html">PFOR</a></li>
+        <li><a href="pivco.html">PivCo</a></li>
+        <li class="toc-group">GPU decoding</li>
+        <li><a href="gpu.html">API</a></li>
+        <li><a href="gpu-internals.html">Inside the decoder</a></li>
+      </ol>
+    </nav>
+
+    <article class="content">
+      <h1>Inside the CPU decoder</h1>
+      <ul class="facts">
+        <li>Kernels for SSE2, AVX2 and NEON, with a plain C fallback</li>
+        <li>Path chosen once at run time</li>
+        <li>Sources in <code>core/src</code></li>
+      </ul>
+      <p>Decode speed depends on the decoder. GeoZL chooses codecs and formats whose decoders fit the hardware. This page covers CPU decoding with <code>planar</code>, <code>med</code> and PFOR, and the different needs of a GPU.</p>
+
+      <h2 class="part" id="simd">One instruction, many values</h2>
+      <p>A CPU core can process several numbers with one instruction. A <b>vector register</b> has <b>lanes</b> that add, shift or compare values together. This is called <b>SIMD</b>, single instruction, multiple data. ARM chips, including Apple chips, use <b>NEON</b> with 128-bit registers. x86 uses <b>SSE2</b>, 128 bits on every 64-bit chip, and <b>AVX2</b>, 256 bits on most recent chips.</p>
+      <figure class="diagram wide">
+        <img src="assets/svg/cpu/simd-lanes.svg" alt="Adding residuals to the row above one value at a time takes eight instructions in a row. A SIMD register holds eight uint16 lanes, so one instruction adds all eight at once. NEON and SSE2 registers are 128 bits, eight uint16 lanes. AVX2 registers are 256 bits, sixteen lanes." loading="lazy">
+        <figcaption>A 128-bit register holds <b>8 samples of 16 bits</b>. One add does the work of eight.</figcaption>
+      </figure>
+      <p>GeoZL carries kernels for all three. At run time, GeoZL chooses the widest supported kernel once. Builds without SIMD use plain C. All paths write <b>the same bytes</b>, so frames decode identically across machines.</p>
+
+      <h2 class="part" id="fit">What a decoder needs to use it</h2>
+      <p>SIMD only helps when the lanes can work without talking to each other. SIMD needs <b>the same operation on neighbouring values</b>, adjacent memory and <b>no branch per value</b>. A row dependency makes value <code>i</code> wait for <code><i>i &minus; 1</i></code>. A CPU can pass one value between registers while it walks a row.</p>
+      <p>A GPU runs <b>thousands of threads</b> at once, so a serial carry along a row limits parallel decoding. Threads can share values within a wave, but each must locate its own compressed data. A codec can suit SIMD but not a GPU, or the reverse.</p>
+      <figure class="diagram wide">
+        <img src="assets/svg/cpu/cpu-gpu.svg" alt="A CPU core with SIMD walks a row eight lanes per step and passes a carry from one register to the next for the cost of one add. A GPU runs thousands of threads at once, so a serial carry along the row limits parallel decoding." loading="lazy">
+        <figcaption>A SIMD core can carry one number along the row. A serial carry limits GPU parallelism.</figcaption>
+      </figure>
+      <table class="spec">
+        <tr><th></th><td><b>SIMD on a CPU core</b></td><td><b>a GPU</b></td></tr>
+        <tr><th>planar</th><td>a row at a time, by prefix sum</td><td>a sum down the columns, then along the rows</td></tr>
+        <tr><th>med, average</th><td>a chain through W, one sample after another</td><td>stays on the CPU</td></tr>
+        <tr><th>PFOR</th><td>shift, and, or on every lane</td><td>each thread jumps to <code>slot &#215; b</code></td></tr>
+        <tr><th>Huffman</th><td>one code after another</td><td>replaced by PivCo bitmaps</td></tr>
+      </table>
+
+      <h2 class="part" id="planar">Planar, a row at a time</h2>
+      <p>Planar predicts every sample as <code>W + N − NW</code>. Decoding <code>x = W + N − NW + r</code> appears serial because each pixel needs W. Move W to the other side and it becomes <code>x[i] − x[i−1] = r[i] + N[i] − N[i−1]</code>. The right side uses the residual and the already decoded row above. Compute it across the row with vector math, then take a <b>prefix sum</b> to reconstruct the row.</p>
+      <figure class="diagram wide">
+        <img src="assets/svg/codecs-light/planar-row.svg" alt="Decoding one row of planar. Row above 10 12 15 15, residuals 1 0 -1 2. Step 1 computes r plus N minus the N on its left for every column at once, 11 2 2 2. Step 2 takes a running sum, 11 13 15 17, which is the decoded row." loading="lazy">
+        <figcaption>At the left edge W and NW count as zero.</figcaption>
+      </figure>
+      <p>delta_w is the same prefix sum without the row above, delta_n needs no prefix sum at all, and wp_static reads only finished rows, so it closes the row the same way as planar.</p>
+
+      <h2 class="part" id="scan">A prefix sum inside a register</h2>
+      <p>A prefix sum appears serial because each lane needs the previous one. Inside a register, it is parallel. We <b>shift the register by one lane and add</b>, then by two, then by four. After three steps every lane holds the sum of all the lanes up to it. The figure uses eight 16-bit samples in one 128-bit register.</p>
+      <figure class="diagram wide stepper" data-steps="5" data-src="assets/svg/cpu/scan-#.svg">
+        <img class="stepper-view" tabindex="0" src="assets/svg/cpu/scan-5.svg" alt="A prefix sum of eight uint16 lanes in one register. C is 11 2 2 2 1 3 -1 -1. Shifting by one lane and adding gives 11 13 4 4 3 4 2 -2, by two lanes 11 13 15 17 7 8 5 2, by four lanes 11 13 15 17 18 21 20 19. The carry, zero at the row start, is added to every lane, and the last lane, 19, becomes the carry of the next register.">
+        <div class="stepper-bar">
+          <button type="button" class="stepper-prev" aria-label="Previous step"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg></button>
+          <ol class="stepper-dots"><li><button type="button" data-go="1" aria-label="Step 1, one row of c in a 128-bit register, 8 lanes"></button></li><li><button type="button" data-go="2" aria-label="Step 2, shift by 1 lane and add"></button></li><li><button type="button" data-go="3" aria-label="Step 3, shift by 2 lanes and add"></button></li><li><button type="button" data-go="4" aria-label="Step 4, shift by 4 lanes and add, every lane holds its running sum"></button></li><li><button type="button" data-go="5" aria-label="Step 5, add the carry, pass the last lane on to the next register"></button></li></ol>
+          <span class="stepper-count" aria-live="polite">5 / 5</span>
+          <button type="button" class="stepper-next">Next<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg></button>
+        </div>
+        <figcaption>Eight lanes take <b>three</b> shift and add steps, sixteen take four. The serial part left is <b>one add per register</b>.</figcaption>
+      </figure>
+      <p>The only thing that crosses from one register to the next is the <b>carry</b>, the running total so far. The carry does not become the bottleneck. The shifts and adds inside a register do not need the carry, so the CPU can start them early. Only the final carry add waits, once per register of 8 or 16 lanes. Wider registers mean fewer carries per row, at the cost of one more shift and add step inside each.</p>
+
+      <h2 class="part" id="serial">When the guess needs W</h2>
+      <p>Planar uses a <b>sum</b>, so W cancels when rearranged. <b>med</b> takes a median of W, N and the planar guess, and <b>average</b> takes the mean of W and N. Neither cancels. Each sample needs its reconstructed left neighbour, which no prefix sum can supply.</p>
+      <p>Both decoders still do some work in parallel. med keeps <b>four rows in flight</b>, each one column behind the row above. Each row remains serial, but four independent chains keep the core busy. The median itself is computed with masks instead of branches, because a three-way choice is exactly the branch a CPU guesses wrong.</p>
+      <figure class="diagram wide">
+        <img src="assets/svg/cpu/med-wavefront.svg" alt="med decodes four rows at once. Each row is a serial chain through its west neighbour, but row 2 runs one column behind row 1, row 3 behind row 2 and row 4 behind row 3, so the four chains are independent and the lower rows read N and NW from registers." loading="lazy">
+        <figcaption>Four chains a column apart. The pixel above each <b>?</b> is already done.</figcaption>
+      </figure>
+      <p><code>med</code> decodes more slowly than <code>planar</code>. Start with <code>planar</code> when decode speed matters.</p>
+
+      <h2 class="part" id="pfor">PFOR, one stream per lane</h2>
+      <p>Bit packing also has a lane dependency. Sequential 3-bit values cross byte boundaries at different offsets. Each needs a shift, and SIMD lanes need shuffling before unpacking. GeoZL PFOR follows <a href="https://github.com/powturbo/TurboPFor-Integer-Compression" rel="noopener noreferrer">TurboPFor</a> and stores blocks <b>vertically</b>. Each lane of a 16-byte group is its own bit stream, so one load brings in <b>the same slot of every lane, at the same bits</b>.</p>
+      <figure class="diagram wide">
+        <img src="assets/svg/cpu/pfor-lanes.svg" alt="Two ways to pack 3-bit values. Packed one after another, values cut across byte boundaries at different places, so each needs its own shift. In GeoZL PFOR each lane is its own bit stream, so one 16-byte load holds the same slot of every lane at the same bits, and one shift, and and or unpack all eight." loading="lazy">
+        <figcaption>The vertical layout turns unpacking into <b>shift, and, or</b>, with no shuffles at all.</figcaption>
+      </figure>
+      <p>Each lane uses the same shift and mask, which suits SIMD. The layout is part of the format, 16 bytes on every machine, so the same frame is fast on NEON, SSE2 and AVX2. <a href="pfor.html">How PFOR works</a> covers the format itself.</p>
+
+      <h2 class="part" id="gpu">From a register to a GPU</h2>
+      <p>Inverse planar prediction sums down columns and along rows. A GPU does both with a <b>wave prefix sum</b>, the same idea as the shifts above spread over 32 threads, so planar moves to the device without a format change. PFOR moves too, because a thread can compute where its values start. <code>med</code> and Huffman stay off the GPU path, which uses PivCo instead of Huffman. <a href="gpu-codecs.html">Why they fit a GPU</a> picks up the story from there.</p>
+
+      <nav class="pager" aria-label="Pages">
+        <a class="prev" href="near-lossless.html"><span>Previous</span>Near-lossless</a>
+        <a class="next" href="gpu-codecs.html"><span>Next</span>GPU-friendly codecs</a>
+      </nav>
+    </article>
+
+    <nav class="toc onpage" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ol class="toc-sections">
+        <li><a href="#simd">One instruction, many values</a></li>
+        <li><a href="#fit">What a decoder needs</a></li>
+        <li><a href="#planar">Planar, a row at a time</a></li>
+        <li><a href="#scan">A prefix sum in a register</a></li>
+        <li><a href="#serial">When the guess needs W</a></li>
+        <li><a href="#pfor">PFOR, one stream per lane</a></li>
+        <li><a href="#gpu">From a register to a GPU</a></li>
+      </ol>
+    </nav>
+  </main>
+
+  <footer class="colophon">
+    <span>Made with</span>
+    <span class="heart" aria-label="love" role="img"></span>
+    <span>by</span>
+    <a class="by" href="https://asterisk.coop" rel="noopener noreferrer">
+      <img src="assets/svg/asterisk-mark-black.svg" alt="" width="15" height="17">
+      <span>asterisk labs</span>
+    </a>
+  </footer>
+</div>
+<script src="assets/js/toc.js" defer></script>
+<script src="assets/js/stepper.js?v=4" defer></script>
+</body>
+</html>

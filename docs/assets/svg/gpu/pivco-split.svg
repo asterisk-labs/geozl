@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 282" width="640" height="282" role="img" aria-label="PivCo regroups the Huffman bits by tree node. The first bit of every symbol drops into the root bitmap, 01010100, all at once. Only b, c and b went right, so only their second bits move on, filling the b or c bitmap with 010. Eight bits plus three is eleven, the same bits as the glued string.">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+    svg{ background:transparent; font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace; }
+    text{ font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace; }
+    .cap{ fill:#111111; font-size:12.5px; font-weight:500; }
+    .num{ fill:#492AE8; font-weight:600; }
+    .lab{ fill:#5C6370; font-size:11px; font-weight:500; }
+    .sym{ fill:#111111; font-size:15px; font-weight:500; text-anchor:middle; }
+    .bit{ fill:#111111; font-size:14px; font-weight:500; text-anchor:middle; }
+    .tag{ fill:#492AE8; font-size:11px; font-weight:500; text-anchor:middle; }
+    .note{ fill:#111111; font-size:11.5px; font-weight:500; }
+    g, rect, text, circle, path, line{ transform-box:fill-box; transform-origin:center; }
+    .ps1{animation:ps1 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps1{ 0%{opacity:0} 2.857%{opacity:1} 17.857%{opacity:1} 20%{opacity:0} 100%{opacity:0} }
+    .ps2{animation:ps2 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps2{ 0%{opacity:0} 20%{opacity:0} 22.857%{opacity:1} 40.714%{opacity:1} 42.857%{opacity:0} 100%{opacity:0} }
+    .ps3{animation:ps3 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps3{ 0%{opacity:0} 42.857%{opacity:0} 45.714%{opacity:1} 66.429%{opacity:1} 68.571%{opacity:0} 100%{opacity:0} }
+    .ps4{animation:ps4 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps4{ 0%{opacity:0} 68.571%{opacity:0} 71.429%{opacity:1} 95.714%{opacity:1} 100%{opacity:0} }
+    .ps5{animation:ps5 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps5{ 0%{opacity:0} 100%{opacity:0} }
+    .ps6{animation:ps6 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps6{ 0%{fill:#5C6370} 20%{fill:#5C6370} 22.857%{fill:#492AE8} 42.857%{fill:#492AE8} 45.714%{fill:#5C6370} 95.714%{fill:#5C6370} 100%{fill:#5C6370} }
+    .ps7{animation:ps7 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps7{ 0%{fill:#5C6370} 42.857%{fill:#5C6370} 45.714%{fill:#492AE8} 68.571%{fill:#492AE8} 71.429%{fill:#5C6370} 95.714%{fill:#5C6370} 100%{fill:#5C6370} }
+    .ps8{animation:ps8 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps8{ 0%{fill:#F3F3F1} 42.857%{fill:#F3F3F1} 45.714%{fill:#ECE9FD} 68.571%{fill:#ECE9FD} 71.429%{fill:#F3F3F1} 95.714%{fill:#F3F3F1} 100%{fill:#F3F3F1} }
+    .ps9{animation:ps9 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps9{ 0%{fill:#F3F3F1} 42.857%{fill:#F3F3F1} 45.714%{fill:#ECE9FD} 68.571%{fill:#ECE9FD} 71.429%{fill:#F3F3F1} 95.714%{fill:#F3F3F1} 100%{fill:#F3F3F1} }
+    .ps10{animation:ps10 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps10{ 0%{fill:#F3F3F1} 42.857%{fill:#F3F3F1} 45.714%{fill:#ECE9FD} 68.571%{fill:#ECE9FD} 71.429%{fill:#F3F3F1} 95.714%{fill:#F3F3F1} 100%{fill:#F3F3F1} }
+    .ps11{animation:ps11 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps11{ 0%{opacity:0;transform:translate(0px,-4px)} 2.857%{opacity:0;transform:translate(0px,-4px)} 6.071%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .ps12{animation:ps12 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps12{ 0%{fill:#111111} 22.857%{fill:#111111} 25.714%{fill:#9AA1AB} 99.857%{fill:#9AA1AB} 100%{fill:#111111} }
+    .ps13{animation:ps13 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps13{ 0%{fill:#111111} 47.143%{fill:#111111} 50%{fill:#9AA1AB} 99.857%{fill:#9AA1AB} 100%{fill:#111111} }
+    .ps14{animation:ps14 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps14{ 0%{stroke:#9AA1AB} 20%{stroke:#9AA1AB} 22.857%{stroke:#492AE8} 42.857%{stroke:#492AE8} 45.714%{stroke:#9AA1AB} 95.714%{stroke:#9AA1AB} 100%{stroke:#9AA1AB} }
+    .ps15{animation:ps15 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps15{ 0%{opacity:0} 42.857%{opacity:0} 45.714%{opacity:1} 68.571%{opacity:1} 71.429%{opacity:0} 100%{opacity:0} }
+    .ps16{animation:ps16 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps16{ 0%{fill:#492AE8} 42.857%{fill:#492AE8} 45.714%{fill:#111111} 99.857%{fill:#111111} 100%{fill:#492AE8} }
+    .ps17{animation:ps17 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps17{ 0%{opacity:0;transform:translate(0px,-41px)} 22.857%{opacity:0;transform:translate(0px,-41px)} 23.571%{opacity:1;transform:translate(0px,-41px)} 25%{opacity:1;transform:translate(0px,-41px)} 30.714%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .ps18{animation:ps18 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps18{ 0%{opacity:0;transform:translate(-8px,-41px)} 22.857%{opacity:0;transform:translate(-8px,-41px)} 23.571%{opacity:1;transform:translate(-8px,-41px)} 25%{opacity:1;transform:translate(-8px,-41px)} 30.714%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .ps19{animation:ps19 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps19{ 0%{opacity:0;transform:translate(0px,-41px)} 22.857%{opacity:0;transform:translate(0px,-41px)} 23.571%{opacity:1;transform:translate(0px,-41px)} 25%{opacity:1;transform:translate(0px,-41px)} 30.714%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .ps20{animation:ps20 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps20{ 0%{opacity:0;transform:translate(-8px,-41px)} 22.857%{opacity:0;transform:translate(-8px,-41px)} 23.571%{opacity:1;transform:translate(-8px,-41px)} 25%{opacity:1;transform:translate(-8px,-41px)} 30.714%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .ps21{animation:ps21 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps21{ 0%{opacity:0;transform:translate(0px,-41px)} 22.857%{opacity:0;transform:translate(0px,-41px)} 23.571%{opacity:1;transform:translate(0px,-41px)} 25%{opacity:1;transform:translate(0px,-41px)} 30.714%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .ps22{animation:ps22 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps22{ 0%{opacity:0;transform:translate(-8px,-41px)} 22.857%{opacity:0;transform:translate(-8px,-41px)} 23.571%{opacity:1;transform:translate(-8px,-41px)} 25%{opacity:1;transform:translate(-8px,-41px)} 30.714%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .ps23{animation:ps23 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps23{ 0%{opacity:0;transform:translate(0px,-41px)} 22.857%{opacity:0;transform:translate(0px,-41px)} 23.571%{opacity:1;transform:translate(0px,-41px)} 25%{opacity:1;transform:translate(0px,-41px)} 30.714%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .ps24{animation:ps24 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps24{ 0%{opacity:0;transform:translate(0px,-41px)} 22.857%{opacity:0;transform:translate(0px,-41px)} 23.571%{opacity:1;transform:translate(0px,-41px)} 25%{opacity:1;transform:translate(0px,-41px)} 30.714%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .ps25{animation:ps25 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps25{ 0%{stroke:#9AA1AB} 42.857%{stroke:#9AA1AB} 45.714%{stroke:#492AE8} 68.571%{stroke:#492AE8} 71.429%{stroke:#9AA1AB} 95.714%{stroke:#9AA1AB} 100%{stroke:#9AA1AB} }
+    .ps26{animation:ps26 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps26{ 0%{opacity:0;transform:translate(0px,0px)} 44.286%{opacity:0;transform:translate(0px,0px)} 47.143%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .ps27{animation:ps27 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps27{ 0%{fill:#492AE8} 68.571%{fill:#492AE8} 71.429%{fill:#111111} 99.857%{fill:#111111} 100%{fill:#492AE8} }
+    .ps28{animation:ps28 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps28{ 0%{opacity:0;transform:translate(54px,-125px)} 47.143%{opacity:0;transform:translate(54px,-125px)} 47.857%{opacity:1;transform:translate(54px,-125px)} 49.286%{opacity:1;transform:translate(54px,-125px)} 50%{opacity:1;transform:translate(61px,-113px)} 54.286%{opacity:1;transform:translate(61px,-49px)} 60%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .ps29{animation:ps29 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps29{ 0%{opacity:0;transform:translate(100px,-125px)} 47.143%{opacity:0;transform:translate(100px,-125px)} 47.857%{opacity:1;transform:translate(100px,-125px)} 49.286%{opacity:1;transform:translate(100px,-125px)} 50%{opacity:1;transform:translate(107px,-113px)} 54.286%{opacity:1;transform:translate(107px,-49px)} 60%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .ps30{animation:ps30 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps30{ 0%{opacity:0;transform:translate(146px,-125px)} 47.143%{opacity:0;transform:translate(146px,-125px)} 47.857%{opacity:1;transform:translate(146px,-125px)} 49.286%{opacity:1;transform:translate(146px,-125px)} 50%{opacity:1;transform:translate(153px,-113px)} 54.286%{opacity:1;transform:translate(153px,-49px)} 60%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    .ps31{animation:ps31 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps31{ 0%{fill:#5C6370} 20%{fill:#5C6370} 22.857%{fill:#492AE8} 42.857%{fill:#492AE8} 45.714%{fill:#5C6370} 95.714%{fill:#5C6370} 100%{fill:#5C6370} }
+    .ps32{animation:ps32 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps32{ 0%{fill:#5C6370} 42.857%{fill:#5C6370} 45.714%{fill:#492AE8} 68.571%{fill:#492AE8} 71.429%{fill:#5C6370} 95.714%{fill:#5C6370} 100%{fill:#5C6370} }
+    .ps33{animation:ps33 14s cubic-bezier(.4,0,.2,1) infinite}
+    @keyframes ps33{ 0%{opacity:0;transform:translate(0px,0px)} 70%{opacity:0;transform:translate(0px,0px)} 73.214%{opacity:1;transform:translate(0px,0px)} 95.714%{opacity:1;transform:translate(0px,0px)} 100%{opacity:0;transform:translate(0px,0px)} }
+    @media (prefers-reduced-motion: reduce){ *{ animation:none !important; } }
+  ]]></style>
+  <text class="cap ps1" x="16" y="22" style="opacity:0"><tspan class="num">1</tspan>  each symbol has a Huffman code, a = 0, b = 10 and c = 11</text>
+  <text class="cap ps2" x="16" y="22" style="opacity:0"><tspan class="num">2</tspan>  the root takes the first bit of every symbol, all at once</text>
+  <text class="cap ps3" x="16" y="22" style="opacity:0"><tspan class="num">3</tspan>  only b, c and b reach the next node; their second bits fill it</text>
+  <text class="cap ps4" x="16" y="22" style="opacity:0"><tspan class="num">4</tspan>  8 + 3 = 11 bits, the same bits as before, grouped by node</text>
+  <text class="cap ps5" x="16" y="22">the same 11 bits, grouped by the tree node that reads them</text>
+  <text class="lab" x="16" y="56">in</text>
+  <text class="lab" x="16" y="92">code</text>
+  <text class="lab ps6" x="16" y="133" style="fill:#5C6370">root</text>
+  <text class="lab ps7" x="16" y="217" style="fill:#5C6370">b or c</text>
+  <rect x="100" y="36" width="40" height="28" rx="3" fill="#F3F3F1" stroke="none" stroke-width="1"/>
+  <text class="sym" x="120.0" y="55">a</text>
+  <rect class="ps8" x="146" y="36" width="40" height="28" rx="3" fill="#F3F3F1" stroke="none" stroke-width="1"/>
+  <text class="sym" x="166.0" y="55">b</text>
+  <rect x="192" y="36" width="40" height="28" rx="3" fill="#F3F3F1" stroke="none" stroke-width="1"/>
+  <text class="sym" x="212.0" y="55">a</text>
+  <rect class="ps9" x="238" y="36" width="40" height="28" rx="3" fill="#F3F3F1" stroke="none" stroke-width="1"/>
+  <text class="sym" x="258.0" y="55">c</text>
+  <rect x="284" y="36" width="40" height="28" rx="3" fill="#F3F3F1" stroke="none" stroke-width="1"/>
+  <text class="sym" x="304.0" y="55">a</text>
+  <rect class="ps10" x="330" y="36" width="40" height="28" rx="3" fill="#F3F3F1" stroke="none" stroke-width="1"/>
+  <text class="sym" x="350.0" y="55">b</text>
+  <rect x="376" y="36" width="40" height="28" rx="3" fill="#F3F3F1" stroke="none" stroke-width="1"/>
+  <text class="sym" x="396.0" y="55">a</text>
+  <rect x="422" y="36" width="40" height="28" rx="3" fill="#F3F3F1" stroke="none" stroke-width="1"/>
+  <text class="sym" x="442.0" y="55">a</text>
+  <g class="ps11"><text class="bit ps12" x="120.0" y="92" style="fill:#9AA1AB">0</text><text class="bit ps12" x="158.0" y="92" style="fill:#9AA1AB">1</text><text class="bit ps13" x="174.0" y="92" style="fill:#9AA1AB">0</text><text class="bit ps12" x="212.0" y="92" style="fill:#9AA1AB">0</text><text class="bit ps12" x="250.0" y="92" style="fill:#9AA1AB">1</text><text class="bit ps13" x="266.0" y="92" style="fill:#9AA1AB">1</text><text class="bit ps12" x="304.0" y="92" style="fill:#9AA1AB">0</text><text class="bit ps12" x="342.0" y="92" style="fill:#9AA1AB">1</text><text class="bit ps13" x="358.0" y="92" style="fill:#9AA1AB">0</text><text class="bit ps12" x="396.0" y="92" style="fill:#9AA1AB">0</text><text class="bit ps12" x="442.0" y="92" style="fill:#9AA1AB">0</text></g>
+  <rect class="ps14" x="100" y="112" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#9AA1AB" stroke-width="1"/>
+  <rect class="ps14" x="146" y="112" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#9AA1AB" stroke-width="1"/>
+  <rect class="ps15" x="147" y="113" width="38" height="28" rx="3" fill="#ECE9FD" stroke="none" stroke-width="1" style="opacity:0"/>
+  <rect class="ps14" x="192" y="112" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#9AA1AB" stroke-width="1"/>
+  <rect class="ps14" x="238" y="112" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#9AA1AB" stroke-width="1"/>
+  <rect class="ps15" x="239" y="113" width="38" height="28" rx="3" fill="#ECE9FD" stroke="none" stroke-width="1" style="opacity:0"/>
+  <rect class="ps14" x="284" y="112" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#9AA1AB" stroke-width="1"/>
+  <rect class="ps14" x="330" y="112" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#9AA1AB" stroke-width="1"/>
+  <rect class="ps15" x="331" y="113" width="38" height="28" rx="3" fill="#ECE9FD" stroke="none" stroke-width="1" style="opacity:0"/>
+  <rect class="ps14" x="376" y="112" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#9AA1AB" stroke-width="1"/>
+  <rect class="ps14" x="422" y="112" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#9AA1AB" stroke-width="1"/>
+  <g class="ps17"><text class="bit ps16" x="120.0" y="133" style="fill:#111111">0</text></g>
+  <g class="ps18"><text class="bit ps16" x="166.0" y="133" style="fill:#111111">1</text></g>
+  <g class="ps19"><text class="bit ps16" x="212.0" y="133" style="fill:#111111">0</text></g>
+  <g class="ps20"><text class="bit ps16" x="258.0" y="133" style="fill:#111111">1</text></g>
+  <g class="ps21"><text class="bit ps16" x="304.0" y="133" style="fill:#111111">0</text></g>
+  <g class="ps22"><text class="bit ps16" x="350.0" y="133" style="fill:#111111">1</text></g>
+  <g class="ps23"><text class="bit ps16" x="396.0" y="133" style="fill:#111111">0</text></g>
+  <g class="ps24"><text class="bit ps16" x="442.0" y="133" style="fill:#111111">0</text></g>
+  <rect class="ps25" x="100" y="196" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#9AA1AB" stroke-width="1"/>
+  <rect class="ps25" x="146" y="196" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#9AA1AB" stroke-width="1"/>
+  <rect class="ps25" x="192" y="196" width="40" height="30" rx="3" fill="#FFFFFF" stroke="#9AA1AB" stroke-width="1"/>
+  <g class="ps26"><text class="lab" x="120.0" y="242" style="text-anchor:middle">slot 0</text><text class="lab" x="166.0" y="242" style="text-anchor:middle">slot 1</text><text class="lab" x="212.0" y="242" style="text-anchor:middle">slot 2</text></g>
+  <g class="ps28"><text class="bit ps27" x="120.0" y="217" style="fill:#111111">0</text></g>
+  <g class="ps29"><text class="bit ps27" x="166.0" y="217" style="fill:#111111">1</text></g>
+  <g class="ps30"><text class="bit ps27" x="212.0" y="217" style="fill:#111111">0</text></g>
+  <line x1="560" y1="116" x2="522" y2="160" stroke="#9AA1AB" stroke-width="1"/>
+  <text class="lab" x="532.0" y="140.0" style="text-anchor:middle;fill:#9AA1AB">0</text>
+  <line x1="560" y1="116" x2="598" y2="160" stroke="#9AA1AB" stroke-width="1"/>
+  <text class="lab" x="588.0" y="140.0" style="text-anchor:middle;fill:#9AA1AB">1</text>
+  <line x1="598" y1="160" x2="572" y2="206" stroke="#9AA1AB" stroke-width="1"/>
+  <text class="lab" x="576.0" y="185.0" style="text-anchor:middle;fill:#9AA1AB">0</text>
+  <line x1="598" y1="160" x2="624" y2="206" stroke="#9AA1AB" stroke-width="1"/>
+  <text class="lab" x="620.0" y="185.0" style="text-anchor:middle;fill:#9AA1AB">1</text>
+  <circle class="ps31" cx="560" cy="116" r="6" fill="#5C6370"/>
+  <circle class="ps32" cx="598" cy="160" r="6" fill="#5C6370"/>
+  <circle cx="522" cy="160" r="10" fill="#F3F3F1" stroke="#5C6370" stroke-width="1"/>
+  <text class="lab" x="522" y="164" style="text-anchor:middle;fill:#111111">a</text>
+  <circle cx="572" cy="206" r="10" fill="#F3F3F1" stroke="#5C6370" stroke-width="1"/>
+  <text class="lab" x="572" y="210" style="text-anchor:middle;fill:#111111">b</text>
+  <circle cx="624" cy="206" r="10" fill="#F3F3F1" stroke="#5C6370" stroke-width="1"/>
+  <text class="lab" x="624" y="210" style="text-anchor:middle;fill:#111111">c</text>
+  <text class="lab" x="560" y="102" style="text-anchor:middle">tree</text>
+  <g class="ps33"><text class="note" x="100" y="272">8 + 3 = 11 bits, exactly as many as the glued string</text></g>
+</svg>
