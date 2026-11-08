@@ -530,6 +530,9 @@ SEXP geozl_r_coeffs(SEXP frame) {
   int rc = geozl_2d_frame_coeffs_c(src, len, NULL, 0, &size);
   if (rc < 0)
     return R_NilValue;
+  if (rc == (int)ZL_ErrorCode_formatVersion_unsupported)
+    Rf_error("geozl_coeffs: the frame predates OpenZL format %d, which GeoZL "
+             "does not read", GEOZL_COEFFS_FORMAT_MIN);
   if (rc != 0)
     Rf_error("geozl_coeffs: unreadable frame (ZL error code %d)", rc);
   uint8_t *blob = (uint8_t *)R_alloc(size > 0 ? size : 1, 1);

@@ -153,8 +153,11 @@ frame = geozl.compress(tile, graph=g, coeffs=[[7, -3, 11], [2, 5]])
 geozl.coeffs(frame)          # ((7, -3, 11), (2, 5)); None when absent
 ```
 
-- Stored in the OpenZL frame header comment (format version 22 and later), read
-  without decompressing the payload. geozl gives the numbers no meaning.
+- Stored in the OpenZL frame header comment, read without decompressing the
+  payload. geozl gives the numbers no meaning.
+- A frame older than OpenZL format 22 has no header comment and raises
+  `RuntimeError(... predates OpenZL format 22 ...)`. Any other unreadable frame
+  raises `RuntimeError(... unreadable frame ...)`.
 - 1 to 255 non-empty vectors of int32 values; floats, bools and strings raise
   `TypeError`, out-of-range values raise `ValueError`.
 - Blob size is `6 + 4 * vectors + 4 * values` and must stay within 10000 bytes

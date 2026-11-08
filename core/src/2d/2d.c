@@ -751,6 +751,15 @@ GEOZL_API int geozl_2d_frame_coeffs_c(const void *frame, size_t frameSize,
   if (fi == NULL)
     return (int)ZL_ErrorCode_corruption;
 
+  // A frame older than the header comment cannot carry coefficients, and
+  // GeoZL reads only current frames, so it is refused by its own code.
+  ZL_Report fv = ZL_FrameInfo_getFormatVersion(fi);
+  if (ZL_isError(fv) || ZL_validResult(fv) < GEOZL_COEFFS_FORMAT_MIN) {
+    ZL_FrameInfo_free(fi);
+    return ZL_isError(fv) ? (int)ZL_errorCode(fv)
+                          : (int)ZL_ErrorCode_formatVersion_unsupported;
+  }
+
   ZL_RESULT_OF(ZL_Comment) cr = ZL_FrameInfo_getComment(fi);
   int rc;
   if (ZL_RES_isError(cr)) {

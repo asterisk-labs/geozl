@@ -327,6 +327,8 @@ function coeffs(frame::AbstractVector{UInt8})
     rc = GC.@preserve f ccall(_sym(:geozl_2d_frame_coeffs_c), Cint,
         (Ptr{UInt8}, Csize_t, Ptr{UInt8}, Csize_t, Ref{Csize_t}), f, length(f), C_NULL, 0, blobsize)
     rc < 0 && return nothing
+    # ZL_ErrorCode_formatVersion_unsupported, for a frame older than the header comment.
+    rc == 60 && throw(GeoZLError("coeffs: the frame predates OpenZL format 22, which GeoZL does not read"))
     rc == 0 || throw(GeoZLError("coeffs: unreadable frame (ZL error code $rc)"))
     blob = Vector{UInt8}(undef, blobsize[])
     rc = GC.@preserve f blob ccall(_sym(:geozl_2d_frame_coeffs_c), Cint,

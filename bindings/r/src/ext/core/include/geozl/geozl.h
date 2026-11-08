@@ -159,8 +159,9 @@ GEOZL_API int geozl_2d_compress_coeffs_c(geozl_2d_graph *g, const void *src,
                                          char *errCtx, size_t errCtxSize);
 
 // Copy a frame's coefficient blob without decompressing the payload. Return 0
-// on success, -1 when absent, or a positive ZL_ErrorCode on failure. Call with
-// dst NULL to query the size.
+// on success, -1 when absent, or a positive ZL_ErrorCode on failure. A frame
+// older than OpenZL format GEOZL_COEFFS_FORMAT_MIN fails with
+// ZL_ErrorCode_formatVersion_unsupported. Call with dst NULL to query the size.
 GEOZL_API int geozl_2d_frame_coeffs_c(const void *frame, size_t frameSize,
                                       void *dst, size_t dstCapacity,
                                       size_t *outSize);

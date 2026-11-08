@@ -233,26 +233,17 @@ def test_invalid_geozl_blob_raises():
             _coeffs._parse_coeffs(bad)
 
 
-def test_a_comment_from_another_producer(tile):
+def test_a_frame_older_than_the_header_comment_is_refused(tile):
     zl = pytest.importorskip("openzl.ext")
-    if not hasattr(zl.CCtx, "add_header_comment"):
-        pytest.skip("openzl's python binding cannot write a frame comment")
-
-    def framed(comment):
-        compressor = zl.Compressor()
-        compressor.select_starting_graph(
-            zl.graphs.Compress().parameterize(compressor))
-        cctx = zl.CCtx()
-        cctx.ref_compressor(compressor)
-        cctx.set_parameter(zl.CParam.FormatVersion, zl.MAX_FORMAT_VERSION)
-        cctx.add_header_comment(comment)
-        return bytes(cctx.compress([zl.Input(zl.Type.Numeric, tile.reshape(-1))]))
-
-    # Foreign comments do not contain geozl coefficients.
-    assert geozl.coeffs(framed(b"someone else's note")) is None
-    # Matching magic with an invalid body is frame corruption.
-    with pytest.raises(RuntimeError, match="unreadable frame"):
-        geozl.coeffs(framed(b"GZC1\x01\x00"))
+    compressor = zl.Compressor()
+    compressor.select_starting_graph(
+        zl.graphs.Compress().parameterize(compressor))
+    cctx = zl.CCtx()
+    cctx.ref_compressor(compressor)
+    cctx.set_parameter(zl.CParam.FormatVersion, 21)
+    old = bytes(cctx.compress([zl.Input(zl.Type.Numeric, tile.reshape(-1))]))
+    with pytest.raises(RuntimeError, match="predates OpenZL format 22"):
+        geozl.coeffs(old)
 
 
 @pytest.mark.parametrize("kwargs", [

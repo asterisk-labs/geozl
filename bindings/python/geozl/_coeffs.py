@@ -119,6 +119,11 @@ def _parse_coeffs(blob: bytes) -> tuple[tuple[int, ...], ...] | None:
     return tuple(result)
 
 
+# ZL_ErrorCode_formatVersion_unsupported, for a frame older than the header
+# comment.
+_FORMAT_UNSUPPORTED = 60
+
+
 def coeffs(frame: bytes) -> tuple[tuple[int, ...], ...] | None:
     """Return coefficient vectors from ``frame``, or ``None`` if absent.
 
@@ -131,6 +136,10 @@ def coeffs(frame: bytes) -> tuple[tuple[int, ...], ...] | None:
     rc = full.geozl_2d_frame_coeffs_c(_ptr(src), src.size, ffi.NULL, 0, size)
     if rc < 0:
         return None
+    if rc == _FORMAT_UNSUPPORTED:
+        raise RuntimeError(
+            "geozl.coeffs: the frame predates OpenZL format 22, which GeoZL "
+            "does not read")
     if rc != 0:
         raise RuntimeError(f"geozl.coeffs: unreadable frame (ZL error code {rc})")
 
