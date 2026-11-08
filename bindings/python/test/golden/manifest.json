@@ -1,10 +1,12 @@
 {
-  "note": "Frozen on purpose. See docs/compatibility.md before touching. Each entry names the release that wrote it.",
+  "note": "One frame per wire layout the current readers decode, written by tools/write_golden.py. See docs/compatibility.md before touching.",
   "frames": [
     {
-      "name": "planar-zigzag-lanes-uint16",
-      "file": "planar-zigzag-lanes-uint16.zl",
-      "graph": "planar>zigzag>lanes",
+      "name": "planar-zigzag-uint16",
+      "file": "planar-zigzag-uint16.zl",
+      "codec": "planar_zigzag",
+      "layout": "one plane, short header",
+      "graph": "planar>zigzag>entropy",
       "error": null,
       "nodata": null,
       "dtype": "uint16",
@@ -12,44 +14,34 @@
         64,
         64
       ],
-      "written_by": "geozl 0.19.0",
-      "sha256_decoded": "a4bde7eb9077be588ccad5d1437e2811565c0f477b86ce2cd891c0517e40e6de",
-      "sha256_frame": "c9ec75611a516e52af3ae6a1c6eeec6f6bc568ddf247fb04b11ec6ef7b3a9495"
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "8f69a22d42a8058402ddc8c59d46cbf460384cfcfdb10e974e2b288daf52b38b",
+      "sha256_frame": "4a46dded235ef87395abf20164294d4b8e11704aa26d567ced730ce50e14551d"
     },
     {
-      "name": "lanes-uint8",
-      "file": "lanes-uint8.zl",
-      "graph": "id>lanes",
+      "name": "planar-zigzag-uint16-3p",
+      "file": "planar-zigzag-uint16-3p.zl",
+      "codec": "planar_zigzag",
+      "layout": "three planes, long header",
+      "graph": "planar>zigzag>entropy",
       "error": null,
       "nodata": null,
-      "dtype": "uint8",
+      "dtype": "uint16",
       "shape": [
+        3,
         64,
         64
       ],
-      "written_by": "geozl 0.20.0-alpha.1",
-      "sha256_decoded": "f6bd65009c2372e321b672b03c84ca8294558481182899fbdb7442181bdb3f43",
-      "sha256_frame": "f8202b28c2a847baf88e5c3c9128b6cec5f48df9c828e444f7c104fc213efa99"
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "88998ed79375fa17eea3d40c3c19f6bee0a94dfca9e436b826574f95a24dcbcb",
+      "sha256_frame": "b497c44e801503945b65b04cf8539a69486d7449a4e950432f9a5e61de1e8219"
     },
     {
-      "name": "lanes-huffman-uint8",
-      "file": "lanes-huffman-uint8.zl",
-      "graph": "id>lanes",
-      "error": null,
-      "nodata": null,
-      "dtype": "uint8",
-      "shape": [
-        64,
-        64
-      ],
-      "written_by": "geozl 0.20.0-alpha.1",
-      "sha256_decoded": "011dc993e7a2e1cf2d181824a6605bf8be75e6489b9d8f78a4f498a8421e1d97",
-      "sha256_frame": "ac0f24625adf6028486b844d54f61138a381a80663125334704584654d901a24"
-    },
-    {
-      "name": "lanes-uint16",
-      "file": "lanes-uint16.zl",
-      "graph": "id>lanes",
+      "name": "med-zigzag-uint16",
+      "file": "med-zigzag-uint16.zl",
+      "codec": "med_zigzag",
+      "layout": "one plane, short header",
+      "graph": "med>zigzag>entropy",
       "error": null,
       "nodata": null,
       "dtype": "uint16",
@@ -57,43 +49,242 @@
         64,
         64
       ],
-      "written_by": "geozl 0.20.0-alpha.1",
-      "sha256_decoded": "dc37677ed99d09c674d9c7987feb55ee8d999657abb27edfe81e190db1cb9b30",
-      "sha256_frame": "c3b7952e7619b149ac319c99b016a4eee687e88ec724871f30951c9987c6b3a3"
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "8f69a22d42a8058402ddc8c59d46cbf460384cfcfdb10e974e2b288daf52b38b",
+      "sha256_frame": "708074d84b6d14e2c9cbdb66d3e9e32118a43fbc54fa7501dcffb5ba82b98f22"
     },
     {
-      "name": "lanes-uint32",
-      "file": "lanes-uint32.zl",
-      "graph": "id>lanes",
+      "name": "med-zigzag-uint16-3p",
+      "file": "med-zigzag-uint16-3p.zl",
+      "codec": "med_zigzag",
+      "layout": "three planes, long header",
+      "graph": "med>zigzag>entropy",
       "error": null,
       "nodata": null,
-      "dtype": "uint32",
+      "dtype": "uint16",
+      "shape": [
+        3,
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "88998ed79375fa17eea3d40c3c19f6bee0a94dfca9e436b826574f95a24dcbcb",
+      "sha256_frame": "3b3109a19f41b526e20028eaff0b22be1a431f1973464410bf94acecd71d91f7"
+    },
+    {
+      "name": "delta-n-uint16",
+      "file": "delta-n-uint16.zl",
+      "codec": "delta_n",
+      "layout": "one plane, short header",
+      "graph": "delta_n>zigzag>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
       "shape": [
         64,
         64
       ],
-      "written_by": "geozl 0.20.0-alpha.1",
-      "sha256_decoded": "885fc00686632a2dc64e23032b4f675d8d3c220251d57cf203cb387d7e364d68",
-      "sha256_frame": "fee42521c6e6cd7a3e6bf01c8c778a7793d863c10c84b18675d63bf26b4af684"
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "8f69a22d42a8058402ddc8c59d46cbf460384cfcfdb10e974e2b288daf52b38b",
+      "sha256_frame": "6b034d768d9b948c9db446db5f9a2ffb2d4c8d61f2b151bc181ad2c147a1e349"
     },
     {
-      "name": "lanes-uint64",
-      "file": "lanes-uint64.zl",
-      "graph": "id>lanes",
+      "name": "delta-n-uint16-3p",
+      "file": "delta-n-uint16-3p.zl",
+      "codec": "delta_n",
+      "layout": "three planes, long header",
+      "graph": "delta_n>zigzag>entropy",
       "error": null,
       "nodata": null,
-      "dtype": "uint64",
+      "dtype": "uint16",
+      "shape": [
+        3,
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "88998ed79375fa17eea3d40c3c19f6bee0a94dfca9e436b826574f95a24dcbcb",
+      "sha256_frame": "046a31a1e2e33af6f0f56b8e0915d490aed9c72b597a3e0cd084a1b8297ebd86"
+    },
+    {
+      "name": "average-uint16",
+      "file": "average-uint16.zl",
+      "codec": "average",
+      "layout": "one plane, short header",
+      "graph": "average>zigzag>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
       "shape": [
         64,
         64
       ],
-      "written_by": "geozl 0.20.0-alpha.1",
-      "sha256_decoded": "402d0f26d7d5f74c6f90a6a2ded767b1190b778e74c35850cefa7bdd238b4791",
-      "sha256_frame": "84c347e5cdc5bd648d88bfc1f477e52bd3c5ab912bc1e66eaf9821514f2a3d19"
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "8f69a22d42a8058402ddc8c59d46cbf460384cfcfdb10e974e2b288daf52b38b",
+      "sha256_frame": "6161434533ab78177d611d74c8313ebb080b59fd8ca56e7fde181092c2a9836a"
+    },
+    {
+      "name": "average-uint16-3p",
+      "file": "average-uint16-3p.zl",
+      "codec": "average",
+      "layout": "three planes, long header",
+      "graph": "average>zigzag>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        3,
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "88998ed79375fa17eea3d40c3c19f6bee0a94dfca9e436b826574f95a24dcbcb",
+      "sha256_frame": "4f47dec7e5137e236affa9e80e7360fcc5f6a1ca95fce69d9ddf38e8d9955e2a"
+    },
+    {
+      "name": "wp-static-uint16",
+      "file": "wp-static-uint16.zl",
+      "codec": "wp_static",
+      "layout": "one plane, short header",
+      "graph": "wp_static>zigzag>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "8f69a22d42a8058402ddc8c59d46cbf460384cfcfdb10e974e2b288daf52b38b",
+      "sha256_frame": "dc1c4dc8e8e0ecf267f6a53e27103321746774b78cad7787d9ffcca9f904315c"
+    },
+    {
+      "name": "wp-static-uint16-3p",
+      "file": "wp-static-uint16-3p.zl",
+      "codec": "wp_static",
+      "layout": "three planes, long header",
+      "graph": "wp_static>zigzag>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        3,
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "88998ed79375fa17eea3d40c3c19f6bee0a94dfca9e436b826574f95a24dcbcb",
+      "sha256_frame": "0fbd3d82e9508fc3aa9c7105bf6b0770945e629057f8e8ff1becae8313acf9c8"
+    },
+    {
+      "name": "delta-w-uint16",
+      "file": "delta-w-uint16.zl",
+      "codec": "delta_w",
+      "layout": "width header",
+      "graph": "delta_w>zigzag>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "8f69a22d42a8058402ddc8c59d46cbf460384cfcfdb10e974e2b288daf52b38b",
+      "sha256_frame": "4cd0d675e97b2e23035f4ad12c3ee769cca73f937fe327f37e9771a63c34ca67"
+    },
+    {
+      "name": "planar-uint16",
+      "file": "planar-uint16.zl",
+      "codec": "planar",
+      "layout": "one plane, short header",
+      "graph": "planar>zigzag>entropy (low level)",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "8f69a22d42a8058402ddc8c59d46cbf460384cfcfdb10e974e2b288daf52b38b",
+      "sha256_frame": "e69a4d28b4f151015e8942eab4bf3180db8e69f229229f2afec2a8a235d0c10c"
+    },
+    {
+      "name": "planar-uint16-3p",
+      "file": "planar-uint16-3p.zl",
+      "codec": "planar",
+      "layout": "three planes, long header",
+      "graph": "planar>zigzag>entropy (low level)",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        3,
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "88998ed79375fa17eea3d40c3c19f6bee0a94dfca9e436b826574f95a24dcbcb",
+      "sha256_frame": "db3e7210214531672b4fa98a8fd1dea61cd9bb7a49ea8a286e3fec6eceb53b69"
+    },
+    {
+      "name": "med-uint16",
+      "file": "med-uint16.zl",
+      "codec": "med",
+      "layout": "one plane, short header",
+      "graph": "med>zigzag>entropy (low level)",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "8f69a22d42a8058402ddc8c59d46cbf460384cfcfdb10e974e2b288daf52b38b",
+      "sha256_frame": "ef081a0e3c70ff5701b826a19a6c4b910089ee46d40e8a27e8540a0d85e1ae04"
+    },
+    {
+      "name": "med-uint16-3p",
+      "file": "med-uint16-3p.zl",
+      "codec": "med",
+      "layout": "three planes, long header",
+      "graph": "med>zigzag>entropy (low level)",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        3,
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "88998ed79375fa17eea3d40c3c19f6bee0a94dfca9e436b826574f95a24dcbcb",
+      "sha256_frame": "adc29eac21cfcfe0f6282e1d9cb0c8ad7e62e20109d36e0e2dd4fe1b9b9dc71e"
+    },
+    {
+      "name": "deinterleave-uint16",
+      "file": "deinterleave-uint16.zl",
+      "codec": "deinterleave",
+      "layout": "two lanes, no header",
+      "graph": "deinterleave>delta_w>zigzag>compress (low level)",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "8f69a22d42a8058402ddc8c59d46cbf460384cfcfdb10e974e2b288daf52b38b",
+      "sha256_frame": "d154733be73600cb054b840fce3fb7647ddb32f4425f3be42d3909528cbafa60"
     },
     {
       "name": "planar-zigzag-pfor-uint16",
       "file": "planar-zigzag-pfor-uint16.zl",
+      "codec": "planar_zigzag_pfor",
+      "layout": "fused header",
       "graph": "planar>zigzag>pfor",
       "error": null,
       "nodata": null,
@@ -102,14 +293,51 @@
         64,
         64
       ],
-      "written_by": "geozl 0.21.1",
-      "sha256_decoded": "11955c7f038c16ee689492852d54092713a1deccdbdadc88157eb4c011ecea2f",
-      "sha256_frame": "2f2d9dd6e0b9e11d5ad357b62668fa3a9ec553bdb08b37b6681209a127d17284"
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "8f69a22d42a8058402ddc8c59d46cbf460384cfcfdb10e974e2b288daf52b38b",
+      "sha256_frame": "4331d3347e7c1cebbca56d946195c9877d1c722b4310fe824d6feb4ee3f8b03c"
     },
     {
-      "name": "med-zigzag-uint16",
-      "file": "med-zigzag-uint16.zl",
-      "graph": "med>zigzag>transpose>entropy",
+      "name": "planar-zigzag-pfor-uint16-3p",
+      "file": "planar-zigzag-pfor-uint16-3p.zl",
+      "codec": "planar_zigzag_pfor",
+      "layout": "fused header, three planes",
+      "graph": "planar>zigzag>pfor",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        3,
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "88998ed79375fa17eea3d40c3c19f6bee0a94dfca9e436b826574f95a24dcbcb",
+      "sha256_frame": "0eaadda04ac9b50e4ca367000beacb16608062812379738c791c8c7eafbbb5b2"
+    },
+    {
+      "name": "pfor-uint8",
+      "file": "pfor-uint8.zl",
+      "codec": "pfor",
+      "layout": "1-byte elements",
+      "graph": "id>pfor",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint8",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "84686baab808d77efa45339a8f7c59cf82a87017764c307094a5083185935615",
+      "sha256_frame": "eba90a356c0aac370cc63fc6cfebf079b21b2efd27428594c9d05a7daf340089"
+    },
+    {
+      "name": "pfor-uint16",
+      "file": "pfor-uint16.zl",
+      "codec": "pfor",
+      "layout": "2-byte elements",
+      "graph": "id>pfor",
       "error": null,
       "nodata": null,
       "dtype": "uint16",
@@ -117,9 +345,496 @@
         64,
         64
       ],
-      "written_by": "geozl 0.21.1",
-      "sha256_decoded": "11955c7f038c16ee689492852d54092713a1deccdbdadc88157eb4c011ecea2f",
-      "sha256_frame": "6f3895f2b823f6ae4f0adf2ec09e06262071bc26ccf8f3ba1aba298d23ec3f7d"
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "8f69a22d42a8058402ddc8c59d46cbf460384cfcfdb10e974e2b288daf52b38b",
+      "sha256_frame": "cf44027af4f3827753c7f5cf3ba829d91350e6fee3c09c185a279cf7f92f2aa9"
+    },
+    {
+      "name": "pfor-uint32",
+      "file": "pfor-uint32.zl",
+      "codec": "pfor",
+      "layout": "4-byte elements",
+      "graph": "id>pfor",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint32",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "773ccfddd6338ed2b90bd1b052243d5ddd4ef6665158f7acbee87a7232158f99",
+      "sha256_frame": "dedd4d289e70506a94e0598aca04038102b5e1d46e22b0e3a927f5021aa05f12"
+    },
+    {
+      "name": "pfor-uint64",
+      "file": "pfor-uint64.zl",
+      "codec": "pfor",
+      "layout": "8-byte elements",
+      "graph": "id>pfor",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint64",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "3d042a5e8f8a32a6070142872a43ccc9579c8b90f59ac822d74b3fdaaf0fc96f",
+      "sha256_frame": "9661a57cba641858c12fdca4c4359784d1ba6e694a4add16243c7502efe3e4fc"
+    },
+    {
+      "name": "lanes-pfor-uint8",
+      "file": "lanes-pfor-uint8.zl",
+      "codec": "lanes",
+      "layout": "1 byte, PFOR lane",
+      "graph": "id>lanes",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint8",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "94e6fad18adaff16025fb8be90dc9f3b71e3ddf914877840900533b2d6887c51",
+      "sha256_frame": "083310c5112e0dd7fbd3d3dbdd43217608e148689a9728f3c9d3c8601a4b1a40"
+    },
+    {
+      "name": "lanes-huffman-uint8",
+      "file": "lanes-huffman-uint8.zl",
+      "codec": "lanes",
+      "layout": "1 byte, Huffman lane",
+      "graph": "id>lanes",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint8",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "71b421f1d4418808e0167dc04f438a124b86f3ef894546c56c2d24d470ece19b",
+      "sha256_frame": "f6e58582363f66471fef07d578e7aca8316881451af9c4577dff85e9f60290d0"
+    },
+    {
+      "name": "lanes-uint16",
+      "file": "lanes-uint16.zl",
+      "codec": "lanes",
+      "layout": "2 bytes, PFOR and Huffman lanes",
+      "graph": "id>lanes",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "55b7f8bd925dcf227a43fa98d3d423652950bcf1213502820b0ffdb09ea230bb",
+      "sha256_frame": "430cf9031bfa0d8cfeec800f2a9038aeacdc9f3ef22cc687728253b4f0ede93c"
+    },
+    {
+      "name": "lanes-uint32",
+      "file": "lanes-uint32.zl",
+      "codec": "lanes",
+      "layout": "4 bytes, PFOR and Huffman lanes",
+      "graph": "id>lanes",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint32",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "4519856fb5ae94dbb8a7e60ddcc75e6716b13059158e281db07f64b4b8fc6f31",
+      "sha256_frame": "d0507e185a758a4381bfc5118f6299c7db5823fb9d6f051dce309dc060409676"
+    },
+    {
+      "name": "lanes-uint64",
+      "file": "lanes-uint64.zl",
+      "codec": "lanes",
+      "layout": "8 bytes, PFOR and Huffman lanes",
+      "graph": "id>lanes",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint64",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "39680385cbe29f574ce9ce6441fd8f4ed5d50737793685c5b219b34aa3c32aac",
+      "sha256_frame": "d5314b666bfb3d7fb46b32a4140bdd864d4ce5f64522acaa3783c80c96784c21"
+    },
+    {
+      "name": "planar-zigzag-lanes-uint16",
+      "file": "planar-zigzag-lanes-uint16.zl",
+      "codec": "planar_zigzag_lanes",
+      "layout": "2 bytes, Huffman and PFOR lanes",
+      "graph": "planar>zigzag>lanes",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "8f69a22d42a8058402ddc8c59d46cbf460384cfcfdb10e974e2b288daf52b38b",
+      "sha256_frame": "dbd2271f52bd0e13fd58b13366316b55f806290eb4aee59e15abf0b077353ed9"
+    },
+    {
+      "name": "id-uint8",
+      "file": "id-uint8.zl",
+      "codec": "none",
+      "layout": "OpenZL entropy only",
+      "graph": "id>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint8",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "84686baab808d77efa45339a8f7c59cf82a87017764c307094a5083185935615",
+      "sha256_frame": "d3622fc24582d3d5a17963aae8514e5997460e58a5dde0efaea5958acad14489"
+    },
+    {
+      "name": "id-uint16-zstd",
+      "file": "id-uint16-zstd.zl",
+      "codec": "none",
+      "layout": "OpenZL zstd only",
+      "graph": "id>zstd",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "8f69a22d42a8058402ddc8c59d46cbf460384cfcfdb10e974e2b288daf52b38b",
+      "sha256_frame": "c947c90aa88573f63d8b0bcbeed1b2aa29faa0897b8dc01957d88f28962e0848"
+    },
+    {
+      "name": "nodata-sentinel-int32",
+      "file": "nodata-sentinel-int32.zl",
+      "codec": "nodata",
+      "layout": "guarded form, sentinel",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": null,
+      "nodata": -9999,
+      "dtype": "int32",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "44e2e4e34eace7e40c6ae432a9c48b93d18ec3256d804274dfe40acfe867af01",
+      "sha256_frame": "8722776175cd75aca3556a75a77f797e14fc5d8efa5bd1695edf18a4a8c6352f"
+    },
+    {
+      "name": "nodata-nan-float32",
+      "file": "nodata-nan-float32.zl",
+      "codec": "nodata",
+      "layout": "plain form, NaN",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "float32",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "ccb2e1322a150ba220575894998f32b4fa573858943d9da7ef791eefd853953d",
+      "sha256_frame": "efdbee7891f9ea315eea2eef943675016d44cd48f84f7236859d076c821352c0"
+    },
+    {
+      "name": "quant-linear-uint16",
+      "file": "quant-linear-uint16.zl",
+      "codec": "quant_linear",
+      "layout": "integer index",
+      "graph": "planar>zigzag>pfor",
+      "error": "LINEAR:MAX_ERROR=2",
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "3bd5d71a5a0bd1ed4c2c21ae3d816ccc21287930ed44a3cfecb885f357c85a06",
+      "sha256_frame": "0ed9fe29a2e8d26ab70706b344105eecf8d3123953485ebc0b0bbcae46935edb"
+    },
+    {
+      "name": "quant-linear-int16",
+      "file": "quant-linear-int16.zl",
+      "codec": "quant_linear",
+      "layout": "signed integer index",
+      "graph": "planar>zigzag>pfor",
+      "error": "LINEAR:MAX_ERROR=2",
+      "nodata": null,
+      "dtype": "int16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "20f476b7563253e65f79a1d7962cc076e8f0e611331f3b1a7a48b6329ac44e9d",
+      "sha256_frame": "9ee7ba6a93e72c103d4809a2ddf2ab77afdbf106a62e0329701f5b1afa77711f"
+    },
+    {
+      "name": "quant-linear-float16",
+      "file": "quant-linear-float16.zl",
+      "codec": "quant_linear",
+      "layout": "float index",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "LINEAR:MAX_ERROR=0.5",
+      "nodata": null,
+      "dtype": "float16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "67d7849d0800da31e653d7856042a5dc700b58220fa680f6cb916de8f8d247f4",
+      "sha256_frame": "ef48674b6ef9b4ecfc134f985c6b4d1fbc26a5545d7d66f9826f88f43478530f"
+    },
+    {
+      "name": "quant-linear-float32",
+      "file": "quant-linear-float32.zl",
+      "codec": "quant_linear",
+      "layout": "float index",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "LINEAR:MAX_ERROR=0.5",
+      "nodata": null,
+      "dtype": "float32",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "8c5b12ee275981d8c0243858055df691bd2a1189a3da7de6242d38702faed2ac",
+      "sha256_frame": "6265b5394919db63db6a266b01c8446ed09e361cf079d61ae779ce151bcffd83"
+    },
+    {
+      "name": "quant-linear-float64",
+      "file": "quant-linear-float64.zl",
+      "codec": "quant_linear",
+      "layout": "float index",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "LINEAR:MAX_ERROR=0.5",
+      "nodata": null,
+      "dtype": "float64",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "a5e2ad8c2732c26a2cf9e7d773f94fb2886754add36d2a812d75b3d15313f6d5",
+      "sha256_frame": "fb297c100bf80f48225387a82537f43a8af1de5098ee2ce14c94af918cad6dce"
+    },
+    {
+      "name": "quant-log-uint16",
+      "file": "quant-log-uint16.zl",
+      "codec": "quant_log",
+      "layout": "integer values",
+      "graph": "planar>zigzag>pfor",
+      "error": "LOG:MAX_ERROR=1%",
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "14f9115b87bbab0dea7c43690b4e3fe64015397555f876694d1eb2cb02e10abf",
+      "sha256_frame": "fb5defc89849e42d88f63d61eacadd4a63428b9cd9eba1cfe3f479a119187f7e"
+    },
+    {
+      "name": "quant-log-float16",
+      "file": "quant-log-float16.zl",
+      "codec": "quant_log",
+      "layout": "float index",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "LOG:MAX_ERROR=1%",
+      "nodata": null,
+      "dtype": "float16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "e6dad5b7f8fbc3fb06a7af5da2b0f46f194f9b683f37a6b66f9f87b5dccfdbe6",
+      "sha256_frame": "7ab480ff088d4fa207b460b849d8faba3bcbb5782b5043f2883314141854e81a"
+    },
+    {
+      "name": "quant-log-float32",
+      "file": "quant-log-float32.zl",
+      "codec": "quant_log",
+      "layout": "float index",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "LOG:MAX_ERROR=1%",
+      "nodata": null,
+      "dtype": "float32",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "0575539dd5f1ab2870acd39a3d2237fc662552f5b980abc4cb0d7bbdbc1e36f4",
+      "sha256_frame": "58710f3a74e003a93a31c3698f6d7e8d0dece819b285d164a08587a2c72481fd"
+    },
+    {
+      "name": "quant-log-float64",
+      "file": "quant-log-float64.zl",
+      "codec": "quant_log",
+      "layout": "float index",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "LOG:MAX_ERROR=1%",
+      "nodata": null,
+      "dtype": "float64",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "64a68571ea5eb8d09e4bac94fe1eb75976707b4476e018852a8ed2017a0ded59",
+      "sha256_frame": "fe6d2ce969a03ab71c0c9eae07b15c7a00faad83b83b2b94a17f29605a6e456e"
+    },
+    {
+      "name": "quant-sqrt-uint16",
+      "file": "quant-sqrt-uint16.zl",
+      "codec": "quant_sqrt",
+      "layout": "integer index",
+      "graph": "planar>zigzag>pfor",
+      "error": "SQRT:MAX_ERROR=2N,A=25,B=2",
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "4c3743491d524047f8395b87673fa2a08e2815392b9de21e9530859931017b21",
+      "sha256_frame": "ea3f867a3778227bff3aae3e1b365f6d488dec858e779cffbb6f742d166b6c82"
+    },
+    {
+      "name": "quant-sqrt-values-uint8",
+      "file": "quant-sqrt-values-uint8.zl",
+      "codec": "quant_sqrt",
+      "layout": "integer values fallback",
+      "graph": "planar>zigzag>entropy",
+      "error": "SQRT:MAX_ERROR=0.12N,A=1,B=1",
+      "nodata": null,
+      "dtype": "uint8",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "6ce2b0fd963d7d4c1025abb31c47c98a75189c8f86c41503c9f3eca13ceca82c",
+      "sha256_frame": "aed52071d33aeaa32029ce9b50d73a2d3edf81f05b2f9fe968f3edcfd397f60a"
+    },
+    {
+      "name": "quant-sqrt-float16",
+      "file": "quant-sqrt-float16.zl",
+      "codec": "quant_sqrt",
+      "layout": "float index",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "SQRT:MAX_ERROR=1N,A=100,B=1",
+      "nodata": null,
+      "dtype": "float16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "354c9ce3e2a50447c6402f88f3696ee7c3c346c75d6c7cd9112460d0ba29a755",
+      "sha256_frame": "dc65999dff4f3eadc03d374616de74fa56549155819f443d2ed700360f1239c2"
+    },
+    {
+      "name": "quant-sqrt-float32",
+      "file": "quant-sqrt-float32.zl",
+      "codec": "quant_sqrt",
+      "layout": "float index, binary32 rebuild",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "SQRT:MAX_ERROR=1N,A=100,B=1",
+      "nodata": null,
+      "dtype": "float32",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "658df00a76dc19be71ea5ead92545d5410a190237e2c6b2753fa364a282716c6",
+      "sha256_frame": "f799bbd84d57651eb92862af1be16563e374a61ab4b241d1618323602e73cf7b"
+    },
+    {
+      "name": "quant-sqrt-float32-b64",
+      "file": "quant-sqrt-float32-b64.zl",
+      "codec": "quant_sqrt",
+      "layout": "float index, binary64 rebuild",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "SQRT:MAX_ERROR=1N,A=100,B=1",
+      "nodata": null,
+      "dtype": "float32",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "afd84ed2512bb2415ae7006ac349faa3409c8976286934f0a86d980dad8aa0c4",
+      "sha256_frame": "46a6ef4dd1dfb1af89ca7caa6e6b28855cb096920e4bd937c78b66293bea2e35"
+    },
+    {
+      "name": "quant-sqrt-float64",
+      "file": "quant-sqrt-float64.zl",
+      "codec": "quant_sqrt",
+      "layout": "float index",
+      "graph": "planar>zigzag>transpose>entropy",
+      "error": "SQRT:MAX_ERROR=1N,A=100,B=1",
+      "nodata": null,
+      "dtype": "float64",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "c23c4282f10b954a61153c3b712ac0ca5b0d1b56f364a31669d2b3b772d364d4",
+      "sha256_frame": "24fc379fdeeaf2698d642943189cfb7f6b71c282d0d82a8e7a46dba852246deb"
+    },
+    {
+      "name": "coeffs-uint16",
+      "file": "coeffs-uint16.zl",
+      "codec": "coeffs",
+      "layout": "frame header comment",
+      "graph": "planar>zigzag>entropy",
+      "error": null,
+      "nodata": null,
+      "dtype": "uint16",
+      "shape": [
+        64,
+        64
+      ],
+      "written_by": "geozl 0.31.0",
+      "sha256_decoded": "8f69a22d42a8058402ddc8c59d46cbf460384cfcfdb10e974e2b288daf52b38b",
+      "sha256_frame": "ed17d25834472cdc2a94fee04f18dc1d294c63624bddf0d0fcf5c78b4668fae1",
+      "coeffs": [
+        [
+          7,
+          -3,
+          11
+        ],
+        [
+          2,
+          5
+        ]
+      ]
     }
   ]
 }

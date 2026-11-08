@@ -1,4 +1,4 @@
-"""Decode frozen GeoZL frames."""
+"""Decode the golden corpus, one frame per current wire layout."""
 
 import hashlib
 import json
@@ -31,15 +31,16 @@ def test_manifest_matches_the_fixtures():
 
 
 def test_every_frame_names_its_writer():
-    """Each frame records which wire form it is evidence for. New frames say
-    ``unreleased`` until their release is prepared."""
+    """Each frame records the GeoZL version whose code wrote it."""
     for entry in FRAMES:
         assert entry["written_by"].startswith("geozl ")
 
 
 @pytest.mark.parametrize("entry", FRAMES, ids=_ids)
-def test_released_frame_still_decodes(entry):
+def test_golden_frame_decodes(entry):
     raw = (GOLDEN / "frames" / entry["file"]).read_bytes()
     assert hashlib.sha256(raw).hexdigest() == entry["sha256_frame"]
     out = geozl.decompress(raw)
     assert hashlib.sha256(out.tobytes()).hexdigest() == entry["sha256_decoded"]
+    if "coeffs" in entry:
+        assert geozl.coeffs(raw) == tuple(map(tuple, entry["coeffs"]))

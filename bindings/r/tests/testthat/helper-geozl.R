@@ -4,7 +4,7 @@ smooth_raster <- function(nx, ny, lo, hi) {
   lo + (v - min(v)) / diff(range(v)) * (hi - lo)
 }
 
-# The golden frames frozen by the Python tests, found from the repository or
+# The golden corpus the Python tests keep, found from the repository or
 # from GEOZL_GOLDEN_DIR.
 golden_dir <- function() {
   dir <- Sys.getenv("GEOZL_GOLDEN_DIR")

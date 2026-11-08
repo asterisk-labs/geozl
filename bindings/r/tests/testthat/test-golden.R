@@ -1,4 +1,4 @@
-test_that("every frame released by GeoZL still decodes", {
+test_that("every golden frame decodes", {
   dir <- golden_dir()
   skip_if(!nzchar(dir), "golden frames not found; set GEOZL_GOLDEN_DIR")
   skip_if_not_installed("jsonlite")

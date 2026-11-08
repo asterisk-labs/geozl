@@ -71,7 +71,7 @@ describe('GeoZL wasm64', () => {
     assert.equal(NoData.VALUE, 2);
   });
 
-  it('decodes released frames', async () => {
+  it('decodes the golden frames', async () => {
     const dir = process.env.GEOZL_GOLDEN_DIR;
     assert.ok(dir, 'GEOZL_GOLDEN_DIR is required');
     const geozl = await createGeoZL();

@@ -5,8 +5,10 @@ publication, so review the candidate and its CI artifacts first.
 
 ## Compatibility
 
-- Never reassign a shipped CTid; keep a golden frame for each wire layout the
-  current readers decode.
+- Never reassign a shipped CTid.
+- The golden corpus holds one frame per wire layout the current readers decode.
+  Rerun `python tools/write_golden.py` after any wire change, so every frame is
+  written by this release.
 - The C source API and ABI are not promised before 1.0, so consumers should
   rebuild after an update.
 - Prebuilt Python wheels target Linux x86-64 with CUDA and macOS arm64 with

@@ -38,22 +38,30 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `bindings/python/test/golden/
 ## 3. Golden frames
 
 - `bindings/python/test/golden/frames/*.zl` hold one frame per wire layout the current
-  readers decode: `planar_zigzag_lanes` (`0x72D712`), `lanes`
-  (`0x72D713`) at 1, 2, 4 and 8 bytes and with Huffman lanes, `planar_zigzag_pfor`
-  (`0x72D710`) and `med_zigzag` (`0x72D711`).
-- `manifest.json` records per frame: `graph`, `error`, `nodata`, `dtype`, `shape`,
-  `written_by`, `sha256_frame` and `sha256_decoded`.
+  readers decode, and nothing else. Every GeoZL codec with an encoder is there, with
+  each header form and storage mode it writes. The predictors carry a one-plane short
+  header and a three-plane long header, `lanes` covers 1, 2, 4 and 8 bytes with both
+  lane modes, `nodata` covers the guarded sentinel form and the plain NaN form, and the
+  quantizers cover integer and float storage at every float width. One frame carries a
+  coefficient comment.
+- `tools/write_golden.py` writes the whole corpus from deterministic integer fields.
+  It checks every frame round trip and the header byte that names its layout, so a
+  frame cannot quietly land in another layout.
+- `manifest.json` records per frame `codec`, `layout`, `graph`, `error`, `nodata`,
+  `dtype`, `shape`, `written_by`, `sha256_frame` and `sha256_decoded`, plus `coeffs`
+  where a frame carries them.
 - `test_golden.py` checks the frame hash and the decoded hash; CI runs it on x86-64 and
   on macOS arm64. The R, Julia and WASM tests decode the same corpus.
-- Adding a frame: write it with the release that defines the wire form, add a manifest
-  entry with its own `written_by`, never regenerate existing frames. When a layout is
-  removed, delete its frames and manifest entries with it.
+- When a layout changes, is added or is removed, add or drop its entry in
+  `tools/write_golden.py` and rerun it. Every frame then carries the current version
+  in `written_by`.
 
 ## 4. Changing the wire format of a shipped codec
 
 Checklist from `docs/compatibility.md`:
 
-1. Freeze a golden frame in every wire form the change touches before the change lands.
+1. Regenerate the golden corpus with `tools/write_golden.py`, so it holds one frame per
+   wire layout the changed readers decode.
 2. Confirm an older reader **refuses** the new frame rather than misreading it.
 3. Decide whether the change needs a new CTid or only widens which flag values are legal,
    and record the reasoning in `docs/compatibility.md`, not only in the changelog.

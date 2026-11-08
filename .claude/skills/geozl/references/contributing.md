@@ -99,7 +99,7 @@ otherwise Python keeps loading the previously staged libraries.
 | `test_codecs.py` | every predictor bit exact across 11 dtypes, shapes and patterns; quantizer bounds; checksum refusal |
 | `test_cross_reader.py` | **the strongest check**: C-written frames decode with Python decoders and the reverse, byte for byte on lossy frames |
 | `test_cdef.py` | the `_CDEF` block in `_ffi.py` matches the C headers (ABI mode verifies nothing; drift corrupts memory silently) |
-| `test_golden.py` | frozen released frames still decode to the recorded hashes |
+| `test_golden.py` | every golden frame decodes to the recorded hashes |
 | `test_malformed.py`, `test_headers.py` | decoders refuse forged headers and streams |
 | `test_catalog.py` | the codec catalog agrees across `ctids.h`, README, `docs/docs.html`, `docs/assets/js/main.js`, `docs/codecs/*.html` |
 | `test_docs.py` | `docs/api-high.html` signatures equal the source signatures; notebook mentions `profile`, `graph`, `compress`, `decompress`; local links resolve; `SKILL.md` names `VERSION` and its links resolve |
