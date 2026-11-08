@@ -11,9 +11,12 @@ submodule in `extern/openzl`.
 - Treat files under `core/build*`, Python caches, and staged native libraries
   under `bindings/python/geozl/_lib` as build artifacts, not source. The HTML,
   CSS, JavaScript, and media under `docs/` are source files.
-- Preserve frame compatibility. Never renumber or reuse a shipped CTid. A wire
-  format change needs a new CTid or an explicitly compatible decoder path, plus
-  an updated codec spec, compatibility documentation, and golden-frame coverage.
+- GeoZL is pre-1.0 and reads only the current wire format. Do not keep legacy
+  decoder paths, aliases or compatibility shims for older frames.
+- Never renumber or reuse a shipped CTid, and record a retired one in
+  `core/include/geozl/ctids.h`. A wire format change needs a new CTid, an
+  updated codec spec and compatibility documentation, and a regenerated golden
+  corpus that keeps one frame per current wire layout (`tools/write_golden.py`).
 - Decoders process untrusted frames. Validate stream types, lengths, counts,
   arithmetic, and allocation sizes before reading or writing buffers.
 - Keep the C kernels independent of Python and, where the current split uses one,

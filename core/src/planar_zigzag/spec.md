@@ -77,9 +77,9 @@ serial payload.
 Which stopping point to choose is a question of graph flexibility and
 intermediate memory traffic, not a change to the planar or Zigzag transform.
 
-## Compatibility
+## Selection
 
 Recipes beginning with `planar>zigzag` select this codec. The PFOR variant
 selects `planar_zigzag_pfor` instead, and `planar>zigzag>lanes` selects
-`planar_zigzag_lanes`. Decoders register both planar CTIDs and PFOR,
-so frames written by the former graphs remain readable.
+`planar_zigzag_lanes`. `planar` and `pfor` remain codecs of their own for
+low-level graphs, and decoders register all of them.
