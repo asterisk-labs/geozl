@@ -399,8 +399,8 @@ static int route_of(const GeozlGpuFrame *frame) {
        last.trid == GEOZL_CTID_PLANAR_ZIGZAG_PFOR))
     route = ROUTE_PFOR;
   else if (last.trt == trt_custom &&
-           (last.trid == GEOZL_CTID_PLANAR_ZIGZAG_TRANSPOSE_PIVCO ||
-            last.trid == GEOZL_CTID_TRANSPOSE_PIVCO))
+           (last.trid == GEOZL_CTID_PLANAR_ZIGZAG_LANES ||
+            last.trid == GEOZL_CTID_LANES))
     route = ROUTE_PIVCO;
 done:
   DFH_destroy(&header);

@@ -34,7 +34,7 @@ ifeq ($(UNAME),Linux)
 CFLAGS += -D_POSIX_C_SOURCE=200809L
 endif
 
-# planar_zigzag_transpose_pivco runs real frames, so it links a static GeoZL with OpenZL
+# planar_zigzag_lanes runs real frames, so it links a static GeoZL with OpenZL
 # inside, where the internal symbols the spy decoder and the planner use are
 # reachable.
 STATIC := $(CORE)/build-gpu

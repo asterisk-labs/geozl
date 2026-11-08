@@ -42,7 +42,7 @@ static int compress_frame(Frame *frame, const void *input, size_t elements,
                           char *error, size_t errorCapacity) {
   geozl_2d_graph *graph = NULL;
   const int dtype = elementBytes == 1 ? GEOZL_DT_U8 : GEOZL_DT_U16;
-  if (geozl_2d_graph_open_c(&graph, "planar>zigzag>transpose>pivco", width,
+  if (geozl_2d_graph_open_c(&graph, "planar>zigzag>lanes", width,
                             planes, NULL, dtype, GEOZL_NODATA_NONE, 0, input,
                             elements, elementBytes, error, errorCapacity) != 0)
     return 1;
@@ -100,7 +100,7 @@ static int check_id_pivco(GeozlPivcoGpuDecoder *decoder, size_t elementBytes,
       memcpy(input + i * 2, &value, 2);
   }
 
-  const char *recipe = elementBytes == 1 ? "id>pivco" : "id>transpose>pivco";
+  const char *recipe = "id>lanes";
   const int dtype = elementBytes == 1 ? GEOZL_DT_U8 : GEOZL_DT_U16;
   char error[512] = {0};
   geozl_2d_graph *graph = NULL;

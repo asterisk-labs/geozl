@@ -72,7 +72,7 @@
       <ul class="facts">
         <li>PivCo-Huffman, by Marcin Zukowski, 2026</li>
         <li>In OpenZL 0.3, arXiv 2606.05765</li>
-        <li>GeoZL codecs <code>transpose_pivco</code> (<code>0x72D713</code>) and <code>planar_zigzag_transpose_pivco</code> (<code>0x72D712</code>)</li>
+        <li>GeoZL codecs <code>lanes</code> (<code>0x72D713</code>) and <code>planar_zigzag_lanes</code> (<code>0x72D712</code>)</li>
       </ul>
       <p>Huffman is one of the oldest compression methods. Its bit order makes its stream hard to decode on a GPU. PivCo keeps the Huffman codes but changes the bit order so a wave of threads can decode together. This page follows eight symbols from Huffman codes to GeoZL's GPU kernel.</p>
 
@@ -128,7 +128,7 @@
 
       <h2 class="part" id="lanes">Byte lanes in GeoZL</h2>
       <p>PivCo codes bytes, so GeoZL splits wider samples into byte lanes. For a 16-bit raster, GeoZL uses <code>transpose</code> to split samples into low-byte and high-byte lanes before Huffman coding. The low and high bytes of a sample rarely follow the same distribution, so every lane is coded on its own, with its own mode. Mode 0 is PivCo. Mode 1 is byte <a href="pfor.html">PFOR</a>, and the encoder keeps PFOR for a lane whenever it comes out smaller.</p>
-      <p>GeoZL exposes two codecs for this layout. <code>transpose_pivco</code> is the recipe <code>id&gt;transpose&gt;pivco</code> (and <code>id&gt;pivco</code> for one-byte data, where there is only one lane). <code>planar_zigzag_transpose_pivco</code> fuses <code>planar&gt;zigzag&gt;transpose&gt;pivco</code>. Planar makes residuals, Zigzag makes them unsigned, and byte lanes are coded last.</p>
+      <p>GeoZL exposes two codecs for this layout. <code>lanes</code> is the recipe <code>id&gt;lanes</code>, and one-byte data has a single lane. <code>planar_zigzag_lanes</code> fuses <code>planar&gt;zigzag&gt;lanes</code>. Planar makes residuals, Zigzag makes them unsigned, and byte lanes are coded last.</p>
       <p>The GPU reverses these stages. The PivCo lanes decode as described above and the PFOR lanes unpack with the PFOR kernel. A join pass then rebuilds each sample from its lanes, <code>lane0 | lane1 &lt;&lt; 8</code> for 16-bit data, and for the fused codec it also undoes Zigzag before the inverse planar pass runs. Today the device path covers one- and two-byte samples. Wider samples, and anything else the GPU does not handle, decode with OpenZL on the CPU and are uploaded.</p>
       <p>PivCo-Huffman is Marcin Zukowski's design, described in arXiv 2606.05765 and shipped in OpenZL 0.3. GeoZL builds its byte-lane codecs, the fused planar variant and the GPU decoder on top of it.</p>
 

@@ -1,6 +1,6 @@
 #include "planar_zigzag/encode_planar_zigzag_kernel.h"
-#include "planar_zigzag_transpose_pivco/decode_planar_zigzag_transpose_pivco_kernel.h"
-#include "planar_zigzag_transpose_pivco/encode_planar_zigzag_transpose_pivco_kernel.h"
+#include "planar_zigzag_lanes/decode_planar_zigzag_lanes_kernel.h"
+#include "planar_zigzag_lanes/encode_planar_zigzag_lanes_kernel.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -66,8 +66,8 @@ static void trip(size_t n, size_t rowWidth, uint32_t planes, size_t eltWidth,
                                planeElts, eltWidth) == 0);
   }
 
-  CHECK(planar_zigzag_transpose_pivco_lanes(lanes, source, rowWidth, n,
-                                            eltWidth, planes) == 0);
+  CHECK(planar_zigzag_lanes_split(lanes, source, rowWidth, n,
+                                  eltWidth, planes) == 0);
   const uint8_t *t = (const uint8_t *)transformed;
   int same = 1;
   for (size_t i = 0; i < n; ++i)
@@ -76,8 +76,8 @@ static void trip(size_t n, size_t rowWidth, uint32_t planes, size_t eltWidth,
   CHECK(same);
 
   memset(decoded, 0xAB, sizeof(decoded));
-  CHECK(planar_zigzag_transpose_pivco_unlanes(decoded, lanes, rowWidth, n,
-                                              eltWidth, planes) == 0);
+  CHECK(planar_zigzag_lanes_join(decoded, lanes, rowWidth, n,
+                                 eltWidth, planes) == 0);
   CHECK(memcmp(decoded, source, n * eltWidth) == 0);
 }
 
@@ -96,24 +96,24 @@ int main(void) {
   }
 
   // Geometry the kernels refuse, leaving the buffers untouched.
-  CHECK(planar_zigzag_transpose_pivco_lanes(lanes, source, 0, 256, 2, 1) != 0);
-  CHECK(planar_zigzag_transpose_pivco_lanes(lanes, source, 16, 255, 2, 1) != 0);
-  CHECK(planar_zigzag_transpose_pivco_lanes(lanes, source, 16, 256, 3, 1) != 0);
-  CHECK(planar_zigzag_transpose_pivco_lanes(lanes, source, 16, 256, 2, 0) != 0);
-  CHECK(planar_zigzag_transpose_pivco_lanes(lanes, source, 16, 0, 2, 1) != 0);
-  CHECK(planar_zigzag_transpose_pivco_unlanes(decoded, lanes, 0, 256, 2, 1) !=
+  CHECK(planar_zigzag_lanes_split(lanes, source, 0, 256, 2, 1) != 0);
+  CHECK(planar_zigzag_lanes_split(lanes, source, 16, 255, 2, 1) != 0);
+  CHECK(planar_zigzag_lanes_split(lanes, source, 16, 256, 3, 1) != 0);
+  CHECK(planar_zigzag_lanes_split(lanes, source, 16, 256, 2, 0) != 0);
+  CHECK(planar_zigzag_lanes_split(lanes, source, 16, 0, 2, 1) != 0);
+  CHECK(planar_zigzag_lanes_join(decoded, lanes, 0, 256, 2, 1) !=
         0);
-  CHECK(planar_zigzag_transpose_pivco_unlanes(decoded, lanes, 16, 256, 3, 1) !=
+  CHECK(planar_zigzag_lanes_join(decoded, lanes, 16, 256, 3, 1) !=
         0);
-  CHECK(planar_zigzag_transpose_pivco_unlanes(decoded, lanes, 16, 256, 2, 0) !=
+  CHECK(planar_zigzag_lanes_join(decoded, lanes, 16, 256, 2, 0) !=
         0);
-  CHECK(planar_zigzag_transpose_pivco_unlanes(decoded, lanes, 16, 255, 2, 1) !=
+  CHECK(planar_zigzag_lanes_join(decoded, lanes, 16, 255, 2, 1) !=
         0);
 
   if (failures) {
-    printf("test_planar_zigzag_transpose_pivco: %d failures\n", failures);
+    printf("test_planar_zigzag_lanes: %d failures\n", failures);
     return 1;
   }
-  printf("test_planar_zigzag_transpose_pivco: ok\n");
+  printf("test_planar_zigzag_lanes: ok\n");
   return 0;
 }

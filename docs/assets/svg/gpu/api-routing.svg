@@ -115,7 +115,7 @@
   <rect id="f1" class="card" x="40" y="109" width="160" height="26" rx="3"/>
   <text class="ink" x="48" y="126"><tspan class="ttl">f1</tspan><tspan dx="7">zstd</tspan></text>
   <rect id="f2" class="card" x="40" y="142" width="160" height="26" rx="3"/>
-  <text class="ink" x="48" y="159"><tspan class="ttl">f2</tspan><tspan dx="7">id>transpose>pivco</tspan></text>
+  <text class="ink" x="48" y="159"><tspan class="ttl">f2</tspan><tspan dx="7">id>lanes</tspan></text>
   <rect id="f3" class="card" x="40" y="175" width="160" height="26" rx="3"/>
   <text class="ink" x="48" y="192"><tspan class="ttl">f3</tspan><tspan dx="7">id>pfor, 2 chunks</tspan></text>
   <rect id="f4" class="card" x="40" y="208" width="160" height="26" rx="3"/>

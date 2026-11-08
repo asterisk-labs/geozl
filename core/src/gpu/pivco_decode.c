@@ -77,8 +77,8 @@ int pivco_gpu_frame_init(CapturedFrame *frame, GeozlGpuFrameShape *shape,
                          size_t outputBytes, size_t outputBase) {
   const uint8_t *header = frame->header;
   const int planar = frame->kind == PIVCO_CAPTURE_KIND_PLANAR_ZIGZAG;
-  const size_t fixedHeader = planar ? PLANAR_ZIGZAG_TRANSPOSE_PIVCO_HEADER_FIXED
-                                    : TRANSPOSE_PIVCO_HEADER_FIXED;
+  const size_t fixedHeader = planar ? PLANAR_ZIGZAG_LANES_HEADER_FIXED
+                                    : LANES_HEADER_FIXED;
   if (frame->headerSize < fixedHeader || header[8] != elementBytes ||
       frame->bitsOffset > SIZE_MAX - payloadBase)
     return 1;

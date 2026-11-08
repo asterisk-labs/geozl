@@ -1,5 +1,5 @@
-#include "transpose_pivco/decode_transpose_pivco_kernel.h"
-#include "transpose_pivco/encode_transpose_pivco_kernel.h"
+#include "lanes/decode_lanes_kernel.h"
+#include "lanes/encode_lanes_kernel.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -10,7 +10,7 @@ static int failures;
 #define CHECK(c)                                                               \
   do {                                                                         \
     if (!(c)) {                                                                \
-      fprintf(stderr, "test_transpose_pivco:%d: %s\n", __LINE__, #c);          \
+      fprintf(stderr, "test_lanes:%d: %s\n", __LINE__, #c);                    \
       ++failures;                                                              \
     }                                                                          \
   } while (0)
@@ -35,7 +35,7 @@ static void check_width(size_t width) {
     source[i] = (uint8_t)(i * 131u + i / 7u);
   memset(lanes, 0, sizeof(lanes));
   memset(decoded, 0, sizeof(decoded));
-  CHECK(transpose_pivco_lanes(lanes, source, count, width) == 0);
+  CHECK(lanes_split(lanes, source, count, width) == 0);
   switch (width) {
   case 1:
     CHECK_LANES(uint8_t);
@@ -50,7 +50,7 @@ static void check_width(size_t width) {
     CHECK_LANES(uint64_t);
     break;
   }
-  CHECK(transpose_pivco_unlanes(decoded, lanes, count, width) == 0);
+  CHECK(lanes_join(decoded, lanes, count, width) == 0);
   CHECK(memcmp(source, decoded, count * width) == 0);
 }
 
@@ -61,17 +61,17 @@ int main(void) {
   check_width(8);
 
   uint8_t byte = 0;
-  CHECK(transpose_pivco_lanes(NULL, &byte, 1, 1) != 0);
-  CHECK(transpose_pivco_lanes(&byte, NULL, 1, 1) != 0);
-  CHECK(transpose_pivco_lanes(&byte, &byte, 0, 1) != 0);
-  CHECK(transpose_pivco_lanes(&byte, &byte, 1, 3) != 0);
-  CHECK(transpose_pivco_unlanes(NULL, &byte, 1, 1) != 0);
-  CHECK(transpose_pivco_unlanes(&byte, NULL, 1, 1) != 0);
+  CHECK(lanes_split(NULL, &byte, 1, 1) != 0);
+  CHECK(lanes_split(&byte, NULL, 1, 1) != 0);
+  CHECK(lanes_split(&byte, &byte, 0, 1) != 0);
+  CHECK(lanes_split(&byte, &byte, 1, 3) != 0);
+  CHECK(lanes_join(NULL, &byte, 1, 1) != 0);
+  CHECK(lanes_join(&byte, NULL, 1, 1) != 0);
 
   if (failures != 0) {
-    fprintf(stderr, "test_transpose_pivco: %d failures\n", failures);
+    fprintf(stderr, "test_lanes: %d failures\n", failures);
     return 1;
   }
-  puts("test_transpose_pivco: ok");
+  puts("test_lanes: ok");
   return 0;
 }

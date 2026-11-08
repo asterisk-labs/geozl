@@ -69,7 +69,7 @@
 
     <article class="content">
 <h1>Streams</h1>
-      <p><b>deinterleave</b> and <b>nodata</b> split one stream into two before anything else runs. <b>pfor</b> and <b>transpose_pivco</b> are <b>terminals</b> that turn numbers into bytes, after any predictor or none.</p>
+      <p><b>deinterleave</b> and <b>nodata</b> split one stream into two before anything else runs. <b>pfor</b> and <b>lanes</b> are <b>terminals</b> that turn numbers into bytes, after any predictor or none.</p>
       <section class="codec" id="deinterleave" data-no="11" data-ctid="0x72D704" data-fam="green" data-page="codecs/deinterleave.html" style="--fam:var(--green)">
         <h3><span class="num">11</span>deinterleave</h3>
         <p><b>deinterleave</b> sends <b>even positions to one stream and odd positions to another</b>, without looking at the values. Each part of an interleaved raster, such as real and imaginary, can then follow its own path.</p>
@@ -144,14 +144,14 @@ for (j = 0; j &lt; nexc; j++) v[pos[j]] |= hi[j] &lt;&lt; b;</code></pre>
         <pre><code>geozl.lossless.Pfor()</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/pfor" rel="noopener noreferrer">Source in core/src/pfor</a></p>
       </section>
-      <section class="codec" id="transpose_pivco" data-no="14" data-ctid="0x72D713" data-fam="green" data-page="codecs/transpose-pivco.html" style="--fam:var(--green)">
-        <h3><span class="num">14</span>transpose_pivco</h3>
-        <p><b>transpose_pivco</b> is the PivCo lane coder without a predictor. It splits each element into <b>byte lanes</b> and codes each lane with PivCo Huffman or byte PFOR, whichever is smaller.</p>
+      <section class="codec" id="lanes" data-no="14" data-ctid="0x72D713" data-fam="green" data-page="codecs/lanes.html" style="--fam:var(--green)">
+        <h3><span class="num">14</span>lanes</h3>
+        <p><b>lanes</b> is the PivCo lane coder without a predictor. It splits each element into <b>byte lanes</b> and codes each lane with PivCo Huffman or byte PFOR, whichever is smaller.</p>
         <figure class="diagram">
-          <img src="assets/svg/codecs-light/transpose-pivco.svg" alt="Numeric values split into byte lanes, each sent to PivCo Huffman or PFOR" loading="lazy">
+          <img src="assets/svg/codecs-light/lanes.svg" alt="Numeric values split into byte lanes, each sent to PivCo Huffman or PFOR" loading="lazy">
           <figcaption>one lane per byte of the element, each with its own coder</figcaption>
         </figure>
-        <p>Use <code>id&gt;transpose&gt;pivco</code> on skewed data that is not smooth, such as class maps or quality flags. Frames that use PivCo need a reader built on OpenZL 0.3 or later. It also decodes on the GPU. <a href="pivco.html">How PivCo works</a> follows a lane to the GPU kernel.</p>
+        <p>Use <code>id&gt;lanes</code> on skewed data that is not smooth, such as class maps or quality flags. Frames that use PivCo need a reader built on OpenZL 0.3 or later. It also decodes on the GPU. <a href="pivco.html">How PivCo works</a> follows a lane to the GPU kernel.</p>
         <table class="spec">
           <tr><th>ctid</th><td>0x72D713</td></tr>
           <tr><th>header</th><td>uint64 &middot; element count<br>+ uint8 &middot; element width<br>+ uint32 &middot; PivCo block size<br>+ per lane uint8 mode, uint16 weights, uint32 payload</td></tr>
@@ -169,8 +169,8 @@ for (i = 0; i &lt; n; i++) {
   o[i] = 0;
   for (k = 0; k &lt; sizeof(T); k++) o[i] |= (T)lane[k][i] &lt;&lt; (8 * k);
 }</code></pre>
-        <pre><code>geozl.graph(tile, "id&gt;transpose&gt;pivco")</code></pre>
-        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/transpose_pivco" rel="noopener noreferrer">Source in core/src/transpose_pivco</a></p>
+        <pre><code>geozl.graph(tile, "id&gt;lanes")</code></pre>
+        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/lanes" rel="noopener noreferrer">Source in core/src/lanes</a></p>
       </section>
 
       <nav class="pager" aria-label="Pages">
@@ -185,7 +185,7 @@ for (i = 0; i &lt; n; i++) {
         <li><a href="#deinterleave"><span class="toc-no">11</span><span>deinterleave</span></a></li>
         <li><a href="#nodata"><span class="toc-no">12</span><span>nodata</span></a></li>
         <li><a href="#pfor"><span class="toc-no">13</span><span>pfor</span></a></li>
-        <li><a href="#transpose_pivco"><span class="toc-no">14</span><span>transpose_<wbr>pivco</span></a></li>
+        <li><a href="#lanes"><span class="toc-no">14</span><span>lanes</span></a></li>
       </ol>
     </nav>
   </main>

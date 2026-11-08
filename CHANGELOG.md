@@ -9,8 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+- Rename the codec `transpose_pivco` to `lanes` and the fused codec
+  `planar_zigzag_transpose_pivco` to `planar_zigzag_lanes`. Recipes end in
+  `lanes` at every element width, as in `id>lanes` and `planar>zigzag>lanes`,
+  and the `transpose>pivco` and bare `pivco` terminals are gone. The C names
+  follow, `geozl_node_lanes`, `geozl_node_planar_zigzag_lanes`,
+  `GEOZL_CTID_LANES` and `GEOZL_CTID_PLANAR_ZIGZAG_LANES`. CTids `0x72D713` and
+  `0x72D712` and the frame format are unchanged, so existing frames decode.
 - Remove `geozl_node_planar_zigzag_pivco` and `GEOZL_CTID_PLANAR_ZIGZAG_PIVCO`;
-  use the `planar_zigzag_transpose_pivco` names.
+  use the `planar_zigzag_lanes` names.
 - Merge `geozl_gpu_decode_ex` into `geozl_gpu_decode`, which now takes the
   `forceHost` argument before `error`. Pass `NULL` for automatic routing.
 - Readers refuse the quantizer value layouts written by 0.14 to 0.18: every

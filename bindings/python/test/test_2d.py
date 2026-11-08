@@ -195,16 +195,16 @@ def test_frames_use_the_openzl_0_3_format():
 
 
 @pytest.mark.parametrize(("method", "dtype"), [
-    ("planar>zigzag>pivco", np.uint8),
-    ("planar>zigzag>transpose>pivco", np.int16),
-    ("planar>zigzag>transpose>pivco", np.uint32),
-    ("planar>zigzag>transpose>pivco", np.float64),
-    ("id>pivco", np.uint8),
-    ("id>transpose>pivco", np.int16),
-    ("id>transpose>pivco", np.uint32),
-    ("id>transpose>pivco", np.float64),
+    ("planar>zigzag>lanes", np.uint8),
+    ("planar>zigzag>lanes", np.int16),
+    ("planar>zigzag>lanes", np.uint32),
+    ("planar>zigzag>lanes", np.float64),
+    ("id>lanes", np.uint8),
+    ("id>lanes", np.int16),
+    ("id>lanes", np.uint32),
+    ("id>lanes", np.float64),
 ])
-def test_pivco_frames_use_the_openzl_0_3_format_and_round_trip(method, dtype):
+def test_lanes_frames_use_the_openzl_0_3_format_and_round_trip(method, dtype):
     arr = _tile(dtype=dtype)
     frame = _frame(arr, method=method)
     assert int.from_bytes(bytes(frame[:4]), "little") - 0xD7B1A5C0 == 27
@@ -212,18 +212,18 @@ def test_pivco_frames_use_the_openzl_0_3_format_and_round_trip(method, dtype):
 
 
 @pytest.mark.parametrize(("method", "dtype", "ctid"), [
-    ("id>pivco", np.uint8, 0x72D713),
-    ("delta_1d>pivco", np.uint8, 0x72D713),
-    ("delta_w>zigzag>pivco", np.uint8, 0x72D713),
-    ("delta_n>zigzag>pivco", np.uint8, 0x72D713),
-    ("med>zigzag>pivco", np.uint8, 0x72D713),
-    ("average>zigzag>pivco", np.uint8, 0x72D713),
-    ("wp_static>zigzag>pivco", np.uint8, 0x72D713),
-    ("id>transpose>pivco", np.uint16, 0x72D713),
-    ("planar>zigzag>pivco", np.uint8, 0x72D712),
-    ("planar>zigzag>transpose>pivco", np.uint16, 0x72D712),
+    ("id>lanes", np.uint8, 0x72D713),
+    ("delta_1d>lanes", np.uint8, 0x72D713),
+    ("delta_w>zigzag>lanes", np.uint8, 0x72D713),
+    ("delta_n>zigzag>lanes", np.uint8, 0x72D713),
+    ("med>zigzag>lanes", np.uint8, 0x72D713),
+    ("average>zigzag>lanes", np.uint8, 0x72D713),
+    ("wp_static>zigzag>lanes", np.uint8, 0x72D713),
+    ("id>lanes", np.uint16, 0x72D713),
+    ("planar>zigzag>lanes", np.uint8, 0x72D712),
+    ("planar>zigzag>lanes", np.uint16, 0x72D712),
 ])
-def test_pivco_recipes_write_their_fixed_ctid(method, dtype, ctid):
+def test_lanes_recipes_write_their_fixed_ctid(method, dtype, ctid):
     arr = np.zeros((256, 256), dtype=dtype)
     arr[::17, ::19] = 3
     frame = bytes(_frame(arr, method=method))
@@ -235,20 +235,18 @@ def test_pivco_recipes_write_their_fixed_ctid(method, dtype, ctid):
     assert bytes(encoded) in frame[:64]
 
 
-def test_pivco_without_transpose_takes_one_byte_elements():
-    with pytest.raises(RuntimeError, match="pivco without transpose needs 1"):
-        geozl.graph(_tile(), "med>zigzag>pivco")
-    with pytest.raises(RuntimeError, match="pivco without transpose needs 1"):
-        geozl.graph(_tile(), "planar>zigzag>pivco")
-    arr = _tile(dtype=np.uint8)
-    assert np.array_equal(_roundtrip(arr, method="planar>zigzag>pivco"), arr)
+@pytest.mark.parametrize("dtype", [np.uint8, np.int16, np.uint32, np.float64])
+@pytest.mark.parametrize("method", ["med>zigzag>lanes", "planar>zigzag>lanes"])
+def test_lanes_takes_every_element_width(method, dtype):
+    arr = _tile(dtype=dtype)
+    assert np.array_equal(_roundtrip(arr, method=method), arr)
 
 
 def test_a_dominated_lane_stays_in_the_gpu_codec():
     rng = np.random.default_rng(1)
     arr = np.where(rng.random((256, 256)) < 0.1, rng.integers(1, 9, (256, 256)),
                    0).astype(np.int16)
-    assert np.array_equal(_roundtrip(arr, method="id>transpose>pivco"), arr)
+    assert np.array_equal(_roundtrip(arr, method="id>lanes"), arr)
 
 
 @pytest.mark.parametrize(
@@ -423,16 +421,15 @@ def test_unbiased_prior_sweeps_more_graphs_than_a_named_one():
 
 
 def test_unbiased_prior_is_the_whole_grid():
-    # 8 predictors x 9 terminals. Planar PivCo is the transpose terminal.
+    # 8 predictors x 9 terminals
     assert len(geozl.profile(_tile(), prior=None, reps=1)) == 72
 
 
-@pytest.mark.parametrize("elt_width", [2, 4, 8])
-def test_wide_grid_uses_the_explicit_pivco_transpose(elt_width):
+@pytest.mark.parametrize("elt_width", [1, 2, 4, 8])
+def test_every_grid_width_has_one_lanes_recipe_per_predictor(elt_width):
     names = _2d._grid_names(None, elt_width)
-    assert "planar>zigzag>transpose>pivco" in names
-    assert not any(name.endswith(">pivco") and
-                   not name.endswith(">transpose>pivco") for name in names)
+    assert "planar>zigzag>lanes" in names
+    assert sum(name.endswith(">lanes") for name in names) == 8
 
 
 def test_the_grid_at_one_byte_keeps_categorical_and_drops_the_rest():

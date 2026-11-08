@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
   char err[512];
   geozl_2d_graph *g = NULL;
   const char *recipe =
-      pivco ? "planar>zigzag>transpose>pivco" : "planar>zigzag>pfor";
+      pivco ? "planar>zigzag>lanes" : "planar>zigzag>pfor";
   if (geozl_2d_graph_open_c(
           &g, recipe, (uint32_t)shapes[0].width, shapes[0].planes, NULL,
           u8 ? GEOZL_DT_U8 : GEOZL_DT_U16, GEOZL_NODATA_NONE, 0, orig,

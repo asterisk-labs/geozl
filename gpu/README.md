@@ -64,8 +64,8 @@ fails on a 550 driver, which accepts 8.4; the runtime error carries the JIT log.
 `geozl_pfor_gpu_decode()` and `geozl_pivco_gpu_decode()` are complete paths over
 that runtime. They take complete GeoZL frames, check and plan them on the CPU,
 and return one contiguous `GeozlGpuMemory` in frame order. The GPU path
-recognizes `id>pfor`, `planar>zigzag>pfor`, `id>pivco`,
-`id>transpose>pivco` and the fused `planar>zigzag>transpose>pivco` codec. PivCo
+recognizes `id>pfor`, `planar>zigzag>pfor`, `id>lanes` and the fused
+`planar>zigzag>lanes` codec. PivCo
 capture is keyed by the fixed GeoZL CTids `0x72D713` and `0x72D712`; it does not
 depend on OpenZL's choice of standard entropy nodes. The planar codec already
 splits each residual element into byte lanes internally.
@@ -87,8 +87,8 @@ is not checked because the reconstructed samples remain on the device.
 
 `geozl_gpu_decode` takes compressed frames, the bytes each decodes to, and
 copies of strided sample rectangles into a CUDA pointer or Metal buffer. The
-device path supports `id>pfor`, `planar>zigzag>pfor`, `id>pivco`,
-`id>transpose>pivco` and `planar>zigzag>transpose>pivco` for one- and
+device path supports `id>pfor`, `planar>zigzag>pfor`, `id>lanes` and
+`planar>zigzag>lanes` for one- and
 two-byte samples. Other graphs, including quantized, NoData and zstd frames,
 decode with OpenZL into host staging. Planar frames also use host staging when
 their planes are shorter than 256 samples or, on CUDA, exceed the grid limits.

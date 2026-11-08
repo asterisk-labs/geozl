@@ -13,7 +13,7 @@ CTids `0x72D708` through `0x72D70B`, `0x72D70E` and `0x72D780` are retired and
 reserved. Current readers reject frames using them.
 
 Frozen frames in `bindings/python/test/golden` are decoded in CI on x86-64 and
-arm64. The corpus covers the PivCo codecs (`0x72D712` and `0x72D713`) and the
+arm64. The corpus covers `planar_zigzag_lanes` (`0x72D712`), `lanes` (`0x72D713`) and the
 fused `planar_zigzag_pfor` (`0x72D710`) and `med_zigzag` (`0x72D711`) layouts.
 
 ### Changing the wire format of an existing codec
@@ -43,5 +43,5 @@ GeoZL frames are OpenZL frames, so OpenZL container compatibility follows
 OpenZL. The Python package supports OpenZL 0.3.x.
 
 GeoZL writes OpenZL frame format 27 for every recipe, so its frames need a
-reader on OpenZL 0.3. Both PivCo codecs call the kernels of the pinned OpenZL,
+reader on OpenZL 0.3. `lanes` and `planar_zigzag_lanes` call the kernels of the pinned OpenZL,
 so a change to that bitstream would need another CTid here.

@@ -258,8 +258,8 @@ int pivco_gpu_plan_build(PivcoGpuPlan *plan, const CapturedFrame *frames,
     const size_t count = (size_t)encodedCount;
     const int planar = captured->kind == PIVCO_CAPTURE_KIND_PLANAR_ZIGZAG;
     const size_t fixedHeader = planar
-                                   ? PLANAR_ZIGZAG_TRANSPOSE_PIVCO_HEADER_FIXED
-                                   : TRANSPOSE_PIVCO_HEADER_FIXED;
+                                   ? PLANAR_ZIGZAG_LANES_HEADER_FIXED
+                                   : LANES_HEADER_FIXED;
     const size_t blockSize = geozl_ld_le32(header + (planar ? 17 : 9));
     const size_t expectedHeader =
         fixedHeader + elementBytes * GEOZL_PIVCO_LANE_HEADER_SIZE;
@@ -316,7 +316,7 @@ int pivco_gpu_plan_build(PivcoGpuPlan *plan, const CapturedFrame *frames,
                     laneIndex);
       const size_t laneOutput = plan->laneBytes + laneIndex * stride;
 
-      if (laneHeader[0] == PLANAR_ZIGZAG_TRANSPOSE_PIVCO_LANE_PFOR) {
+      if (laneHeader[0] == PLANAR_ZIGZAG_LANES_LANE_PFOR) {
         if (weightsSize != 0)
           return fail(plan, "PFOR lane has Huffman weights", frameIndex,
                       laneIndex);
@@ -345,7 +345,7 @@ int pivco_gpu_plan_build(PivcoGpuPlan *plan, const CapturedFrame *frames,
         if (blockOffset != bitsSize)
           return fail(plan, "PFOR lane has trailing bytes", frameIndex,
                       laneIndex);
-      } else if (laneHeader[0] == PLANAR_ZIGZAG_TRANSPOSE_PIVCO_LANE_PIVCO) {
+      } else if (laneHeader[0] == PLANAR_ZIGZAG_LANES_LANE_PIVCO) {
         if (weightsSize == 0)
           return fail(plan, "PivCo lane has no weights", frameIndex, laneIndex);
         ++plan->pivcoLaneCount;

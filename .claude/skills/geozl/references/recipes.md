@@ -22,10 +22,9 @@ id><terminal>                     no predictor
 ```
 
 `<terminal>` is one of `entropy`, `field_lz`, `zstd`, `categorical`,
-`transpose>entropy`, `transpose>zstd`, `pfor`, `pivco`, `transpose>pivco`,
-`sparse`.
+`transpose>entropy`, `transpose>zstd`, `pfor`, `lanes`, `sparse`.
 
-That gives 80 candidates before width filtering. A 1-byte grid offers 56 and a
+That gives 72 candidates before width filtering. A 1-byte grid offers 56 and a
 2-byte grid offers 72. Anything else, such as
 `planar>entropy`, `id>zigzag>entropy` or `planar_zigzag>entropy`, is
 `unknown method`.
@@ -72,8 +71,7 @@ bit for bit through their integer representation.
 | `categorical` | one pass counts the dominant value's share: all equal goes to `constant`, above 0.95 to `field_lz`, else `entropy`; the frame records the arm | 1, 2 (refused above at build) | cloud masks sit near 0.97, land cover near 0.50 |
 | `transpose>entropy` | split elements into byte lanes (low byte first), entropy per lane | 2, 4, 8 (refused at 1) | the byte shuffle of blosc |
 | `transpose>zstd` | byte lanes, Zstandard per lane | 2, 4, 8 (refused at 1) | `id>transpose>zstd` is the blosc-style baseline |
-| `pivco` | the fixed GeoZL lane codec on one byte: PivCo Huffman, or byte PFOR when it is smaller | 1 only (refused above at build) | writes CTid `0x72D713`, except the fused planar recipe; writes OpenZL format 27 |
-| `transpose>pivco` | split elements into byte lanes and choose PivCo or byte PFOR per lane | 2, 4, 8 (refused at 1, except `planar>zigzag>transpose>pivco`, which compresses 1-byte elements but is not in the grid) | the layout does not depend on OpenZL selecting FSE, bit-pack or store; writes OpenZL format 27 |
+| `lanes` | split elements into byte lanes and code each lane with PivCo Huffman or byte PFOR, whichever is smaller | 1, 2, 4, 8 | writes CTid `0x72D713`, except the fused planar recipe; the layout does not depend on OpenZL selecting FSE, bit-pack or store; writes OpenZL format 27 |
 | `sparse` | `sparse_num` when one value has a strict majority; otherwise `entropy`, or the numeric graph above 2 bytes | 1, 2, 4, 8 | useful for class maps; writes OpenZL format 27 |
 | `pfor` | blocks of 256 packed at the bit width with the smallest estimated size, overflowing values patched as exceptions | 1, 2, 4, 8 | very fast decode; cost grows with residual magnitude, so it pairs well with integer quantizer indices |
 
@@ -82,8 +80,8 @@ bit for bit through their integer representation.
 | Element width | Names in the grid | Usable in `compress` | Excluded |
 | --- | --- | --- | --- |
 | 1 byte (`uint8`, `int8`, `bool`) | 56 | 56 | the three `transpose` terminals |
-| 2 bytes (`uint16`, `int16`, `float16`) | 72 | 72 | plain `pivco`; use `transpose>pivco` |
-| 4 bytes (`uint32`, `int32`, `float32`) | 64 | 56 | `categorical` and plain `pivco` at build; plain `entropy` fails at compress |
+| 2 bytes (`uint16`, `int16`, `float16`) | 72 | 72 | none |
+| 4 bytes (`uint32`, `int32`, `float32`) | 64 | 56 | `categorical` at build; plain `entropy` fails at compress |
 | 8 bytes (`uint64`, `int64`, `float64`) | 64 | 56 | same as 4 bytes |
 
 With the default `prior="planar"` the sweep has 14, 18, 16 (14 usable) and 16
@@ -96,8 +94,8 @@ The planar recipes do not build separate `planar` and `zigzag` nodes:
 | Recipe | Codec actually written |
 | --- | --- |
 | `planar>zigzag>pfor` | `planar_zigzag_pfor` (CTid `0x72D710`) into `store`; payload byte-identical to `planar_zigzag` then `pfor` |
-| `planar>zigzag>pivco` (1 byte), `planar>zigzag>transpose>pivco` (wider) | `planar_zigzag_transpose_pivco` (CTid `0x72D712`) |
-| any non-planar recipe ending in `pivco` or `transpose>pivco` | its predictor nodes, then `transpose_pivco` (CTid `0x72D713`) |
+| `planar>zigzag>lanes` | `planar_zigzag_lanes` (CTid `0x72D712`) |
+| any non-planar recipe ending in `lanes` | its predictor nodes, then `lanes` (CTid `0x72D713`) |
 | any other `planar>zigzag>...` | `planar_zigzag` (CTid `0x72D70F`) then the terminal |
 | `med>zigzag>...` | `med_zigzag` (CTid `0x72D711`) then the terminal |
 | every other predictor | predictor node, then OpenZL `zigzag`, then the terminal |

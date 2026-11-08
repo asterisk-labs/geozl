@@ -5,8 +5,8 @@
 #include "common/endian.h"
 #include "geozl/dtype.h"
 #include "geozl/geozl.h"
+#include "lanes/graph_lanes.h"
 #include "pivco_lanes/pivco_lanes.h"
-#include "transpose_pivco/graph_transpose_pivco.h"
 
 #include "openzl/zl_compress.h"
 
@@ -24,7 +24,7 @@ static int check_inconsistent_count(PivcoCapture *capture,
                                     CapturedFrame *captured, void *output,
                                     size_t outputSize, uint8_t *frame,
                                     size_t frameCapacity) {
-  uint8_t header[TRANSPOSE_PIVCO_HEADER_FIXED + GEOZL_PIVCO_LANE_HEADER_SIZE] =
+  uint8_t header[LANES_HEADER_FIXED + GEOZL_PIVCO_LANE_HEADER_SIZE] =
       {0};
   geozl_st_le64(header, 1024);
   header[8] = 1;
@@ -32,7 +32,7 @@ static int check_inconsistent_count(PivcoCapture *capture,
   header[13] = GEOZL_PIVCO_LANE_PIVCO;
   geozl_st_le16(header + 14, 1);
   const CaptureFramePlan plan = {
-      .ctid = GEOZL_CTID_TRANSPOSE_PIVCO,
+      .ctid = GEOZL_CTID_LANES,
       .header = header,
       .headerSize = sizeof(header),
       .outputCount = 2,
@@ -51,7 +51,7 @@ static int check_inconsistent_count(PivcoCapture *capture,
   return 0;
 }
 
-static int check_transpose_codec(const char *method, PivcoCaptureResult want) {
+static int check_lanes_codec(const char *method, PivcoCaptureResult want) {
   enum { count = 4096 };
   uint16_t input[count];
   for (size_t i = 0; i < count; ++i)
@@ -95,7 +95,7 @@ static int check_transpose_codec(const char *method, PivcoCaptureResult want) {
   pivco_capture_destroy(&capture);
   free(payload);
   free(frame);
-  return failed ? fail("transpose PivCo took the wrong capture path") : 0;
+  return failed ? fail("lanes took the wrong capture path") : 0;
 }
 
 static int check_zstd_expansion(void) {
@@ -175,7 +175,7 @@ int main(void) {
 
   char error[512];
   geozl_2d_graph *graph = NULL;
-  if (geozl_2d_graph_open_c(&graph, "planar>zigzag>transpose>pivco", width,
+  if (geozl_2d_graph_open_c(&graph, "planar>zigzag>lanes", width,
                             planes, NULL, GEOZL_DT_U16, GEOZL_NODATA_NONE, 0,
                             input, count, sizeof(input[0]), error,
                             sizeof(error)) != 0) {
@@ -233,7 +233,7 @@ int main(void) {
 
   pivco_capture_destroy(&capture);
 
-  if (geozl_2d_graph_open_c(&graph, "planar>zigzag>transpose>pivco", width,
+  if (geozl_2d_graph_open_c(&graph, "planar>zigzag>lanes", width,
                             planes, "LINEAR:MAX_ERROR=2", GEOZL_DT_U16,
                             GEOZL_NODATA_NONE, 0, input, count,
                             sizeof(input[0]), error, sizeof(error)) != 0) {
@@ -253,9 +253,8 @@ int main(void) {
     return fail("wrapped frame did not fall back");
   pivco_capture_destroy(&capture);
 
-  if (check_transpose_codec("id>transpose>pivco", PIVCO_CAPTURE_CODEC) != 0 ||
-      check_transpose_codec("delta_w>zigzag>transpose>pivco",
-                            PIVCO_CAPTURE_FALLBACK) != 0)
+  if (check_lanes_codec("id>lanes", PIVCO_CAPTURE_CODEC) != 0 ||
+      check_lanes_codec("delta_w>zigzag>lanes", PIVCO_CAPTURE_FALLBACK) != 0)
     return 1;
 
   free(payload);

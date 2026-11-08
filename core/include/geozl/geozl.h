@@ -43,11 +43,11 @@ GEOZL_API ZL_NodeID geozl_node_planar_zigzag_pfor(ZL_Compressor *c,
                                                   uint32_t width,
                                                   uint32_t planes);
 // Planar, Zigzag, byte transpose and PivCo or PFOR per residual byte lane.
-GEOZL_API ZL_NodeID geozl_node_planar_zigzag_transpose_pivco(ZL_Compressor *c,
-                                                             uint32_t width,
-                                                             uint32_t planes);
+GEOZL_API ZL_NodeID geozl_node_planar_zigzag_lanes(ZL_Compressor *c,
+                                                   uint32_t width,
+                                                   uint32_t planes);
 // Byte transpose followed by PivCo or PFOR independently on every lane.
-GEOZL_API ZL_NodeID geozl_node_transpose_pivco(ZL_Compressor *c);
+GEOZL_API ZL_NodeID geozl_node_lanes(ZL_Compressor *c);
 GEOZL_API ZL_NodeID geozl_node_med(ZL_Compressor *c, uint32_t width,
                                    uint32_t planes);
 GEOZL_API ZL_NodeID geozl_node_med_zigzag(ZL_Compressor *c, uint32_t width,

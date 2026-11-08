@@ -27,7 +27,7 @@ skipped. When none survive, `profile` raises `RuntimeError` with the last reason
 | `ValueError: N planes do not split M elements into whole rows of W` | bad `planes` or `width` | fix the geometry |
 | `ValueError: method must be a recipe name` | `method` is not a non-empty `str` | pass a recipe string |
 | `RuntimeError: geozl.graph failed (...): unknown method "planar>entropy"` | misspelled recipe | copy from `profile` rows; predictors need `>zigzag>`; `id` and `delta_1d` must not have it |
-| `RuntimeError: ... does not apply to 1-byte elements; the transpose terminals need 2 to 8, categorical needs 1 or 2, and pivco without transpose needs 1` | terminal vs element width | choose another terminal (`recipes.md` section 4) |
+| `RuntimeError: ... does not apply to 1-byte elements; the transpose terminals need 2 to 8, categorical needs 1 or 2, and lanes needs 1, 2, 4 or 8` | terminal vs element width | choose another terminal (`recipes.md` section 4) |
 | `ValueError: prior 'x' is not one of (...) or None` | bad `prior` | `planar med delta_w delta_n average wp_static delta_1d none` or `None` |
 | `ValueError: reps must be at least 1` | `reps=0` | use `reps >= 1` |
 | `ValueError: the quantizers do not support dtype bool` | lossy on an unsupported dtype | cast to one of the 11 geozl dtypes |

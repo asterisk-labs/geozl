@@ -100,7 +100,7 @@
         <tr><th>position</th><td><code>slot × b</code></td><td>count of 1s before you</td></tr>
         <tr><th>block</th><td>256 values</td><td>32 768 symbols per byte lane</td></tr>
         <tr><th>best for</th><td>small residuals that do not repeat</td><td>bytes with a skewed distribution</td></tr>
-        <tr><th>recipes</th><td><code>planar&gt;zigzag&gt;pfor</code>, <code>id&gt;pfor</code></td><td><code>planar&gt;zigzag&gt;transpose&gt;pivco</code>, <code>id&gt;transpose&gt;pivco</code></td></tr>
+        <tr><th>recipes</th><td><code>planar&gt;zigzag&gt;pfor</code>, <code>id&gt;pfor</code></td><td><code>planar&gt;zigzag&gt;lanes</code>, <code>id&gt;lanes</code></td></tr>
       </table>
       <p>A frame can use both codecs. PivCo works on bytes, so a 16-bit raster is first split into a low-byte lane and a high-byte lane. The encoder codes each lane separately and keeps byte PFOR instead of PivCo for any lane where PFOR comes out smaller, so a single frame can use both.</p>
       <p>The recipe selects the codec. Frames that end in one of these codecs, with one- or two-byte samples, decode on the GPU through the <a href="gpu.html">GPU API</a>. Frames that end in zstd or the generic entropy coder still decode, but on the CPU, and their samples are uploaded afterwards. <a href="gpu-internals.html">Inside the GPU decoder</a> follows a batch through both paths.</p>

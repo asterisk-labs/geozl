@@ -4,8 +4,8 @@
 
 #include "geozl/ctids.h"
 
-#include "planar_zigzag_transpose_pivco/decode_planar_zigzag_transpose_pivco_binding.h"
-#include "transpose_pivco/decode_transpose_pivco_binding.h"
+#include "lanes/decode_lanes_binding.h"
+#include "planar_zigzag_lanes/decode_planar_zigzag_lanes_binding.h"
 
 #include "common/endian.h"
 #include "pivco_lanes/pivco_lanes.h"
@@ -40,8 +40,8 @@ static ZL_Report capture_decoder(ZL_Decoder *decoder, const ZL_Input *inputs[],
     return ZL_returnError(ZL_ErrorCode_corruption);
   }
   const size_t fixedHeader = kind == PIVCO_CAPTURE_KIND_PLANAR_ZIGZAG
-                                 ? PLANAR_ZIGZAG_TRANSPOSE_PIVCO_HEADER_FIXED
-                                 : TRANSPOSE_PIVCO_HEADER_FIXED;
+                                 ? PLANAR_ZIGZAG_LANES_HEADER_FIXED
+                                 : LANES_HEADER_FIXED;
   if ((kind != PIVCO_CAPTURE_KIND_ID &&
        kind != PIVCO_CAPTURE_KIND_PLANAR_ZIGZAG) ||
       header.size !=
@@ -127,8 +127,8 @@ static ZL_Report capture_planar_decoder(ZL_Decoder *decoder,
   return capture_decoder(decoder, inputs, PIVCO_CAPTURE_KIND_PLANAR_ZIGZAG);
 }
 
-static ZL_Report capture_transpose_decoder(ZL_Decoder *decoder,
-                                           const ZL_Input *inputs[]) {
+static ZL_Report capture_lanes_decoder(ZL_Decoder *decoder,
+                                       const ZL_Input *inputs[]) {
   return capture_decoder(decoder, inputs, PIVCO_CAPTURE_KIND_ID);
 }
 
@@ -145,14 +145,14 @@ int pivco_capture_init(PivcoCapture *capture, uint8_t *payload,
   if (capture->dctx == NULL)
     return 1;
 
-  ZL_TypedDecoderDesc desc = DI_PLANAR_ZIGZAG_TRANSPOSE_PIVCO(
-      GEOZL_CTID_PLANAR_ZIGZAG_TRANSPOSE_PIVCO);
+  ZL_TypedDecoderDesc desc = DI_PLANAR_ZIGZAG_LANES(
+      GEOZL_CTID_PLANAR_ZIGZAG_LANES);
   desc.transform_f = capture_planar_decoder;
   desc.opaque.ptr = capture;
   ZL_Report report = ZL_DCtx_registerTypedDecoder(capture->dctx, &desc);
   if (!ZL_isError(report)) {
-    desc = (ZL_TypedDecoderDesc)DI_TRANSPOSE_PIVCO(GEOZL_CTID_TRANSPOSE_PIVCO);
-    desc.transform_f = capture_transpose_decoder;
+    desc = (ZL_TypedDecoderDesc)DI_LANES(GEOZL_CTID_LANES);
+    desc.transform_f = capture_lanes_decoder;
     desc.opaque.ptr = capture;
     report = ZL_DCtx_registerTypedDecoder(capture->dctx, &desc);
   }

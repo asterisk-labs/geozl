@@ -80,7 +80,7 @@
           <img src="assets/svg/codecs-light/planar-zigzag.svg" alt="Zigzag maps signed planar residuals 0, minus 1, 1, minus 2, 2 to unsigned values 0, 1, 2, 3, 4" loading="lazy">
           <figcaption>Zigzag sends 0, &minus;1, 1, &minus;2, 2 to 0, 1, 2, 3, 4</figcaption>
         </figure>
-        <p>Any terminal can follow <code>planar_zigzag</code>, as in <code>planar&gt;zigzag&gt;entropy</code>. For PFOR and PivCo, the fused versions below go further.</p>
+        <p>Any terminal can follow <code>planar_zigzag</code>, as in <code>planar&gt;zigzag&gt;entropy</code>. For pfor and lanes, the fused versions below go further.</p>
         <table class="spec">
           <tr><th>ctid</th><td>0x72D70F</td></tr>
           <tr><th>header</th><td>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</td></tr>
@@ -121,14 +121,14 @@ for (i = 0; i &lt; 256; i++) {
         <pre><code>geozl.lossless.PlanarZigzagPfor(width, planes=1)</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag_pfor" rel="noopener noreferrer">Source in core/src/planar_zigzag_pfor</a></p>
       </section>
-      <section class="codec" id="planar_zigzag_transpose_pivco" data-no="09" data-ctid="0x72D712" data-fam="gold" data-page="codecs/planar-zigzag-transpose-pivco.html" style="--fam:var(--gold)">
-        <h3><span class="num">09</span>planar_zigzag_transpose_pivco</h3>
-        <p><b>planar_zigzag_transpose_pivco</b> runs planar and Zigzag, then codes <b>each residual byte lane</b> on its own with PivCo Huffman, or with byte PFOR when that is smaller.</p>
+      <section class="codec" id="planar_zigzag_lanes" data-no="09" data-ctid="0x72D712" data-fam="gold" data-page="codecs/planar-zigzag-lanes.html" style="--fam:var(--gold)">
+        <h3><span class="num">09</span>planar_zigzag_lanes</h3>
+        <p><b>planar_zigzag_lanes</b> runs planar and Zigzag, then codes <b>each residual byte lane</b> on its own with PivCo Huffman, or with byte PFOR when that is smaller.</p>
         <figure class="diagram">
-          <img src="assets/svg/codecs-light/planar-zigzag-transpose-pivco.svg" alt="Planar and Zigzag followed by PivCo or PFOR byte lanes" loading="lazy">
+          <img src="assets/svg/codecs-light/planar-zigzag-lanes.svg" alt="Planar and Zigzag followed by PivCo or PFOR byte lanes" loading="lazy">
           <figcaption>planar and Zigzag, then one PivCo or PFOR coder per residual byte lane</figcaption>
         </figure>
-        <p>Recipes spell it <code>planar&gt;zigzag&gt;transpose&gt;pivco</code>, or <code>planar&gt;zigzag&gt;pivco</code> for one-byte samples. It tends to beat planar_zigzag_pfor when residual bytes are skewed rather than merely small. <a href="pivco.html">How PivCo works</a> explains the format.</p>
+        <p>Recipes spell it <code>planar&gt;zigzag&gt;lanes</code> for every sample width. It tends to beat planar_zigzag_pfor when residual bytes are skewed rather than merely small. <a href="pivco.html">How PivCo works</a> explains the format.</p>
         <table class="spec">
           <tr><th>ctid</th><td>0x72D712</td></tr>
           <tr><th>header</th><td>uint64 &middot; element count<br>+ uint8 &middot; element width<br>+ uint32 &middot; row width<br>+ uint32 &middot; plane count<br>+ uint32 &middot; PivCo block size<br>+ per lane uint8 mode, uint16 weights, uint32 bitstream</td></tr>
@@ -144,8 +144,8 @@ for (i = 0; i &lt; n; i++) {
   r = (z &gt;&gt; 1) ^ -(z &amp; 1);
   o = r + W + N - NW;
 }</code></pre>
-        <pre><code>geozl.graph(tile, "planar&gt;zigzag&gt;transpose&gt;pivco")</code></pre>
-        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag_transpose_pivco" rel="noopener noreferrer">Source in core/src/planar_zigzag_transpose_pivco</a></p>
+        <pre><code>geozl.graph(tile, "planar&gt;zigzag&gt;lanes")</code></pre>
+        <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag_lanes" rel="noopener noreferrer">Source in core/src/planar_zigzag_lanes</a></p>
       </section>
       <section class="codec" id="med_zigzag" data-no="10" data-ctid="0x72D711" data-fam="gold" data-page="codecs/med-zigzag.html" style="--fam:var(--gold)">
         <h3><span class="num">10</span>med_zigzag</h3>
@@ -184,7 +184,7 @@ o = r + med(W, N, NW);</code></pre>
       <ol class="toc-sections">
         <li><a href="#planar_zigzag"><span class="toc-no">07</span><span>planar_<wbr>zigzag</span></a></li>
         <li><a href="#planar_zigzag_pfor"><span class="toc-no">08</span><span>planar_<wbr>zigzag_<wbr>pfor</span></a></li>
-        <li><a href="#planar_zigzag_transpose_pivco"><span class="toc-no">09</span><span>planar_<wbr>zigzag_<wbr>transpose_<wbr>pivco</span></a></li>
+        <li><a href="#planar_zigzag_lanes"><span class="toc-no">09</span><span>planar_<wbr>zigzag_<wbr>lanes</span></a></li>
         <li><a href="#med_zigzag"><span class="toc-no">10</span><span>med_<wbr>zigzag</span></a></li>
       </ol>
     </nav>

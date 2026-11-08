@@ -100,13 +100,13 @@ def main(outdir):
         "quant_log_sub_f32": _compress(
             geozl.lossy.QuantLog("LOG:MAX_ERROR=1%", np.float32), tilesub,
             lossy=True),
-        "planar_zigzag_transpose_pivco": _compress_recipe(
-            lane16, "planar>zigzag>transpose>pivco"),
-        "transpose_pivco": _compress_recipe(lane8, "id>pivco"),
+        "planar_zigzag_lanes": _compress_recipe(
+            lane16, "planar>zigzag>lanes"),
+        "lanes": _compress_recipe(lane8, "id>lanes"),
     }
 
-    assert _varint(0x72D712) in seeds["planar_zigzag_transpose_pivco"][:64]
-    assert _varint(0x72D713) in seeds["transpose_pivco"][:64]
+    assert _varint(0x72D712) in seeds["planar_zigzag_lanes"][:64]
+    assert _varint(0x72D713) in seeds["lanes"][:64]
 
     for name, data in seeds.items():
         _decodes(data)

@@ -38,7 +38,7 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `bindings/python/test/golden/
 ## 3. Golden frames
 
 - `bindings/python/test/golden/frames/*.zl` hold one frame per wire layout the current
-  readers decode: `planar_zigzag_transpose_pivco` (`0x72D712`), `transpose_pivco`
+  readers decode: `planar_zigzag_lanes` (`0x72D712`), `lanes`
   (`0x72D713`) at 1, 2, 4 and 8 bytes and with Huffman lanes, `planar_zigzag_pfor`
   (`0x72D710`) and `med_zigzag` (`0x72D711`).
 - `manifest.json` records per frame: `graph`, `error`, `nodata`, `dtype`, `shape`,

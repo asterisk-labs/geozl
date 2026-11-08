@@ -109,7 +109,7 @@ size_t capture_test_build_wrapped_frame(uint8_t *dst, size_t capacity,
     return 0;
   const ZL_NodeID node = codec == CAPTURE_WRAPPED_PFOR
                              ? geozl_node_pfor(compressor)
-                             : geozl_node_transpose_pivco(compressor);
+                             : geozl_node_lanes(compressor);
   if (!ZL_NodeID_isValid(node))
     goto done;
   const ZL_GraphID graph = codec == CAPTURE_WRAPPED_PFOR

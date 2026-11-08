@@ -2,9 +2,9 @@
   "note": "Frozen on purpose. See docs/compatibility.md before touching. Each entry names the release that wrote it.",
   "frames": [
     {
-      "name": "planar-zigzag-transpose-pivco-uint16",
-      "file": "planar-zigzag-transpose-pivco-uint16.zl",
-      "graph": "planar>zigzag>pivco",
+      "name": "planar-zigzag-lanes-uint16",
+      "file": "planar-zigzag-lanes-uint16.zl",
+      "graph": "planar>zigzag>lanes",
       "error": null,
       "nodata": null,
       "dtype": "uint16",
@@ -17,9 +17,9 @@
       "sha256_frame": "c9ec75611a516e52af3ae6a1c6eeec6f6bc568ddf247fb04b11ec6ef7b3a9495"
     },
     {
-      "name": "transpose-pivco-uint8",
-      "file": "transpose-pivco-uint8.zl",
-      "graph": "id>pivco",
+      "name": "lanes-uint8",
+      "file": "lanes-uint8.zl",
+      "graph": "id>lanes",
       "error": null,
       "nodata": null,
       "dtype": "uint8",
@@ -32,9 +32,9 @@
       "sha256_frame": "f8202b28c2a847baf88e5c3c9128b6cec5f48df9c828e444f7c104fc213efa99"
     },
     {
-      "name": "transpose-pivco-huffman-uint8",
-      "file": "transpose-pivco-huffman-uint8.zl",
-      "graph": "id>pivco",
+      "name": "lanes-huffman-uint8",
+      "file": "lanes-huffman-uint8.zl",
+      "graph": "id>lanes",
       "error": null,
       "nodata": null,
       "dtype": "uint8",
@@ -47,9 +47,9 @@
       "sha256_frame": "ac0f24625adf6028486b844d54f61138a381a80663125334704584654d901a24"
     },
     {
-      "name": "transpose-pivco-uint16",
-      "file": "transpose-pivco-uint16.zl",
-      "graph": "id>transpose>pivco",
+      "name": "lanes-uint16",
+      "file": "lanes-uint16.zl",
+      "graph": "id>lanes",
       "error": null,
       "nodata": null,
       "dtype": "uint16",
@@ -62,9 +62,9 @@
       "sha256_frame": "c3b7952e7619b149ac319c99b016a4eee687e88ec724871f30951c9987c6b3a3"
     },
     {
-      "name": "transpose-pivco-uint32",
-      "file": "transpose-pivco-uint32.zl",
-      "graph": "id>transpose>pivco",
+      "name": "lanes-uint32",
+      "file": "lanes-uint32.zl",
+      "graph": "id>lanes",
       "error": null,
       "nodata": null,
       "dtype": "uint32",
@@ -77,9 +77,9 @@
       "sha256_frame": "fee42521c6e6cd7a3e6bf01c8c778a7793d863c10c84b18675d63bf26b4af684"
     },
     {
-      "name": "transpose-pivco-uint64",
-      "file": "transpose-pivco-uint64.zl",
-      "graph": "id>transpose>pivco",
+      "name": "lanes-uint64",
+      "file": "lanes-uint64.zl",
+      "graph": "id>lanes",
       "error": null,
       "nodata": null,
       "dtype": "uint64",

@@ -48,8 +48,8 @@ static const codec_slot kSlots[] = {
     {GEOZL_CTID_PLANAR_ZIGZAG_PFOR, 1, 1},
     {GEOZL_CTID_DEINTERLEAVE, 2, 0},
     {GEOZL_CTID_NODATA, 2, 0},
-    {GEOZL_CTID_PLANAR_ZIGZAG_TRANSPOSE_PIVCO, 2, 2},
-    {GEOZL_CTID_TRANSPOSE_PIVCO, 2, 2},
+    {GEOZL_CTID_PLANAR_ZIGZAG_LANES, 2, 2},
+    {GEOZL_CTID_LANES, 2, 2},
 };
 
 #define NB_SLOTS (sizeof(kSlots) / sizeof(kSlots[0]))

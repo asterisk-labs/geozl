@@ -1,5 +1,5 @@
-// Benchmark of the planar_zigzag_transpose_pivco GPU decoder on real frames.
-// GeoZL compresses every frame with planar>zigzag>transpose>pivco and OpenZL
+// Benchmark of the planar_zigzag_lanes GPU decoder on real frames.
+// GeoZL compresses every frame with planar>zigzag>lanes and OpenZL
 // decodes them on the CPU as the reference. A decoder registered in place of
 // the codec's records the header and the two streams OpenZL hands it, which is
 // all the GPU decodes.
@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
   // Every frame has the same geometry, so one graph serves them all.
   char err[512];
   geozl_2d_graph *g = NULL;
-  if (geozl_2d_graph_open_c(&g, "planar>zigzag>transpose>pivco",
+  if (geozl_2d_graph_open_c(&g, "planar>zigzag>lanes",
                             (uint32_t)shapes[0].width, shapes[0].planes, NULL,
                             u8 ? GEOZL_DT_U8 : GEOZL_DT_U16, GEOZL_NODATA_NONE,
                             0, orig, shapes[0].nbElts, W, err,
@@ -211,7 +211,7 @@ int main(int argc, char **argv) {
                             s->nbElts * W, frames + frameOff[f],
                             frameSize[f]) != 0) {
       fprintf(stderr,
-              "frame %zu does not end in planar_zigzag_transpose_pivco\n", f);
+              "frame %zu does not end in planar_zigzag_lanes\n", f);
       return 1;
     }
   }

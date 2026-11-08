@@ -9,11 +9,11 @@
 
 #include "common/endian.h"
 #include "gpu/runtime.h"
+#include "lanes/graph_lanes.h"
 #include "pfor/graph_pfor.h"
 #include "pivco_lanes/pivco_lanes.h"
+#include "planar_zigzag_lanes/graph_planar_zigzag_lanes.h"
 #include "planar_zigzag_pfor/graph_planar_zigzag_pfor.h"
-#include "planar_zigzag_transpose_pivco/graph_planar_zigzag_transpose_pivco.h"
-#include "transpose_pivco/graph_transpose_pivco.h"
 
 #include "openzl/zl_compress.h"
 #include "openzl/zl_input.h"
@@ -254,17 +254,14 @@ static int check_mixed(GeozlGpu *gpu, size_t bytes) {
   static const char *const recipes[] = {
       "planar>zigzag>pfor",
       "id>pfor",
-      "planar>zigzag>transpose>pivco",
-      "id>transpose>pivco",
+      "planar>zigzag>lanes",
+      "id>lanes",
       "planar>zigzag>zstd",
       "delta_1d>pfor",
   };
   Batch batch = {0};
   int failed = 0;
   for (size_t r = 0; r < sizeof(recipes) / sizeof(recipes[0]) && !failed; ++r) {
-    if (bytes == 1 && strstr(recipes[r], "transpose") != NULL &&
-        strstr(recipes[r], "planar") == NULL)
-      continue;
     for (size_t s = 0; s < sizeof(shapes) / sizeof(shapes[0]); ++s) {
       if (add_frame(&batch, recipes[r], &shapes[s], bytes) != 0) {
         failed = 1;
@@ -355,7 +352,7 @@ static int check_refusals(GeozlGpu *gpu) {
 
 static int check_capture_errors(GeozlGpu *gpu) {
   uint8_t frame[1024];
-  uint8_t header[TRANSPOSE_PIVCO_HEADER_FIXED + GEOZL_PIVCO_LANE_HEADER_SIZE] =
+  uint8_t header[LANES_HEADER_FIXED + GEOZL_PIVCO_LANE_HEADER_SIZE] =
       {0};
   geozl_st_le64(header, 1024);
   header[8] = 1;
@@ -364,7 +361,7 @@ static int check_capture_errors(GeozlGpu *gpu) {
   geozl_st_le16(header + 14, 1);
 
   const CaptureFramePlan plans[] = {
-      {.ctid = GEOZL_CTID_TRANSPOSE_PIVCO,
+      {.ctid = GEOZL_CTID_LANES,
        .header = header,
        .headerSize = sizeof(header),
        .outputCount = 2,
@@ -437,7 +434,7 @@ static int add_segmented_frame(Batch *batch, size_t bytes, int firstStore,
   if (ref == NULL)
     goto done;
   const ZL_NodeID node = bytes == 1 ? geozl_node_pfor(compressor)
-                                    : geozl_node_transpose_pivco(compressor);
+                                    : geozl_node_lanes(compressor);
   const ZL_GraphID codec =
       bytes == 1 ? ZL_Compressor_registerStaticGraph_fromNode(
                        compressor, node, ZL_GRAPHLIST(ZL_GRAPH_STORE))
@@ -565,7 +562,7 @@ static int check_batch_limit(GeozlGpu *gpu) {
 // Check direct output, PivCo scratch, misaligned targets and overlapping copies.
 static int check_direct(GeozlGpu *gpu, size_t bytes) {
   static const char *const recipes[] = {
-      "planar>zigzag>pfor", "id>pfor", "planar>zigzag>transpose>pivco"};
+      "planar>zigzag>pfor", "id>pfor", "planar>zigzag>lanes"};
   const Shape shape = {2, 64, 64};
   for (size_t mix = 0; mix < 3; ++mix) {
     Batch batch = {0};
@@ -696,7 +693,7 @@ static int check_waves(GeozlGpu *gpu, size_t bytes) {
                                        {1, 64, 64},  {3, 20, 300},
                                        {1, 256, 512}, {2, 64, 513}};
   static const char *const recipes[] = {"planar>zigzag>pfor",
-                                        "planar>zigzag>transpose>pivco"};
+                                        "planar>zigzag>lanes"};
   Batch batches[WAVES];
   memset(batches, 0, sizeof(batches));
   size_t offsets[WAVES + 1] = {0};

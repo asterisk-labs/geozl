@@ -1,8 +1,8 @@
 #ifndef GEOZL_GPU_PIVCO_CAPTURE_H
 #define GEOZL_GPU_PIVCO_CAPTURE_H
 
-#include "planar_zigzag_transpose_pivco/graph_planar_zigzag_transpose_pivco.h"
-#include "transpose_pivco/graph_transpose_pivco.h"
+#include "lanes/graph_lanes.h"
+#include "planar_zigzag_lanes/graph_planar_zigzag_lanes.h"
 
 #include "openzl/codecs/pivco_huffman/common_pivco_kernel.h"
 #include "openzl/zl_decompress.h"
@@ -11,7 +11,7 @@
 #include <stdint.h>
 
 typedef struct {
-  uint8_t header[PLANAR_ZIGZAG_TRANSPOSE_PIVCO_HEADER_MAX];
+  uint8_t header[PLANAR_ZIGZAG_LANES_HEADER_MAX];
   size_t headerSize;
   uint8_t weights[8 * ZL_PIVCO_MAX_SYMBOLS];
   size_t weightsSize;

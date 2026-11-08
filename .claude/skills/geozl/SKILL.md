@@ -74,8 +74,7 @@ recipes that fail. Treat these as starting points, not fixed recommendations.
 - `decompress` returns flat `uint8`; dtype and shape are external metadata. Restore them
   with `.view(dtype).reshape(shape)` and do not guess either value.
 - Recipe spelling is exact. Copy a recipe from `profile`, but remember that it skips
-  failures. `transpose>*` needs 2- to 8-byte elements (only `planar>zigzag>transpose>pivco`
-  also runs at 1 byte), `categorical` accepts at most 2-byte elements, and plain `entropy`
+  failures. `transpose>*` needs 2- to 8-byte elements, `categorical` accepts at most 2-byte elements, and plain `entropy`
   fails during compression above 2 bytes.
 - A `Graph` fixes the exact dtype and predictor geometry, while `compress` does not check
   the ndarray shape. Keep one graph per intended column count and plane layout. A graph
@@ -92,7 +91,7 @@ recipes that fail. Treat these as starting points, not fixed recommendations.
 - Low-level `openzl.ext` compression needs the current format version and must disable
   the content checksum for quantizers. `geozl.register_decoders` registers only codecs
   exposed by the Python packages; the high-level C-backed `geozl.decompress` also knows
-  the C-only `planar_zigzag_transpose_pivco` and `transpose_pivco`.
+  the C-only `planar_zigzag_lanes` and `lanes`.
 - Keep checksum verification enabled and set `max_output_size` for untrusted frames.
 
 ## Reference map

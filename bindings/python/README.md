@@ -35,7 +35,7 @@ best = rows[0]["graph"]
 The documented codecs, lossless and lossy, are reachable two ways. `geozl.graph`
 takes a recipe string and builds the graph for you, and `geozl.compress` runs one
 tile through it. `geozl.lossless` and `geozl.lossy` hand you the individual nodes,
-apart from the two PivCo codecs, to place in an OpenZL graph yourself, and `geozl.register_decoders` teaches a
+apart from `lanes` and `planar_zigzag_lanes`, to place in an OpenZL graph yourself, and `geozl.register_decoders` teaches a
 `DCtx` to read what they wrote.
 
 Prebuilt wheels are published for Linux x86-64 with CUDA support and macOS arm64

@@ -70,18 +70,18 @@ static int run_case(const char *modulePath, size_t blockSize) {
   }
 
   CapturedFrame frame = {0};
-  frame.headerSize = PLANAR_ZIGZAG_TRANSPOSE_PIVCO_HEADER_FIXED +
-                     PLANAR_ZIGZAG_TRANSPOSE_PIVCO_HEADER_LANE;
+  frame.headerSize = PLANAR_ZIGZAG_LANES_HEADER_FIXED +
+                     PLANAR_ZIGZAG_LANES_HEADER_LANE;
   geozl_st_le64(frame.header, count);
   frame.header[8] = 1;
   geozl_st_le32(frame.header + 9, count);
   geozl_st_le32(frame.header + 13, 1);
   geozl_st_le32(frame.header + 17, (uint32_t)blockSize);
-  frame.header[PLANAR_ZIGZAG_TRANSPOSE_PIVCO_HEADER_FIXED] =
-      PLANAR_ZIGZAG_TRANSPOSE_PIVCO_LANE_PIVCO;
-  geozl_st_le16(frame.header + PLANAR_ZIGZAG_TRANSPOSE_PIVCO_HEADER_FIXED + 1,
+  frame.header[PLANAR_ZIGZAG_LANES_HEADER_FIXED] =
+      PLANAR_ZIGZAG_LANES_LANE_PIVCO;
+  geozl_st_le16(frame.header + PLANAR_ZIGZAG_LANES_HEADER_FIXED + 1,
                 sizeof(weights));
-  geozl_st_le32(frame.header + PLANAR_ZIGZAG_TRANSPOSE_PIVCO_HEADER_FIXED + 3,
+  geozl_st_le32(frame.header + PLANAR_ZIGZAG_LANES_HEADER_FIXED + 3,
                 (uint32_t)payloadSize);
   memcpy(frame.weights, weights, sizeof(weights));
   frame.weightsSize = sizeof(weights);

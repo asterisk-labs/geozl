@@ -324,8 +324,8 @@ static void make_pivco_frame(Input *in, Payload *payload, CapturedFrame *frame,
   const int planar = (mode & 2u) != 0;
   const size_t picked = kBlocks[(mode >> 2) & 3u];
   const size_t blockSize = picked != 0 ? picked : count;
-  const size_t fixedHeader = planar ? PLANAR_ZIGZAG_TRANSPOSE_PIVCO_HEADER_FIXED
-                                    : TRANSPOSE_PIVCO_HEADER_FIXED;
+  const size_t fixedHeader = planar ? PLANAR_ZIGZAG_LANES_HEADER_FIXED
+                                    : LANES_HEADER_FIXED;
 
   *frame = (CapturedFrame){0};
   frame->kind =
@@ -474,8 +474,8 @@ static void check_pivco_cpu(const CapturedFrame *frame,
                             const GeozlGpuFrameShape *shape,
                             const uint8_t *payload, size_t elementBytes) {
   const int planar = frame->kind == PIVCO_CAPTURE_KIND_PLANAR_ZIGZAG;
-  const size_t fixedHeader = planar ? PLANAR_ZIGZAG_TRANSPOSE_PIVCO_HEADER_FIXED
-                                    : TRANSPOSE_PIVCO_HEADER_FIXED;
+  const size_t fixedHeader = planar ? PLANAR_ZIGZAG_LANES_HEADER_FIXED
+                                    : LANES_HEADER_FIXED;
   const size_t blockSize = geozl_ld_le32(frame->header + (planar ? 17 : 9));
   const size_t count = shape->nbElts;
   const size_t scratchSize =
