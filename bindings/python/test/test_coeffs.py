@@ -233,18 +233,6 @@ def test_invalid_geozl_blob_raises():
             _coeffs._parse_coeffs(bad)
 
 
-def test_a_frame_older_than_the_comment_field_is_absent(tile):
-    # Header comments were added in frame format version 22.
-    zl = pytest.importorskip("openzl.ext")
-    compressor = zl.Compressor()
-    compressor.select_starting_graph(zl.graphs.Compress().parameterize(compressor))
-    cctx = zl.CCtx()
-    cctx.ref_compressor(compressor)
-    cctx.set_parameter(zl.CParam.FormatVersion, 20)
-    frame = bytes(cctx.compress([zl.Input(zl.Type.Numeric, tile.reshape(-1))]))
-    assert geozl.coeffs(frame) is None
-
-
 def test_a_comment_from_another_producer(tile):
     zl = pytest.importorskip("openzl.ext")
     if not hasattr(zl.CCtx, "add_header_comment"):

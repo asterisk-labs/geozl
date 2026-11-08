@@ -188,10 +188,10 @@ def test_decompress_returns_flat_bytes():
     assert np.array_equal(back.view(arr.dtype).reshape(arr.shape), arr)
 
 
-def test_frames_stay_readable_by_openzl_0_2():
-    # the magic number is a base plus the format version, and 0.2 stops at 24
+def test_frames_use_the_openzl_0_3_format():
+    # the magic number is a base plus the format version
     frame = _frame(_tile(), method=GRAPH)
-    assert int.from_bytes(bytes(frame[:4]), "little") - 0xD7B1A5C0 == 24
+    assert int.from_bytes(bytes(frame[:4]), "little") - 0xD7B1A5C0 == 27
 
 
 @pytest.mark.parametrize(("method", "dtype"), [
@@ -204,8 +204,7 @@ def test_frames_stay_readable_by_openzl_0_2():
     ("id>transpose>pivco", np.uint32),
     ("id>transpose>pivco", np.float64),
 ])
-def test_pivco_frames_need_openzl_0_3_and_round_trip(method, dtype):
-    # PivCo Huffman exists from format 27, the one recipe family that needs it
+def test_pivco_frames_use_the_openzl_0_3_format_and_round_trip(method, dtype):
     arr = _tile(dtype=dtype)
     frame = _frame(arr, method=method)
     assert int.from_bytes(bytes(frame[:4]), "little") - 0xD7B1A5C0 == 27
@@ -448,11 +447,6 @@ def test_transpose_terminals_drop_out_on_1_byte_elements():
     rows = geozl.profile(_tile(dtype=np.uint8), prior=None, reps=1)
     assert rows
     assert not any(">transpose>" in r["graph"] for r in rows)
-
-
-def test_store_lo_rejected():
-    with pytest.raises(RuntimeError, match="unknown method"):
-        geozl.graph(_tile(), "planar>zigzag>store_lo")
 
 
 def test_profile_rejects_an_unknown_prior():

@@ -203,9 +203,9 @@ static int run_shifted(GeozlGpu *gpu, const Batch *batch, size_t sampleBytes,
     const size_t offset = pass == 0 ? 0 : shift;
     const GeozlGpuTarget target = {geozl_gpu_pointer(memory), offset,
                                    batch->targetBytes, NULL};
-    if (geozl_gpu_decode_ex(gpu, batch->frames, batch->count, batch->copies,
-                            batch->copyCount, sampleBytes, elementBytes,
-                            &target, forceHost, error, sizeof(error)) != 0 ||
+    if (geozl_gpu_decode(gpu, batch->frames, batch->count, batch->copies,
+                         batch->copyCount, sampleBytes, elementBytes, &target,
+                         forceHost, error, sizeof(error)) != 0 ||
         geozl_gpu_synchronize(gpu, error, sizeof(error)) != 0 ||
         geozl_gpu_memory_download(memory, got, batch->targetBytes + shift,
                                   error, sizeof(error)) != 0) {
@@ -317,7 +317,7 @@ static int refuses(GeozlGpu *gpu, const Batch *batch, const GeozlGpuCopy *copy,
   frame.decodedBytes = decodedBytes;
   const GeozlGpuTarget target = {geozl_gpu_pointer(memory), 0, 4096, NULL};
   const int decoded = geozl_gpu_decode(gpu, &frame, 1, copy, 1, 2, 2, &target,
-                                       error, sizeof(error)) == 0;
+                                       NULL, error, sizeof(error)) == 0;
   geozl_gpu_synchronize(gpu, NULL, 0);
   geozl_gpu_free(memory);
   if (decoded || error[0] == '\0') {
@@ -389,8 +389,8 @@ static int check_capture_errors(GeozlGpu *gpu) {
     const GeozlGpuFrame input = {frame, frameSize, 64};
     error[0] = '\0';
     if (frameSize == 0 ||
-        geozl_gpu_decode(gpu, &input, 1, &copy, 1, 1, 1, &target, error,
-                         sizeof(error)) == 0 ||
+        geozl_gpu_decode(gpu, &input, 1, &copy, 1, 1, 1, &target, NULL,
+                         error, sizeof(error)) == 0 ||
         strstr(error, "invalid compressed frame") == NULL) {
       fprintf(stderr, "an inconsistent GPU codec header was accepted: %s\n",
               error);
@@ -553,7 +553,7 @@ static int check_batch_limit(GeozlGpu *gpu) {
   }
   const GeozlGpuTarget target = {geozl_gpu_pointer(memory), 0, 2, NULL};
   const int failed = geozl_gpu_decode(gpu, frames, 2, &copy, 1, 2, 2, &target,
-                                      error, sizeof(error)) == 0 ||
+                                      NULL, error, sizeof(error)) == 0 ||
                      strstr(error, "batch limit") == NULL;
   if (failed)
     fprintf(stderr, "an oversized GPU batch was accepted: %s\n", error);
@@ -742,7 +742,7 @@ static int check_waves(GeozlGpu *gpu, size_t bytes) {
                                      batches[i].targetBytes, stream};
       failed = geozl_gpu_decode(gpu, batches[i].frames, batches[i].count,
                                 batches[i].copies, batches[i].copyCount, bytes,
-                                bytes, &target, error, sizeof(error)) != 0;
+                                bytes, &target, NULL, error, sizeof(error)) != 0;
       if (!failed && round == 0) {
         expect(&batches[i], bytes, want + offsets[i], written + offsets[i]);
       }
@@ -769,10 +769,10 @@ static int check_waves(GeozlGpu *gpu, size_t bytes) {
     memset(bad->data[0] + bad->frames[0].size / 2, 0xff, 32);
     failed = geozl_gpu_decode(gpu, batches[0].frames, batches[0].count,
                               batches[0].copies, batches[0].copyCount, bytes,
-                              bytes, &first, error, sizeof(error)) != 0;
+                              bytes, &first, NULL, error, sizeof(error)) != 0;
     if (!failed &&
         geozl_gpu_decode(gpu, bad->frames, bad->count, bad->copies,
-                         bad->copyCount, bytes, bytes, &second, error,
+                         bad->copyCount, bytes, bytes, &second, NULL, error,
                          sizeof(error)) == 0) {
       fprintf(stderr, "a corrupted frame was accepted between waves\n");
       failed = 1;

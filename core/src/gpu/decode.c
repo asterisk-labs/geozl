@@ -11,7 +11,6 @@
 
 #include "openzl/decompress/decode_frameheader.h"
 #include "openzl/zl_decompress.h"
-#include "openzl/zl_version.h"
 
 #include <limits.h>
 #include <pthread.h>
@@ -371,8 +370,7 @@ static int first_chunk_is_last(const GeozlGpuFrame *frame,
       (FrameInfo_hasCompressedChecksum(header->frameinfo) &&
        !advance_within_frame(&end, 4, frame->size)))
     return 0;
-  return header->formatVersion < ZL_CHUNK_VERSION_MIN ||
-         (end < frame->size && ((const uint8_t *)frame->data)[end] == 0);
+  return end < frame->size && ((const uint8_t *)frame->data)[end] == 0;
 }
 
 static int route_of(const GeozlGpuFrame *frame) {
@@ -780,12 +778,11 @@ static size_t piece_count(const GeozlGpuCopy *copy) {
   return ((size_t)copy->rows + PLACE_MAX_ROWS - 1) / PLACE_MAX_ROWS;
 }
 
-int geozl_gpu_decode_ex(GeozlGpu *gpu, const GeozlGpuFrame frames[],
-                        size_t frameCount, const GeozlGpuCopy copies[],
-                        size_t copyCount, size_t sampleBytes,
-                        size_t elementBytes, const GeozlGpuTarget *target,
-                        const uint8_t forceHost[], char *error,
-                        size_t errorCapacity) {
+int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
+                     size_t frameCount, const GeozlGpuCopy copies[],
+                     size_t copyCount, size_t sampleBytes, size_t elementBytes,
+                     const GeozlGpuTarget *target, const uint8_t forceHost[],
+                     char *error, size_t errorCapacity) {
   if (error != NULL && errorCapacity != 0)
     error[0] = '\0';
   if (gpu == NULL)
@@ -1254,14 +1251,4 @@ done:
   free(slots);
   free(routes);
   return failed;
-}
-
-int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
-                     size_t frameCount, const GeozlGpuCopy copies[],
-                     size_t copyCount, size_t sampleBytes, size_t elementBytes,
-                     const GeozlGpuTarget *target, char *error,
-                     size_t errorCapacity) {
-  return geozl_gpu_decode_ex(gpu, frames, frameCount, copies, copyCount,
-                             sampleBytes, elementBytes, target, NULL, error,
-                             errorCapacity);
 }
