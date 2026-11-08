@@ -25,6 +25,9 @@ except PackageNotFoundError:
 
 def register_decoders(dctx: Any) -> None:
     """Register all geozl decoders in an ``openzl.ext.DCtx``."""
+    if not _LOW_LEVEL:
+        raise ModuleNotFoundError(
+            "geozl.register_decoders needs the openzl package", name="openzl")
     for decoder in lossless._DECODERS + lossy._DECODERS:
         dctx.register_custom_decoder(decoder())
 

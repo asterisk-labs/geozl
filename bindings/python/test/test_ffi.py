@@ -1,6 +1,8 @@
 import ctypes.util
 import importlib
 import importlib.metadata as md
+import os
+import subprocess
 import sys
 
 import numpy as np
@@ -108,3 +110,29 @@ def test_version_falls_back_when_the_package_is_not_installed(monkeypatch):
 def test_all_promises_only_what_the_package_has():
     for name in geozl.__all__:
         assert hasattr(geozl, name), f"__all__ promises {name}, it is not there"
+
+def test_register_decoders_names_openzl_when_it_is_missing():
+    """Without openzl the package still imports and the low-level API says why
+    it is unavailable, instead of failing on a name that was never bound."""
+    script = (
+        "import sys\n"
+        "sys.modules['openzl'] = None\n"
+        "import geozl\n"
+        "assert 'lossless' not in geozl.__all__\n"
+        "try:\n"
+        "    geozl.register_decoders(object())\n"
+        "except ModuleNotFoundError as exc:\n"
+        "    assert exc.name == 'openzl', exc\n"
+        "else:\n"
+        "    raise SystemExit('register_decoders did not refuse')\n"
+    )
+    # macOS strips the dyld preload from the child, so reinject the runtime
+    # path the way test_malformed does, or a sanitizer build aborts on load.
+    env = dict(os.environ)
+    rt = env.get("GEOZL_ASAN_RT")
+    if rt:
+        var = "DYLD_INSERT_LIBRARIES" if sys.platform == "darwin" else "LD_PRELOAD"
+        env[var] = rt
+    run = subprocess.run([sys.executable, "-c", script], capture_output=True,
+                         text=True, env=env)
+    assert run.returncode == 0, run.stderr
