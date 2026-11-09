@@ -20,7 +20,7 @@ CTIDS = ROOT / "core" / "include" / "geozl" / "ctids.h"
 README = ROOT / "README.md"
 DOCS = ROOT / "docs"
 OVERVIEW = DOCS / "docs.html"
-FAMILIES = [DOCS / f"{name}.html" for name in ("predictors", "fused", "streams", "near-lossless")]
+FAMILIES = [DOCS / f"{name}.html" for name in ("predictors", "streams", "fused", "near-lossless")]
 PAGER = ROOT / "docs" / "assets" / "js" / "main.js"
 
 pytestmark = pytest.mark.skipif(

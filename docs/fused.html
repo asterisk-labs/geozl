@@ -52,8 +52,8 @@
         <li class="toc-group">Reference</li>
         <li><a href="docs.html">Codecs</a></li>
         <li><a href="predictors.html">Predictors</a></li>
-        <li><a href="fused.html" class="here">Fused</a></li>
         <li><a href="streams.html">Streams</a></li>
+        <li><a href="fused.html" class="here">Fused</a></li>
         <li><a href="near-lossless.html">Near-lossless</a></li>
         <li class="toc-group">CPU decoding</li>
         <li><a href="cpu.html">Inside the CPU decoder</a></li>
@@ -73,8 +73,8 @@
       <p>Fusion helps most when cheap steps such as planar, zigzag and pfor spend more time moving data than computing. Follow one 1024 × 1024 uint16 tile of 2 MiB through separate and fused <code>planar&gt;zigzag&gt;pfor</code>.</p>
       <figure class="diagram wide stepper" data-beats="2.2,4.4,6.6,9.2"><img src="assets/svg/codecs-light/fused-vs-separate.svg" alt="As separate nodes, planar reads the 2 MiB tile and writes 2 MiB of residuals, zigzag reads them and writes 2 MiB of unsigned values, and pfor reads those and writes the frame, 10 MiB of memory plus the frame. Fused into one codec, the tile is read once and the frame written once, 2 MiB plus the frame, with each sample kept in registers." loading="lazy"><figcaption>Separate nodes pass the whole tile through memory between every step. The fused codec reads it once.</figcaption></figure>
       <p>A recipe uses a fused codec when someone has implemented that exact chain. The ones that exist today are listed below.</p>
-      <section class="codec" id="planar_zigzag" data-no="07" data-ctid="0x72D70F" data-fam="gold" data-page="codecs/planar-zigzag.html" style="--fam:var(--gold)">
-        <h3><span class="num">07</span>planar_zigzag</h3>
+      <section class="codec" id="planar_zigzag" data-no="11" data-ctid="0x72D70F" data-fam="gold" data-page="codecs/planar-zigzag.html" style="--fam:var(--gold)">
+        <h3><span class="num">11</span>planar_zigzag</h3>
         <p><b>planar_zigzag</b> computes the planar residual and <b>maps it to unsigned</b> with Zigzag in the same pass, so a small negative residual stays a small number.</p>
         <figure class="diagram">
           <img src="assets/svg/codecs-light/planar-zigzag.svg" alt="Zigzag maps signed planar residuals 0, minus 1, 1, minus 2, 2 to unsigned values 0, 1, 2, 3, 4" loading="lazy">
@@ -98,8 +98,8 @@ o = r + W + N - NW;                  // a prefix sum per row, as planar</code></
         <pre><code>geozl.lossless.PlanarZigzag(width, planes=1)</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag" rel="noopener noreferrer">Source in core/src/planar_zigzag</a></p>
       </section>
-      <section class="codec" id="planar_zigzag_pfor" data-no="08" data-ctid="0x72D710" data-fam="gold" data-page="codecs/planar-zigzag-pfor.html" style="--fam:var(--gold)">
-        <h3><span class="num">08</span>planar_zigzag_pfor</h3>
+      <section class="codec" id="planar_zigzag_pfor" data-no="12" data-ctid="0x72D710" data-fam="gold" data-page="codecs/planar-zigzag-pfor.html" style="--fam:var(--gold)">
+        <h3><span class="num">12</span>planar_zigzag_pfor</h3>
         <p><b>planar_zigzag_pfor</b> predicts, maps and <b>packs 256 values at a time</b>, so the Zigzag stream of the tile never exists. Its payload matches planar_zigzag followed by pfor.</p>
         <figure class="diagram">
           <img src="assets/svg/codecs-light/planar-zigzag-pfor.svg" alt="Planar, Zigzag and PFOR fused into one codec" loading="lazy">
@@ -121,8 +121,8 @@ for (i = 0; i &lt; 256; i++) {
         <pre><code>geozl.lossless.PlanarZigzagPfor(width, planes=1)</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag_pfor" rel="noopener noreferrer">Source in core/src/planar_zigzag_pfor</a></p>
       </section>
-      <section class="codec" id="planar_zigzag_lanes" data-no="09" data-ctid="0x72D712" data-fam="gold" data-page="codecs/planar-zigzag-lanes.html" style="--fam:var(--gold)">
-        <h3><span class="num">09</span>planar_zigzag_lanes</h3>
+      <section class="codec" id="planar_zigzag_lanes" data-no="13" data-ctid="0x72D712" data-fam="gold" data-page="codecs/planar-zigzag-lanes.html" style="--fam:var(--gold)">
+        <h3><span class="num">13</span>planar_zigzag_lanes</h3>
         <p><b>planar_zigzag_lanes</b> runs planar and Zigzag, then codes <b>each residual byte lane</b> on its own with PivCo Huffman, or with byte PFOR when that is smaller.</p>
         <figure class="diagram">
           <img src="assets/svg/codecs-light/planar-zigzag-lanes.svg?v=3" alt="Planar and Zigzag followed by PivCo or PFOR byte lanes" loading="lazy">
@@ -147,8 +147,8 @@ for (i = 0; i &lt; n; i++) {
         <pre><code>geozl.graph(tile, "planar&gt;zigzag&gt;lanes")</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag_lanes" rel="noopener noreferrer">Source in core/src/planar_zigzag_lanes</a></p>
       </section>
-      <section class="codec" id="med_zigzag" data-no="10" data-ctid="0x72D711" data-fam="gold" data-page="codecs/med-zigzag.html" style="--fam:var(--gold)">
-        <h3><span class="num">10</span>med_zigzag</h3>
+      <section class="codec" id="med_zigzag" data-no="14" data-ctid="0x72D711" data-fam="gold" data-page="codecs/med-zigzag.html" style="--fam:var(--gold)">
+        <h3><span class="num">14</span>med_zigzag</h3>
         <p><b>med_zigzag</b> writes the <b>MED residual mapped by Zigzag</b> in one pass, identical to med followed by Zigzag. Every <code>med&gt;zigzag</code> recipe uses it.</p>
         <figure class="diagram">
           <img src="assets/svg/codecs-light/med-zigzag.svg" alt="MED clamps the prediction to the near side of an edge, then Zigzag maps the signed residuals 0, minus 1, 1, minus 2, 2, minus 3, 3 to unsigned values 0 through 6" loading="lazy">
@@ -174,18 +174,18 @@ o = r + med(W, N, NW);</code></pre>
       </section>
 
       <nav class="pager" aria-label="Pages">
-        <a class="prev" href="predictors.html"><span>Previous</span>Predictors</a>
-        <a class="next" href="streams.html"><span>Next</span>Streams</a>
+        <a class="prev" href="streams.html"><span>Previous</span>Streams</a>
+        <a class="next" href="near-lossless.html"><span>Next</span>Near-lossless</a>
       </nav>
     </article>
 
     <nav class="toc onpage" aria-label="On this page">
       <p class="toc-title">On this page</p>
       <ol class="toc-sections">
-        <li><a href="#planar_zigzag"><span class="toc-no">07</span><span>planar_<wbr>zigzag</span></a></li>
-        <li><a href="#planar_zigzag_pfor"><span class="toc-no">08</span><span>planar_<wbr>zigzag_<wbr>pfor</span></a></li>
-        <li><a href="#planar_zigzag_lanes"><span class="toc-no">09</span><span>planar_<wbr>zigzag_<wbr>lanes</span></a></li>
-        <li><a href="#med_zigzag"><span class="toc-no">10</span><span>med_<wbr>zigzag</span></a></li>
+        <li><a href="#planar_zigzag"><span class="toc-no">11</span><span>planar_<wbr>zigzag</span></a></li>
+        <li><a href="#planar_zigzag_pfor"><span class="toc-no">12</span><span>planar_<wbr>zigzag_<wbr>pfor</span></a></li>
+        <li><a href="#planar_zigzag_lanes"><span class="toc-no">13</span><span>planar_<wbr>zigzag_<wbr>lanes</span></a></li>
+        <li><a href="#med_zigzag"><span class="toc-no">14</span><span>med_<wbr>zigzag</span></a></li>
       </ol>
     </nav>
   </main>

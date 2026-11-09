@@ -52,8 +52,8 @@
         <li class="toc-group">Reference</li>
         <li><a href="docs.html" class="here">Codecs</a></li>
         <li><a href="predictors.html">Predictors</a></li>
-        <li><a href="fused.html">Fused</a></li>
         <li><a href="streams.html">Streams</a></li>
+        <li><a href="fused.html">Fused</a></li>
         <li><a href="near-lossless.html">Near-lossless</a></li>
         <li class="toc-group">CPU decoding</li>
         <li><a href="cpu.html">Inside the CPU decoder</a></li>
@@ -98,7 +98,7 @@ out = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)</code></pre>
         <img src="assets/svg/codecs-light/geozl-map.svg" alt="The seventeen GeoZL codecs by where they sit in a graph. Split, nodata and deinterleave. Quantize, quant_linear, quant_log and quant_sqrt. Predict, delta_w, delta_n, planar, med, average and wp_static. Code, pfor and lanes, next to OpenZL's zigzag, transpose, entropy and zstd. Fused codecs run predict and code in one pass, planar_zigzag, med_zigzag, planar_zigzag_pfor and planar_zigzag_lanes. pfor, lanes and the two fused codecs ending in them also decode on the GPU." loading="lazy">
         <figcaption>The first two slots are optional. Codecs marked <b>gpu</b> also decode on the GPU.</figcaption>
       </figure>
-      <p>The four codec families are on separate pages. <a href="predictors.html"><b>Predictors</b></a> turn samples into small residuals. <a href="fused.html"><b>Fused</b></a> codecs run a common chain in one pass, and <code>planar&gt;zigzag</code> in the picture above is really one of them. <a href="streams.html"><b>Stream</b></a> codecs split and pack. <a href="near-lossless.html"><b>Quantizers</b></a> trade a bounded error for smaller numbers. Each codec ends with its CTid, its header and the call that builds it.</p>
+      <p>The four codec families are on separate pages. <a href="predictors.html"><b>Predictors</b></a> turn samples into small residuals. <a href="streams.html"><b>Stream</b></a> codecs split and pack. <a href="fused.html"><b>Fused</b></a> codecs run a common chain in one pass, and <code>planar&gt;zigzag</code> in the picture above is really one of them. <a href="near-lossless.html"><b>Quantizers</b></a> trade a bounded error for smaller numbers. Each codec ends with its CTid, its header and the call that builds it.</p>
 
       <nav class="pager" aria-label="Pages">
         <a class="next" href="predictors.html"><span>Next</span>Predictors</a>
@@ -109,8 +109,8 @@ out = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)</code></pre>
       <p class="toc-title">Families</p>
       <ol class="toc-sections">
         <li><a href="predictors.html"><span>Predictors</span></a></li>
-        <li><a href="fused.html"><span>Fused</span></a></li>
         <li><a href="streams.html"><span>Streams</span></a></li>
+        <li><a href="fused.html"><span>Fused</span></a></li>
         <li><a href="near-lossless.html"><span>Near-lossless</span></a></li>
       </ol>
     </nav>

@@ -52,8 +52,8 @@
         <li class="toc-group">Reference</li>
         <li><a href="docs.html">Codecs</a></li>
         <li><a href="predictors.html">Predictors</a></li>
-        <li><a href="fused.html">Fused</a></li>
         <li><a href="streams.html" class="here">Streams</a></li>
+        <li><a href="fused.html">Fused</a></li>
         <li><a href="near-lossless.html">Near-lossless</a></li>
         <li class="toc-group">CPU decoding</li>
         <li><a href="cpu.html">Inside the CPU decoder</a></li>
@@ -70,8 +70,8 @@
     <article class="content">
 <h1>Streams</h1>
       <p><b>deinterleave</b> and <b>nodata</b> split one stream into two before anything else runs. <b>pfor</b> and <b>lanes</b> are <b>terminals</b> that turn numbers into bytes, after any predictor or none.</p>
-      <section class="codec" id="deinterleave" data-no="11" data-ctid="0x72D704" data-fam="green" data-page="codecs/deinterleave.html" style="--fam:var(--green)">
-        <h3><span class="num">11</span>deinterleave</h3>
+      <section class="codec" id="deinterleave" data-no="07" data-ctid="0x72D704" data-fam="green" data-page="codecs/deinterleave.html" style="--fam:var(--green)">
+        <h3><span class="num">07</span>deinterleave</h3>
         <p><b>deinterleave</b> sends <b>even positions to one stream and odd positions to another</b>, without looking at the values. Each part of an interleaved raster, such as real and imaginary, can then follow its own path.</p>
         <figure class="diagram stepper" data-beats="2.3,5.1,8">
           <img src="assets/svg/codecs-light/deinterleave.svg" alt="deinterleave splits one interleaved stream into an even lane and an odd lane by position" loading="lazy">
@@ -94,8 +94,8 @@ o[2 * k + 1] = odd[k];</code></pre>
         <pre><code>geozl.lossless.Deinterleave()</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/deinterleave" rel="noopener noreferrer">Source in core/src/deinterleave</a></p>
       </section>
-      <section class="codec" id="nodata" data-no="12" data-ctid="0x72D70C" data-fam="green" data-page="codecs/nodata.html" style="--fam:var(--green)">
-        <h3><span class="num">12</span>nodata</h3>
+      <section class="codec" id="nodata" data-no="08" data-ctid="0x72D70C" data-fam="green" data-page="codecs/nodata.html" style="--fam:var(--green)">
+        <h3><span class="num">08</span>nodata</h3>
         <p><b>nodata</b> takes the holes out before anything predicts. It writes a <b>validity mask</b> and fills each hole with the last valid sample of its row, or the sample above when the hole opens the row.</p>
         <figure class="diagram stepper" data-beats="2.2,4.5,6.8,9">
           <img src="assets/svg/codecs-light/nodata.svg" alt="nodata splits the raster into a filled value stream and a validity mask. Holes are filled from the west neighbour, and on decode the stored pattern is written back wherever the mask is zero" loading="lazy">
@@ -118,8 +118,8 @@ o[i] = mask[i] == 0 ? pattern : v[i];</code></pre>
         <pre><code>geozl.lossless.Nodata(width, value, dtype, radius)</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/nodata" rel="noopener noreferrer">Source in core/src/nodata</a></p>
       </section>
-      <section class="codec" id="pfor" data-no="13" data-ctid="0x72D70D" data-fam="green" data-page="codecs/pfor.html" style="--fam:var(--green)">
-        <h3><span class="num">13</span>pfor</h3>
+      <section class="codec" id="pfor" data-no="09" data-ctid="0x72D70D" data-fam="green" data-page="codecs/pfor.html" style="--fam:var(--green)">
+        <h3><span class="num">09</span>pfor</h3>
         <p><b>pfor</b> packs each block at <b>the bit width that block needs</b> and patches the few values that overflow it.</p>
         <figure class="diagram mid stepper" data-beats="1.2,2.8,4.8,6.8,8.8">
           <img src="assets/svg/codecs-light/pfor.svg?v=3" alt="pfor packs a block of 256 values at the bit width the block needs and patches the values that overflow it" loading="lazy">
@@ -144,8 +144,8 @@ for (j = 0; j &lt; nexc; j++) v[pos[j]] |= hi[j] &lt;&lt; b;</code></pre>
         <pre><code>geozl.lossless.Pfor()</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/pfor" rel="noopener noreferrer">Source in core/src/pfor</a></p>
       </section>
-      <section class="codec" id="lanes" data-no="14" data-ctid="0x72D713" data-fam="green" data-page="codecs/lanes.html" style="--fam:var(--green)">
-        <h3><span class="num">14</span>lanes</h3>
+      <section class="codec" id="lanes" data-no="10" data-ctid="0x72D713" data-fam="green" data-page="codecs/lanes.html" style="--fam:var(--green)">
+        <h3><span class="num">10</span>lanes</h3>
         <p><b>lanes</b> is the PivCo lane coder without a predictor. It splits each element into <b>byte lanes</b> and codes each lane with PivCo Huffman or byte PFOR, whichever is smaller.</p>
         <figure class="diagram">
           <img src="assets/svg/codecs-light/lanes.svg" alt="Numeric values split into byte lanes, each sent to PivCo Huffman or PFOR" loading="lazy">
@@ -174,18 +174,18 @@ for (i = 0; i &lt; n; i++) {
       </section>
 
       <nav class="pager" aria-label="Pages">
-        <a class="prev" href="fused.html"><span>Previous</span>Fused</a>
-        <a class="next" href="near-lossless.html"><span>Next</span>Near-lossless</a>
+        <a class="prev" href="predictors.html"><span>Previous</span>Predictors</a>
+        <a class="next" href="fused.html"><span>Next</span>Fused</a>
       </nav>
     </article>
 
     <nav class="toc onpage" aria-label="On this page">
       <p class="toc-title">On this page</p>
       <ol class="toc-sections">
-        <li><a href="#deinterleave"><span class="toc-no">11</span><span>deinterleave</span></a></li>
-        <li><a href="#nodata"><span class="toc-no">12</span><span>nodata</span></a></li>
-        <li><a href="#pfor"><span class="toc-no">13</span><span>pfor</span></a></li>
-        <li><a href="#lanes"><span class="toc-no">14</span><span>lanes</span></a></li>
+        <li><a href="#deinterleave"><span class="toc-no">07</span><span>deinterleave</span></a></li>
+        <li><a href="#nodata"><span class="toc-no">08</span><span>nodata</span></a></li>
+        <li><a href="#pfor"><span class="toc-no">09</span><span>pfor</span></a></li>
+        <li><a href="#lanes"><span class="toc-no">10</span><span>lanes</span></a></li>
       </ol>
     </nav>
   </main>
