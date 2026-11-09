@@ -253,7 +253,7 @@ def _delta_w_with_a_plane_count():
     from geozl._codec import spatial_predictor
 
     node, _ = spatial_predictor(0x72D701, "geozl.lossless.delta_w",
-                                "delta_w_encode", "delta_w_decode")
+                                "delta_w_encode", "delta_w_decode", "")
     return _frame(node(8, planes=2), np.arange(64, dtype=np.uint16))
 
 

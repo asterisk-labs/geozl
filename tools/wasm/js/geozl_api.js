@@ -129,7 +129,11 @@ export async function createGeoZL(options = {}) {
         throw new Error('data length does not match width and planes');
       }
 
-      const capacity = 1024 + data.length + Math.floor(data.length / 2);
+      const bound = mod._geozl_wasm_compress_bound(mem.wasm64(data.length), mem.wasm64(0));
+      if (bound === 0n || bound > BigInt(Number.MAX_SAFE_INTEGER)) {
+        throw new Error('data is too large to compress');
+      }
+      const capacity = Number(bound);
       let methodPtr = 0;
       let errorPtr = 0;
       let srcPtr = 0;
@@ -188,17 +192,22 @@ export async function createGeoZL(options = {}) {
       let errorCtxPtr = 0;
       try {
         framePtr = mem.writeBytes(frame);
-        const rawSize = mod._geozl_wasm_frame_dsize(mem.wasm64(framePtr), mem.wasm64(frame.length));
-        if (rawSize === 0n) throw new Error('decompress failed: unreadable frame');
-        if (rawSize > BigInt(Number.MAX_SAFE_INTEGER)) {
-          throw new Error('frame output is too large for JavaScript');
+        outSizePtr = mem.malloc(8);
+        const sizeCode = mod._geozl_wasm_frame_dsize(
+          mem.wasm64(framePtr),
+          mem.wasm64(frame.length),
+          mem.wasm64(outSizePtr),
+        );
+        if (sizeCode !== 0) {
+          const error = new Error(`decompress failed: unreadable frame (ZL error ${sizeCode})`);
+          error.code = sizeCode;
+          throw error;
         }
-        const size = Number(rawSize);
+        const size = loadSize(mod, outSizePtr);
         if (maxOutputSize !== null && size > maxOutputSize) {
           throw new Error(`frame declares ${size} bytes, above maxOutputSize ${maxOutputSize}`);
         }
         dstPtr = mem.malloc(size);
-        outSizePtr = mem.malloc(8);
         errorCtxPtr = mem.malloc(ERROR_BYTES);
         const code = mod._geozl_wasm_decompress(
           mem.wasm64(framePtr),

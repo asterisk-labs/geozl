@@ -49,7 +49,7 @@ parameterizes unbound ones for you. OpenZL built-ins follow the same pattern:
 | `geozl.lossless.Pfor()` | numeric | **serial** | successor must accept serial |
 | `geozl.lossy.QuantLinear(recipe, dtype)` | numeric | numeric | full recipe string, e.g. `"LINEAR:MAX_ERROR=0.5"` |
 | `geozl.lossy.QuantLog(recipe, dtype)` | numeric | numeric | `"LOG:MAX_ERROR=1%"` |
-| `geozl.lossy.QuantSqrt(recipe, dtype)` | numeric | numeric | recipe **must** carry `A=` and `B=` (use `fit_noise(...).recipe(k)`) |
+| `geozl.lossy.QuantSqrt(recipe, dtype)` | numeric | numeric | recipe **must** carry `A=` and `B=` (use `fit_noise(...).recipe(k)`); the constructor raises `ValueError` without them |
 
 Low-level quantizers resolve their grid from each stream they encode. There is no
 frozen domain and no cross-tile check as in `geozl.graph`; float LINEAR grids can differ
@@ -168,14 +168,15 @@ component per pixel.
 No OpenZL frame, only the codec payload, useful for experiments and tests:
 
 ```python
-from geozl.lossless import pfor, planar_zigzag_pfor
+from geozl import lossless
 
-packed = pfor.encode(values)                          # 1-D numeric array
-same = pfor.decode(packed, values.size, values.dtype)
-pfor.bound(n, itemsize)                               # worst-case size, 0 for invalid geometry
+packed = lossless.pfor_encode(values)                 # 1-D numeric array
+same = lossless.pfor_decode(packed, values.size, values.dtype)
+lossless.pfor_bound(n, itemsize)                      # worst-case size, 0 for invalid geometry
 
-payload = planar_zigzag_pfor.encode(raster, width, planes=1)
-back = planar_zigzag_pfor.decode(payload, raster.size, raster.dtype, width, planes=1)
+payload = lossless.planar_zigzag_pfor_encode(raster, width, planes=1)
+back = lossless.planar_zigzag_pfor_decode(payload, raster.size, raster.dtype, width, planes=1)
 ```
 
-`planar_zigzag_pfor.encode` produces the same bytes as `planar_zigzag` followed by `pfor`.
+`planar_zigzag_pfor_encode` produces the same bytes as `planar_zigzag` followed by
+`pfor`. This is the payload the GPU decoder expands.

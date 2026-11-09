@@ -47,10 +47,16 @@ ZL_NodeID geozl_node_average(ZL_Compressor *c, uint32_t width, uint32_t planes);
 ZL_NodeID geozl_node_wp_static(ZL_Compressor *c, uint32_t width, uint32_t planes);
 ZL_NodeID geozl_node_deinterleave(ZL_Compressor *c);
 ZL_NodeID geozl_node_pfor(ZL_Compressor *c);
-// params must come from the spec parsers and resolvers (quant_*_parse, _scan, _resolve)
+// From resolved parameters, the fields a quantizer's codec header carries.
 ZL_NodeID geozl_node_quant_linear(ZL_Compressor *c, const quant_linear_params *params, int dtype);
 ZL_NodeID geozl_node_quant_log(ZL_Compressor *c, const quant_log_params *params, int dtype);
 ZL_NodeID geozl_node_quant_sqrt(ZL_Compressor *c, const quant_sqrt_params *params, int dtype);
+// From an error recipe, with the parse, SQRT fit and resolve geozl_2d_graph_open_c
+// runs. src fixes the grid and later tiles are not checked against it. A SQRT
+// recipe without A and B reads src as rows of width samples for its fit.
+// ZL_NODE_ILLEGAL on failure, including a lossless recipe, with errCtx set.
+ZL_NodeID geozl_node_quant(ZL_Compressor *c, const char *error, uint32_t width, int dtype,
+                           const void *src, size_t numElts, char *errCtx, size_t errCtxSize);
 
 typedef enum { GEOZL_NODATA_NONE = 0, GEOZL_NODATA_NAN = 1, GEOZL_NODATA_VALUE = 2 } geozl_nodata_mode;
 // VALUE mode needs the sample dtype. The radius is the maximum error of the
@@ -65,11 +71,12 @@ High-level raster API (the same engine the Python `profile`, `graph`, `compress`
 | Function | Purpose |
 | --- | --- |
 | `geozl_2d_compress_c(method, width, planes, error, dtype, nodataMode, nodataBits, src, numElts, eltWidth, dst, dstCapacity, &outSize, errCtx, errCtxSize)` | one-shot compress |
-| `geozl_2d_graph_open_c(&g, method, width, planes, error, dtype, nodataMode, nodataBits, src, numElts, eltWidth, errCtx, errCtxSize)` | build a reusable graph; `src` fixes the lossy domain |
+| `geozl_2d_graph_open_c(&g, method, width, planes, error, dtype, nodataMode, nodataBits, src, numElts, eltWidth, errCtx, errCtxSize)` | build a reusable graph; `src` fixes the lossy grid and the tiles it accepts |
 | `geozl_2d_compress_graph_c(g, src, numElts, dst, dstCapacity, &outSize, errCtx, errCtxSize)` | compress one tile |
 | `geozl_2d_compress_coeffs_c(g, src, numElts, coeffs, coeffsSize, dst, ...)` | same, attaching a `geozl_coeffs_pack` blob |
 | `geozl_2d_graph_close_c(g)` | free; accepts `NULL` |
-| `geozl_2d_frame_dsize_c(frame, frameSize)` | decompressed byte size, 0 when unreadable |
+| `geozl_2d_frame_dsize_c(frame, frameSize, &outSize)` | decompressed byte size into `outSize`; `0` on success (an empty frame gives size 0), a `ZL_ErrorCode` when unreadable |
+| `geozl_2d_compress_bound_c(srcSize, coeffsSize)` | largest frame a compress call writes for `srcSize` bytes and a `coeffsSize` blob (0 for none); 0 on overflow |
 | `geozl_2d_decompress_c(frame, frameSize, dst, dstCapacity, &outSize, verify, errCtx, errCtxSize)` | decode; `dst` must be 8-byte aligned |
 | `geozl_2d_frame_coeffs_c(frame, frameSize, dst, dstCapacity, &outSize)` | copy the coefficient blob; `dst == NULL` queries the size; `-1` when absent |
 | `geozl_2d_bench_c(method, width, planes, error, dtype, nodataMode, nodataBits, src, numElts, eltWidth, reps, checksum, verify, &compSize, &encSec, &decSec, errCtx, errCtxSize)` | time one recipe |
@@ -120,17 +127,19 @@ int main(void) {
                                  sizeof(uint16_t), err, sizeof(err));
   if (rc != 0) { fprintf(stderr, "open: %s (code %d)\n", err, rc); return 1; }
 
-  size_t cap = 1024 + sizeof(tile) + sizeof(tile) / 2;
+  size_t cap = geozl_2d_compress_bound_c(sizeof(tile), 0);
   void *frame = malloc(cap);
   size_t fsize = 0;
   rc = geozl_2d_compress_graph_c(g, tile, H * W, frame, cap, &fsize, err, sizeof(err));
   if (rc != 0) { fprintf(stderr, "compress: %s (code %d)\n", err, rc); return 2; }
 
-  size_t dsize = geozl_2d_frame_dsize_c(frame, fsize);
+  size_t dsize = 0;
+  rc = geozl_2d_frame_dsize_c(frame, fsize, &dsize);
+  if (rc != 0) { fprintf(stderr, "unreadable frame (code %d)\n", rc); return 3; }
   uint16_t *back = malloc(dsize ? dsize : 1);   // malloc memory is suitably aligned
   size_t outSize = 0;
   rc = geozl_2d_decompress_c(frame, fsize, back, dsize, &outSize, 1, err, sizeof(err));
-  if (rc != 0) { fprintf(stderr, "decompress: %s (code %d)\n", err, rc); return 3; }
+  if (rc != 0) { fprintf(stderr, "decompress: %s (code %d)\n", err, rc); return 4; }
 
   printf("frame %zu bytes, decoded %zu bytes\n", fsize, outSize);
   free(back);
@@ -174,7 +183,7 @@ int roundtrip_u16(const uint16_t *tile, uint32_t width, size_t count) {
   if (ZL_isError(ZL_CCtx_setParameter(cctx, ZL_CParam_formatVersion, ZL_MAX_FORMAT_VERSION))) return 4;
   // A lossy node also needs ZL_CParam_contentChecksum set to ZL_TernaryParam_disable.
 
-  size_t cap = 1024 + 2 * count * sizeof(uint16_t);
+  size_t cap = ZL_compressBound(count * sizeof(uint16_t));   // one input, store on expansion
   void *frame = malloc(cap);
   ZL_TypedRef *in = ZL_TypedRef_createNumeric(tile, sizeof(uint16_t), count);
   ZL_Report r = ZL_CCtx_compressTypedRef(cctx, frame, cap, in);

@@ -101,6 +101,8 @@ class _Encoder(_ext.CustomEncoder):
 
 
 class NodataDecoder(_ext.CustomDecoder):
+    """Decoder for ``geozl.lossless.nodata`` frames."""
+
     def multi_input_description(self):
         return _desc
 

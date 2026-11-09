@@ -28,6 +28,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reader. `geozl.coeffs` reports an error on a frame older than format 22
   instead of reporting no coefficients.
 - The quantizer recipe parsers refuse `STORE` as an unknown key.
+- `geozl_2d_frame_dsize_c` returns 0 or a `ZL_ErrorCode` and writes the size to
+  a new `outSize` argument, so an empty frame and an unreadable one no longer
+  both read as size 0. The R, Julia and WASM bindings report an unreadable frame
+  from this call.
+- `geozl_2d_grid_c` names its first argument `prior`, the profiler prior it has
+  always taken.
+- `geozl.lossless.DeltaW` takes only `width`. The codec reads only to the left
+  and its header carries no plane count, so the `planes` argument it refused
+  is gone.
+- `geozl.Graph` and `geozl.ProfileResults` raise `TypeError` when called. They
+  stay exported for `isinstance` and annotations, and `graph` and `profile`
+  make them.
+- The raw payload helpers move into `geozl.lossless` as `pfor_bound`,
+  `pfor_encode`, `pfor_decode`, `planar_zigzag_pfor_bound`,
+  `planar_zigzag_pfor_encode` and `planar_zigzag_pfor_decode`, in place of
+  `bound`, `encode` and `decode` on the `pfor` and `planar_zigzag_pfor`
+  submodules.
+
+### Added
+
+- `geozl_node_quant` builds a quantizer node from an error recipe and a sample
+  raster, with the parse, SQRT fit and resolve `geozl_2d_graph_open_c` runs, so
+  C callers no longer need the internal `quant_*_parse` and `quant_*_resolve`.
+- `geozl_2d_compress_bound_c` returns an upper bound on every frame a compress
+  call writes. Python, R, Julia, WASM and `geozl_2d_bench_c` size their output
+  with it in place of a 1024 plus 1.5 times guess.
+- Docstrings for every codec node and decoder in `geozl.lossless` and
+  `geozl.lossy`.
 
 ### Removed
 
@@ -37,6 +65,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `geozl.register_decoders` raises `ModuleNotFoundError` naming `openzl` when
   the package imported without it, instead of a `NameError`.
+- `geozl.lossy.QuantSqrt` refuses a recipe without `A` and `B` with a
+  `ValueError` when built, instead of a `RuntimeError` from `cctx.compress`.
+- The `geozl.compress` docstring, the API page and the C header state the lossy
+  domain check exactly. Integer `LINEAR` and every `LOG` grid span the whole
+  dtype, so only the sign is checked there.
+- The WASM `decompress` reads a frame that decodes to zero bytes instead of
+  calling it unreadable.
 
 ## [0.31.0] - 2026-11-05
 

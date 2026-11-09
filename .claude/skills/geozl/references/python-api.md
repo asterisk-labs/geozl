@@ -59,7 +59,9 @@ Each row is a `dict`:
 | `shannon_pct` | Order-0 byte entropy size of the raw tile over `bytes`, in percent. Above 100 means the graph found structure a byte histogram cannot see |
 
 `ProfileResults` is a `list` subclass with attributes `shape`, `dtype`, `raw_bytes`,
-`width`, `planes`, `prior`, `reps`, `error` (normalized recipe or `None`).
+`width`, `planes`, `prior`, `reps`, `error` (normalized recipe or `None`). Only
+`profile` makes one; `geozl.ProfileResults(...)` raises `TypeError`, and the type is
+exported for `isinstance` and annotations.
 `print(rows)` renders them as a header plus a table:
 
 ```text
@@ -109,7 +111,9 @@ What `graph()` fixes, and what it means later:
 
 `Graph` attributes: `method`, `width`, `planes`, `dtype` (read-only), `itemsize`,
 `error` (normalized recipe string or `None`), `nodata` (the argument you passed; it
-stays `None` even when NaN mode was detected automatically).
+stays `None` even when NaN mode was detected automatically). Only `graph()` makes one;
+`geozl.Graph(...)` raises `TypeError`, and the type is exported for `isinstance` and
+annotations.
 
 ## 4. `compress`
 
@@ -122,10 +126,15 @@ geozl.compress(tile, *, graph, coeffs=None) -> bytes
 - Output is deterministic for the same tile and graph, and every frame decodes on
   its own: frames from one graph do not depend on each other.
 - Lossy graphs check the tile against the build domain first and raise
-  `RuntimeError(... build the graph from the full product)` when it falls outside.
-  A declared sentinel is excluded from that check. NaN and infinity are not checked,
-  apart from LOG refusing `-inf` on a graph built without negatives.
-- The output buffer is sized to `1024 + 1.5 * tile.nbytes`, enough for incompressible data.
+  `RuntimeError(... build the graph from the full product)` when the grid cannot hold
+  it to its bound. That is a negative sample when the raster had none, a float magnitude
+  above the raster's under LINEAR, or a value outside the raster's range under SQRT. Integer
+  LINEAR and every LOG grid span the whole dtype, so only the sign is checked there
+  (`lossy.md` section 5). A declared sentinel is excluded from that check. NaN and
+  infinity are not checked, apart from LOG refusing `-inf` on a graph built without
+  negatives.
+- The output buffer is sized by `geozl_2d_compress_bound_c`, a true upper bound for
+  every frame, incompressible data and coefficients included.
 - `coeffs` attaches integer metadata to this frame only (section 6).
 
 ## 5. `decompress`

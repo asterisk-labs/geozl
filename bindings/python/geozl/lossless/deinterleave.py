@@ -39,6 +39,8 @@ class _Encoder(_ext.CustomEncoder):
 
 
 class DeinterleaveDecoder(_ext.CustomDecoder):
+    """Decoder for ``geozl.lossless.deinterleave`` frames."""
+
     def multi_input_description(self):
         return _desc
 
@@ -56,6 +58,12 @@ class DeinterleaveDecoder(_ext.CustomDecoder):
 
 
 class Deinterleave:
+    """Split a stream into its even and odd samples.
+
+    Complex samples stored as real and imaginary pairs become one lane of
+    each. Both lanes go to the one successor the node is called with.
+    """
+
     def __call__(self, compressor, successor):
         if not isinstance(successor, _ext.GraphID):
             successor = successor.parameterize(compressor)

@@ -5,10 +5,16 @@ from .delta_w import DeltaW, DeltaWDecoder
 from .med import Med, MedDecoder
 from .med_zigzag import MedZigzag, MedZigzagDecoder
 from .nodata import Nodata, NodataDecoder, nodata_bits
-from .pfor import Pfor, PforDecoder
+from .pfor import Pfor, PforDecoder, pfor_bound, pfor_decode, pfor_encode
 from .planar import Planar, PlanarDecoder
 from .planar_zigzag import PlanarZigzag, PlanarZigzagDecoder
-from .planar_zigzag_pfor import PlanarZigzagPfor, PlanarZigzagPforDecoder
+from .planar_zigzag_pfor import (
+    PlanarZigzagPfor,
+    PlanarZigzagPforDecoder,
+    planar_zigzag_pfor_bound,
+    planar_zigzag_pfor_decode,
+    planar_zigzag_pfor_encode,
+)
 from .wp_static import WpStatic, WpStaticDecoder
 
 _DECODERS = (
@@ -27,4 +33,6 @@ __all__ = [
     "PlanarZigzag", "PlanarZigzagDecoder", "PlanarZigzagPfor",
     "PlanarZigzagPforDecoder",
     "WpStatic", "WpStaticDecoder", "component_dtype", "nodata_bits",
+    "pfor_bound", "pfor_decode", "pfor_encode", "planar_zigzag_pfor_bound",
+    "planar_zigzag_pfor_decode", "planar_zigzag_pfor_encode",
 ]

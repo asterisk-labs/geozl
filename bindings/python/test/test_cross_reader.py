@@ -2,6 +2,8 @@
 sides pack the same wire format. This is the guard that they agree. A frame from
 one side reads on the other, byte for byte on a lossy frame.
 """
+import inspect
+
 import numpy as np
 import pytest
 
@@ -240,15 +242,16 @@ def test_pfor_decodes_a_tile_that_packs_to_the_minimum(n):
 
 
 def test_c_and_python_pfor_bindings_write_the_same_bytes():
-    from geozl.lossless import pfor as _pfor
     for dtype in ("uint8", "uint16", "uint32", "uint64"):
         arr = _tile(dtype).reshape(-1)
         frame = _frame_from_c(arr, "id>pfor", width=arr.size)
-        assert _pfor.encode(arr) in frame
+        assert geozl.lossless.pfor_encode(arr) in frame
 
 
 def test_delta_w_takes_no_plane_count():
-    with pytest.raises(ValueError, match="does not support planes"):
+    """The codec header carries no plane count, so the node has no parameter."""
+    assert list(inspect.signature(geozl.lossless.DeltaW).parameters) == ["width"]
+    with pytest.raises(TypeError):
         geozl.lossless.DeltaW(_W, planes=_B)
 
 

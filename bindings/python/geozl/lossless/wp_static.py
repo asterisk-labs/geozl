@@ -60,6 +60,8 @@ class _WpStaticEncoder(_ext.CustomEncoder):
 
 
 class WpStaticDecoder(_ext.CustomDecoder):
+    """Decoder for ``geozl.lossless.wp_static`` frames."""
+
     def multi_input_description(self):
         return _desc
 
@@ -97,6 +99,13 @@ class WpStaticDecoder(_ext.CustomDecoder):
 
 
 class WpStatic:
+    """Predict each sample as its left neighbour plus four weighted samples above.
+
+    The four weights and a shift are fitted to each stream and shared by all
+    planes. ``width`` is the row length in samples and ``planes`` counts
+    stacked images, with the predictor reset at the first row of each.
+    """
+
     def __init__(self, width, planes=1):
         self._width = int(width)
         self._planes = int(planes)

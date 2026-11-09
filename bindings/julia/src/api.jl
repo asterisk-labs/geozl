@@ -176,8 +176,9 @@ function compress(x::AbstractArray, g::Graph; coeffs=nothing)
         throw(ArgumentError("this graph was built for $(g.eltype), got $(eltype(a))"))
     bytes = sizeof(a)
     blob = coeffs === nothing ? UInt8[] : _pack_coeffs(coeffs)
-    # Past the worst case; an incompressible tile still fits in 1.5x.
-    cap = 1024 + bytes + bytes ÷ 2 + length(blob)
+    cap = ccall(_sym(:geozl_2d_compress_bound_c), Csize_t, (Csize_t, Csize_t),
+                bytes, length(blob))
+    cap == 0 && throw(GeoZLError("compress: a tile of $bytes bytes has no frame size bound"))
     dst = Vector{UInt8}(undef, cap)
     outsize = Ref{Csize_t}(0)
     buf = zeros(UInt8, _ERR_SIZE)
@@ -205,8 +206,11 @@ function _frame_size(frame::Vector{UInt8}, max_output_size)
                 isfinite(max_output_size) && max_output_size >= 0
         valid || throw(ArgumentError("`max_output_size` must be a finite, non-negative number"))
     end
-    dsize = GC.@preserve frame ccall(_sym(:geozl_2d_frame_dsize_c), Csize_t,
-                                     (Ptr{UInt8}, Csize_t), frame, length(frame))
+    size = Ref{Csize_t}(0)
+    rc = GC.@preserve frame ccall(_sym(:geozl_2d_frame_dsize_c), Cint,
+                                  (Ptr{UInt8}, Csize_t, Ref{Csize_t}), frame, length(frame), size)
+    rc == 0 || throw(GeoZLError("decompress: unreadable frame (ZL error code $rc)"))
+    dsize = size[]
     if max_output_size !== nothing && dsize > max_output_size
         throw(GeoZLError("decompress: the frame declares $dsize bytes of output, above " *
                          "the $max_output_size allowed"))
@@ -216,8 +220,8 @@ end
 
 # `out` is a fresh Array; Julia aligns those past the 8 bytes numeric output needs.
 function _decompress!(out::Array, frame::Vector{UInt8}, verify::Bool)
-    # A declared size of zero may also be an unreadable frame. Use aligned
-    # scratch storage so the decoder can tell them apart.
+    # An empty frame still gets aligned scratch storage, so the pointer is
+    # never NULL.
     empty = sizeof(out) == 0
     dst = empty ? Vector{UInt64}(undef, 1) : out
     capacity = empty ? 1 : sizeof(out)
@@ -226,10 +230,7 @@ function _decompress!(out::Array, frame::Vector{UInt8}, verify::Bool)
     rc = GC.@preserve dst frame ccall(_sym(:geozl_2d_decompress_c), Cint,
         (Ptr{UInt8}, Csize_t, Ptr{Cvoid}, Csize_t, Ref{Csize_t}, Cint, Ptr{UInt8}, Csize_t),
         frame, length(frame), dst, capacity, outsize, verify, buf, length(buf))
-    if rc != 0
-        empty && throw(GeoZLError("decompress: unreadable frame"))
-        throw(GeoZLError("decompress failed: $(_errmsg(buf)) (ZL error code $rc)"))
-    end
+    rc == 0 || throw(GeoZLError("decompress failed: $(_errmsg(buf)) (ZL error code $rc)"))
     outsize[] == sizeof(out) ||
         throw(GeoZLError("decompress: the frame held $(outsize[]) bytes, not $(sizeof(out))"))
     return out

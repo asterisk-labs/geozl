@@ -94,11 +94,26 @@ def test_api_page_python_signatures_match_the_code():
 
     geozl = importlib.import_module("geozl")
     expected = {f"geozl.{name}" for name in geozl.__all__
-                if callable(getattr(geozl, name)) and not inspect.ismodule(getattr(geozl, name))}
+                if callable(getattr(geozl, name)) and not inspect.ismodule(getattr(geozl, name))
+                and name not in RETURNED_TYPES}
     for module in (geozl.lossless, geozl.lossy):
         expected |= {f"{module.__name__}.{name}" for name in module.__all__
                      if not name.endswith("Decoder")}
     assert expected <= names, f"undocumented: {sorted(expected - names)}"
+
+
+# Exported for isinstance and annotations, but only graph() and profile() make
+# them, so the page shows them under a heading and without a call signature.
+RETURNED_TYPES = ("Graph", "ProfileResults")
+
+
+def test_api_page_lists_the_returned_types_without_a_constructor():
+    body = API.read_text(encoding="utf-8")
+    geozl = importlib.import_module("geozl")
+    for name in RETURNED_TYPES:
+        assert name in geozl.__all__
+        assert re.search(rf'<h3 id="[^"]+">{name}</h3>', body), name
+        assert f"geozl.{name}(" not in body, name
 
 
 def _normalize_c(decl: str) -> str:

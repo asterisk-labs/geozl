@@ -21,9 +21,15 @@ EMSCRIPTEN_KEEPALIVE int geozl_wasm_compress(
                              dstCapacity, outSize, errCtx, errCtxSize);
 }
 
-EMSCRIPTEN_KEEPALIVE size_t geozl_wasm_frame_dsize(const void *frame,
-                                                   size_t frameSize) {
-  return geozl_2d_frame_dsize_c(frame, frameSize);
+EMSCRIPTEN_KEEPALIVE int geozl_wasm_frame_dsize(const void *frame,
+                                                size_t frameSize,
+                                                size_t *outSize) {
+  return geozl_2d_frame_dsize_c(frame, frameSize, outSize);
+}
+
+EMSCRIPTEN_KEEPALIVE size_t geozl_wasm_compress_bound(size_t srcSize,
+                                                      size_t coeffsSize) {
+  return geozl_2d_compress_bound_c(srcSize, coeffsSize);
 }
 
 EMSCRIPTEN_KEEPALIVE int geozl_wasm_decompress(

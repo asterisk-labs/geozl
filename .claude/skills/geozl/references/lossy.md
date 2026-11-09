@@ -113,6 +113,10 @@ its statistics. `compress` then refuses tiles outside that domain, raising
 | LOG | only the negativity rule |
 | SQRT | any finite value leaves the build raster's `[min, max]` (`built for values from ... to ...`) |
 
+Integer LINEAR and every LOG grid span the whole dtype, so a tile of any magnitude
+keeps its bound there and only the sign can leave the grid. The check refuses exactly
+the tiles the grid cannot hold to its bound.
+
 A declared sentinel (`nodata=value`) is ignored by the check in later tiles, **but not
 when the plan is resolved**: a sentinel inside the build raster widens LINEAR and LOG
 domains, drops the non-negative clamp, and makes SQRT refuse values below `-A/B`. Build

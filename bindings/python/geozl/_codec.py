@@ -59,8 +59,12 @@ def _unpack_geometry(name, raw, nb_elts, supports_planes):
     return width, planes
 
 
-def spatial_predictor(ctid, name, encode, decode, supports_planes=True):
-    """Create OpenZL bindings for a spatial predictor."""
+def spatial_predictor(ctid, name, encode, decode, doc, supports_planes=True):
+    """Create OpenZL bindings for a spatial predictor.
+
+    ``doc`` is the node's docstring. Without ``supports_planes`` the node takes
+    only a width, as the codec header carries no plane count.
+    """
     enc = getattr(lib, encode)
     dec = getattr(lib, decode)
     short = name.rsplit(".", 1)[-1]
@@ -114,12 +118,10 @@ def spatial_predictor(ctid, name, encode, decode, supports_planes=True):
                 raise ValueError(f"{name}: bad row width in codec header")
             out.commit(n)
 
-    class Node:
+    class PlanesNode:
         def __init__(self, width, planes=1):
             self._width = int(width)
             self._planes = int(planes)
-            if not supports_planes and self._planes != 1:
-                raise ValueError(f"{name} does not support planes")
 
         def __call__(self, compressor, successor):
             if not isinstance(successor, _ext.GraphID):
@@ -128,14 +130,26 @@ def spatial_predictor(ctid, name, encode, decode, supports_planes=True):
                 Encoder(self._width, self._planes))
             return compressor.build_static_graph(node, [successor], name=name)
 
+    class WidthNode(PlanesNode):
+        def __init__(self, width):
+            super().__init__(width)
+
+    Node = PlanesNode if supports_planes else WidthNode
     Encoder.__name__ = Encoder.__qualname__ = f"_{short}_encoder"
     Decoder.__name__ = Decoder.__qualname__ = f"_{short}_decoder"
     Node.__name__ = Node.__qualname__ = f"_{short}_node"
+    Node.__doc__ = doc
+    Decoder.__doc__ = f"Decoder for ``{name}`` frames."
     return Node, Decoder
 
 
-def quantizer(ctid, name, prefix, doubles, no_grid, extra=()):
-    """Create OpenZL bindings for a lossy quantizer."""
+def quantizer(ctid, name, prefix, doubles, no_grid, doc, extra=(),
+              check=None):
+    """Create OpenZL bindings for a lossy quantizer.
+
+    ``doc`` is the node's docstring. ``check`` takes the parsed spec and returns
+    a reason to refuse it at construction, or ``None``.
+    """
     parse = getattr(lib, f"{prefix}_parse")
     scan = getattr(lib, f"{prefix}_scan")
     resolve = getattr(lib, f"{prefix}_resolve")
@@ -231,6 +245,9 @@ def quantizer(ctid, name, prefix, doubles, no_grid, extra=()):
             err = ffi.new("char[]", 256)
             if parse(recipe.encode("utf-8"), spec, err, len(err)):
                 raise ValueError(ffi.string(err).decode("utf-8", "replace"))
+            reason = None if check is None else check(spec)
+            if reason is not None:
+                raise ValueError(f"{name}: recipe {recipe!r} {reason}")
             self._spec = spec
             self._dtype = code
 
@@ -244,4 +261,6 @@ def quantizer(ctid, name, prefix, doubles, no_grid, extra=()):
     Encoder.__name__ = Encoder.__qualname__ = f"_{short}_encoder"
     Decoder.__name__ = Decoder.__qualname__ = f"_{short}_decoder"
     Node.__name__ = Node.__qualname__ = f"_{short}_node"
+    Node.__doc__ = doc
+    Decoder.__doc__ = f"Decoder for ``{name}`` frames."
     return Node, Decoder

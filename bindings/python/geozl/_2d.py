@@ -163,20 +163,39 @@ def _dtype_arg(arr: np.ndarray, error: str | None) -> int:
 
 
 class ProfileResults(list[dict[str, Any]]):
-    """Profile rows with the input and benchmark settings used to make them."""
+    """Profile rows with the input and benchmark settings used to make them.
 
-    def __init__(self, *, shape: tuple[int, ...], dtype: np.dtype,
-                 raw_bytes: int, width: int, planes: int, prior: str | None,
-                 reps: int, error: str | None) -> None:
-        super().__init__()
-        self.shape = shape
-        self.dtype = dtype
-        self.raw_bytes = raw_bytes
-        self.width = width
-        self.planes = planes
-        self.prior = prior
-        self.reps = reps
-        self.error = error
+    ``geozl.profile`` returns one. The type is exported for ``isinstance`` and
+    annotations, and calling it raises ``TypeError``.
+    """
+
+    shape: tuple[int, ...]
+    dtype: np.dtype
+    raw_bytes: int
+    width: int
+    planes: int
+    prior: str | None
+    reps: int
+    error: str | None
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        raise TypeError("geozl.ProfileResults is returned by geozl.profile and "
+                        "cannot be created directly")
+
+    @classmethod
+    def _new(cls, *, shape: tuple[int, ...], dtype: np.dtype, raw_bytes: int,
+             width: int, planes: int, prior: str | None, reps: int,
+             error: str | None) -> "ProfileResults":
+        rows = list.__new__(cls)
+        rows.shape = shape
+        rows.dtype = dtype
+        rows.raw_bytes = raw_bytes
+        rows.width = width
+        rows.planes = planes
+        rows.prior = prior
+        rows.reps = reps
+        rows.error = error
+        return rows
 
     def __str__(self) -> str:
         axes = {
@@ -222,23 +241,42 @@ class ProfileResults(list[dict[str, Any]]):
 class Graph:
     """A reusable compression graph.
 
+    ``geozl.graph`` returns one. The type is exported for ``isinstance`` and
+    annotations, and calling it raises ``TypeError``.
+
     A graph owns its compression context and is not thread-safe.
     """
 
     __slots__ = ("_h", "_dtype", "method", "width", "planes", "itemsize",
                  "error", "nodata")
 
-    def __init__(self, handle: Any, *, method: str, width: int, planes: int,
-                 dtype: np.dtype, itemsize: int, error: str | None,
-                 nodata: Any) -> None:
-        self._h = handle
-        self.method = method
-        self.width = width
-        self.planes = planes
-        self._dtype = dtype
-        self.itemsize = itemsize
-        self.error = error
-        self.nodata = nodata
+    _h: Any
+    _dtype: np.dtype
+    method: str
+    width: int
+    planes: int
+    itemsize: int
+    error: str | None
+    nodata: Any
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        raise TypeError("geozl.Graph is returned by geozl.graph and cannot be "
+                        "created directly")
+
+    @classmethod
+    def _new(cls, handle: Any, *, method: str, width: int, planes: int,
+             dtype: np.dtype, itemsize: int, error: str | None,
+             nodata: Any) -> "Graph":
+        g = object.__new__(cls)
+        g._h = handle
+        g.method = method
+        g.width = width
+        g.planes = planes
+        g._dtype = dtype
+        g.itemsize = itemsize
+        g.error = error
+        g.nodata = nodata
+        return g
 
     @property
     def dtype(self) -> np.dtype:
@@ -282,7 +320,7 @@ def graph(raster: ArrayLike, method: str, *, width: int | None = None,
         raise RuntimeError(f"geozl.graph failed (method={method!r}): "
                            f"{reason} (ZL error code {rc})")
 
-    return Graph(ffi.gc(out[0], lib.geozl_2d_graph_close_c),
+    return Graph._new(ffi.gc(out[0], lib.geozl_2d_graph_close_c),
                  method=method, width=width, planes=planes,
                  dtype=arr.dtype, itemsize=elt,
                  error=error_recipe, nodata=nodata)
@@ -292,10 +330,15 @@ def compress(tile: ArrayLike, *, graph: Graph,
              coeffs: CoeffVectors | None = None) -> bytes:
     """Compress ``tile`` with a prepared graph and return the frame bytes.
 
-    The dtype must match exactly. Geometry is not checked against the graph. A
-    lossy tile outside the domain used to build the graph is refused, but NaN
-    and infinity are not checked, apart from LOG refusing ``-inf`` on a graph
-    built without negatives.
+    The dtype must match exactly. Geometry is not checked against the graph.
+
+    A lossy tile the graph's grid cannot hold to its bound is refused. That is
+    a negative sample when the raster had none, a floating-point magnitude
+    above the raster's under ``LINEAR``, or a finite value outside the
+    raster's range under ``SQRT``. Integer ``LINEAR`` and every ``LOG`` grid
+    span the whole dtype, so only the sign is checked there. NaN and infinity
+    are not checked, apart from ``LOG`` refusing ``-inf`` on a graph built
+    without negatives.
 
     ``coeffs`` attaches numeric vectors to this frame. Read them back with
     ``geozl.coeffs``; geozl does not assign meaning to them.
@@ -305,16 +348,17 @@ def compress(tile: ArrayLike, *, graph: Graph,
                         f"{type(graph).__name__}")
     blob = None if coeffs is None else _pack_coeffs(coeffs)
     full = _load_lib_full()
-    arr, elt = _as_raster(tile)
+    arr, _ = _as_raster(tile)
     if arr.dtype != graph.dtype:
         raise ValueError(f"this graph was built for dtype {graph.dtype}, "
                          f"got {arr.dtype}")
     n = arr.size
 
-    # Sized past the worst case; an incompressible tile still fits in 1.5x.
-    cap = 1024 + n * elt + n * elt // 2
-    if blob is not None:
-        cap += len(blob)
+    cap = int(full.geozl_2d_compress_bound_c(
+        arr.nbytes, 0 if blob is None else len(blob)))
+    if cap == 0:
+        raise ValueError(f"a tile of {arr.nbytes} bytes has no frame size "
+                         f"bound")
     dst = np.empty(cap, np.uint8)
     out_size = ffi.new("size_t*")
     err_ctx = ffi.new("char[]", 256)
@@ -345,7 +389,12 @@ def decompress(frame: bytes, *, verify: bool = True,
     """
     lib = _load_lib_full()
     buf = np.frombuffer(frame, np.uint8)
-    dsize = int(lib.geozl_2d_frame_dsize_c(_ptr(buf), buf.size))
+    size = ffi.new("size_t*")
+    rc = lib.geozl_2d_frame_dsize_c(_ptr(buf), buf.size, size)
+    if rc != 0:
+        raise RuntimeError(f"geozl.decompress: unreadable frame (ZL error "
+                           f"code {rc})")
+    dsize = int(size[0])
     if max_output_size is not None:
         try:
             valid_limit = (not isinstance(max_output_size, (bool, np.bool_)) and
@@ -360,9 +409,8 @@ def decompress(frame: bytes, *, verify: bool = True,
                 f"geozl.decompress: the frame declares {dsize} bytes of output, "
                 f"above the {max_output_size} allowed"
             )
-    # Numeric output must be 8-byte aligned; a uint64 backing store guarantees it.
-    # An empty frame and an unreadable one both report a size of zero, so one
-    # byte gives the decoder somewhere to write and tells them apart.
+    # Numeric output must be 8-byte aligned; a uint64 backing store guarantees
+    # it. An empty frame still gets one byte, so the pointer is never NULL.
     capacity = dsize or 1
     out = np.empty((capacity + 7) // 8, np.uint64).view(np.uint8)[:capacity]
     out_size = ffi.new("size_t*")
@@ -371,8 +419,6 @@ def decompress(frame: bytes, *, verify: bool = True,
                                    out_size, int(verify), err_ctx,
                                    len(err_ctx))
     if rc != 0:
-        if dsize == 0:
-            raise RuntimeError("geozl.decompress: unreadable frame")
         reason = ffi.string(err_ctx).decode("utf-8", "replace")
         raise RuntimeError(f"geozl.decompress failed: {reason} "
                            f"(ZL error code {rc})")
@@ -432,7 +478,7 @@ def profile(tile: ArrayLike, *, prior: str | None = "planar",
     code = _dtype_arg(arr, error_recipe)
     nd_mode, nd_bits = _nodata_args(arr, nodata)
 
-    rows = ProfileResults(
+    rows = ProfileResults._new(
         shape=arr.shape, dtype=arr.dtype, raw_bytes=raw, width=width,
         planes=planes, prior=prior, reps=reps, error=error_recipe)
     failure = None

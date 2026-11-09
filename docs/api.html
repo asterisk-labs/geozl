@@ -127,7 +127,8 @@ g.error                                     # 'LINEAR:MAX_ERROR=2'</code></pre>
         <tr><th>graph</th><td>A <code>Graph</code> from <code>geozl.graph</code>.</td></tr>
         <tr><th>coeffs</th><td>Integer vectors stored in the frame header, read back with <a href="#coeffs"><code>coeffs</code></a>. At most 255 non-empty vectors of int32 values within 10,000 packed bytes. GeoZL gives them no meaning.</td></tr>
       </table>
-      <p>Raises <code>TypeError</code> when <code>graph</code> is not a <code>Graph</code> or a coefficient is not an integer. Raises <code>ValueError</code> for a dtype mismatch or coefficients past the limits. Raises <code>RuntimeError</code> when compression fails, including a lossy tile outside the graph's domain. That is a negative sample where the raster had none, a float magnitude above the raster's under <code>LINEAR</code>, or a value outside the fitted range under <code>SQRT</code>.</p>
+      <p>Raises <code>TypeError</code> when <code>graph</code> is not a <code>Graph</code> or a coefficient is not an integer. Raises <code>ValueError</code> for a dtype mismatch or coefficients past the limits. Raises <code>RuntimeError</code> when compression fails, including a lossy tile the graph's grid cannot hold to its bound.</p>
+      <p>That check refuses a negative sample where the raster had none, a floating-point magnitude above the raster's under <code>LINEAR</code>, and a finite value outside the raster's range under <code>SQRT</code>. Integer <code>LINEAR</code> and every <code>LOG</code> grid span the whole dtype, so only the sign is checked there. NaN and infinity are not checked, apart from <code>LOG</code> refusing <code>-inf</code> on a graph built without negatives.</p>
 
       <h3 id="decompress">decompress</h3>
 <pre><code class="sig">geozl.decompress(frame, *, verify=True, max_output_size=None) -&gt; ndarray</code></pre>
@@ -156,14 +157,12 @@ geozl.coeffs(frame)                         # ((1, 2, 3), (4,))</code></pre>
       <p>A boolean, a negative or non-finite number and any other string raise <code>ValueError</code>.</p>
 
       <h3 id="graph-class">Graph</h3>
-<pre><code class="sig">geozl.Graph(handle, *, method, width, planes, dtype, itemsize, error,
-    nodata)</code></pre>
-      <p>The handle <code>geozl.graph</code> returns. Its constructor takes the C graph and is not meant to be called directly. Its attributes are <code>method</code>, <code>width</code>, <code>planes</code>, <code>dtype</code>, <code>itemsize</code>, <code>error</code>, the normalized recipe or <code>None</code>, and <code>nodata</code>.</p>
+      <p>The type <code>geozl.graph</code> returns. It is exported for <code>isinstance</code> checks and annotations, and calling it raises <code>TypeError</code>.</p>
+      <p>Its attributes are <code>method</code>, <code>width</code>, <code>planes</code>, <code>dtype</code>, <code>itemsize</code>, <code>error</code>, the normalized recipe or <code>None</code>, and <code>nodata</code>.</p>
 
       <h3 id="profileresults">ProfileResults</h3>
-<pre><code class="sig">geozl.ProfileResults(*, shape, dtype, raw_bytes, width, planes, prior, reps,
-    error)</code></pre>
-      <p>A list of profile rows that also keeps the input and settings as attributes of those names. <code>print(rows)</code> shows them above the table.</p>
+      <p>The type <code>geozl.profile</code> returns. It is exported for <code>isinstance</code> checks and annotations, and calling it raises <code>TypeError</code>.</p>
+      <p>It is a list of profile rows that also keeps the input and settings as the attributes <code>shape</code>, <code>dtype</code>, <code>raw_bytes</code>, <code>width</code>, <code>planes</code>, <code>prior</code>, <code>reps</code> and <code>error</code>. <code>print(rows)</code> shows them above the table.</p>
 
       <h3 id="simd_info">simd_info</h3>
 <pre><code class="sig">geozl.simd_info() -&gt; SimdInfo</code></pre>
@@ -178,7 +177,7 @@ geozl.coeffs(frame)                         # ((1, 2, 3), (4,))</code></pre>
 
       <h2 class="part" id="lossless">geozl.lossless</h2>
       <p>The lossless codecs as <code>openzl.ext</code> nodes, for graphs the recipe grid does not cover. The module needs the <code>openzl</code> package. Where OpenZL publishes no wheel, <code>geozl.lossless</code> and <code>geozl.lossy</code> are absent from <code>geozl</code> and the calls above still work.</p>
-<pre><code class="sig">geozl.lossless.DeltaW(width, planes=1)
+<pre><code class="sig">geozl.lossless.DeltaW(width)
 geozl.lossless.DeltaN(width, planes=1)
 geozl.lossless.Planar(width, planes=1)
 geozl.lossless.PlanarZigzag(width, planes=1)
@@ -190,7 +189,7 @@ geozl.lossless.WpStatic(width, planes=1)
 geozl.lossless.Deinterleave()
 geozl.lossless.Nodata(width, value=None, dtype=None, radius=None)
 geozl.lossless.Pfor()</code></pre>
-      <p>Each instance is called as <code>node(compressor, successor)</code> and returns an <code>openzl.ext.GraphID</code>, so a graph is built from the tail. <code>Nodata</code> takes <code>(compressor, values_successor, mask_successor)</code>, and <code>Deinterleave</code> sends both lanes to its one successor. <code>PlanarZigzagPfor</code> and <code>Pfor</code> emit a serial stream. <code>DeltaW</code> raises <code>ValueError</code> for <code>planes</code> other than 1.</p>
+      <p>Each instance is called as <code>node(compressor, successor)</code> and returns an <code>openzl.ext.GraphID</code>, so a graph is built from the tail. <code>Nodata</code> takes <code>(compressor, values_successor, mask_successor)</code>, and <code>Deinterleave</code> sends both lanes to its one successor. <code>PlanarZigzagPfor</code> and <code>Pfor</code> emit a serial stream. <code>DeltaW</code> reads only to the left, so it takes no plane count.</p>
       <p>Each codec has a decoder class of the same name plus <code>Decoder</code>, such as <code>PlanarDecoder</code>, all registered by <code>register_decoders</code>. The <a href="docs.html">codec pages</a> describe what each one computes.</p>
       <table class="spec">
         <tr><th>Nodata</th><td>Splits holes into a validity mask and fills them. Pass <code>value</code> and <code>dtype</code> together for a sentinel, or neither to mask NaNs. <code>radius</code> is the largest error of later stages, 0 for a lossless graph.</td></tr>
@@ -199,14 +198,15 @@ geozl.lossless.Pfor()</code></pre>
 <pre><code class="sig">geozl.lossless.component_dtype(dtype)
 geozl.lossless.nodata_bits(value, dtype) -&gt; int</code></pre>
       <p><code>component_dtype</code> returns the real dtype of a complex dtype, <code>float32</code> for <code>complex64</code>. <code>nodata_bits</code> returns a sentinel's bit pattern as an unsigned integer, the form <code>Nodata</code> stores.</p>
-<pre><code class="sig">geozl.lossless.pfor.bound(nb_elts, elt_width)
-geozl.lossless.pfor.encode(values)
-geozl.lossless.pfor.decode(packed, nb_elts, dtype)
-geozl.lossless.planar_zigzag_pfor.bound(nb_elts, elt_width)
-geozl.lossless.planar_zigzag_pfor.encode(values, width, planes=1)
-geozl.lossless.planar_zigzag_pfor.decode(packed, nb_elts, dtype, width,
+<pre><code class="sig">geozl.lossless.pfor_bound(nb_elts, elt_width)
+geozl.lossless.pfor_encode(values)
+geozl.lossless.pfor_decode(packed, nb_elts, dtype)
+geozl.lossless.planar_zigzag_pfor_bound(nb_elts, elt_width)
+geozl.lossless.planar_zigzag_pfor_encode(values, width, planes=1)
+geozl.lossless.planar_zigzag_pfor_decode(packed, nb_elts, dtype, width,
     planes=1)</code></pre>
-      <p>Raw payload helpers without an OpenZL frame. <code>bound</code> is the worst case size, or 0 for a refused geometry. <code>decode</code> raises <code>ValueError</code> on a corrupt stream.</p>
+      <p>Encode and decode the raw payload of <code>Pfor</code> and <code>PlanarZigzagPfor</code>, the bytes inside the frame without the OpenZL frame around them. The GPU decoder expands this payload, so these help test another reader against it.</p>
+      <p>The <code>bound</code> functions return the worst case payload size, or 0 for a refused geometry. The <code>encode</code> functions raise <code>ValueError</code> for a refused geometry and the <code>decode</code> functions for a corrupt stream.</p>
 <pre><code>import numpy as np
 import openzl.ext as zl
 import geozl
@@ -231,8 +231,8 @@ assert np.array_equal(back.reshape(tile.shape), tile)</code></pre>
 <pre><code class="sig">geozl.lossy.QuantLinear(recipe, dtype)
 geozl.lossy.QuantLog(recipe, dtype)
 geozl.lossy.QuantSqrt(recipe, dtype)</code></pre>
-      <p>The three quantizers as nodes, called like the lossless ones. <code>recipe</code> is a full recipe string such as <code>"LINEAR:MAX_ERROR=0.5"</code>. The grid is resolved from each stream they encode, so there is no shared domain or cross-tile check as in <code>geozl.graph</code>. A <code>QuantSqrt</code> recipe must carry <code>A=</code> and <code>B=</code>.</p>
-      <p>The compression context must disable the content checksum with <code>cctx.set_parameter(zl.CParam.ContentChecksum, 2)</code>. Without it, or with a SQRT recipe lacking its curve, <code>cctx.compress</code> raises <code>RuntimeError</code>. The constructors raise <code>ValueError</code> for a recipe they cannot parse or a dtype without a kernel. The decoders are <code>QuantLinearDecoder</code>, <code>QuantLogDecoder</code> and <code>QuantSqrtDecoder</code>.</p>
+      <p>The three quantizers as nodes, called like the lossless ones. <code>recipe</code> is a full recipe string such as <code>"LINEAR:MAX_ERROR=0.5"</code>. The grid is resolved from each stream they encode, so there is no shared domain or cross-tile check as in <code>geozl.graph</code>. A <code>QuantSqrt</code> recipe must carry <code>A=</code> and <code>B=</code>, since a node cannot fit them.</p>
+      <p>The compression context must disable the content checksum with <code>cctx.set_parameter(zl.CParam.ContentChecksum, 2)</code>, and without it <code>cctx.compress</code> raises <code>RuntimeError</code>. The constructors raise <code>ValueError</code> for a recipe they cannot parse, a <code>QuantSqrt</code> recipe without <code>A=</code> and <code>B=</code>, or a dtype without a kernel. The decoders are <code>QuantLinearDecoder</code>, <code>QuantLogDecoder</code> and <code>QuantSqrtDecoder</code>.</p>
 <pre><code class="sig">geozl.lossy.fit_noise(data)
 geozl.lossy.Noise(a, b, blocks, bins, range, colin, resid)
 geozl.lossy.Noise.recipe(max_error)</code></pre>
@@ -266,8 +266,11 @@ typedef enum {
                         size_t dstCapacity, size_t *outSize, char *errCtx,
                         size_t errCtxSize);</code></pre>
       <p>Builds the graph for a recipe and compresses <code>src</code> with it in one call. <code>error</code> is <code>NULL</code> or <code>""</code> for lossless, or a <code>LINEAR</code>, <code>LOG</code> or <code>SQRT</code> recipe. <code>nodataBits</code> holds the sentinel's low <code>eltWidth</code> bytes and is read only in value mode.</p>
-<pre><code class="proto">size_t geozl_2d_frame_dsize_c(const void *frame, size_t frameSize);</code></pre>
-      <p>Returns the decompressed size in bytes, or 0 for an unreadable frame. An empty frame also reports 0.</p>
+<pre><code class="proto">int geozl_2d_frame_dsize_c(const void *frame, size_t frameSize,
+                           size_t *outSize);</code></pre>
+      <p>Writes the decompressed size in bytes to <code>outSize</code>. An empty frame succeeds with a size of 0, and an unreadable frame returns a <code>ZL_ErrorCode</code> with <code>outSize</code> set to 0.</p>
+<pre><code class="proto">size_t geozl_2d_compress_bound_c(size_t srcSize, size_t coeffsSize);</code></pre>
+      <p>Returns the largest frame any compress call writes for <code>srcSize</code> input bytes and a coefficient blob of <code>coeffsSize</code> bytes, 0 without one. A <code>dstCapacity</code> of this size never fails for lack of room. Returns 0 when the bound overflows <code>size_t</code>.</p>
 <pre><code class="proto">int geozl_2d_decompress_c(const void *frame, size_t frameSize, void *dst,
                           size_t dstCapacity, size_t *outSize, int verify,
                           char *errCtx, size_t errCtxSize);</code></pre>
@@ -279,9 +282,9 @@ typedef enum {
                      size_t *compSize, double *encSec, double *decSec,
                      char *errCtx, size_t errCtxSize);</code></pre>
       <p>Times <code>reps</code> round trips of one recipe and reports the frame size and the fastest encode and decode, in seconds. <code>checksum</code> controls the frame checksums and <code>verify</code> their check during decode.</p>
-<pre><code class="proto">int geozl_2d_grid_c(const char *method, size_t eltWidth, char *names,
+<pre><code class="proto">int geozl_2d_grid_c(const char *prior, size_t eltWidth, char *names,
                     size_t stride, size_t maxNames, size_t *outCount);</code></pre>
-      <p>Writes the recipe names <code>profile</code> sweeps, one per <code>stride</code>-byte slot, for the sample width. <code>method</code> takes a prior as in <code>profile</code>, with <code>""</code> for all predictors. Returns -1 for an unknown prior.</p>
+      <p>Writes the recipe names <code>profile</code> sweeps, one per <code>stride</code>-byte slot, for the sample width. <code>prior</code> is a prior as in <code>profile</code>, with <code>NULL</code> or <code>""</code> for all predictors. Returns -1 for an unknown prior.</p>
 
       <h3 id="c-graphs">Graphs</h3>
 <pre><code>typedef struct geozl_2d_graph_s geozl_2d_graph;</code></pre>
@@ -291,7 +294,7 @@ typedef enum {
                           uint64_t nodataBits, const void *src,
                           size_t numElts, size_t eltWidth, char *errCtx,
                           size_t errCtxSize);</code></pre>
-      <p>Opens a reusable graph, the C side of <code>geozl.graph</code>. <code>src</code> fixes the lossy domain, and later tiles outside it are refused before compression.</p>
+      <p>Opens a reusable graph, the C side of <code>geozl.graph</code>. <code>src</code> fixes the lossy grid, and a later tile the grid cannot hold to its bound is refused before compression, as <a href="#compress"><code>compress</code></a> describes.</p>
 <pre><code class="proto">int geozl_2d_compress_graph_c(geozl_2d_graph *g, const void *src,
                               size_t numElts, void *dst, size_t dstCapacity,
                               size_t *outSize, char *errCtx,
@@ -342,7 +345,12 @@ ZL_NodeID geozl_node_quant_log(ZL_Compressor *c,
                                const quant_log_params *params, int dtype);
 ZL_NodeID geozl_node_quant_sqrt(ZL_Compressor *c,
                                 const quant_sqrt_params *params, int dtype);</code></pre>
-      <p>Build a quantizer node from resolved parameters, the structs in <code>geozl/quant_*_params.h</code>.</p>
+      <p>Build a quantizer node from resolved parameters, the structs in <code>geozl/quant_*_params.h</code> that a frame header carries. <code>geozl_node_quant</code> resolves them from a recipe.</p>
+<pre><code class="proto">ZL_NodeID geozl_node_quant(ZL_Compressor *c, const char *error,
+                           uint32_t width, int dtype, const void *src,
+                           size_t numElts, char *errCtx, size_t errCtxSize);</code></pre>
+      <p>Builds a quantizer node from an error recipe with the same parse, fit and resolve as <code>geozl_2d_graph_open_c</code>. <code>error</code> takes the <code>LINEAR</code>, <code>LOG</code> and <code>SQRT</code> recipes, and <code>src</code> holds <code>numElts</code> samples of <code>dtype</code> that fix the grid. A <code>SQRT</code> recipe without <code>A</code> and <code>B</code> fits them from <code>src</code> read as rows of <code>width</code> samples, and <code>width</code> is unused otherwise.</p>
+      <p>The node does not check later tiles against <code>src</code>, so compress only tiles inside its domain. Returns <code>ZL_NODE_ILLEGAL</code> on failure, including a lossless recipe, with a message in <code>errCtx</code>. Set <code>ZL_CParam_contentChecksum</code> to <code>ZL_TernaryParam_disable</code> on the compression context, since the decoded samples differ from the input.</p>
 <pre><code class="proto">ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width,
                             geozl_nodata_mode mode, uint64_t valueBits,
                             int dtype, double radius);</code></pre>

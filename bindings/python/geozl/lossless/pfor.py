@@ -53,6 +53,8 @@ class _Encoder(_ext.CustomEncoder):
 
 
 class PforDecoder(_ext.CustomDecoder):
+    """Decoder for ``geozl.lossless.pfor`` frames."""
+
     def multi_input_description(self):
         return _desc
 
@@ -93,17 +95,17 @@ class Pfor:
         return compressor.build_static_graph(node, [succ], name=_NAME)
 
 
-def bound(nb_elts, elt_width):
-    """Worst-case output size, or 0 for invalid geometry."""
+def pfor_bound(nb_elts, elt_width):
+    """Return the worst-case payload size, or 0 for invalid geometry."""
     return int(lib.pfor_bound(int(nb_elts), int(elt_width)))
 
 
-def encode(values):
-    """Pack a 1-D numeric array. Returns the packed bytes."""
+def pfor_encode(values):
+    """Pack a 1-D numeric array into the raw payload, without an OpenZL frame."""
     a = np.ascontiguousarray(values)
     refuse_object(a.dtype)
     n, elt = a.size, a.dtype.itemsize
-    cap = bound(n, elt)
+    cap = pfor_bound(n, elt)
     if cap == 0:
         raise ValueError(f"{_NAME}: geometry refused, {n} x {elt}")
     dst = np.empty(cap, dtype=np.uint8)
@@ -113,8 +115,8 @@ def encode(values):
     return dst[:int(written[0])].tobytes()
 
 
-def decode(packed, nb_elts, dtype):
-    """Unpack into a 1-D array of nb_elts values of dtype."""
+def pfor_decode(packed, nb_elts, dtype):
+    """Unpack a raw payload into a 1-D array of ``nb_elts`` values of ``dtype``."""
     dt = np.dtype(dtype)
     refuse_object(dt)
     out = np.empty(nb_elts, dtype=dt)
@@ -124,4 +126,4 @@ def decode(packed, nb_elts, dtype):
     return out
 
 
-__all__ = ["Pfor", "PforDecoder", "bound", "encode", "decode"]
+__all__ = ["Pfor", "PforDecoder", "pfor_bound", "pfor_decode", "pfor_encode"]

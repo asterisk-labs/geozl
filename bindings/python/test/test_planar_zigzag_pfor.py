@@ -7,8 +7,6 @@ zl = pytest.importorskip("openzl.ext")
 geozl = pytest.importorskip("geozl")
 
 _ffi = importlib.import_module("geozl._ffi")
-_pfor = importlib.import_module("geozl.lossless.pfor")
-_fused = importlib.import_module("geozl.lossless.planar_zigzag_pfor")
 _ptr, lib = _ffi._ptr, _ffi.lib
 
 try:
@@ -87,27 +85,29 @@ def test_raw_payload_equals_planar_zigzag_then_pfor(dtype):
             flat.dtype.itemsize,
         ) == 0
 
-    stable = _pfor.encode(transformed)
-    fused = _fused.encode(array, 17, planes=3)
+    stable = geozl.lossless.pfor_encode(transformed)
+    fused = geozl.lossless.planar_zigzag_pfor_encode(array, 17, planes=3)
     assert fused == stable
 
 
 def test_raw_decoder_rejects_truncation_and_trailing_bytes():
     array = np.arange(2 * 13 * 17, dtype=np.uint16).reshape(2, 13, 17)
-    payload = _fused.encode(array, 17, planes=2)
+    payload = geozl.lossless.planar_zigzag_pfor_encode(array, 17, planes=2)
     with pytest.raises(ValueError, match="corrupt"):
-        _fused.decode(payload[:-1], array.size, array.dtype, 17, planes=2)
+        geozl.lossless.planar_zigzag_pfor_decode(payload[:-1], array.size, array.dtype, 17,
+                                                 planes=2)
     with pytest.raises(ValueError, match="corrupt"):
-        _fused.decode(payload + b"\x00", array.size, array.dtype, 17, planes=2)
+        geozl.lossless.planar_zigzag_pfor_decode(payload + b"\x00", array.size, array.dtype,
+                                                 17, planes=2)
 
 
 def test_raw_helpers_refuse_arrays_that_hold_references():
     values = np.array([1, None, 3, 4], dtype=object)
     with pytest.raises(ValueError, match="references, not samples"):
-        _pfor.encode(values)
+        geozl.lossless.pfor_encode(values)
     with pytest.raises(ValueError, match="references, not samples"):
-        _pfor.decode(b"", 4, object)
+        geozl.lossless.pfor_decode(b"", 4, object)
     with pytest.raises(ValueError, match="references, not samples"):
-        _fused.encode(values, 2)
+        geozl.lossless.planar_zigzag_pfor_encode(values, 2)
     with pytest.raises(ValueError, match="references, not samples"):
-        _fused.decode(b"", 4, object, 2)
+        geozl.lossless.planar_zigzag_pfor_decode(b"", 4, object, 2)

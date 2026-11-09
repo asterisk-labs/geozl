@@ -66,7 +66,8 @@ GPU_COMMON := gpu.c gpu.h $(CORE)/src/gpu/runtime.h \
 	$(CORE)/src/gpu/runtime_internal.h
 # check needs no GPU; check-metal and check-cuda need a device.
 CHECKS := build/test_bench build/test_pfor_capture build/test_pivco_capture \
-	build/test_pivco_plan build/test_planar_scan build/test_runtime_validation
+	build/test_pivco_plan build/test_planar_scan build/test_runtime_validation \
+	build/test_c_api
 
 .PHONY: metal cuda hosts-cuda check check-metal check-cuda check-slang check-pfor-metal \
 	check-gpu-decode check-runtime-metal \
@@ -84,6 +85,7 @@ check: $(CHECKS)
 	./build/test_pivco_plan
 	./build/test_planar_scan
 	./build/test_runtime_validation
+	./build/test_c_api
 check-pfor-metal: build/test_pfor_decode_metal build/test_pfor_list_metal build/pzp1.metal build/pzp2.metal
 	./build/test_pfor_decode_metal build/pzp1.metal build/pzp2.metal
 	./build/test_pfor_list_metal build/pzp1.metal
@@ -319,6 +321,17 @@ build/decode_cuda: $(DECODE_SRCS) $(GPU_COMMON) $(CUDA_RUNTIME_SRCS) bench.h \
 		$(wildcard $(CORE)/src/gpu/*.h) geozl-static | build
 	cc $(PIVCO_CFLAGS) -D_GNU_SOURCE $(CUDA_RUNTIME) $(DECODE_SRCS) \
 		$(PIVCO_LIBS) -ldl -lpthread -lm -o $@
+
+# The C API calls that take an OpenZL compressor. This is the one place that
+# links GeoZL and OpenZL statically, so their tests live here too.
+build/test_c_api: ../../test/api/test_c_api.c geozl-static | build
+ifeq ($(UNAME),Darwin)
+	clang $(PIVCO_CFLAGS) ../../test/api/test_c_api.c $(PIVCO_LIBS) -lpthread \
+		-lm -framework Metal -framework Foundation -o $@
+else
+	cc $(PIVCO_CFLAGS) -D_GNU_SOURCE ../../test/api/test_c_api.c $(PIVCO_LIBS) \
+		-ldl -lpthread -lm -o $@
+endif
 
 # The public decoder, with its kernels inside the static library.
 build/test_gpu_decode: ../../test/gpu/test_gpu_decode.c \

@@ -41,6 +41,7 @@ bindings/r/ bindings/julia/  R and Julia packages
 tools/wasm/             wasm64 JavaScript package
 gpu/                    Slang kernels for the GPU decoder
 test/*.c                standalone C kernel tests (no OpenZL)
+test/api/               C API tests that take an OpenZL compressor, built by gpu/proto
 fuzz/                   libFuzzer harnesses, replay/ inputs kept in git
 docs/                   static site (no build step), compatibility.md, c-api.md, adding-a-codec.md, notebooks/
 extern/openzl           OpenZL submodule (v0.3.0)
@@ -96,6 +97,7 @@ otherwise Python keeps loading the previously staged libraries.
 | File | Guards |
 | --- | --- |
 | `test_2d.py`, `test_graph.py` | high-level API contract: shorthand errors, grid sizes per width, profile bytes equal compress bytes, lossy domains, nodata surface |
+| `test_api_contract.py` | `Graph` and `ProfileResults` refuse direct construction, `QuantSqrt` refuses a recipe without its curve, `geozl_2d_frame_dsize_c` tells an empty frame from an unreadable one, and no recipe writes past `geozl_2d_compress_bound_c` on noise at any dtype |
 | `test_codecs.py` | every predictor bit exact across 11 dtypes, shapes and patterns; quantizer bounds; checksum refusal |
 | `test_cross_reader.py` | **the strongest check**: C-written frames decode with Python decoders and the reverse, byte for byte on lossy frames |
 | `test_cdef.py` | the `_CDEF` block in `_ffi.py` matches the C headers (ABI mode verifies nothing; drift corrupts memory silently) |
@@ -111,6 +113,9 @@ otherwise Python keeps loading the previously staged libraries.
 C tests (`test/`): per-kernel round trips (`test_pfor.c`, `test_planar_zigzag*.c`,
 `test_nodata.c`, `test_planes.c`), quantizer bound walks (`test_quant_*.c`), dtype table
 agreement, header endianness, coefficient blobs, multithreaded `wp_static` training.
+`test/api/test_c_api.c` links GeoZL and OpenZL statically and runs in
+`make -C gpu/proto check`. It checks `geozl_node_quant` against the 2d path, the frame
+size call and the compress bound.
 
 Test through the buffer or mask a kernel produces, not a value it returns, or the test
 only proves the function agrees with itself.

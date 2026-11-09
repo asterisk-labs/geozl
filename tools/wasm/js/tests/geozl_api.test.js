@@ -43,6 +43,22 @@ describe('GeoZL wasm64', () => {
     assert.throws(() => geozl.decompress(frame, {maxOutputSize: 63}), /maxOutputSize/);
   });
 
+  it('compresses noise into the bound and refuses an unreadable frame', async () => {
+    const geozl = await createGeoZL();
+    const data = new Uint8Array(4096 * 8);
+    let s = 7;
+    for (let i = 0; i < data.length; i++) {
+      s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+      data[i] = s >>> 24;
+    }
+    for (const method of ['id>zstd', 'planar>zigzag>pfor', 'planar>zigzag>lanes']) {
+      const frame = geozl.compress(data, {method, width: 64, dtype: DType.U64});
+      assert.ok(frame.length <= data.length + 64 + 2 * 16, method);
+      assert.deepEqual(geozl.decompress(frame), data);
+    }
+    assert.throws(() => geozl.decompress(new Uint8Array(16).fill(3)), /unreadable frame/);
+  });
+
   it('preserves NaN and applies a bounded error', async () => {
     const geozl = await createGeoZL();
     const data = new Uint8Array(32 * 32 * 4);

@@ -66,7 +66,7 @@ class _Encoder(_ext.CustomEncoder):
 
 
 class PlanarZigzagPforDecoder(_ext.CustomDecoder):
-    """OpenZL decoder registration for :class:`PlanarZigzagPfor` frames."""
+    """Decoder for ``geozl.lossless.planar_zigzag_pfor`` frames."""
 
     def multi_input_description(self):
         return _desc
@@ -136,19 +136,19 @@ class PlanarZigzagPfor:
         return compressor.build_static_graph(node, [succ], name=_NAME)
 
 
-def bound(nb_elts, elt_width):
-    """Return the worst-case payload size, or zero for invalid/empty input."""
+def planar_zigzag_pfor_bound(nb_elts, elt_width):
+    """Return the worst-case payload size, or 0 for empty or invalid geometry."""
     return int(lib.planar_zigzag_pfor_bound(int(nb_elts), int(elt_width)))
 
 
-def encode(values, width, planes=1):
-    """Encode values to the raw payload, without an OpenZL frame header."""
+def planar_zigzag_pfor_encode(values, width, planes=1):
+    """Encode values to the raw payload, without an OpenZL frame."""
     flat = np.ascontiguousarray(values).reshape(-1)
     refuse_object(flat.dtype)
     n, elt = flat.size, flat.dtype.itemsize
     row_width = row_width_declared(int(width), n)
     plane_count = planes_declared(int(planes), row_width, n)
-    cap = bound(n, elt)
+    cap = planar_zigzag_pfor_bound(n, elt)
     if cap == 0:
         raise ValueError(f"{_NAME}: geometry refused, {n} x {elt}")
     dst = np.empty(cap, dtype=np.uint8)
@@ -160,7 +160,7 @@ def encode(values, width, planes=1):
     return dst[: int(written[0])].tobytes()
 
 
-def decode(packed, nb_elts, dtype, width, planes=1):
+def planar_zigzag_pfor_decode(packed, nb_elts, dtype, width, planes=1):
     """Decode a raw payload into a flat array of ``dtype``."""
     dt = np.dtype(dtype)
     refuse_object(dt)
@@ -173,4 +173,5 @@ def decode(packed, nb_elts, dtype, width, planes=1):
     return out
 
 
-__all__ = ["PlanarZigzagPfor", "PlanarZigzagPforDecoder", "bound", "encode", "decode"]
+__all__ = ["PlanarZigzagPfor", "PlanarZigzagPforDecoder", "planar_zigzag_pfor_bound",
+           "planar_zigzag_pfor_decode", "planar_zigzag_pfor_encode"]

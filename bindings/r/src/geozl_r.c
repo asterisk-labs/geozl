@@ -425,8 +425,10 @@ SEXP geozl_r_compress(SEXP ptr, SEXP bytes, SEXP coeffs_s, SEXP itemsize_s) {
   size_t len = (size_t)XLENGTH(bytes), n = len / w;
   size_t blobSize = 0;
   const uint8_t *blob = Rf_isNull(coeffs_s) ? NULL : pack_coeffs(coeffs_s, &blobSize);
-  // Past the worst case; an incompressible tile still fits in 1.5x.
-  size_t cap = 1024 + len + len / 2 + blobSize;
+  size_t cap = geozl_2d_compress_bound_c(len, blobSize);
+  if (cap == 0 || cap > (size_t)R_XLEN_T_MAX)
+    Rf_error("geozl_compress: a tile of %.0f bytes has no frame size bound",
+             (double)len);
   SEXP dst = PROTECT(Rf_allocVector(RAWSXP, (R_xlen_t)cap));
   char err[ERR_SIZE] = {0};
   size_t outSize = 0;
@@ -445,22 +447,22 @@ SEXP geozl_r_compress(SEXP ptr, SEXP bytes, SEXP coeffs_s, SEXP itemsize_s) {
 SEXP geozl_r_decompress(SEXP frame, SEXP verify_s, SEXP max_s) {
   const uint8_t *src = raw_arg(frame, "frame");
   size_t len = (size_t)XLENGTH(frame);
-  size_t dsize = geozl_2d_frame_dsize_c(src, len);
+  size_t dsize = 0;
+  int rc = geozl_2d_frame_dsize_c(src, len, &dsize);
+  if (rc != 0)
+    Rf_error("geozl_decompress: unreadable frame (ZL error code %d)", rc);
   if (!Rf_isNull(max_s) && (double)dsize > Rf_asReal(max_s))
     Rf_error("geozl_decompress: the frame declares %.0f bytes of output, above "
              "the %.0f allowed",
              (double)dsize, Rf_asReal(max_s));
-  // Zero can mean either an empty frame or an unreadable one. Give the decoder
-  // a writable byte and let it distinguish the two.
+  // An empty frame still gets a writable byte, so the pointer is never NULL.
   size_t capacity = dsize ? dsize : 1;
   SEXP out = PROTECT(Rf_allocVector(RAWSXP, (R_xlen_t)capacity));
   char err[ERR_SIZE] = {0};
   size_t outSize = 0;
   // Numeric output must be 8-byte aligned; R aligns vector data for double.
-  int rc = geozl_2d_decompress_c(src, len, RAW(out), capacity, &outSize,
-                                 Rf_asLogical(verify_s), err, sizeof err);
-  if (rc != 0 && dsize == 0)
-    Rf_error("geozl_decompress: unreadable frame");
+  rc = geozl_2d_decompress_c(src, len, RAW(out), capacity, &outSize,
+                             Rf_asLogical(verify_s), err, sizeof err);
   if (rc != 0)
     Rf_error("geozl_decompress failed: %s (ZL error code %d)", err, rc);
   if (outSize != dsize)
