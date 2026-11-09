@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=6">
+<link rel="stylesheet" href="assets/css/reading.css?v=8">
 </head>
 <body>
 <div class="page">
@@ -72,19 +72,20 @@
       <ul class="facts">
         <li>Codec <code>pfor</code>, CTid <code>0x72D70D</code></li>
         <li>Blocks of 256 values</li>
-        <li>After Zukowski, Héman, Nes and Boncz, ICDE 2006</li>
+        <li class="line">Zukowski, Héman, Nes and Boncz, <a href="https://doi.org/10.1109/ICDE.2006.150" rel="noopener noreferrer">Super-Scalar RAM-CPU Cache Compression</a>, ICDE 2006</li>
       </ul>
-      <p>A spatial predictor changes a raster tile into residuals. Once each sample is replaced by how far it lands from its prediction, most of what is left is small numbers. Prediction does not make residuals repeat. Residuals are small but rarely form the long runs used by dictionary compressors.</p>
-      <p>PFOR (patched frame of reference) writes residuals with fewer bits. GPU threads can decode them at once. The eight-value example shows how.</p>
+      <p>A spatial predictor guesses each sample from its neighbours and keeps only the difference, or the residual. On a smooth tile most residuals are small, such as 3 for an elevation of 1532 m predicted as 1529 m. They are small but rarely repeat, so dictionary compressors such as zstd gain little.</p>
+      <p>PFOR (patched frame of reference) writes each residual with fewer bits. It packs a block at one small width and keeps the few values that do not fit in a patch list. Every value sits at a known position, so GPU threads decode them in parallel. The eight-value example below shows how.</p>
 
       <h2 class="part" id="width">One width, and a patch for the rest</h2>
+      <p>The basic tool is bit packing. A byte has 8 bits, yet the value 5 needs only three, 101. Bit packing gives every value in a block the same width w and writes them back to back, so value i always starts at bit i &times; w. Eight values at 3 bits take 24 bits, or 3 bytes, instead of 8. The catch is that w must fit the largest value.</p>
       <p>The example has eight predictor residuals, including one outlier. Written in binary, most of them need two or three bits. The last one needs seven.</p>
       <figure class="figure">
         <div class="row"><span class="label">in</span><span class="cells even"><span class="cell">3</span><span class="cell">5</span><span class="cell">2</span><span class="cell">7</span><span class="cell">4</span><span class="cell">6</span><span class="cell">1</span><span class="cell hot">90</span></span></div>
         <div class="row"><span class="label">binary</span><span class="cells"><span class="cell">11<small>2 bits</small></span><span class="cell">101<small>3 bits</small></span><span class="cell">10<small>2 bits</small></span><span class="cell">111<small>3 bits</small></span><span class="cell">100<small>3 bits</small></span><span class="cell">110<small>3 bits</small></span><span class="cell">1<small>1 bit</small></span><span class="cell hot">1011010<small>7 bits</small></span></span></div>
         <figcaption>seven values fit in 3 bits, one needs 7</figcaption>
       </figure>
-      <p>Plain frame of reference packing uses seven bits for every value. It is easy to decode but wastes four bits on each of the seven small values. Real residuals look like this all the time, such as a cloud edge, a road crossing a field or a single noisy pixel.</p>
+      <p>Plain bit packing must use seven bits for every value, because w has to fit the 90. It is easy to decode but wastes four bits on each of the seven small values. Real residuals look like this all the time, such as a cloud edge, a road crossing a field or a single noisy pixel.</p>
       <p>PFOR chooses one width <code>b</code> per block, here <code>b = 3</code>, and uses it for every value. The values that do not fit are called <b>exceptions</b>. Here, 90 is the only exception.</p>
       <p>An exception stays in the body, with its low bits in place. Its high bits and position go in a side list. For 90, or <code>1011010</code> in binary, the body keeps <code>010</code> and the side list keeps <code>1011</code>.</p>
       <p>The animation stacks each value's bits, lowest first, and moves a line at <code>b</code>. At b = 7 nothing sticks out, but every value pays seven bits. At b = 2 the body is thin, but five values stick out. At b = 3 only the 90 does. Its four high bits leave for the exception list together with its position, and its low bits <code>010</code> stay where they were.</p>

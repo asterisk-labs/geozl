@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=6">
+<link rel="stylesheet" href="assets/css/reading.css?v=8">
 </head>
 <body>
 <div class="page">
@@ -70,8 +70,7 @@
     <article class="content">
       <h1>Inside the GPU decoder</h1>
       <ul class="facts">
-        <li>Kernels written once in Slang, compiled for each backend</li>
-        <li>Sources in <code>gpu/kernels</code> and <code>core/src/gpu</code></li>
+        <li>Kernels written once in Slang and compiled for each backend. Sources in <a href="https://github.com/asterisk-labs/geozl/tree/main/gpu/kernels" rel="noopener noreferrer"><code>gpu/kernels</code></a> and <a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/gpu" rel="noopener noreferrer"><code>core/src/gpu</code></a>.</li>
       </ul>
       <p>A training batch holds GeoZL frames of 16-bit tiles compressed with <code>planar&gt;zigzag&gt;pfor</code> in host memory. The model needs one tensor on the GPU. One route decodes on the CPU and copies full samples to the GPU. That route uses CPU cores and transfers the full raster across the bus.</p>
       <p>This page follows compressed frames from host memory to a device buffer. The <a href="gpu.html">GPU API</a> does not require these details.</p>

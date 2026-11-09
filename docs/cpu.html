@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=6">
+<link rel="stylesheet" href="assets/css/reading.css?v=8">
 </head>
 <body>
 <div class="page">
@@ -70,11 +70,9 @@
     <article class="content">
       <h1>Inside the CPU decoder</h1>
       <ul class="facts">
-        <li>Kernels for SSE2, AVX2 and NEON, with a plain C fallback</li>
-        <li>Path chosen once at run time</li>
-        <li>Sources in <code>core/src</code></li>
+        <li>SSE2, AVX2 and NEON kernels with a plain C fallback, picked once at run time. Sources in <a href="https://github.com/asterisk-labs/geozl/tree/main/core/src" rel="noopener noreferrer"><code>core/src</code></a>.</li>
       </ul>
-      <p>Decode speed depends on the decoder. GeoZL chooses codecs and formats whose decoders fit the hardware. This page covers CPU decoding with <code>planar</code>, <code>med</code> and PFOR, and the different needs of a GPU.</p>
+      <p>Reading a tile runs the decoder of every codec in its graph, so the decoders set the read speed. This page shows how the CPU decoders of <code>planar</code>, <code>med</code> and PFOR use vector instructions to handle many values at once, and why the same tricks do not carry over to a GPU.</p>
 
       <h2 class="part" id="simd">One instruction, many values</h2>
       <p>A CPU core can process several numbers with one instruction. A <b>vector register</b> has <b>lanes</b> that add, shift or compare values together. This is called <b>SIMD</b>, single instruction, multiple data. ARM chips, including Apple chips, use <b>NEON</b> with 128-bit registers. x86 uses <b>SSE2</b>, 128 bits on every 64-bit chip, and <b>AVX2</b>, 256 bits on most recent chips.</p>
@@ -82,11 +80,11 @@
         <img src="assets/svg/cpu/simd-lanes.svg" alt="Adding residuals to the row above one value at a time takes eight instructions in a row. A SIMD register holds eight uint16 lanes, so one instruction adds all eight at once. NEON and SSE2 registers are 128 bits, eight uint16 lanes. AVX2 registers are 256 bits, sixteen lanes." loading="lazy">
         <figcaption>A 128-bit register holds <b>8 samples of 16 bits</b>. One add does the work of eight.</figcaption>
       </figure>
-      <p>GeoZL carries kernels for all three. At run time, GeoZL chooses the widest supported kernel once. Builds without SIMD use plain C. All paths write <b>the same bytes</b>, so frames decode identically across machines.</p>
+      <p>GeoZL carries kernels for NEON, SSE2 and AVX2. At run time, GeoZL chooses the widest supported kernel once. Builds without SIMD use plain C. All paths write <b>the same bytes</b>, so frames decode identically across machines.</p>
 
       <h2 class="part" id="fit">What a decoder needs to use it</h2>
       <p>SIMD only helps when the lanes can work without talking to each other. SIMD needs <b>the same operation on neighbouring values</b>, adjacent memory and <b>no branch per value</b>. A row dependency makes value <code>i</code> wait for <code><i>i &minus; 1</i></code>. A CPU can pass one value between registers while it walks a row.</p>
-      <p>A GPU runs <b>thousands of threads</b> at once, so a serial carry along a row limits parallel decoding. Threads can share values within a wave, but each must locate its own compressed data. A codec can suit SIMD but not a GPU, or the reverse.</p>
+      <p>A GPU runs <b>thousands of threads</b> at once, so a serial carry along a row limits parallel decoding. The threads run in groups of 32 or 64 called waves, or warps on NVIDIA, which execute the same instruction together. Threads in a wave can share values, but each must locate its own compressed data. A codec can suit SIMD but not a GPU, or the reverse.</p>
       <figure class="diagram wide">
         <img src="assets/svg/cpu/cpu-gpu.svg" alt="A CPU core with SIMD walks a row eight lanes per step and passes a carry from one register to the next for the cost of one add. A GPU runs thousands of threads at once, so a serial carry along the row limits parallel decoding." loading="lazy">
         <figcaption>A SIMD core can carry one number along the row. A serial carry limits GPU parallelism.</figcaption>

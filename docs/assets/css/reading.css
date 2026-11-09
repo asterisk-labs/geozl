@@ -413,6 +413,10 @@ pre {
   color: var(--faint);
 }
 
+/* A citation or source line takes its own line, without the separator dot */
+.facts li.line { flex-basis: 100%; }
+.facts li.line::before { content: none; }
+
 .facts code {
   color: var(--ink-soft);
 }

@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=6">
+<link rel="stylesheet" href="assets/css/reading.css?v=8">
 </head>
 <body>
 <div class="page">
@@ -77,7 +77,7 @@
           <img src="assets/svg/codecs-light/quant-linear.svg" alt="quant_linear snaps a continuous value to the nearest step of a uniform grid, staying within plus or minus MAX_ERROR, and stores the small integer index" loading="lazy">
           <figcaption>each sample snaps to the nearest step of one uniform grid</figcaption>
         </figure>
-        <p>Use it when precision does not depend on size, such as elevation in metres. A plain number such as <code>error=2</code> means LINEAR. Use <code>quant_log</code> for values spanning orders of magnitude.</p>
+        <p>Use it when precision does not depend on size, such as elevation in metres. In the GeoZL API a plain number selects it, so <code>geozl.graph(tile, recipe, error=2)</code> keeps every sample within 2 units of the original. Use <code>quant_log</code> for values spanning orders of magnitude.</p>
         <table class="spec">
           <tr><th>ctid</th><td>0x72D781</td></tr>
           <tr><th>header</th><td>dtype + flags + step &middot; 10 bytes</td></tr>
