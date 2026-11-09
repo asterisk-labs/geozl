@@ -3,12 +3,12 @@
 The site is maintained directly as static HTML, CSS and JavaScript in `docs/`.
 There is no build step or framework. The pages open from disk; cross-document
 view transitions need HTTP and a browser that supports them. JavaScript adds
-interactions such as copy buttons, tab switching and slide navigation.
+interactions such as the section highlight and the figure steppers.
 
 The current design uses a dark background, light text and colour accents for
 codec families. The landing page keeps its styles and scripts in `index.html`.
-The other pages share `style.css` and `dark.css`; the API walkthrough also loads
-`api-high.css`.
+The reading pages share `reading.css`, and the codec pages share `style.css` and
+`dark.css`.
 
 ## Structure
 
@@ -19,38 +19,31 @@ docs/
 ├── gpu-codecs.html     why PFOR and PivCo decode well on a GPU
 ├── pfor.html           how PFOR works, on the CPU and the GPU
 ├── pivco.html          how PivCo-Huffman works
-├── gpu.html            the geozl/gpu.h API
+├── gpu.html            the geozl/gpu.h API, as a guide
+├── api.html            every public Python and C function, checked by test_docs.py
 ├── gpu-internals.html  how the GPU decoder is built
 ├── codecs/*.html       17 pages, one per documented codec
-├── api-high.html       graph(), compress(), profile() and the lossy recipes
-├── benchmark.html      benchmark overview and link to the API walkthrough
 ├── compatibility.md    frame compatibility policy
 ├── c-api.md            C source compatibility policy
 ├── releasing.md        release gates and version procedure
 ├── adding-a-codec.md   how to write one, for contributors
-├── notebooks/          high-level-api.ipynb, the runnable version of api-high
+├── notebooks/          high-level-api.ipynb, the four calls on a DEM tile
 ├── slides/cng-2026/    conference presentation, with its own assets
 └── assets/
     ├── css/style.css       base styles for pages other than the landing page
     ├── css/dark.css        dark theme for those pages
-    ├── css/api-high.css    API walkthrough styles
-    ├── css/reading.css     shared layout of the docs, PFOR, PivCo and GPU pages
+    ├── css/reading.css     shared layout of the reading pages and the API page
     ├── js/main.js           codec list read by test_catalog.py; no page loads it
-    ├── js/deck.js           horizontal slide navigation on api-high
-    ├── js/tabs.js           the function picker on api-high
-    ├── js/copy.js           copy buttons over the code blocks
     ├── js/toc.js            highlights the current section in the docs sidebar
-    ├── js/plot-tooltip.js   nearest-point tooltip for any .plot
-    ├── js/dem-readout.js    elevation readout over the hero tile
-    ├── img/                 the DEM tile and the three loop frames
+    ├── js/stepper.js        steps through the figures marked .stepper
     └── svg/
         ├── mark.svg          animated 2x2 prediction mark
         ├── banner.svg        the README banner
         ├── codecs/*.svg      17 diagrams, one per codec page
         ├── codecs-light/*.svg  the same diagrams in light colors, for docs.html
-        ├── asterisk-mark.svg, asterisk_banner.svg
-        ├── github.svg, huggingface.svg, source-coop.svg
-        └── favicon.svg, heart.svg, colab.svg, chevron-*.svg
+        ├── asterisk_banner.svg
+        ├── huggingface.svg, source-coop.svg
+        └── favicon.svg, heart.svg
 ```
 
 ## The catalog is written down five times
@@ -74,7 +67,7 @@ that supports it, and degrades to a plain navigation everywhere else.
 
 ## The active nav link is in the HTML
 
-The catalog, API, benchmark and codec pages mark their own nav entry with
+Each page marks its own entry, in the header or the sidebar, with
 `class="here"`. There is no runtime pass for it, so pages without scripts still
 highlight the current section.
 

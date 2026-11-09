@@ -1,21 +1,25 @@
 """Checks for the directly maintained documentation, which has no build step."""
 
-import ast
+import html
+import importlib
+import inspect
 import json
 import re
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[3]
 DOCS = ROOT / "docs"
-API_HIGH = DOCS / "api-high.html"
+API = DOCS / "api.html"
 NOTEBOOK = DOCS / "notebooks" / "high-level-api.ipynb"
 SKILL = ROOT / ".claude" / "skills" / "geozl"
 CODEX_SKILL = ROOT / ".agents" / "skills" / "geozl"
-HIGH_LEVEL_SOURCES = [
-    ROOT / "bindings" / "python" / "geozl" / "_2d.py",
-    ROOT / "bindings" / "python" / "geozl" / "_coeffs.py",
+PUBLIC_HEADERS = [
+    ROOT / "core" / "include" / "geozl" / name
+    for name in ("geozl.h", "coeffs.h", "gpu.h")
 ]
 
 
@@ -37,43 +41,87 @@ def test_agent_skill_tracks_the_release_and_its_references_resolve():
     assert not failures, "broken skill references:\n" + "\n".join(failures)
 
 
-def _source_signatures() -> dict[str, str]:
-    out = {}
-    for source in HIGH_LEVEL_SOURCES:
-        tree = ast.parse(source.read_text(encoding="utf-8"))
-        for node in tree.body:
-            if not isinstance(node, ast.FunctionDef) or node.name not in {
-                    "profile", "graph", "compress", "decompress", "coeffs"}:
-                continue
-            positional = node.args.posonlyargs + node.args.args
-            defaults = [None] * (len(positional) - len(node.args.defaults)) + node.args.defaults
-            parts = []
-            for arg, default in zip(positional, defaults, strict=True):
-                parts.append(arg.arg if default is None else
-                             f"{arg.arg}={_format_default(default)}")
-            if node.args.kwonlyargs:
-                parts.append("*")
-            for arg, default in zip(node.args.kwonlyargs, node.args.kw_defaults, strict=True):
-                parts.append(arg.arg if default is None else
-                             f"{arg.arg}={_format_default(default)}")
-            assert node.name not in out, f"duplicate public function: {node.name}"
-            out[node.name] = f"{node.name}({', '.join(parts)})"
-    return out
+def _sig_lines(body: str, kind: str) -> list[str]:
+    blocks = re.findall(rf'<pre><code class="{kind}">(.*?)</code></pre>', body, re.S)
+    return [html.unescape(block) for block in blocks]
 
 
-def _format_default(node: ast.expr) -> str:
-    value = ast.literal_eval(node)
-    return json.dumps(value) if isinstance(value, str) else repr(value)
+def _plain_signature(obj: object, *, drop_self: bool) -> str:
+    sig = inspect.signature(obj)
+    params = list(sig.parameters.values())
+    if drop_self:
+        params = params[1:]
+    params = [p.replace(annotation=inspect.Parameter.empty) for p in params]
+    text = str(sig.replace(parameters=params,
+                           return_annotation=inspect.Signature.empty))
+    # a constructor's "-> None" says nothing about the class
+    if not inspect.isclass(obj) and sig.return_annotation is not inspect.Signature.empty:
+        returns = inspect.formatannotation(sig.return_annotation)
+        text += " -> " + re.sub(r"\b(?:\w+\.)+(\w+)", r"\1", returns)
+    return text
 
 
-def test_api_page_signatures_match_the_public_python_source():
-    body = API_HIGH.read_text(encoding="utf-8")
-    shown = {
-        name: found.group(1)
-        for name in ("profile", "graph", "compress", "decompress", "coeffs")
-        if (found := re.search(rf"signature <b>({name}\([^<]+\)) →", body))
-    }
-    assert shown == _source_signatures()
+def _resolve(dotted: str) -> tuple[object, bool]:
+    parts = dotted.split(".")
+    assert parts[0] == "geozl", dotted
+    owner, obj = None, importlib.import_module("geozl")
+    for part in parts[1:]:
+        owner, obj = obj, getattr(obj, part)
+    return obj, inspect.isclass(owner) and inspect.isfunction(obj)
+
+
+def test_api_page_python_signatures_match_the_code():
+    pytest.importorskip("openzl")
+    shown = []
+    for block in _sig_lines(API.read_text(encoding="utf-8"), "sig"):
+        for line in block.splitlines():
+            if line[:1].isspace():  # a long signature wraps onto indented lines
+                shown[-1] += " " + line.strip()
+            elif line.strip():
+                shown.append(line)
+    assert shown, "api.html shows no Python signatures"
+
+    failures = []
+    names = set()
+    for line in shown:
+        dotted = line.split("(", 1)[0]
+        names.add(dotted)
+        obj, drop_self = _resolve(dotted)
+        real = dotted + _plain_signature(obj, drop_self=drop_self)
+        if line != real:
+            failures.append(f"page {line}\ncode {real}")
+    assert not failures, "signatures differ:\n" + "\n".join(failures)
+
+    geozl = importlib.import_module("geozl")
+    expected = {f"geozl.{name}" for name in geozl.__all__
+                if callable(getattr(geozl, name)) and not inspect.ismodule(getattr(geozl, name))}
+    for module in (geozl.lossless, geozl.lossy):
+        expected |= {f"{module.__name__}.{name}" for name in module.__all__
+                     if not name.endswith("Decoder")}
+    assert expected <= names, f"undocumented: {sorted(expected - names)}"
+
+
+def _normalize_c(decl: str) -> str:
+    decl = re.sub(r"\s+", " ", decl).strip()
+    return re.sub(r"\s*([(),*])\s*", r"\1", decl).rstrip(";")
+
+
+def test_api_page_c_prototypes_match_the_public_headers():
+    declared = set()
+    for header in PUBLIC_HEADERS:
+        text = re.sub(r"//[^\n]*", "", header.read_text(encoding="utf-8"))
+        for decl in re.findall(r"GEOZL_API\s+([^;{]+;)", text):
+            declared.add(_normalize_c(decl))
+
+    shown = set()
+    for block in _sig_lines(API.read_text(encoding="utf-8"), "proto"):
+        for decl in block.split(";"):
+            if decl.strip():
+                shown.add(_normalize_c(decl))
+
+    assert shown == declared, (
+        f"missing from api.html: {sorted(declared - shown)}\n"
+        f"not in the headers: {sorted(shown - declared)}")
 
 
 def test_notebook_describes_the_current_four_step_workflow():
