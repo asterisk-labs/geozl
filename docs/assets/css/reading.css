@@ -329,6 +329,10 @@ pre {
   transform: translateY(-50%);
 }
 
+/* The current page's sections, nested under it in the page list */
+
+
+
 /* On this page: a hairline rail, the current section marked on it */
 
 .toc-sections {
@@ -1008,6 +1012,7 @@ pre code {
   }
 
   .toc-pages a { padding: 3px 0; font-size: 14px; }
+
 
   .toc-pages a.here::before { content: none; }
 

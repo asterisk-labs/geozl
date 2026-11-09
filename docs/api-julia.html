@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="The GeoZL Julia package, its functions and types, their arguments and what they return.">
+<title>GeoZL · Julia API</title>
+<link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/reading.css?v=10">
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <a class="lockup vt-lockup" href="index.html" aria-label="GeoZL home">
+      <img class="marksvg" src="assets/svg/mark-light.svg" alt="">
+      <span class="wm-sm">GeoZL</span>
+    </a>
+
+    <div class="offsite" aria-label="Project links">
+      <a href="https://github.com/asterisk-labs/geozl" title="GitHub" aria-label="GeoZL on GitHub" rel="noopener noreferrer">
+        <svg class="github" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg>
+      </a>
+      <a class="pypi" href="https://pypi.org/project/geozl/" title="PyPI" aria-label="GeoZL on PyPI" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.3 14.3 4.7v6.6L8 14.7l-6.3-3.4V4.7Z"></path><path d="M1.7 4.7 8 8.1l6.3-3.4M8 8.1v6.6"></path></svg>
+        <img class="mark-color" src="assets/svg/pypi-color.svg" alt="" width="18" height="16">
+      </a>
+      <a class="rumi" href="https://asterisk.coop/rumi/" title="Rumi" aria-label="Rumi, the raster format built with GeoZL" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 1h14v14H1zM1 5.5l6 .8 4.2 2.1L15 9.2M7 1l-.5 5.3 4.7 2.1L9.5 15"></path></svg>
+        <img class="mark-color" src="assets/svg/rumi-color.svg" alt="" width="16" height="16">
+      </a>
+      <a class="asterisk" href="https://asterisk.coop" title="asterisk labs" aria-label="asterisk labs" rel="noopener noreferrer">
+        <img class="mark-mono" src="assets/svg/asterisk-mark-black.svg" alt="" width="16" height="18">
+        <img class="mark-color" src="assets/svg/asterisk-mark-color.svg" alt="" width="16" height="18">
+      </a>
+    </div>
+
+    <nav class="nav" aria-label="Sections">
+      <a href="docs.html">Docs</a>
+      <a href="api.html" class="here">API</a>
+      <a href="https://earth-compress.github.io/benchmark/" rel="noopener noreferrer">Benchmark</a>
+    </nav>
+  </header>
+
+  <main class="doc">
+    <nav class="toc" aria-label="Contents">
+      <p class="toc-title">API</p>
+      <ol class="toc-pages">
+        <li><a href="api.html">Overview</a></li>
+        <li class="toc-group">Languages</li>
+        <li><a href="api-python.html">Python</a></li>
+        <li><a href="api-c.html">C</a></li>
+        <li><a href="api-r.html">R</a></li>
+        <li><a href="api-julia.html" class="here" aria-current="page">Julia</a>
+        </li>
+        <li><a href="api-js.html">JavaScript</a></li>
+      </ol>
+    </nav>
+
+    <article class="content">
+      <h1>Julia</h1>
+      <ul class="facts">
+        <li>Package <code>GeoZL</code>, sources in <a href="https://github.com/asterisk-labs/geozl/tree/main/bindings/julia" rel="noopener noreferrer"><code>bindings/julia</code></a></li>
+        <li>Julia 1.10 or newer</li>
+      </ul>
+      <p>The Julia package has the graph, compress, decompress and profile calls of the Python package and writes the same frames. It works on Julia's own integer and float arrays without conversion.</p>
+
+      <h2 class="part" id="install">Install</h2>
+<pre><code>using Pkg
+Pkg.Registry.add(url = "https://github.com/asterisk-labs/AsteriskRegistry")
+Pkg.add("GeoZL")</code></pre>
+      <p>The package calls <code>libgeozl</code> directly. It loads the library named by <code>GEOZL_LIB_PATH</code>, then the one <code>make lib</code> builds in a checkout, then the artifact a release publishes for Linux x86-64 and macOS arm64, downloaded on first use.</p>
+<pre><code>using GeoZL
+
+tile = [UInt16(1000 + 3 * (x - 1) + 2 * (y - 1)) for x in 1:256, y in 1:256]
+
+rows = GeoZL.profile(tile)
+g = GeoZL.graph(tile, rows[1].graph)
+frame = GeoZL.compress(tile, g)
+back = GeoZL.decompress(UInt16, frame, size(tile)...)
+back == tile                                 # true</code></pre>
+
+      <h2 class="part" id="functions">Functions</h2>
+      <p>The module exports only <code>GeoZLError</code>, so call the functions as <code>GeoZL.graph</code> and so on. Bad arguments throw <code>ArgumentError</code>, and a recipe, tile or frame the library refuses throws <code>GeoZLError</code>.</p>
+
+      <h3 id="profile">profile</h3>
+<pre><code class="sig">GeoZL.profile(x; prior="planar", width=nothing, planes=nothing,
+    error=nothing, reps=5, nodata=nothing, verify=false) -&gt; Profile</code></pre>
+      <p>Compresses and decompresses <code>x</code> with every recipe <code>prior</code> allows and ranks them by ratio. Recipes that do not apply to the input are left out.</p>
+      <table class="spec">
+        <tr><th>prior</th><td>One predictor plus the <code>id</code> path, <code>"planar"</code>, <code>"med"</code>, <code>"delta_w"</code>, <code>"delta_n"</code>, <code>"average"</code>, <code>"wp_static"</code> or <code>"delta_1d"</code>. <code>nothing</code> tries every predictor and <code>"none"</code> only <code>id</code>.</td></tr>
+        <tr><th>reps</th><td>Round trips per recipe, at least 1. The fastest is kept.</td></tr>
+        <tr><th>verify</th><td>Check checksums while timing decode.</td></tr>
+        <tr><th>others</th><td>As in <a href="#graph"><code>graph</code></a>.</td></tr>
+      </table>
+      <p>Returns a <a href="#types"><code>Profile</code></a>, best ratio first.</p>
+<pre><code>rows = GeoZL.profile(tile; prior = nothing, reps = 1)
+rows[1].graph                                # "med&gt;zigzag&gt;zstd"</code></pre>
+
+      <h3 id="graph">graph</h3>
+<pre><code class="sig">GeoZL.graph(x, method; width=nothing, planes=nothing, error=nothing,
+    nodata=nothing) -&gt; Graph</code></pre>
+      <p>Builds a reusable graph for one recipe. The graph fixes the element type and the geometry of every tile compressed with it.</p>
+      <table class="spec">
+        <tr><th>x</th><td>An array of <code>UInt8</code> to <code>UInt64</code>, <code>Int8</code> to <code>Int64</code>, <code>Float16</code>, <code>Float32</code> or <code>Float64</code>, possibly with <code>missing</code>. For a lossy graph it fixes the domain later tiles are checked against.</td></tr>
+        <tr><th>method</th><td>A recipe as <code>profile</code> spells it, such as <code>"planar&gt;zigzag&gt;pfor"</code>. <a href="api-python.html#graph">Python's <code>graph</code></a> lists them all.</td></tr>
+        <tr><th>width</th><td>Row length in samples. Defaults to <code>size(x, 1)</code> and is required for a vector.</td></tr>
+        <tr><th>planes</th><td>Stacked images predicted independently. Defaults to the last dimension of an array with three or more, otherwise 1.</td></tr>
+        <tr><th>error</th><td><code>nothing</code> or <code>0</code> for lossless, a number for an absolute bound, <code>"1%"</code> for a relative bound, or a full <code>LINEAR</code>, <code>LOG</code> or <code>SQRT</code> recipe, as in <a href="api-python.html#error">Python</a>.</td></tr>
+        <tr><th>nodata</th><td>A sentinel. <code>missing</code> values in <code>x</code> are stored as it. NaN holes in a float raster are found without it.</td></tr>
+      </table>
+<pre><code>g = GeoZL.graph(tile, "planar&gt;zigzag&gt;pfor"; error = 2)
+g.error                                      # "LINEAR:MAX_ERROR=2"</code></pre>
+
+      <h3 id="compress">compress</h3>
+<pre><code class="sig">GeoZL.compress(x, g::Graph; coeffs=nothing) -&gt; Vector{UInt8}</code></pre>
+      <p>Compresses one tile with a graph and returns the frame. The element type must be the graph's, and the geometry is not checked. <code>coeffs</code>, a vector of integer vectors, is stored in the frame header and read back with <a href="#coeffs"><code>coeffs</code></a>.</p>
+<pre><code>frame = GeoZL.compress(tile, g; coeffs = [[1, 2, 3], [4]])</code></pre>
+
+      <h3 id="decompress">decompress</h3>
+<pre><code class="sig">GeoZL.decompress(frame; verify=true, max_output_size=nothing) -&gt; Vector{UInt8}
+GeoZL.decompress(T, frame, dims...; nodata=nothing, verify=true,
+    max_output_size=nothing) -&gt; Array{T}</code></pre>
+      <p>Decodes a frame. Without <code>T</code> the result is the raw native bytes. With it, the frame decodes in place into an <code>Array{T}</code> shaped <code>dims</code>, which may also be given as a tuple.</p>
+      <table class="spec">
+        <tr><th>nodata</th><td>Samples equal to this value become <code>missing</code>, and the result is an <code>Array{Union{Missing,T}}</code>.</td></tr>
+        <tr><th>verify</th><td>Check the frame checksums.</td></tr>
+        <tr><th>max_output_size</th><td>Refuse a frame that declares more output bytes than this. Set it for untrusted frames.</td></tr>
+      </table>
+<pre><code>back = GeoZL.decompress(UInt16, frame, size(tile))</code></pre>
+
+      <h3 id="coeffs">coeffs</h3>
+<pre><code class="sig">GeoZL.coeffs(frame) -&gt; Union{Nothing,Vector{Vector{Int32}}}</code></pre>
+      <p>Returns the coefficient vectors stored by <code>compress</code>, or <code>nothing</code> when the frame has none. Only the frame header is read.</p>
+<pre><code>GeoZL.coeffs(frame)                          # [[1, 2, 3], [4]]</code></pre>
+
+      <h3 id="types">Types</h3>
+      <table class="spec">
+        <tr><th>Graph</th><td>What <code>graph</code> returns, with the fields <code>method</code>, <code>width</code>, <code>planes</code>, <code>eltype</code>, <code>error</code> and <code>nodata</code>. It holds native state and is not thread safe, so build one per task.</td></tr>
+        <tr><th>Profile</th><td>What <code>profile</code> returns, a vector of named tuples with the fields <code>graph</code>, <code>bytes</code>, <code>ratio</code>, <code>encode_mbps</code>, <code>decode_mbps</code> and <code>shannon_pct</code>. It also keeps <code>dims</code>, <code>eltype</code>, <code>raw_bytes</code>, <code>width</code>, <code>planes</code>, <code>prior</code>, <code>reps</code> and <code>error</code>.</td></tr>
+        <tr><th>Sample</th><td>The union of the element types GeoZL stores.</td></tr>
+        <tr><th>GeoZLError</th><td>Thrown when the library refuses a recipe, a tile or a frame. Its message carries the library's.</td></tr>
+      </table>
+
+      <h2 class="part" id="rasters">Rasters</h2>
+      <p>The fastest-varying dimension is the row. An array shaped <code>(x, y)</code> or <code>(x, y, band)</code>, as Rasters.jl holds a raster, gives the same frame as Python does for <code>(y, x)</code> or <code>(band, y, x)</code>. Views and transposes are copied to dense samples first.</p>
+      <p><code>missing</code> values are stored as <code>nodata</code>, or as NaN in a float raster. An integer raster with <code>missing</code> values needs a sentinel. A <code>Float16</code> raster takes no sentinel, though NaN still works.</p>
+
+      <h2 class="part" id="coverage">What it covers</h2>
+      <p>The Julia package covers <code>profile</code>, <code>graph</code>, <code>compress</code>, <code>decompress</code> and <code>coeffs</code>. It has no OpenZL nodes like <code>geozl.lossless</code> and <code>geozl.lossy</code>, no <code>fit_noise</code> and no GPU decode. To share one SQRT curve across products, fit it in Python with <a href="api-python.html#lossy"><code>fit_noise</code></a> and pass the recipe it writes.</p>
+
+      <nav class="pager" aria-label="Pages">
+        <a class="prev" href="api-r.html"><span>Previous</span>R</a>
+        <a class="next" href="api-js.html"><span>Next</span>JavaScript</a>
+      </nav>
+    </article>
+
+    <nav class="toc onpage" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ol class="toc-sections">
+        <li><a href="#install">Install</a></li>
+        <li><a href="#functions">Functions</a></li>
+        <li><a href="#profile">profile</a></li>
+        <li><a href="#graph">graph</a></li>
+        <li><a href="#compress">compress</a></li>
+        <li><a href="#decompress">decompress</a></li>
+        <li><a href="#coeffs">coeffs</a></li>
+        <li><a href="#types">Types</a></li>
+        <li><a href="#rasters">Rasters</a></li>
+        <li><a href="#coverage">What it covers</a></li>
+      </ol>
+    </nav>
+  </main>
+
+  <footer class="colophon">
+    <span>Made with</span>
+    <span class="heart" aria-label="love" role="img"></span>
+    <span>by</span>
+    <a class="by" href="https://asterisk.coop" rel="noopener noreferrer">
+      <img src="assets/svg/asterisk-mark-black.svg" alt="" width="15" height="17">
+      <span>asterisk labs</span>
+    </a>
+  </footer>
+</div>
+<script src="assets/js/toc.js" defer></script>
+</body>
+</html>

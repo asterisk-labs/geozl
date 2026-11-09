@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="Every public GeoZL C function, with its prototype and what it returns.">
+<title>GeoZL · C API</title>
+<link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/reading.css?v=10">
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <a class="lockup vt-lockup" href="index.html" aria-label="GeoZL home">
+      <img class="marksvg" src="assets/svg/mark-light.svg" alt="">
+      <span class="wm-sm">GeoZL</span>
+    </a>
+
+    <div class="offsite" aria-label="Project links">
+      <a href="https://github.com/asterisk-labs/geozl" title="GitHub" aria-label="GeoZL on GitHub" rel="noopener noreferrer">
+        <svg class="github" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg>
+      </a>
+      <a class="pypi" href="https://pypi.org/project/geozl/" title="PyPI" aria-label="GeoZL on PyPI" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.3 14.3 4.7v6.6L8 14.7l-6.3-3.4V4.7Z"></path><path d="M1.7 4.7 8 8.1l6.3-3.4M8 8.1v6.6"></path></svg>
+        <img class="mark-color" src="assets/svg/pypi-color.svg" alt="" width="18" height="16">
+      </a>
+      <a class="rumi" href="https://asterisk.coop/rumi/" title="Rumi" aria-label="Rumi, the raster format built with GeoZL" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 1h14v14H1zM1 5.5l6 .8 4.2 2.1L15 9.2M7 1l-.5 5.3 4.7 2.1L9.5 15"></path></svg>
+        <img class="mark-color" src="assets/svg/rumi-color.svg" alt="" width="16" height="16">
+      </a>
+      <a class="asterisk" href="https://asterisk.coop" title="asterisk labs" aria-label="asterisk labs" rel="noopener noreferrer">
+        <img class="mark-mono" src="assets/svg/asterisk-mark-black.svg" alt="" width="16" height="18">
+        <img class="mark-color" src="assets/svg/asterisk-mark-color.svg" alt="" width="16" height="18">
+      </a>
+    </div>
+
+    <nav class="nav" aria-label="Sections">
+      <a href="docs.html">Docs</a>
+      <a href="api.html" class="here">API</a>
+      <a href="https://earth-compress.github.io/benchmark/" rel="noopener noreferrer">Benchmark</a>
+    </nav>
+  </header>
+
+  <main class="doc">
+    <nav class="toc" aria-label="Contents">
+      <p class="toc-title">API</p>
+      <ol class="toc-pages">
+        <li><a href="api.html">Overview</a></li>
+        <li class="toc-group">Languages</li>
+        <li><a href="api-python.html">Python</a></li>
+        <li><a href="api-c.html" class="here" aria-current="page">C</a>
+        </li>
+        <li><a href="api-r.html">R</a></li>
+        <li><a href="api-julia.html">Julia</a></li>
+        <li><a href="api-js.html">JavaScript</a></li>
+      </ol>
+    </nav>
+
+    <article class="content">
+      <h1>C</h1>
+      <ul class="facts">
+        <li>Headers in <a href="https://github.com/asterisk-labs/geozl/tree/main/core/include/geozl" rel="noopener noreferrer"><code>core/include/geozl</code></a></li>
+        <li>Every binding calls this library</li>
+      </ul>
+<pre><code>make submodules
+make lib        # core/build/libgeozl, with OpenZL linked in</code></pre>
+      <p>Include <code>geozl/geozl.h</code> for compression, <code>geozl/coeffs.h</code> for coefficients and <code>geozl/gpu.h</code> for GPU decode. The CMake project in <code>core/</code> also installs the headers and the library.</p>
+
+      <h2 class="part" id="types">Types and errors</h2>
+      <p>The C library holds everything the Python calls use. Functions that return <code>int</code> return 0 on success and otherwise a <code>ZL_ErrorCode</code>, with a message written to <code>errCtx</code> when it is not <code>NULL</code>. The headers are the supported source API, and before 1.0 they may change in any release, as <a href="https://github.com/asterisk-labs/geozl/blob/main/docs/c-api.md" rel="noopener noreferrer">C API stability</a> sets out.</p>
+<pre><code>typedef enum {
+  GEOZL_DT_U8 = 0, GEOZL_DT_U16 = 1, GEOZL_DT_U32 = 2, GEOZL_DT_U64 = 3,
+  GEOZL_DT_I8 = 4, GEOZL_DT_I16 = 5, GEOZL_DT_I32 = 6, GEOZL_DT_I64 = 7,
+  GEOZL_DT_F16 = 8, GEOZL_DT_F32 = 9, GEOZL_DT_F64 = 10
+} geozl_dtype;
+
+typedef enum {
+  GEOZL_NODATA_NONE = 0,
+  GEOZL_NODATA_NAN = 1,
+  GEOZL_NODATA_VALUE = 2
+} geozl_nodata_mode;</code></pre>
+      <p>A <code>dtype</code> argument takes a <code>geozl_dtype</code> code, which is part of the wire format. NaN mode applies to floating point data and value mode masks the sentinel given as bits.</p>
+
+      <h2 class="part" id="c-2d">One-shot compression</h2>
+<pre><code class="proto">int geozl_2d_compress_c(const char *method, uint32_t width, uint32_t planes,
+                        const char *error, int dtype, int nodataMode,
+                        uint64_t nodataBits, const void *src,
+                        size_t numElts, size_t eltWidth, void *dst,
+                        size_t dstCapacity, size_t *outSize, char *errCtx,
+                        size_t errCtxSize);</code></pre>
+      <p>Builds the graph for a recipe and compresses <code>src</code> with it in one call. <code>error</code> is <code>NULL</code> or <code>""</code> for lossless, or a <code>LINEAR</code>, <code>LOG</code> or <code>SQRT</code> recipe. <code>nodataBits</code> holds the sentinel's low <code>eltWidth</code> bytes and is read only in value mode.</p>
+<pre><code class="proto">int geozl_2d_frame_dsize_c(const void *frame, size_t frameSize,
+                           size_t *outSize);</code></pre>
+      <p>Writes the decompressed size in bytes to <code>outSize</code>. An empty frame succeeds with a size of 0, and an unreadable frame returns a <code>ZL_ErrorCode</code> with <code>outSize</code> set to 0.</p>
+<pre><code class="proto">size_t geozl_2d_compress_bound_c(size_t srcSize, size_t coeffsSize);</code></pre>
+      <p>Returns the largest frame any compress call writes for <code>srcSize</code> input bytes and a coefficient blob of <code>coeffsSize</code> bytes, 0 without one. A <code>dstCapacity</code> of this size never fails for lack of room. Returns 0 when the bound overflows <code>size_t</code>.</p>
+<pre><code class="proto">int geozl_2d_decompress_c(const void *frame, size_t frameSize, void *dst,
+                          size_t dstCapacity, size_t *outSize, int verify,
+                          char *errCtx, size_t errCtxSize);</code></pre>
+      <p>Decompresses a frame into <code>dst</code>, which should be 8-byte aligned for numeric output. <code>verify</code> set to 0 skips checksum verification.</p>
+<pre><code class="proto">int geozl_2d_bench_c(const char *method, uint32_t width, uint32_t planes,
+                     const char *error, int dtype, int nodataMode,
+                     uint64_t nodataBits, const void *src, size_t numElts,
+                     size_t eltWidth, size_t reps, int checksum, int verify,
+                     size_t *compSize, double *encSec, double *decSec,
+                     char *errCtx, size_t errCtxSize);</code></pre>
+      <p>Times <code>reps</code> round trips of one recipe and reports the frame size and the fastest encode and decode, in seconds. <code>checksum</code> controls the frame checksums and <code>verify</code> their check during decode.</p>
+<pre><code class="proto">int geozl_2d_grid_c(const char *prior, size_t eltWidth, char *names,
+                    size_t stride, size_t maxNames, size_t *outCount);</code></pre>
+      <p>Writes the recipe names <code>profile</code> sweeps, one per <code>stride</code>-byte slot, for the sample width. <code>prior</code> is a prior as in <code>profile</code>, with <code>NULL</code> or <code>""</code> for all predictors. Returns -1 for an unknown prior.</p>
+
+      <h2 class="part" id="c-graphs">Graphs</h2>
+<pre><code>typedef struct geozl_2d_graph_s geozl_2d_graph;</code></pre>
+<pre><code class="proto">int geozl_2d_graph_open_c(geozl_2d_graph **out, const char *method,
+                          uint32_t width, uint32_t planes,
+                          const char *error, int dtype, int nodataMode,
+                          uint64_t nodataBits, const void *src,
+                          size_t numElts, size_t eltWidth, char *errCtx,
+                          size_t errCtxSize);</code></pre>
+      <p>Opens a reusable graph, the C side of <code>geozl.graph</code>. <code>src</code> fixes the lossy grid, and a later tile the grid cannot hold to its bound is refused before compression, as <a href="api-python.html#compress"><code>compress</code></a> describes.</p>
+<pre><code class="proto">int geozl_2d_compress_graph_c(geozl_2d_graph *g, const void *src,
+                              size_t numElts, void *dst, size_t dstCapacity,
+                              size_t *outSize, char *errCtx,
+                              size_t errCtxSize);
+int geozl_2d_compress_coeffs_c(geozl_2d_graph *g, const void *src,
+                               size_t numElts, const void *coeffs,
+                               size_t coeffsSize, void *dst,
+                               size_t dstCapacity, size_t *outSize,
+                               char *errCtx, size_t errCtxSize);</code></pre>
+      <p>Compress one tile with an open graph, which supplies the sample width. The second attaches a blob from <code>geozl_coeffs_pack</code> to this frame only. <code>NULL</code> and 0 write a frame without one. A declared sentinel is left out of the domain check.</p>
+<pre><code class="proto">void geozl_2d_graph_close_c(geozl_2d_graph *g);</code></pre>
+      <p>Frees a graph. Accepts <code>NULL</code>.</p>
+<pre><code class="proto">int geozl_2d_frame_coeffs_c(const void *frame, size_t frameSize, void *dst,
+                            size_t dstCapacity, size_t *outSize);</code></pre>
+      <p>Copies a frame's coefficient blob without decoding the payload. Returns 0 on success, -1 when the frame has none and a positive <code>ZL_ErrorCode</code> on failure, <code>ZL_ErrorCode_formatVersion_unsupported</code> for a frame older than <code>GEOZL_COEFFS_FORMAT_MIN</code>. Pass <code>dst</code> as <code>NULL</code> to query the size.</p>
+
+      <h2 class="part" id="c-nodes">Nodes</h2>
+<pre><code class="proto">ZL_Report geozl_register_decoders(ZL_DCtx *dctx);
+int geozl_owns_ctid(uint32_t ctid);
+int geozl_ctid_is_lossy(uint32_t ctid);</code></pre>
+      <p>The first registers every GeoZL decoder in an OpenZL decompression context. The others report whether a codec id lies in GeoZL's reserved range and in its lossy part. The ids are the <code>GeozlCtid</code> values in <code>geozl/ctids.h</code>.</p>
+<pre><code class="proto">ZL_NodeID geozl_node_delta_w(ZL_Compressor *c, uint32_t width);
+ZL_NodeID geozl_node_delta_n(ZL_Compressor *c, uint32_t width,
+                             uint32_t planes);
+ZL_NodeID geozl_node_planar(ZL_Compressor *c, uint32_t width,
+                            uint32_t planes);
+ZL_NodeID geozl_node_planar_zigzag(ZL_Compressor *c, uint32_t width,
+                                   uint32_t planes);
+ZL_NodeID geozl_node_planar_zigzag_pfor(ZL_Compressor *c, uint32_t width,
+                                        uint32_t planes);
+ZL_NodeID geozl_node_planar_zigzag_lanes(ZL_Compressor *c, uint32_t width,
+                                         uint32_t planes);
+ZL_NodeID geozl_node_lanes(ZL_Compressor *c);
+ZL_NodeID geozl_node_med(ZL_Compressor *c, uint32_t width, uint32_t planes);
+ZL_NodeID geozl_node_med_zigzag(ZL_Compressor *c, uint32_t width,
+                                uint32_t planes);
+ZL_NodeID geozl_node_average(ZL_Compressor *c, uint32_t width,
+                             uint32_t planes);
+ZL_NodeID geozl_node_wp_static(ZL_Compressor *c, uint32_t width,
+                               uint32_t planes);
+ZL_NodeID geozl_node_deinterleave(ZL_Compressor *c);
+ZL_NodeID geozl_node_pfor(ZL_Compressor *c);</code></pre>
+      <p>Build an encoder node in a compressor, or return <code>ZL_NODE_ILLEGAL</code>. <code>width</code> is in samples and <code>planes</code> counts stacked images, with an invalid plane layout treated as one plane. <code>lanes</code> splits samples into byte lanes coded with PivCo or PFOR, and <code>planar_zigzag_lanes</code> runs planar and zigzag first.</p>
+<pre><code class="proto">ZL_NodeID geozl_node_quant_linear(ZL_Compressor *c,
+                                  const quant_linear_params *params,
+                                  int dtype);
+ZL_NodeID geozl_node_quant_log(ZL_Compressor *c,
+                               const quant_log_params *params, int dtype);
+ZL_NodeID geozl_node_quant_sqrt(ZL_Compressor *c,
+                                const quant_sqrt_params *params, int dtype);</code></pre>
+      <p>Build a quantizer node from resolved parameters, the structs in <code>geozl/quant_*_params.h</code> that a frame header carries. <code>geozl_node_quant</code> resolves them from a recipe.</p>
+<pre><code class="proto">ZL_NodeID geozl_node_quant(ZL_Compressor *c, const char *error,
+                           uint32_t width, int dtype, const void *src,
+                           size_t numElts, char *errCtx, size_t errCtxSize);</code></pre>
+      <p>Builds a quantizer node from an error recipe with the same parse, fit and resolve as <code>geozl_2d_graph_open_c</code>. <code>error</code> takes the <code>LINEAR</code>, <code>LOG</code> and <code>SQRT</code> recipes, and <code>src</code> holds <code>numElts</code> samples of <code>dtype</code> that fix the grid. A <code>SQRT</code> recipe without <code>A</code> and <code>B</code> fits them from <code>src</code> read as rows of <code>width</code> samples, and <code>width</code> is unused otherwise.</p>
+      <p>The node does not check later tiles against <code>src</code>, so compress only tiles inside its domain. Returns <code>ZL_NODE_ILLEGAL</code> on failure, including a lossless recipe, with a message in <code>errCtx</code>. Set <code>ZL_CParam_contentChecksum</code> to <code>ZL_TernaryParam_disable</code> on the compression context, since the decoded samples differ from the input.</p>
+<pre><code class="proto">ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width,
+                            geozl_nodata_mode mode, uint64_t valueBits,
+                            int dtype, double radius);</code></pre>
+      <p>Builds a NoData node. In value mode <code>dtype</code> lets it guard samples a lossy stage could move onto the sentinel. <code>radius</code> is that stage's largest error, 0 on a lossless path and <code>INFINITY</code> when unknown. In NaN mode a radius of 0 keeps every NaN's bits and any other marks every NaN as a hole.</p>
+
+      <h2 class="part" id="c-coeffs">Coefficients</h2>
+<pre><code class="proto">size_t geozl_coeffs_size(const uint32_t *counts, size_t nbVecs);
+size_t geozl_coeffs_pack(void *dst, size_t dstCapacity,
+                         const int32_t *const *vecs, const uint32_t *counts,
+                         size_t nbVecs, char *err, size_t errSize);</code></pre>
+      <p><code>geozl_coeffs_size</code> returns the packed size of <code>nbVecs</code> vectors, or 0 for an invalid shape. <code>geozl_coeffs_pack</code> packs them into <code>dst</code> and returns the bytes written, or 0 on error. The limits are <code>GEOZL_COEFFS_MAX_VECS</code> (255) vectors and <code>GEOZL_COEFFS_MAX_BYTES</code> (10000) bytes. These functions do not depend on OpenZL.</p>
+<pre><code class="proto">int geozl_coeffs_parse(const void *src, size_t srcSize, int32_t *dst,
+                       size_t dstValues, uint32_t *counts, size_t maxVecs,
+                       size_t *outVecs, size_t *outValues);</code></pre>
+      <p>Reads a blob into <code>dst</code>, vectors back to back, and their lengths into <code>counts</code>. Returns 0 on success, 1 when <code>src</code> is not a GeoZL blob, -1 when it is invalid and -2 when a buffer is too small, with the sizes still written. Call with both buffers <code>NULL</code> to learn the sizes first.</p>
+
+      <h2 class="part" id="c-gpu">GPU decode</h2>
+      <p>The decoder in <code>geozl/gpu.h</code> writes frames straight into device memory on a GPU. CUDA and Metal are the first backends. <a href="gpu.html">GPU API</a> walks through a full call.</p>
+<pre><code>#define GEOZL_GPU_DEVICE_CUDA 2     // DLPack device types
+#define GEOZL_GPU_DEVICE_METAL 8
+
+typedef struct GeozlGpu GeozlGpu;
+typedef struct GeozlGpuMemory GeozlGpuMemory;
+
+typedef struct {
+  const void *data;
+  size_t size;
+  size_t decodedBytes;
+} GeozlGpuFrame;
+
+typedef struct {
+  size_t frame;
+  size_t source;
+  size_t sourceRow;
+  size_t sourceStep;
+  size_t destination;
+  size_t destinationRow;
+  size_t destinationStep;
+  uint32_t width;
+  uint32_t rows;
+} GeozlGpuCopy;
+
+typedef struct {
+  void *memory;
+  size_t offset;
+  size_t bytes;
+  void *stream;
+} GeozlGpuTarget;</code></pre>
+      <p>A <code>GeozlGpuFrame</code> is the compressed bytes and the exact size they decode to. A <code>GeozlGpuCopy</code> moves <code>rows</code> rows of <code>width</code> samples from one decoded frame into the target, with offsets and strides in bytes. A <code>GeozlGpuTarget</code> names the device memory, the byte offset and writable bytes after it, and the stream the work joins.</p>
+<pre><code class="proto">int geozl_gpu_available(int deviceType);</code></pre>
+      <p>Returns nonzero when this build drives the device type.</p>
+<pre><code class="proto">GeozlGpu *geozl_gpu_create(int deviceType, int device, size_t threads,
+                           size_t maxDecodedBytes, int verifyChecksums,
+                           char *error, size_t errorCapacity);
+void geozl_gpu_destroy(GeozlGpu *gpu);</code></pre>
+      <p>Creates a decoder on one device, or returns <code>NULL</code> with a message. <code>threads</code> caps the host threads of one decode, with 0 meaning one, and <code>maxDecodedBytes</code> caps the decoded bytes of one call and must be nonzero. A decoder serves one call at a time.</p>
+<pre><code class="proto">int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
+                     size_t frameCount, const GeozlGpuCopy copies[],
+                     size_t copyCount, size_t sampleBytes,
+                     size_t elementBytes, const GeozlGpuTarget *target,
+                     const uint8_t forceHost[], char *error,
+                     size_t errorCapacity);</code></pre>
+      <p>Decodes the frames and runs the copies into the target. Single-chunk <code>pfor</code> and <code>lanes</code> frames of 1 or 2-byte samples expand on the device, and the rest decode on the host and upload. <code>forceHost</code> is <code>NULL</code> or one byte per frame, nonzero to send that frame through the host.</p>
+<pre><code class="proto">int geozl_gpu_synchronize(GeozlGpu *gpu, char *error, size_t errorCapacity);</code></pre>
+      <p>Waits for queued work and reports its errors. On CUDA <code>geozl_gpu_decode</code> returns once work is queued, so keep the target alive until this returns. Metal finishes inside the decode call.</p>
+<pre><code class="proto">GeozlGpuMemory *geozl_gpu_alloc(GeozlGpu *gpu, size_t bytes, char *error,
+                                size_t errorCapacity);
+void *geozl_gpu_pointer(const GeozlGpuMemory *memory);
+void geozl_gpu_free(GeozlGpuMemory *memory);</code></pre>
+      <p>Allocate and free caller-owned device memory for a target. <code>geozl_gpu_pointer</code> returns the device handle to pass as <code>GeozlGpuTarget.memory</code>.</p>
+
+      <nav class="pager" aria-label="Pages">
+        <a class="prev" href="api-python.html"><span>Previous</span>Python</a>
+        <a class="next" href="api-r.html"><span>Next</span>R</a>
+      </nav>
+    </article>
+
+    <nav class="toc onpage" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ol class="toc-sections">
+        <li><a href="#types">Types and errors</a></li>
+        <li><a href="#c-2d">One-shot compression</a></li>
+        <li><a href="#c-graphs">Graphs</a></li>
+        <li><a href="#c-nodes">Nodes</a></li>
+        <li><a href="#c-coeffs">Coefficients</a></li>
+        <li><a href="#c-gpu">GPU decode</a></li>
+      </ol>
+    </nav>
+  </main>
+
+  <footer class="colophon">
+    <span>Made with</span>
+    <span class="heart" aria-label="love" role="img"></span>
+    <span>by</span>
+    <a class="by" href="https://asterisk.coop" rel="noopener noreferrer">
+      <img src="assets/svg/asterisk-mark-black.svg" alt="" width="15" height="17">
+      <span>asterisk labs</span>
+    </a>
+  </footer>
+</div>
+<script src="assets/js/toc.js" defer></script>
+</body>
+</html>

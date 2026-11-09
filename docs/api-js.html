@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="The GeoZL JavaScript package for WebAssembly, its compress and decompress calls and their options.">
+<title>GeoZL · JavaScript API</title>
+<link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/reading.css?v=10">
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <a class="lockup vt-lockup" href="index.html" aria-label="GeoZL home">
+      <img class="marksvg" src="assets/svg/mark-light.svg" alt="">
+      <span class="wm-sm">GeoZL</span>
+    </a>
+
+    <div class="offsite" aria-label="Project links">
+      <a href="https://github.com/asterisk-labs/geozl" title="GitHub" aria-label="GeoZL on GitHub" rel="noopener noreferrer">
+        <svg class="github" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg>
+      </a>
+      <a class="pypi" href="https://pypi.org/project/geozl/" title="PyPI" aria-label="GeoZL on PyPI" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.3 14.3 4.7v6.6L8 14.7l-6.3-3.4V4.7Z"></path><path d="M1.7 4.7 8 8.1l6.3-3.4M8 8.1v6.6"></path></svg>
+        <img class="mark-color" src="assets/svg/pypi-color.svg" alt="" width="18" height="16">
+      </a>
+      <a class="rumi" href="https://asterisk.coop/rumi/" title="Rumi" aria-label="Rumi, the raster format built with GeoZL" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 1h14v14H1zM1 5.5l6 .8 4.2 2.1L15 9.2M7 1l-.5 5.3 4.7 2.1L9.5 15"></path></svg>
+        <img class="mark-color" src="assets/svg/rumi-color.svg" alt="" width="16" height="16">
+      </a>
+      <a class="asterisk" href="https://asterisk.coop" title="asterisk labs" aria-label="asterisk labs" rel="noopener noreferrer">
+        <img class="mark-mono" src="assets/svg/asterisk-mark-black.svg" alt="" width="16" height="18">
+        <img class="mark-color" src="assets/svg/asterisk-mark-color.svg" alt="" width="16" height="18">
+      </a>
+    </div>
+
+    <nav class="nav" aria-label="Sections">
+      <a href="docs.html">Docs</a>
+      <a href="api.html" class="here">API</a>
+      <a href="https://earth-compress.github.io/benchmark/" rel="noopener noreferrer">Benchmark</a>
+    </nav>
+  </header>
+
+  <main class="doc">
+    <nav class="toc" aria-label="Contents">
+      <p class="toc-title">API</p>
+      <ol class="toc-pages">
+        <li><a href="api.html">Overview</a></li>
+        <li class="toc-group">Languages</li>
+        <li><a href="api-python.html">Python</a></li>
+        <li><a href="api-c.html">C</a></li>
+        <li><a href="api-r.html">R</a></li>
+        <li><a href="api-julia.html">Julia</a></li>
+        <li><a href="api-js.html" class="here" aria-current="page">JavaScript</a>
+        </li>
+      </ol>
+    </nav>
+
+    <article class="content">
+      <h1>JavaScript</h1>
+      <ul class="facts">
+        <li>Package <code>@asterisk-labs/geozl</code> on <a href="https://www.npmjs.com/package/@asterisk-labs/geozl" rel="noopener noreferrer">npm</a></li>
+        <li>wasm64, Node.js 24 or newer</li>
+      </ul>
+      <p>The JavaScript package is GeoZL built as a WebAssembly ES module. It compresses and decompresses raw bytes in one call each and writes the same frames as the other bindings.</p>
+
+      <h2 class="part" id="install">Install</h2>
+<pre><code>npm install @asterisk-labs/geozl</code></pre>
+      <p>It needs a runtime with WebAssembly Memory64, such as Node.js 24 or newer. A browser deployment serves <code>geozl.js</code> and <code>geozl.wasm</code> together, or passes <code>wasmUrl</code> to <code>createGeoZL</code> when they live apart. TypeScript declarations ship in <code>geozl_api.d.ts</code>.</p>
+<pre><code>import {createGeoZL, DType} from '@asterisk-labs/geozl';
+
+const tile = new Uint16Array(256 * 256);
+for (let i = 0; i &lt; tile.length; i++) {
+  tile[i] = 1000 + 3 * (i % 256) + 2 * (i &gt;&gt; 8);
+}
+const bytes = new Uint8Array(tile.buffer);
+
+const geozl = await createGeoZL();
+const frame = geozl.compress(bytes, {
+  method: 'planar&gt;zigzag&gt;pfor', width: 256, dtype: DType.U16,
+});
+const back = new Uint16Array(
+  geozl.decompress(frame, {maxOutputSize: bytes.length}).buffer);</code></pre>
+
+      <h2 class="part" id="functions">Functions</h2>
+      <p>Every call throws an <code>Error</code> on failure. When the library refuses a recipe, tile or frame, the error carries the OpenZL error code as <code>code</code>.</p>
+
+      <h3 id="createGeoZL">createGeoZL</h3>
+<pre><code class="sig">createGeoZL(options?: GeoZLOptions): Promise&lt;GeoZL&gt;</code></pre>
+      <p>Loads the WebAssembly module and resolves to an object with <code>compress</code> and <code>decompress</code>. Each call to <code>createGeoZL</code> loads its own module.</p>
+      <table class="spec">
+        <tr><th>wasmUrl</th><td>Where to fetch <code>geozl.wasm</code>. Defaults to the file beside <code>geozl_api.js</code>.</td></tr>
+        <tr><th>locateFile</th><td>Emscripten's file locator, for full control over where the module's files come from.</td></tr>
+        <tr><th>others</th><td>Passed to the Emscripten module factory.</td></tr>
+      </table>
+
+      <h3 id="compress">compress</h3>
+<pre><code class="sig">geozl.compress(data: Uint8Array, options: CompressOptions): Uint8Array</code></pre>
+      <p>Builds the graph for a recipe and compresses <code>data</code> with it in one call, as <a href="api-c.html#c-2d"><code>geozl_2d_compress_c</code></a> does. <code>data</code> holds little-endian samples of <code>dtype</code>, and its length must be a nonzero multiple of the sample width that splits into whole rows.</p>
+      <table class="spec">
+        <tr><th>method</th><td>A recipe such as <code>"planar&gt;zigzag&gt;pfor"</code>. <a href="api-python.html#graph">Python's <code>graph</code></a> lists them all.</td></tr>
+        <tr><th>width</th><td>Row length in samples.</td></tr>
+        <tr><th>planes</th><td>Stacked images predicted independently. Defaults to 1.</td></tr>
+        <tr><th>dtype</th><td>A <a href="#constants"><code>DType</code></a> value.</td></tr>
+        <tr><th>error</th><td><code>null</code> for lossless, or a full recipe such as <code>"LINEAR:MAX_ERROR=2"</code>, <code>"LOG:MAX_ERROR=1%"</code> or a <code>SQRT</code> recipe. The short forms <code>2</code> and <code>"1%"</code> of the other bindings are refused.</td></tr>
+        <tr><th>nodataMode</th><td>A <a href="#constants"><code>NoData</code></a> value. <code>NONE</code> by default, which does not look for NaN. Only <code>NAN</code> keeps NaN under a lossy <code>error</code>.</td></tr>
+        <tr><th>nodataBits</th><td>The sentinel's bit pattern at the sample width, a number or bigint, read in <code>VALUE</code> mode. For an int16 sentinel of -9999 pass <code>0xD8F1</code>.</td></tr>
+      </table>
+<pre><code>const lossy = geozl.compress(bytes, {
+  method: 'planar&gt;zigzag&gt;pfor', width: 256, dtype: DType.U16,
+  error: 'LINEAR:MAX_ERROR=2',
+});</code></pre>
+
+      <h3 id="decompress">decompress</h3>
+<pre><code class="sig">geozl.decompress(frame: Uint8Array, options?: DecompressOptions): Uint8Array</code></pre>
+      <p>Decodes a non-empty frame into its raw bytes. The frame stores no dtype or shape, so view the bytes with the typed array they were written from.</p>
+      <table class="spec">
+        <tr><th>verify</th><td>Check the frame checksums. Defaults to <code>true</code>.</td></tr>
+        <tr><th>maxOutputSize</th><td>Refuse a frame that declares more output bytes than this. Set it for untrusted frames.</td></tr>
+      </table>
+<pre><code>const samples = new Uint16Array(geozl.decompress(lossy).buffer);</code></pre>
+
+      <h3 id="constants">DType and NoData</h3>
+<pre><code class="sig">DType   {U8, U16, U32, U64, I8, I16, I32, I64, F16, F32, F64}
+NoData  {NONE, NAN, VALUE}</code></pre>
+      <p>Frozen objects of the codes the C library takes. <code>DType</code> runs from 0 for <code>U8</code> to 10 for <code>F64</code>, the <code>geozl_dtype</code> codes of the <a href="api-c.html#types">C API</a>.</p>
+
+      <h2 class="part" id="coverage">What it covers</h2>
+      <p>The JavaScript package covers one-shot <code>compress</code> and <code>decompress</code> only. Each <code>compress</code> builds its graph again, so there is no reusable graph and no domain check across tiles. It has no <code>profile</code>, no coefficients, no short error syntax, no NaN detection without <code>nodataMode</code>, no OpenZL nodes and no GPU decode.</p>
+
+      <nav class="pager" aria-label="Pages">
+        <a class="prev" href="api-julia.html"><span>Previous</span>Julia</a>
+      </nav>
+    </article>
+
+    <nav class="toc onpage" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ol class="toc-sections">
+        <li><a href="#install">Install</a></li>
+        <li><a href="#functions">Functions</a></li>
+        <li><a href="#createGeoZL">createGeoZL</a></li>
+        <li><a href="#compress">compress</a></li>
+        <li><a href="#decompress">decompress</a></li>
+        <li><a href="#constants">DType and NoData</a></li>
+        <li><a href="#coverage">What it covers</a></li>
+      </ol>
+    </nav>
+  </main>
+
+  <footer class="colophon">
+    <span>Made with</span>
+    <span class="heart" aria-label="love" role="img"></span>
+    <span>by</span>
+    <a class="by" href="https://asterisk.coop" rel="noopener noreferrer">
+      <img src="assets/svg/asterisk-mark-black.svg" alt="" width="15" height="17">
+      <span>asterisk labs</span>
+    </a>
+  </footer>
+</div>
+<script src="assets/js/toc.js" defer></script>
+</body>
+</html>

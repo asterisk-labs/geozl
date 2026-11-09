@@ -13,7 +13,8 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
 DOCS = ROOT / "docs"
-API = DOCS / "api.html"
+PYTHON_API = DOCS / "api-python.html"
+C_API = DOCS / "api-c.html"
 NOTEBOOK = DOCS / "notebooks" / "high-level-api.ipynb"
 SKILL = ROOT / ".claude" / "skills" / "geozl"
 CODEX_SKILL = ROOT / ".agents" / "skills" / "geozl"
@@ -73,13 +74,13 @@ def _resolve(dotted: str) -> tuple[object, bool]:
 def test_api_page_python_signatures_match_the_code():
     pytest.importorskip("openzl")
     shown = []
-    for block in _sig_lines(API.read_text(encoding="utf-8"), "sig"):
+    for block in _sig_lines(PYTHON_API.read_text(encoding="utf-8"), "sig"):
         for line in block.splitlines():
             if line[:1].isspace():  # a long signature wraps onto indented lines
                 shown[-1] += " " + line.strip()
             elif line.strip():
                 shown.append(line)
-    assert shown, "api.html shows no Python signatures"
+    assert shown, "api-python.html shows no Python signatures"
 
     failures = []
     names = set()
@@ -108,7 +109,7 @@ RETURNED_TYPES = ("Graph", "ProfileResults")
 
 
 def test_api_page_lists_the_returned_types_without_a_constructor():
-    body = API.read_text(encoding="utf-8")
+    body = PYTHON_API.read_text(encoding="utf-8")
     geozl = importlib.import_module("geozl")
     for name in RETURNED_TYPES:
         assert name in geozl.__all__
@@ -129,14 +130,56 @@ def test_api_page_c_prototypes_match_the_public_headers():
             declared.add(_normalize_c(decl))
 
     shown = set()
-    for block in _sig_lines(API.read_text(encoding="utf-8"), "proto"):
+    for block in _sig_lines(C_API.read_text(encoding="utf-8"), "proto"):
         for decl in block.split(";"):
             if decl.strip():
                 shown.add(_normalize_c(decl))
 
     assert shown == declared, (
-        f"missing from api.html: {sorted(declared - shown)}\n"
+        f"missing from api-c.html: {sorted(declared - shown)}\n"
         f"not in the headers: {sorted(shown - declared)}")
+
+
+def _r_exports() -> tuple[set[str], set[str]]:
+    namespace = (ROOT / "bindings" / "r" / "NAMESPACE").read_text(encoding="utf-8")
+    return set(re.findall(r"^export\((\w+)\)", namespace, re.M)), set()
+
+
+def _julia_exports() -> tuple[set[str], set[str]]:
+    functions, types = set(), set()
+    for source in sorted((ROOT / "bindings" / "julia" / "src").glob("*.jl")):
+        text = source.read_text(encoding="utf-8")
+        for names in re.findall(r"^export\s+([\w, ]+)$", text, re.M):
+            types |= {name.strip() for name in names.split(",")}
+        functions |= set(re.findall(r"^function ([a-z]\w*)\(", text, re.M))
+        functions |= set(re.findall(r"^([a-z]\w*)\([^)]*\)[^=\n]*=[^=]", text, re.M))
+        types |= set(re.findall(r"^(?:mutable )?struct ([A-Z]\w*)", text, re.M))
+    return functions, types - functions
+
+
+def _js_exports() -> tuple[set[str], set[str]]:
+    dts = (ROOT / "tools" / "wasm" / "js" / "geozl_api.d.ts").read_text(encoding="utf-8")
+    functions = set(re.findall(r"^export declare function (\w+)", dts, re.M))
+    methods = re.search(r"^export interface GeoZL \{(.*?)^\}", dts, re.M | re.S)
+    assert methods, "geozl_api.d.ts declares no GeoZL interface"
+    functions |= set(re.findall(r"^\s+(\w+)\(", methods.group(1), re.M))
+    return functions, set(re.findall(r"^export declare const (\w+)", dts, re.M))
+
+
+@pytest.mark.parametrize("page, exports", [
+    ("api-r.html", _r_exports),
+    ("api-julia.html", _julia_exports),
+    ("api-js.html", _js_exports),
+])
+def test_binding_pages_name_every_exported_function(page, exports):
+    functions, others = exports()
+    assert functions, f"found no exported functions for {page}"
+    body = (DOCS / page).read_text(encoding="utf-8")
+    signatures = "\n".join(_sig_lines(body, "sig"))
+    code = "\n".join(html.unescape(c) for c in re.findall(r"<code[^>]*>(.*?)</code>", body, re.S))
+    missing = sorted(name for name in functions if not re.search(rf"\b{name}\(", signatures))
+    missing += sorted(name for name in others if not re.search(rf"\b{name}\b", code))
+    assert not missing, f"{page} does not show: {missing}"
 
 
 def test_notebook_describes_the_current_four_step_workflow():

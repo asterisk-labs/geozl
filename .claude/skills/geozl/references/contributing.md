@@ -104,7 +104,7 @@ otherwise Python keeps loading the previously staged libraries.
 | `test_golden.py` | every golden frame decodes to the recorded hashes |
 | `test_malformed.py`, `test_headers.py` | decoders refuse forged headers and streams |
 | `test_catalog.py` | the codec catalog agrees across `ctids.h`, README, `docs/docs.html`, `docs/assets/js/main.js`, `docs/codecs/*.html` |
-| `test_docs.py` | every Python signature in a `<code class="sig">` block of `docs/api.html` equals `inspect.signature` of the live object, and every public name in `geozl`, `geozl.lossless` and `geozl.lossy` (decoders aside) has one; the `<code class="proto">` blocks hold exactly the `GEOZL_API` prototypes of `geozl.h`, `coeffs.h` and `gpu.h`; notebook mentions `profile`, `graph`, `compress`, `decompress`; local links resolve; `SKILL.md` names `VERSION` and its links resolve |
+| `test_docs.py` | every Python signature in a `<code class="sig">` block of `docs/api-python.html` equals `inspect.signature` of the live object, and every public name in `geozl`, `geozl.lossless` and `geozl.lossy` (decoders aside) has one; the `<code class="proto">` blocks of `docs/api-c.html` hold exactly the `GEOZL_API` prototypes of `geozl.h`, `coeffs.h` and `gpu.h`; `api-r.html`, `api-julia.html` and `api-js.html` show every function exported by `NAMESPACE`, the Julia sources and `geozl_api.d.ts`; notebook mentions `profile`, `graph`, `compress`, `decompress`; local links resolve; `SKILL.md` names `VERSION` and its links resolve |
 | `test_release.py` | `VERSION` has a `## [X.Y.Z] - date` entry and compare links in `CHANGELOG.md` |
 | `test_licenses.py` | `licenses/` copies equal the vendored upstream texts and `NOTICE` lists them |
 | `test_simd.py`, `test_ffi.py` | SIMD capping via `GEOZL_SIMD` in fresh processes; library lookup errors |
@@ -214,8 +214,11 @@ packing, so the cross-reader test can compare two independent bindings.
   `CODECS` array in `docs/assets/js/main.js`, and a codec page whose file name uses
   hyphens (`docs/codecs/delta-n.html`, `docs/codecs/planar-zigzag-pfor.html`). Codec
   families carry colours: purple predictors, green stream splitters, orange near lossless.
-- `docs/api.html` documents the public API. A new or changed Python signature or `GEOZL_API`
-  prototype goes on that page in the same change, or `test_docs.py` fails.
+- The API section is `docs/api.html`, an overview, and one page per language,
+  `api-python.html`, `api-c.html`, `api-r.html`, `api-julia.html` and `api-js.html`, with
+  its own sidebar and pager. A new or changed Python signature goes on `api-python.html`,
+  a `GEOZL_API` prototype on `api-c.html`, and a new R, Julia or JavaScript export on its
+  page, in the same change, or `test_docs.py` fails.
 - Each page marks its own nav entry with `class="here"` in the HTML.
 
 ## 8. Conventions

@@ -20,7 +20,10 @@ docs/
 ├── pfor.html           how PFOR works, on the CPU and the GPU
 ├── pivco.html          how PivCo-Huffman works
 ├── gpu.html            the geozl/gpu.h API, as a guide
-├── api.html            every public Python and C function, checked by test_docs.py
+├── api.html            API overview, the four calls and one line per language
+├── api-python.html     every public Python function, checked by test_docs.py
+├── api-c.html          every public C function, checked by test_docs.py
+├── api-r.html, api-julia.html, api-js.html  the R, Julia and JavaScript bindings
 ├── gpu-internals.html  how the GPU decoder is built
 ├── codecs/*.html       17 pages, one per documented codec
 ├── compatibility.md    frame compatibility policy
@@ -32,7 +35,7 @@ docs/
 └── assets/
     ├── css/style.css       base styles for pages other than the landing page
     ├── css/dark.css        dark theme for those pages
-    ├── css/reading.css     shared layout of the reading pages and the API page
+    ├── css/reading.css     shared layout of the reading pages and the API pages
     ├── js/main.js           codec list read by test_catalog.py; no page loads it
     ├── js/toc.js            highlights the current section in the docs sidebar
     ├── js/stepper.js        steps through the figures marked .stepper
