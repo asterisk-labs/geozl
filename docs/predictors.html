@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=11">
+<link rel="stylesheet" href="assets/css/reading.css?v=12">
 </head>
 <body>
 <div class="page">
@@ -68,6 +68,16 @@
 
     <article class="content">
 <h1>Predictors</h1>
+      <aside class="series" aria-label="Section">
+        <p class="series-title">Codecs, in five pages</p>
+        <ol>
+          <li><a href="docs.html">Overview</a></li>
+          <li class="here" aria-current="page">Predictors</li>
+          <li><a href="streams.html">Streams</a></li>
+          <li><a href="fused.html">Fused</a></li>
+          <li><a href="near-lossless.html">Near-lossless</a></li>
+        </ol>
+      </aside>
       <p>A predictor estimates a sample from decoded neighbours and stores the residual. Smooth tiles produce small residuals that terminal codecs can code well. The six predictors read different neighbours and decode at different speeds.</p>
       <figure class="diagram wide">
         <img src="assets/svg/codecs-light/predictors.svg" alt="The six predictors by the neighbours they read. delta_w reads W, delta_n reads N, planar W + N - NW, med the median of W, N and the planar guess, average the mean of W and N, wp_static W plus fitted weights over N, NW, NE and NN. delta_w, delta_n, planar and wp_static decode a whole row at once. Med and average decode one sample at a time." loading="lazy">

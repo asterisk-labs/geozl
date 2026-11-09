@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=11">
+<link rel="stylesheet" href="assets/css/reading.css?v=12">
 </head>
 <body>
 <div class="page">
@@ -73,7 +73,14 @@
         <li>Blocks of 256 values</li>
         <li class="line">Zukowski, Héman, Nes and Boncz, <a href="https://doi.org/10.1109/ICDE.2006.150" rel="noopener noreferrer">Super-Scalar RAM-CPU Cache Compression</a>, ICDE 2006</li>
       </ul>
-      <p>A spatial predictor guesses each sample from its neighbours and keeps only the difference, or the residual. On a smooth tile most residuals are small, such as 3 for an elevation of 1532 m predicted as 1529 m. They are small but rarely repeat, so dictionary compressors such as zstd gain little.</p>
+      <aside class="series" aria-label="Section">
+        <p class="series-title">Algorithms, in two pages</p>
+        <ol>
+          <li class="here" aria-current="page">PFOR</li>
+          <li><a href="pivco.html">PivCo</a></li>
+        </ol>
+      </aside>
+      <p>A spatial predictor guesses each sample from its neighbours and keeps only the difference, or the residual. On a smooth tile most residuals are small, such as 3 for an elevation of 1532 m predicted as 1529 m. They are small but rarely repeat, so dictionary compressors such as <a href="https://github.com/facebook/zstd" rel="noopener noreferrer">zstd</a> gain little.</p>
       <p>PFOR (patched frame of reference) writes each residual with fewer bits. It packs a block at one small width and keeps the few values that do not fit in a patch list. Every value then sits at a known bit position, so a decoder can unpack any of them without reading the ones before it. The eight-value example below follows one block from the input to the bytes on the wire.</p>
 
       <h2 class="part" id="packing">Plain bit packing</h2>
@@ -100,7 +107,7 @@
       <p>Every exception in the block uses the same <code>eb</code>, the difference between the widest value's bit width and <code>b</code>. In the example, 7 minus 3 gives four bits, and 90 uses all four.</p>
       <p>Exception positions use a list or a bitmap. A short ascending list uses one byte per position. When there are many, a 32-byte bitmap with one bit for each of the 256 values is smaller, since a list of 32 positions would already cost the same. After the positions, the stream packs each exception's <code>eb</code> high bits in position order.</p>
       <p>The body comes last, 256 values of <code>b</code> bits, exactly 32 &times; <code>b</code> bytes. Its bits are dealt into 16-byte groups of lanes rather than written as one long string, a layout explained in <a href="cpu.html#pfor">Fast on one CPU core</a>.</p>
-      <p>The eight-value example fits into one block. A b byte of 3, an exception count of one, a descriptor saying four high bits and list mode, one position byte pointing at the 90, half a byte holding <code>1011</code>, and then the body. The block size and this layout are part of the wire format, so changing either would need a new CTid. The full field-by-field description lives in <code>core/src/pfor/spec.md</code>.</p>
+      <p>The eight-value example fits into one block. A b byte of 3, an exception count of one, a descriptor saying four high bits and list mode, one position byte pointing at the 90, half a byte holding <code>1011</code>, and then the body. The block size and this layout are part of the wire format, so changing either would need a new CTid. The full field-by-field description lives in <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/pfor/spec.md" rel="noopener noreferrer"><code>core/src/pfor/spec.md</code></a>.</p>
 
       <h2 class="part" id="choosing">How the encoder chooses b</h2>
       <p>Choosing <code>b</code> trades body size against exceptions. Every bit taken off b saves 32 bytes of body across the 256 values, but it also turns more values into exceptions, and each one costs a position plus its <code>eb</code> high bits. The encoder searches for the smallest block.</p>
@@ -112,7 +119,7 @@
       <h2 class="part" id="geozl">Where GeoZL uses PFOR</h2>
       <p>GeoZL uses PFOR in three places. The <code>pfor</code> codec can be the last node of a recipe, as in <code>delta_1d&gt;pfor</code>. The fused codec <code>planar_zigzag_pfor</code>, behind the recipe <code>planar&gt;zigzag&gt;pfor</code>, uses the same block format for its residuals. Inside the <code>lanes</code> codecs, a byte lane uses PFOR whenever it comes out smaller than <a href="pivco.html">PivCo</a>.</p>
       <p>Each value's fixed position is what makes PFOR fast to decode. <a href="cpu.html#pfor">Fast on one CPU core</a> and <a href="gpu-internals.html">From compressed bytes to a GPU tensor</a> show how that is used on a CPU and on a GPU.</p>
-      <p>PFOR was introduced by Zukowski, Héman, Nes and Boncz in <i>Super-Scalar RAM-CPU Cache Compression</i>, ICDE 2006. The GeoZL block design follows TurboPFor by powturbo and contributors. It is an independent implementation and its frames are not bitstream compatible with TurboPFor.</p>
+      <p>PFOR was introduced by Zukowski, Héman, Nes and Boncz in <i>Super-Scalar RAM-CPU Cache Compression</i>, ICDE 2006. The GeoZL block design follows <a href="https://github.com/powturbo/TurboPFor-Integer-Compression" rel="noopener noreferrer">TurboPFor</a> by powturbo and contributors. It is an independent implementation and its frames are not bitstream compatible with TurboPFor.</p>
 
       <nav class="pager" aria-label="Pages">
         <a class="prev" href="near-lossless.html"><span>Previous</span>Near-lossless</a>

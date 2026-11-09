@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=11">
+<link rel="stylesheet" href="assets/css/reading.css?v=12">
 </head>
 <body>
 <div class="page">
@@ -68,6 +68,18 @@
         <li>Package <code>geozl</code> on <a href="https://pypi.org/project/geozl/" rel="noopener noreferrer">PyPI</a></li>
         <li>Wheels for Linux x86-64 and macOS arm64</li>
       </ul>
+      <aside class="series" aria-label="Section">
+        <p class="series-title">API, in seven pages</p>
+        <ol>
+          <li><a href="api.html">Overview</a></li>
+          <li class="here" aria-current="page">Python</li>
+          <li><a href="api-c.html">C</a></li>
+          <li><a href="api-r.html">R</a></li>
+          <li><a href="api-julia.html">Julia</a></li>
+          <li><a href="api-js.html">JavaScript</a></li>
+          <li><a href="api-gpu.html">GPU decoding</a></li>
+        </ol>
+      </aside>
 <pre><code>pip install geozl</code></pre>
       <p>The top-level calls need only NumPy. <code>geozl.lossless</code> and <code>geozl.lossy</code> also need the <code>openzl</code> package. On other platforms a source install builds the native library first.</p>
 
@@ -121,7 +133,7 @@ g.error                                     # 'LINEAR:MAX_ERROR=2'</code></pre>
       <p>Decodes a frame into a flat, 8-byte aligned <code>uint8</code> array. The frame stores no dtype or shape, so restore them with <code>.view(dtype).reshape(shape)</code>.</p>
       <table class="spec">
         <tr><th>verify</th><td>Check the frame checksums. Set <code>False</code> to skip them.</td></tr>
-        <tr><th>max_output_size</th><td>Refuse a frame that declares more output bytes than this. OpenZL may still allocate intermediate streams while decoding.</td></tr>
+        <tr><th>max_output_size</th><td>Refuse a frame that declares more output bytes than this. <a href="https://github.com/facebook/openzl" rel="noopener noreferrer">OpenZL</a> may still allocate intermediate streams while decoding.</td></tr>
       </table>
       <p>Raises <code>ValueError</code> when <code>max_output_size</code> is negative, not finite or below the declared size. Raises <code>RuntimeError</code> for an unreadable or corrupt frame.</p>
 

@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=11">
+<link rel="stylesheet" href="assets/css/reading.css?v=12">
 </head>
 <body>
 <div class="page">
@@ -93,12 +93,12 @@
       <p>That last property is exactly what we wanted. In July it was also what hid a bug from us.</p>
 
       <h2 class="part" id="avx2">The wheel that lost AVX2</h2>
-      <p>On 26 July 2026 we found that the x86 wheel we had published was running without AVX2. Nothing had failed. A wheel is built for the base x86-64 instruction set, so <code>-mavx2</code> is not available as a build flag, and the AVX2 kernels simply did not exist in it. The SSE2 kernels took over, wrote the same bytes, and every test passed.</p>
+      <p>On <a href="https://github.com/asterisk-labs/geozl/commits/main/?since=2026-07-26&amp;until=2026-07-26" rel="noopener noreferrer">26 July 2026</a> we found that the x86 wheel we had published was running without AVX2. Nothing had failed. A wheel is built for the base x86-64 instruction set, so <code>-mavx2</code> is not available as a build flag, and the AVX2 kernels simply did not exist in it. The SSE2 kernels took over, wrote the same bytes, and every test passed.</p>
       <p>The fix was to stop depending on build flags. Each AVX2 kernel now carries a target attribute, so it sits in the same object file as its SSE2 sibling, and the decoder asks the CPU once at run time which one to use. We measured it against a build with <code>-mavx2</code> everywhere and saw no difference.</p>
       <p>The lesson we took from it is that a lost fast path is invisible from the outside, because the frames come out the same either way. So the same day we added <code>geozl.simd_info()</code>, which reports what a build carries, what the CPU supports and what actually runs. On the M5 we benchmark on, it says this.</p>
       <pre><code>&gt;&gt;&gt; geozl.simd_info()
 {'built': ['scalar', 'neon'], 'cpu': ['scalar', 'neon'], 'active': 'neon'}</code></pre>
-      <p>A path listed under <code>cpu</code> but missing from <code>built</code> means a build is leaving speed behind. The release jobs fail a wheel when that happens on the runner. CI already ran the tests once per SIMD path, and since 3 November it also checks that each run used the path it was meant to, because the tests alone pass on any of them. Set <code>GEOZL_SIMD</code> before import to cap the active path if you want to compare them yourself.</p>
+      <p>A path listed under <code>cpu</code> but missing from <code>built</code> means a build is leaving speed behind. The release jobs fail a wheel when that happens on the runner. CI already ran the tests once per SIMD path, and since <a href="https://github.com/asterisk-labs/geozl/commits/main/?since=2026-11-03&amp;until=2026-11-03" rel="noopener noreferrer">3 November</a> it also checks that each run used the path it was meant to, because the tests alone pass on any of them. Set <code>GEOZL_SIMD</code> before import to cap the active path if you want to compare them yourself.</p>
 
       <h2 class="part" id="fit">What a decoder needs to use it</h2>
       <p>SIMD only helps when the lanes can work without talking to each other. It needs <b>the same operation on neighbouring values</b>, adjacent memory and <b>no branch per value</b>. A row dependency makes value <code>i</code> wait for <code><i>i &minus; 1</i></code>. A CPU can live with one such dependency, because it can pass one value between registers while it walks a row.</p>
@@ -121,7 +121,7 @@
         <img src="assets/svg/codecs-light/planar-row.svg" alt="Decoding one row of planar. Row above 10 12 15 15, residuals 1 0 -1 2. Step 1 computes r plus N minus the N on its left for every column at once, 11 2 2 2. Step 2 takes a running sum, 11 13 15 17, which is the decoded row." loading="lazy">
         <figcaption>At the left edge W and NW count as zero.</figcaption>
       </figure>
-      <p>This rearrangement is where our first optimized decoders started, on 4 July 2026, as a prefix sum fused into the planar decoder so the row above is folded in during the same pass.</p>
+      <p>This rearrangement is where our first optimized decoders started, on <a href="https://github.com/asterisk-labs/geozl/commits/main/?since=2026-07-04&amp;until=2026-07-04" rel="noopener noreferrer">4 July 2026</a>, as a prefix sum fused into the planar decoder so the row above is folded in during the same pass.</p>
       <p>The other linear predictors are variations on it. delta_w is the same prefix sum without the row above. delta_n needs no prefix sum at all, since a row is the row above plus its residuals, one SIMD add per register, which makes it the fastest predictor to decode. wp_static reads only finished rows, so it closes the row the same way as planar.</p>
 
       <h2 class="part" id="scan">A prefix sum inside a register</h2>
@@ -152,12 +152,12 @@ static inline uint16x8_t geozl_vscan16_neon(uint16x8_t x, uint16x8_t *carry) {
   *carry = vaddq_u16(*carry, geozl_vlast16_neon(p));  // old carry + this sum
   return out;
 }</code></pre>
-      <p>The line that updates the carry is a change from 1 September 2026. Before it, the next carry was the last lane of the finished output, so pulling that lane out sat on the chain between one register and the next. Now the carry grows by the last lane of the register's own prefix sum, which is ready before the old carry arrives, and the chain from register to register is a single add.</p>
+      <p>The line that updates the carry is a change from <a href="https://github.com/asterisk-labs/geozl/commits/main/?since=2026-09-01&amp;until=2026-09-01" rel="noopener noreferrer">1 September 2026</a>. Before it, the next carry was the last lane of the finished output, so pulling that lane out sat on the chain between one register and the next. Now the carry grows by the last lane of the register's own prefix sum, which is ready before the old carry arrives, and the chain from register to register is a single add.</p>
 
       <h2 class="part" id="serial">When the guess needs W</h2>
       <p>Planar uses a <b>sum</b>, so W cancels when rearranged. <b>med</b> takes a median of W, N and the planar guess, and <b>average</b> takes the mean of W and N. Neither cancels. Each sample needs its reconstructed left neighbour, which no prefix sum can supply.</p>
       <p>The honest result for these two is that we made them less slow, not fast. The 4 July kernels peeled the first row and the first column out of the loop, so the interior loop carries no boundary test. average then got a trick of its own. Its N half is known before the row starts, so it moves into a vectorized pass ahead of the row and leaves a minimal chain through W.</p>
-      <p>med got the bigger change on 20 September 2026. It now keeps <b>four rows in flight</b>, each one column behind the row above. Each row is still serial, but four independent chains keep the core busy. The median itself is computed with masks instead of branches, because a three-way choice is exactly the branch a CPU guesses wrong.</p>
+      <p>med got the bigger change on <a href="https://github.com/asterisk-labs/geozl/commits/main/?since=2026-09-20&amp;until=2026-09-20" rel="noopener noreferrer">20 September 2026</a>. It now keeps <b>four rows in flight</b>, each one column behind the row above. Each row is still serial, but four independent chains keep the core busy. The median itself is computed with masks instead of branches, because a three-way choice is exactly the branch a CPU guesses wrong.</p>
       <figure class="diagram wide">
         <img src="assets/svg/cpu/med-wavefront.svg" alt="med decodes four rows at once. Each row is a serial chain through its west neighbour, but row 2 runs one column behind row 1, row 3 behind row 2 and row 4 behind row 3, so the four chains are independent and the lower rows read N and NW from registers." loading="lazy">
         <figcaption>Four chains a column apart. The pixel above each <b>?</b> is already done.</figcaption>
@@ -165,7 +165,7 @@ static inline uint16x8_t geozl_vscan16_neon(uint16x8_t x, uint16x8_t *carry) {
       <p>That staggered wavefront is the best we found for med on a CPU, and on a GPU the chain does not go at all. <code>med</code> still decodes more slowly than <code>planar</code>, so start with <code>planar</code> when decode speed matters.</p>
 
       <h2 class="part" id="pfor">PFOR in 16-byte lanes</h2>
-      <p>PFOR arrived on 17 August 2026, in 0.14.0, as a lossless codec, and replaced the older <code>store_lo</code> terminal in our recipes. Bit packing has a lane problem of its own, though. Written as one long bit string, value <code>i</code> starts at bit <code>i &times; b</code>, which with b = 3 lands at arbitrary places inside bytes. Every value needs its own shift, and SIMD lanes need shuffling before they can unpack anything.</p>
+      <p>PFOR arrived on <a href="https://github.com/asterisk-labs/geozl/commits/main/?since=2026-08-17&amp;until=2026-08-17" rel="noopener noreferrer">17 August 2026</a>, in 0.14.0, as a lossless codec, and replaced the older <code>store_lo</code> terminal in our recipes. Bit packing has a lane problem of its own, though. Written as one long bit string, value <code>i</code> starts at bit <code>i &times; b</code>, which with b = 3 lands at arbitrary places inside bytes. Every value needs its own shift, and SIMD lanes need shuffling before they can unpack anything.</p>
       <figure class="diagram wide">
         <img src="assets/svg/cpu/pfor-lanes.svg" alt="Two ways to pack 3-bit values. Packed one after another, values cut across byte boundaries at different places, so each needs its own shift. In GeoZL PFOR each lane is its own bit stream, so one 16-byte load holds the same slot of every lane at the same bits, and one shift, and and or unpack all eight." loading="lazy">
         <figcaption>The vertical layout turns unpacking into <b>shift, and, or</b>, with no shuffles at all.</figcaption>
@@ -189,7 +189,7 @@ static inline uint16x8_t geozl_vscan16_neon(uint16x8_t x, uint16x8_t *carry) {
         <tr><td><code>planar&gt;zigzag&gt;lanes</code></td><td>2.04</td><td>3.4 GB/s</td></tr>
         <tr><td><code>planar&gt;zigzag&gt;transpose&gt;entropy</code></td><td>2.13</td><td>0.91 GB/s</td></tr>
         <tr><td><code>med&gt;zigzag&gt;transpose&gt;entropy</code></td><td>2.11</td><td>0.71 GB/s</td></tr>
-        <tr><td>zstd, level 3</td><td>1.47</td><td>1.1 GB/s</td></tr>
+        <tr><td><a href="https://github.com/facebook/zstd" rel="noopener noreferrer">zstd</a>, level 3</td><td>1.47</td><td>1.1 GB/s</td></tr>
         <tr><td>Blosc, zstd 3 with bitshuffle</td><td>1.64</td><td>0.94 GB/s</td></tr>
         <tr><td>pco</td><td>2.13</td><td>0.94 GB/s</td></tr>
         <tr><td>JPEG 2000</td><td>2.31</td><td>0.03 GB/s</td></tr>

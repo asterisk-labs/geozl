@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=11">
+<link rel="stylesheet" href="assets/css/reading.css?v=12">
 </head>
 <body>
 <div class="page">
@@ -68,6 +68,16 @@
 
     <article class="content">
 <h1>Near-lossless</h1>
+      <aside class="series" aria-label="Section">
+        <p class="series-title">Codecs, in five pages</p>
+        <ol>
+          <li><a href="docs.html">Overview</a></li>
+          <li><a href="predictors.html">Predictors</a></li>
+          <li><a href="streams.html">Streams</a></li>
+          <li><a href="fused.html">Fused</a></li>
+          <li class="here" aria-current="page">Near-lossless</li>
+        </ol>
+      </aside>
       <p>A <b>quantizer</b> snaps each sample to a grid, so the error never passes the bound you set. Every stage after it is lossless. <b>quant_linear</b> bounds the absolute error, <b>quant_log</b> the relative error, and <b>quant_sqrt</b> an error that grows with the signal, like sensor noise.</p>
       <section class="codec" id="quant_linear" data-no="15" data-ctid="0x72D781" data-fam="orange" data-page="codecs/quant-linear.html" style="--fam:var(--orange)">
         <h3><span class="num">15</span>quant_linear</h3>

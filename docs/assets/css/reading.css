@@ -597,6 +597,8 @@ pre {
   font-weight: 400;
 }
 
+.series[aria-label="Section"] li.here::after { content: "this page"; }
+
 /* Code */
 
 pre {

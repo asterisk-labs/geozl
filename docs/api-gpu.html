@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=11">
+<link rel="stylesheet" href="assets/css/reading.css?v=12">
 </head>
 <body>
 <div class="page">
@@ -64,17 +64,29 @@
     <article class="content">
       <h1>GPU decoding</h1>
       <ul class="facts">
-        <li>Header <code>geozl/gpu.h</code>, prototypes in the <a href="api-c.html#c-gpu">C API</a></li>
+        <li>Header <a href="https://github.com/asterisk-labs/geozl/blob/main/core/include/geozl/gpu.h" rel="noopener noreferrer"><code>geozl/gpu.h</code></a>, prototypes in the <a href="api-c.html#c-gpu">C API</a></li>
         <li>Part of the stable source API from 0.30.0</li>
         <li>One API for every GPU backend</li>
       </ul>
+      <aside class="series" aria-label="Section">
+        <p class="series-title">API, in seven pages</p>
+        <ol>
+          <li><a href="api.html">Overview</a></li>
+          <li><a href="api-python.html">Python</a></li>
+          <li><a href="api-c.html">C</a></li>
+          <li><a href="api-r.html">R</a></li>
+          <li><a href="api-julia.html">Julia</a></li>
+          <li><a href="api-js.html">JavaScript</a></li>
+          <li class="here" aria-current="page">GPU decoding</li>
+        </ol>
+      </aside>
       <p>An Earth observation training batch holds windows and bands in device memory. A typical path decodes tiles on the CPU, cuts windows, stacks them and copies the result to the GPU. The CPU does not use those decoded bytes after the copy.</p>
       <p>GeoZL's GPU API accepts compressed frames and a device destination. The caller specifies where each decoded rectangle lands in a device buffer. It decodes on the GPU where the frame allows it, on the CPU where it must, and writes the samples in place. For the frames that decode on the device, the decompressed raster never exists in host memory at all.</p>
 
       <h2 class="part" id="callers">Who calls it</h2>
-      <p>GPU decoding is a C API, in <code>geozl/gpu.h</code>. Python, R, Julia and JavaScript have no GPU call today, and a Python binding on the same calls is planned.</p>
+      <p>GPU decoding is a C API, in <a href="https://github.com/asterisk-labs/geozl/blob/main/core/include/geozl/gpu.h" rel="noopener noreferrer"><code>geozl/gpu.h</code></a>. Python, R, Julia and JavaScript have no GPU call today, and a Python binding on the same calls is planned.</p>
       <p><a href="https://asterisk.coop/rumi/" rel="noopener noreferrer">Rumi</a> uses it to fill training batches from <code>.rumi</code> files.</p>
-      <p>The header uses DLPack device type numbers, so a tensor's device type can pass through unchanged. The rest of the API is vendor independent. Device memory is a backend buffer handle passed as a pointer-sized value. Calls, copies and rules are the same across supported GPUs. <code>geozl_gpu_available(type)</code> reports whether the build supports a device type.</p>
+      <p>The header uses <a href="https://dmlc.github.io/dlpack/latest/" rel="noopener noreferrer">DLPack</a> device type numbers, so a tensor's device type can pass through unchanged. The rest of the API is vendor independent. Device memory is a backend buffer handle passed as a pointer-sized value. Calls, copies and rules are the same across supported GPUs. <code>geozl_gpu_available(type)</code> reports whether the build supports a device type.</p>
       <p>The example uses four 256 by 256 tiles of unsigned 16-bit samples. Each tile has one compressed frame. The output is four 128 by 128 windows, each starting at row 64 and column 32, in a 4 by 128 by 128 GPU tensor.</p>
 
       <h2 class="part" id="decoder">A decoder you make once</h2>
@@ -87,7 +99,7 @@ if (gpu == NULL) {
   fprintf(stderr, "%s\n", error);
   return 1;
 }</code></pre>
-      <p>The first two arguments pick the device type and the device index. The third, <code>threads</code>, caps the host threads one decode may use. GPU frames still need OpenZL to parse them and GeoZL to check and plan the payload on the CPU. Those threads take frames from a shared counter, so more threads help when a batch has many frames. 0 means one.</p>
+      <p>The first two arguments pick the device type and the device index. The third, <code>threads</code>, caps the host threads one decode may use. GPU frames still need <a href="https://github.com/facebook/openzl" rel="noopener noreferrer">OpenZL</a> to parse them and GeoZL to check and plan the payload on the CPU. Those threads take frames from a shared counter, so more threads help when a batch has many frames. 0 means one.</p>
       <p><code>maxDecodedBytes</code> limits the sum of decoded frame sizes per call and must be nonzero. The decoder checks it before reserving staging or device memory. Our four tiles decode to 512 KiB in total. A 64 MiB limit allows bigger batches. <code>verifyChecksums</code> enables frame checksum verification.</p>
       <p>All calls use the same error convention. Each function takes a character buffer and its capacity, returns 0 on success (or a non-NULL pointer, for the constructors), and on failure writes a short message into the buffer.</p>
       <p>A decoder serves one call at a time. If two threads decode in parallel, each needs its own.</p>
@@ -137,7 +149,7 @@ for (size_t i = 0; i &lt; TILES; ++i)
       <p>The API accepts any GeoZL frame. Decode location is chosen per frame.</p>
       <p>A frame uses the GPU if its last codec is pfor or lanes, it has one chunk, and its elements match 1- or 2-byte target samples. In terms of recipes, that is <code>id&gt;pfor</code>, <code>planar&gt;zigzag&gt;pfor</code>, <code>id&gt;lanes</code> and <code>planar&gt;zigzag&gt;lanes</code>. </p>
       <p>The CPU still parses device-routed frames. OpenZL reads the frame. GeoZL captures the payload before the last codec expands it, validates and plans its blocks, and places them in GPU-readable staging. The expansion, any inverse planar step, and the copies into the target all happen on the device.</p>
-      <p>Other frames decode with OpenZL on the CPU. Their samples enter host staging, then are uploaded and placed by the same copies. This includes zstd and other entropy graphs, NoData and quantized frames, raw frames, and frames with more than one chunk. Multi-plane planar frames with planes shorter than 256 samples also use the host path.</p>
+      <p>Other frames decode with OpenZL on the CPU. Their samples enter host staging, then are uploaded and placed by the same copies. This includes <a href="https://github.com/facebook/zstd" rel="noopener noreferrer">zstd</a> and other entropy graphs, NoData and quantized frames, raw frames, and frames with more than one chunk. Multi-plane planar frames with planes shorter than 256 samples also use the host path.</p>
       <p>GPU kernels need threads to locate values independently, and PFOR and PivCo provide that property. <a href="gpu-codecs.html">GPU-friendly codecs</a> explains why, and <a href="pfor.html">PFOR</a> and <a href="pivco.html">PivCo</a> describe each format.</p>
       <p>In the picture below, one call carries five frames. The animation routes single-chunk PFOR and PivCo frames through CPU planning and GPU expansion. Zstd, NoData and a two-chunk PFOR frame decode on the CPU and upload to the same target.</p>
       <figure class="diagram wide stepper" data-beats="2.75,6.95,10.95,14.3"><img src="assets/svg/gpu/api-routing.svg" alt="Five frames in one call, f0 to f4. Frame f0 planar&gt;zigzag&gt;pfor and f2 id&gt;lanes take the device path, for PFOR or PivCo frames with one chunk and 1 or 2 byte samples, where the CPU parses and plans and then the GPU expands the payload. Frame f1 zstd, f3 id&gt;pfor with 2 chunks and f4 nodata take the host path, where OpenZL decodes on the CPU and the samples are uploaded. All five then move into the same target through the same copies." loading="lazy"><figcaption>Routing is per frame, so a PFOR frame with two chunks goes to the host like any other graph. The device path still starts on the CPU, but its raster is only ever expanded on the GPU.</figcaption></figure>

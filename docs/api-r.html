@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=11">
+<link rel="stylesheet" href="assets/css/reading.css?v=12">
 </head>
 <body>
 <div class="page">
@@ -68,6 +68,18 @@
         <li>Package <code>geozl</code>, sources in <a href="https://github.com/asterisk-labs/geozl/tree/main/bindings/r" rel="noopener noreferrer"><code>bindings/r</code></a></li>
         <li>R 4.1 or newer, 64-bit</li>
       </ul>
+      <aside class="series" aria-label="Section">
+        <p class="series-title">API, in seven pages</p>
+        <ol>
+          <li><a href="api.html">Overview</a></li>
+          <li><a href="api-python.html">Python</a></li>
+          <li><a href="api-c.html">C</a></li>
+          <li class="here" aria-current="page">R</li>
+          <li><a href="api-julia.html">Julia</a></li>
+          <li><a href="api-js.html">JavaScript</a></li>
+          <li><a href="api-gpu.html">GPU decoding</a></li>
+        </ol>
+      </aside>
       <p>The R package has the graph, compress, decompress and profile calls of the Python package and writes the same frames. It works on the double, integer and raw vectors that terra and stars hold.</p>
 
       <h2 class="part" id="install">Install</h2>
@@ -75,7 +87,7 @@
 
 # or from GitHub
 remotes::install_github("asterisk-labs/geozl", subdir = "bindings/r")</code></pre>
-      <p>A source install compiles GeoZL and OpenZL with their own CMake files, so it needs CMake 3.21 or newer and C11 and C++17 compilers. webR is not supported, because it runs on wasm32.</p>
+      <p>A source install compiles GeoZL and <a href="https://github.com/facebook/openzl" rel="noopener noreferrer">OpenZL</a> with their own CMake files, so it needs CMake 3.21 or newer and C11 and C++17 compilers. webR is not supported, because it runs on wasm32.</p>
 <pre><code>library(geozl)
 
 tile &lt;- outer(1:256, 1:256, function(x, y) 1000 + 3 * (x - 1) + 2 * (y - 1))

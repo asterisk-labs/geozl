@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=11">
+<link rel="stylesheet" href="assets/css/reading.css?v=12">
 </head>
 <body>
 <div class="page">
@@ -70,9 +70,16 @@
       <h1>How PivCo works</h1>
       <ul class="facts">
         <li>PivCo-Huffman, by Marcin Zukowski, 2026</li>
-        <li>In OpenZL 0.3, arXiv 2606.05765</li>
+        <li>In <a href="https://github.com/facebook/openzl" rel="noopener noreferrer">OpenZL</a> 0.3, <a href="https://arxiv.org/abs/2606.05765" rel="noopener noreferrer">arXiv 2606.05765</a></li>
         <li>GeoZL codecs <code>lanes</code> (<code>0x72D713</code>) and <code>planar_zigzag_lanes</code> (<code>0x72D712</code>)</li>
       </ul>
+      <aside class="series" aria-label="Section">
+        <p class="series-title">Algorithms, in two pages</p>
+        <ol>
+          <li><a href="pfor.html">PFOR</a></li>
+          <li class="here" aria-current="page">PivCo</li>
+        </ol>
+      </aside>
       <p>Huffman is one of the oldest compression methods, and its bit order forces a decoder to read one code after another. PivCo keeps the Huffman codes but stores their bits in a different order, so many readers can decode the same block together. Eight symbols follow the whole path below, from Huffman codes to the bitmaps GeoZL writes.</p>
 
       <h2 class="part" id="huffman">Huffman, and why it is serial</h2>

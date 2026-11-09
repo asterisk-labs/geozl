@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=11">
+<link rel="stylesheet" href="assets/css/reading.css?v=12">
 </head>
 <body>
 <div class="page">
@@ -68,6 +68,18 @@
         <li>Package <code>@asterisk-labs/geozl</code> on <a href="https://www.npmjs.com/package/@asterisk-labs/geozl" rel="noopener noreferrer">npm</a></li>
         <li>wasm64, Node.js 24 or newer</li>
       </ul>
+      <aside class="series" aria-label="Section">
+        <p class="series-title">API, in seven pages</p>
+        <ol>
+          <li><a href="api.html">Overview</a></li>
+          <li><a href="api-python.html">Python</a></li>
+          <li><a href="api-c.html">C</a></li>
+          <li><a href="api-r.html">R</a></li>
+          <li><a href="api-julia.html">Julia</a></li>
+          <li class="here" aria-current="page">JavaScript</li>
+          <li><a href="api-gpu.html">GPU decoding</a></li>
+        </ol>
+      </aside>
       <p>The JavaScript package is GeoZL built as a WebAssembly ES module. It compresses and decompresses raw bytes in one call each and writes the same frames as the other bindings.</p>
 
       <h2 class="part" id="install">Install</h2>
@@ -89,7 +101,7 @@ const back = new Uint16Array(
   geozl.decompress(frame, {maxOutputSize: bytes.length}).buffer);</code></pre>
 
       <h2 class="part" id="functions">Functions</h2>
-      <p>Every call throws an <code>Error</code> on failure. When the library refuses a recipe, tile or frame, the error carries the OpenZL error code as <code>code</code>.</p>
+      <p>Every call throws an <code>Error</code> on failure. When the library refuses a recipe, tile or frame, the error carries the <a href="https://github.com/facebook/openzl" rel="noopener noreferrer">OpenZL</a> error code as <code>code</code>.</p>
 
       <h3 id="createGeoZL">createGeoZL</h3>
 <pre><code class="sig">createGeoZL(options?: GeoZLOptions): Promise&lt;GeoZL&gt;</code></pre>

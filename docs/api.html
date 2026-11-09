@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=11">
+<link rel="stylesheet" href="assets/css/reading.css?v=12">
 </head>
 <body>
 <div class="page">
@@ -68,6 +68,18 @@
         <li>One C core with bindings for Python, R, Julia and JavaScript</li>
         <li>Every binding writes the same frames</li>
       </ul>
+      <aside class="series" aria-label="Section">
+        <p class="series-title">API, in seven pages</p>
+        <ol>
+          <li class="here" aria-current="page">Overview</li>
+          <li><a href="api-python.html">Python</a></li>
+          <li><a href="api-c.html">C</a></li>
+          <li><a href="api-r.html">R</a></li>
+          <li><a href="api-julia.html">Julia</a></li>
+          <li><a href="api-js.html">JavaScript</a></li>
+          <li><a href="api-gpu.html">GPU decoding</a></li>
+        </ol>
+      </aside>
       <p>Four calls cover most use. <code>profile</code> measures candidate recipes on a tile, <code>graph</code> builds one, <code>compress</code> runs tiles through it and <code>decompress</code> reads a frame back. The <a href="https://colab.research.google.com/github/asterisk-labs/geozl/blob/main/docs/notebooks/high-level-api.ipynb" rel="noopener noreferrer">notebook</a> runs them on a DEM tile.</p>
 
       <h2 class="part" id="loop">The four calls</h2>
@@ -87,7 +99,7 @@ assert np.array_equal(back, tile)</code></pre>
 
       <h2 class="part" id="languages">Languages</h2>
       <table class="spec">
-        <tr><th><a href="api-python.html">Python</a></th><td>The full API, with the OpenZL nodes in <code>geozl.lossless</code> and <code>geozl.lossy</code>. <code>pip install geozl</code></td></tr>
+        <tr><th><a href="api-python.html">Python</a></th><td>The full API, with the <a href="https://github.com/facebook/openzl" rel="noopener noreferrer">OpenZL</a> nodes in <code>geozl.lossless</code> and <code>geozl.lossy</code>. <code>pip install geozl</code></td></tr>
         <tr><th><a href="api-c.html">C</a></th><td>The library every binding calls, with graphs, nodes, coefficients and GPU decode. Built from the repository with <code>make lib</code>.</td></tr>
         <tr><th><a href="api-r.html">R</a></th><td>The four calls and <code>geozl_coeffs</code>, on double, integer and raw vectors. From the <a href="https://asterisk-labs.r-universe.dev" rel="noopener noreferrer">asterisk-labs r-universe</a>.</td></tr>
         <tr><th><a href="api-julia.html">Julia</a></th><td>The four calls and <code>coeffs</code>, on native Julia arrays. <code>Pkg.add("GeoZL")</code> from the Asterisk registry.</td></tr>

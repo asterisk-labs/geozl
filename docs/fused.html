@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=11">
+<link rel="stylesheet" href="assets/css/reading.css?v=12">
 </head>
 <body>
 <div class="page">
@@ -68,6 +68,16 @@
 
     <article class="content">
 <h1>Fused</h1>
+      <aside class="series" aria-label="Section">
+        <p class="series-title">Codecs, in five pages</p>
+        <ol>
+          <li><a href="docs.html">Overview</a></li>
+          <li><a href="predictors.html">Predictors</a></li>
+          <li><a href="streams.html">Streams</a></li>
+          <li class="here" aria-current="page">Fused</li>
+          <li><a href="near-lossless.html">Near-lossless</a></li>
+        </ol>
+      </aside>
       <p>A <b>fused</b> codec runs the chain in <b>one pass</b>. Separate nodes write each stage's full output to memory before the next stage reads it. A fused codec keeps samples in registers between stages, reading the input once and writing the output once. Both produce the same decoded data.</p>
       <p>Fusion helps most when cheap steps such as planar, zigzag and pfor spend more time moving data than computing. Follow one 1024 × 1024 uint16 tile of 2 MiB through separate and fused <code>planar&gt;zigzag&gt;pfor</code>.</p>
       <figure class="diagram wide stepper" data-beats="2.2,4.4,6.6,9.2"><img src="assets/svg/codecs-light/fused-vs-separate.svg" alt="As separate nodes, planar reads the 2 MiB tile and writes 2 MiB of residuals, zigzag reads them and writes 2 MiB of unsigned values, and pfor reads those and writes the frame, 10 MiB of memory plus the frame. Fused into one codec, the tile is read once and the frame written once, 2 MiB plus the frame, with each sample kept in registers." loading="lazy"><figcaption>Separate nodes pass the whole tile through memory between every step. The fused codec reads it once.</figcaption></figure>

@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=11">
+<link rel="stylesheet" href="assets/css/reading.css?v=12">
 </head>
 <body>
 <div class="page">
@@ -67,9 +67,21 @@
         <li>Headers in <a href="https://github.com/asterisk-labs/geozl/tree/main/core/include/geozl" rel="noopener noreferrer"><code>core/include/geozl</code></a></li>
         <li>Every binding calls this library</li>
       </ul>
+      <aside class="series" aria-label="Section">
+        <p class="series-title">API, in seven pages</p>
+        <ol>
+          <li><a href="api.html">Overview</a></li>
+          <li><a href="api-python.html">Python</a></li>
+          <li class="here" aria-current="page">C</li>
+          <li><a href="api-r.html">R</a></li>
+          <li><a href="api-julia.html">Julia</a></li>
+          <li><a href="api-js.html">JavaScript</a></li>
+          <li><a href="api-gpu.html">GPU decoding</a></li>
+        </ol>
+      </aside>
 <pre><code>make submodules
 make lib        # core/build/libgeozl, with OpenZL linked in</code></pre>
-      <p>Include <code>geozl/geozl.h</code> for compression, <code>geozl/coeffs.h</code> for coefficients and <code>geozl/gpu.h</code> for GPU decode. The CMake project in <code>core/</code> also installs the headers and the library.</p>
+      <p>Include <a href="https://github.com/asterisk-labs/geozl/blob/main/core/include/geozl/geozl.h" rel="noopener noreferrer"><code>geozl/geozl.h</code></a> for compression, <a href="https://github.com/asterisk-labs/geozl/blob/main/core/include/geozl/coeffs.h" rel="noopener noreferrer"><code>geozl/coeffs.h</code></a> for coefficients and <a href="https://github.com/asterisk-labs/geozl/blob/main/core/include/geozl/gpu.h" rel="noopener noreferrer"><code>geozl/gpu.h</code></a> for GPU decode. The CMake project in <a href="https://github.com/asterisk-labs/geozl/tree/main/core" rel="noopener noreferrer"><code>core/</code></a> also installs the headers and the library.</p>
 
       <h2 class="part" id="types">Types and errors</h2>
       <p>The C library holds everything the Python calls use. Functions that return <code>int</code> return 0 on success and otherwise a <code>ZL_ErrorCode</code>, with a message written to <code>errCtx</code> when it is not <code>NULL</code>. The headers are the supported source API, and before 1.0 they may change in any release, as <a href="https://github.com/asterisk-labs/geozl/blob/main/docs/c-api.md" rel="noopener noreferrer">C API stability</a> sets out.</p>
@@ -143,7 +155,7 @@ int geozl_2d_compress_coeffs_c(geozl_2d_graph *g, const void *src,
 <pre><code class="proto">ZL_Report geozl_register_decoders(ZL_DCtx *dctx);
 int geozl_owns_ctid(uint32_t ctid);
 int geozl_ctid_is_lossy(uint32_t ctid);</code></pre>
-      <p>The first registers every GeoZL decoder in an OpenZL decompression context. The others report whether a codec id lies in GeoZL's reserved range and in its lossy part. The ids are the <code>GeozlCtid</code> values in <code>geozl/ctids.h</code>.</p>
+      <p>The first registers every GeoZL decoder in an <a href="https://github.com/facebook/openzl" rel="noopener noreferrer">OpenZL</a> decompression context. The others report whether a codec id lies in GeoZL's reserved range and in its lossy part. The ids are the <code>GeozlCtid</code> values in <a href="https://github.com/asterisk-labs/geozl/blob/main/core/include/geozl/ctids.h" rel="noopener noreferrer"><code>geozl/ctids.h</code></a>.</p>
 <pre><code class="proto">ZL_NodeID geozl_node_delta_w(ZL_Compressor *c, uint32_t width);
 ZL_NodeID geozl_node_delta_n(ZL_Compressor *c, uint32_t width,
                              uint32_t planes);
@@ -173,7 +185,7 @@ ZL_NodeID geozl_node_quant_log(ZL_Compressor *c,
                                const quant_log_params *params, int dtype);
 ZL_NodeID geozl_node_quant_sqrt(ZL_Compressor *c,
                                 const quant_sqrt_params *params, int dtype);</code></pre>
-      <p>Build a quantizer node from resolved parameters, the structs in <code>geozl/quant_*_params.h</code> that a frame header carries. <code>geozl_node_quant</code> resolves them from a recipe.</p>
+      <p>Build a quantizer node from resolved parameters, the structs in <a href="https://github.com/asterisk-labs/geozl/tree/main/core/include/geozl" rel="noopener noreferrer"><code>geozl/quant_*_params.h</code></a> that a frame header carries. <code>geozl_node_quant</code> resolves them from a recipe.</p>
 <pre><code class="proto">ZL_NodeID geozl_node_quant(ZL_Compressor *c, const char *error,
                            uint32_t width, int dtype, const void *src,
                            size_t numElts, char *errCtx, size_t errCtxSize);</code></pre>
@@ -196,7 +208,7 @@ size_t geozl_coeffs_pack(void *dst, size_t dstCapacity,
       <p>Reads a blob into <code>dst</code>, vectors back to back, and their lengths into <code>counts</code>. Returns 0 on success, 1 when <code>src</code> is not a GeoZL blob, -1 when it is invalid and -2 when a buffer is too small, with the sizes still written. Call with both buffers <code>NULL</code> to learn the sizes first.</p>
 
       <h2 class="part" id="c-gpu">GPU decode</h2>
-      <p>The decoder in <code>geozl/gpu.h</code> writes frames straight into device memory on a GPU. CUDA and Metal are the first backends. <a href="api-gpu.html">GPU decoding</a> walks through a full call, and this section lists the exact prototypes.</p>
+      <p>The decoder in <a href="https://github.com/asterisk-labs/geozl/blob/main/core/include/geozl/gpu.h" rel="noopener noreferrer"><code>geozl/gpu.h</code></a> writes frames straight into device memory on a GPU. CUDA and Metal are the first backends. <a href="api-gpu.html">GPU decoding</a> walks through a full call, and this section lists the exact prototypes.</p>
 <pre><code>#define GEOZL_GPU_DEVICE_CUDA 2     // DLPack device types
 #define GEOZL_GPU_DEVICE_METAL 8
 
