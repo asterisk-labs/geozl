@@ -49,21 +49,20 @@
     <nav class="toc" aria-label="Contents">
       <p class="toc-title">Docs</p>
       <ol class="toc-pages">
-        <li class="toc-group">Reference</li>
-        <li><a href="docs.html">Codecs</a></li>
+        <li class="toc-group">Codecs</li>
+        <li><a href="docs.html">Overview</a></li>
         <li><a href="predictors.html">Predictors</a></li>
         <li><a href="streams.html">Streams</a></li>
         <li><a href="fused.html">Fused</a></li>
         <li><a href="near-lossless.html">Near-lossless</a></li>
-        <li class="toc-group">CPU decoding</li>
-        <li><a href="cpu.html">Inside the CPU decoder</a></li>
-        <li class="toc-group">GPU-friendly codecs</li>
-        <li><a href="gpu-codecs.html">Why they fit a GPU</a></li>
-        <li><a href="pfor.html" class="here">PFOR</a></li>
+        <li class="toc-group">Algorithms</li>
+        <li><a href="pfor.html" class="here" aria-current="page">PFOR</a></li>
         <li><a href="pivco.html">PivCo</a></li>
-        <li class="toc-group">GPU decoding</li>
-        <li><a href="gpu.html">API</a></li>
-        <li><a href="gpu-internals.html">Inside the decoder</a></li>
+        <li class="toc-group">Optimizations</li>
+        <li><a href="cpu.html">CPU</a></li>
+        <li><a href="gpu-codecs.html">What a GPU needs</a></li>
+        <li><a href="gpu-internals.html">Inside the GPU decoder</a></li>
+        <li><a href="slang.html">Slang</a></li>
       </ol>
     </nav>
 
@@ -116,8 +115,8 @@
       <p>PFOR was introduced by Zukowski, Héman, Nes and Boncz in <i>Super-Scalar RAM-CPU Cache Compression</i>, ICDE 2006. The GeoZL block design follows TurboPFor by powturbo and contributors. It is an independent implementation and its frames are not bitstream compatible with TurboPFor.</p>
 
       <nav class="pager" aria-label="Pages">
-        <a class="prev" href="gpu-codecs.html"><span>Previous</span>GPU-friendly codecs</a>
-        <a class="next" href="pivco.html"><span>Next</span>How PivCo works</a>
+        <a class="prev" href="near-lossless.html"><span>Previous</span>Near-lossless</a>
+        <a class="next" href="pivco.html"><span>Next</span>PivCo</a>
       </nav>
     </article>
 

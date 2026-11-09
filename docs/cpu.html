@@ -49,21 +49,20 @@
     <nav class="toc" aria-label="Contents">
       <p class="toc-title">Docs</p>
       <ol class="toc-pages">
-        <li class="toc-group">Reference</li>
-        <li><a href="docs.html">Codecs</a></li>
+        <li class="toc-group">Codecs</li>
+        <li><a href="docs.html">Overview</a></li>
         <li><a href="predictors.html">Predictors</a></li>
         <li><a href="streams.html">Streams</a></li>
         <li><a href="fused.html">Fused</a></li>
         <li><a href="near-lossless.html">Near-lossless</a></li>
-        <li class="toc-group">CPU decoding</li>
-        <li><a href="cpu.html" class="here">Inside the CPU decoder</a></li>
-        <li class="toc-group">GPU-friendly codecs</li>
-        <li><a href="gpu-codecs.html">Why they fit a GPU</a></li>
+        <li class="toc-group">Algorithms</li>
         <li><a href="pfor.html">PFOR</a></li>
         <li><a href="pivco.html">PivCo</a></li>
-        <li class="toc-group">GPU decoding</li>
-        <li><a href="gpu.html">API</a></li>
-        <li><a href="gpu-internals.html">Inside the decoder</a></li>
+        <li class="toc-group">Optimizations</li>
+        <li><a href="cpu.html" class="here" aria-current="page">CPU</a></li>
+        <li><a href="gpu-codecs.html">What a GPU needs</a></li>
+        <li><a href="gpu-internals.html">Inside the GPU decoder</a></li>
+        <li><a href="slang.html">Slang</a></li>
       </ol>
     </nav>
 
@@ -136,7 +135,7 @@
       </figure>
       <p>GeoZL PFOR follows <a href="https://github.com/powturbo/TurboPFor-Integer-Compression" rel="noopener noreferrer">TurboPFor</a> and stores the body of a block <b>vertically</b>, in 16-byte groups split into lanes. With W-byte elements a group holds L = 16 / W lanes, sixteen for one-byte values and eight for two-byte values. Value <code>i</code> goes to lane <code>i mod L</code>, at slot <code>i div L</code> inside that lane, and every lane is its own little bit stream of b-bit values. A 256-value block fills exactly 2 &times; b groups whatever the element width.</p>
       <p>Take two-byte elements and the eight values from <a href="pfor.html#width">How PFOR works</a>, 3 5 2 7 4 6 1 90 at b = 3. Each one goes to a different lane at slot 0, and the next eight values, shown as <code>x8</code> onward, go to slot 1 of the same lanes. One 16-byte load brings in two bytes of every lane, enough for slots 0 to 4. The animation then picks out slot 0 at bits 0 to 2 and slot 1 at bits 3 to 5 across all eight lanes.</p>
-      <figure class="diagram wide stepper" data-beats="2.55,5.55,8.15,10.55,14.3"><img src="assets/svg/gpu/pfor-lanes.svg" alt="The values 3 5 2 7 4 6 1 90 dealt into eight lanes of a 16-byte group, filling slot 0 of lanes 0 to 7, with the next eight values in slot 1. One 16-byte load covers two bytes of every lane, and slot 0 at bits 0 to 2, then slot 1 at bits 3 to 5, comes out of all eight lanes with one shift and mask." loading="lazy"><figcaption>value i goes to lane i mod 8 at slot i div 8, so one load serves the same slot of every lane</figcaption></figure>
+      <figure class="diagram wide stepper" data-beats="2.55,5.55,8.15,10.55,14.3"><img src="assets/svg/cpu/pfor-slots.svg" alt="The values 3 5 2 7 4 6 1 90 dealt into eight lanes of a 16-byte group, filling slot 0 of lanes 0 to 7, with the next eight values in slot 1. One 16-byte load covers two bytes of every lane, and slot 0 at bits 0 to 2, then slot 1 at bits 3 to 5, comes out of all eight lanes with one shift and mask." loading="lazy"><figcaption>value i goes to lane i mod 8 at slot i div 8, so one load serves the same slot of every lane</figcaption></figure>
       <p>Every lane uses the same shift and mask, and no value needs bits from a neighbouring lane, so one register unpacks eight or sixteen values at a time. The exceptions are patched afterwards with the same OR on the few slots that need it.</p>
       <p>A 16-byte group matches the 128-bit registers of NEON and SSE2, but the size is fixed by the format rather than by the machine. Frames look the same on every machine, so a file written on one CPU decodes just as fast on NEON, SSE2 or AVX2, and still decodes with plain C. <a href="pfor.html">How PFOR works</a> covers the rest of the block format.</p>
 
@@ -144,8 +143,8 @@
       <p>Planar, PFOR and the PivCo lanes also decode on a GPU. med, average and plain Huffman do not. <a href="gpu-codecs.html">What a GPU needs</a> explains what a GPU asks of a codec, and <a href="gpu-internals.html">Inside the GPU decoder</a> shows how GeoZL meets it.</p>
 
       <nav class="pager" aria-label="Pages">
-        <a class="prev" href="near-lossless.html"><span>Previous</span>Near-lossless</a>
-        <a class="next" href="gpu-codecs.html"><span>Next</span>GPU-friendly codecs</a>
+        <a class="prev" href="pivco.html"><span>Previous</span>PivCo</a>
+        <a class="next" href="gpu-codecs.html"><span>Next</span>What a GPU needs</a>
       </nav>
     </article>
 

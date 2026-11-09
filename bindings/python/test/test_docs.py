@@ -254,3 +254,50 @@ def test_html_local_links_assets_and_fragments_resolve():
                     )
 
     assert not failures, "broken local documentation references:\n" + "\n".join(failures)
+
+
+def _sidebar(page: Path) -> tuple[list[tuple[str, str]], list[str], dict[str, str]]:
+    body = page.read_text(encoding="utf-8")
+    block = re.search(r'<ol class="toc-pages">(.*?)</ol>', body, re.S)
+    assert block, f"{page.name} has no sidebar"
+    entries, here = [], []
+    for li in re.findall(r"<li[^>]*>(.*?)</li>", block.group(1), re.S):
+        link = re.search(r'<a href="([^"]+)"([^>]*)>(.*?)</a>', li, re.S)
+        if link:
+            entries.append((link.group(1), link.group(3).strip()))
+            if 'class="here"' in link.group(2):
+                here.append(link.group(1))
+        else:
+            entries.append(("group", li.strip()))
+    pager = re.search(r'<nav class="pager"[^>]*>(.*?)</nav>', body, re.S)
+    assert pager, f"{page.name} has no pager"
+    sides = dict(re.findall(r'<a class="(prev|next)" href="([^"]+)"', pager.group(1)))
+    return entries, here, sides
+
+
+@pytest.mark.parametrize("section", ["reading", "api"])
+def test_sidebars_and_pagers_agree_across_a_section(section):
+    pages = [page for page in sorted(DOCS.glob("*.html"))
+             if '<ol class="toc-pages">' in page.read_text(encoding="utf-8")
+             and page.name.startswith("api") == (section == "api")]
+    assert pages, f"no {section} pages"
+    first, _, _ = _sidebar(pages[0])
+    order = [href for href, _ in first if href != "group"]
+    assert sorted(order) == [page.name for page in pages], "sidebar and pages differ"
+
+    failures = []
+    for page in pages:
+        entries, here, sides = _sidebar(page)
+        if entries != first:
+            failures.append(f"{page.name}: sidebar differs from {pages[0].name}")
+        if here != [page.name]:
+            failures.append(f"{page.name}: marks {here} as current")
+        at = order.index(page.name)
+        expected = {}
+        if at > 0:
+            expected["prev"] = order[at - 1]
+        if at < len(order) - 1:
+            expected["next"] = order[at + 1]
+        if sides != expected:
+            failures.append(f"{page.name}: pager {sides}, sidebar order wants {expected}")
+    assert not failures, "\n".join(failures)

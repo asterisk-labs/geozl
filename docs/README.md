@@ -15,16 +15,19 @@ The reading pages share `reading.css`, and the codec pages share `style.css` and
 ```
 docs/
 ├── index.html          landing page, with its own styles and scripts
-├── docs.html           codec reference, one section per codec
-├── gpu-codecs.html     why PFOR and PivCo decode well on a GPU
-├── pfor.html           how PFOR works, on the CPU and the GPU
+├── docs.html           codecs overview and the reading order
+├── predictors.html, streams.html, fused.html, near-lossless.html  the four codec families
+├── pfor.html           how PFOR works
 ├── pivco.html          how PivCo-Huffman works
-├── gpu.html            the geozl/gpu.h API, as a guide
+├── cpu.html            how the CPU decoders use vector lanes
+├── gpu-codecs.html     why PFOR and PivCo decode well on a GPU
+├── gpu-internals.html  how the GPU decoder is built
+├── slang.html          the GPU kernels, written once in Slang
 ├── api.html            API overview, the four calls and one line per language
 ├── api-python.html     every public Python function, checked by test_docs.py
 ├── api-c.html          every public C function, checked by test_docs.py
+├── api-gpu.html        the geozl/gpu.h API, as a guide
 ├── api-r.html, api-julia.html, api-js.html  the R, Julia and JavaScript bindings
-├── gpu-internals.html  how the GPU decoder is built
 ├── codecs/*.html       17 pages, one per documented codec
 ├── compatibility.md    frame compatibility policy
 ├── c-api.md            C source compatibility policy
@@ -43,7 +46,9 @@ docs/
         ├── mark.svg          animated 2x2 prediction mark
         ├── banner.svg        the README banner
         ├── codecs/*.svg      17 diagrams, one per codec page
-        ├── codecs-light/*.svg  the same diagrams in light colors, for docs.html
+        ├── codecs-light/*.svg  the same diagrams in light colors, for the reading pages
+        ├── cpu/*.svg         figures of cpu.html
+        ├── gpu/*.svg         figures of the PFOR, PivCo, GPU and API GPU pages
         ├── asterisk_banner.svg
         ├── huggingface.svg, source-coop.svg
         └── favicon.svg, heart.svg
@@ -52,7 +57,7 @@ docs/
 ## The catalog is written down five times
 
 `core/include/geozl/ctids.h` holds the CTid, the README table lists the codecs, the
-sections in `docs.html` describe them, and the `CODECS` array in `main.js` lists them for
+sections of the four family pages describe them, and the `CODECS` array in `main.js` lists them for
 `test_catalog.py`. Each codec page repeats its name and CTid and carries its prev
 and next links as static HTML. Adding a codec means updating all five
 representations.
