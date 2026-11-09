@@ -1225,6 +1225,9 @@ pre code {
   margin-inline: auto;
 }
 
+/* A diagram with small text inside, such as single bits, gets more room */
+.diagram.mid .player-view { max-width: 600px; }
+
 .stepper .player-view:focus-visible {
   box-shadow: 0 0 0 2px var(--violet);
 }

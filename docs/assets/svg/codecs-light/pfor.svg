@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 262" width="400" height="262" role="img" aria-label="PFOR on eight residuals, 3 5 2 7 4 6 1 90. Each value is a stack of its bits, lowest at the bottom. A line at b = 3 bits fits every value but 90. The four bits of 90 above the line, 1011, move to an exception list with its position 7, and its low bits 010 stay. The body packs eight 3-bit slots, 24 bits plus one exception instead of 8 times 7 = 56 bits. The decoder unpacks the eight slots and puts the high bits back, 90 = 010 OR 1011 shifted left by 3, which is 2 + 88">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 300" width="520" height="300" role="img" aria-label="PFOR on eight residuals, 3 5 2 7 4 6 1 90. Each value is a stack of its bits, lowest at the bottom. A line at b = 3 bits fits every value but 90. The four bits of 90 above the line, 1011, move to an exception list with its position 7, and its low bits 010 stay. The body packs eight 3-bit slots, 24 bits plus one exception instead of 8 times 7 = 56 bits. The decoder unpacks the eight slots and puts the high bits back, 90 = 010 OR 1011 shifted left by 3, which is 2 + 88">
   <style><![CDATA[
     @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 
@@ -11,18 +11,18 @@
       font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
     }
 
-    .lab{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; letter-spacing:.05em; }
-    .fx{ fill:var(--ink); font:600 11.5px/1 "IBM Plex Mono",monospace; }
-    .fx2{ fill:var(--ink-2); font:500 10.5px/1 "IBM Plex Mono",monospace; }
-    .num{ fill:var(--ink); font:600 11px/1 "IBM Plex Mono",monospace; }
-    .bit{ fill:var(--ink); font:500 9px/1 "IBM Plex Mono",monospace; }
+    .lab{ fill:var(--ink-2); font:500 12px/1 "IBM Plex Mono",monospace; letter-spacing:.05em; }
+    .fx{ fill:var(--ink); font:600 13.5px/1 "IBM Plex Mono",monospace; }
+    .fx2{ fill:var(--ink-2); font:500 12px/1 "IBM Plex Mono",monospace; }
+    .num{ fill:var(--ink); font:600 13px/1 "IBM Plex Mono",monospace; }
+    .bit{ fill:var(--ink); font:500 11px/1 "IBM Plex Mono",monospace; }
     .lo{ fill:var(--fit); stroke:var(--ink); stroke-width:.8; }
     .hi{ fill:var(--fit); stroke:var(--ink); stroke-width:.8; }
     .slot{ fill:var(--fit); stroke:var(--ink); stroke-width:.8; }
     .hole{ fill:none; stroke:var(--purple); stroke-width:.9; stroke-dasharray:2 2; opacity:.7; }
     .water{ stroke:var(--purple); stroke-width:1.6; stroke-dasharray:5 3; }
     .boxr{ fill:none; stroke:var(--ink-2); stroke-width:1; stroke-dasharray:3 2.5; opacity:.75; }
-    .bmark{ fill:var(--purple); font:700 11px/1 "IBM Plex Mono",monospace; }
+    .bmark{ fill:var(--purple); font:700 13px/1 "IBM Plex Mono",monospace; }
     .mark{ fill:none; stroke:var(--purple); stroke-width:1.6; rx:2; }
 
     /* 10 s loop, five beats that enter and then hold.
@@ -44,7 +44,7 @@
     @keyframes pfSize { 0%,52%{opacity:0} 60%,70%{opacity:1} 74%,100%{opacity:0} }
     @keyframes pfHole { 0%,36%{opacity:0} 44%,70%{opacity:1} 76%,100%{opacity:0} }
     @keyframes pfTint { 0%,28%{fill:var(--fit)} 33%,94%{fill:var(--over)} 99%,100%{fill:var(--fit)} }
-    @keyframes pfMove { 0%,36%{transform:translate(0,0)} 44%,72%{transform:translate(98px,0)} 80%,100%{transform:translate(0,0)} }
+    @keyframes pfMove { 0%,36%{transform:translate(0,0)} 44%,72%{transform:translate(124px,0)} 80%,100%{transform:translate(0,0)} }
 
     @media (prefers-reduced-motion:reduce){
       *{ animation:none !important; }
@@ -54,98 +54,98 @@
     }
   ]]></style>
 
-  <text x="16" y="16" class="lab">bits each value needs &#183; lowest at the bottom</text>
+  <text x="16" y="18" class="lab">bits each value needs, lowest first</text>
 
   <g>
-    <rect class="lo" x="34" y="132" width="14" height="14"/><text class="bit" x="41.0" y="142.2" text-anchor="middle">1</text>
-    <rect class="lo" x="34" y="118" width="14" height="14"/><text class="bit" x="41.0" y="128.2" text-anchor="middle">1</text>
-    <text class="num" x="41.0" y="161" text-anchor="middle">3</text>
-    <rect class="lo" x="58" y="132" width="14" height="14"/><text class="bit" x="65.0" y="142.2" text-anchor="middle">1</text>
-    <rect class="lo" x="58" y="118" width="14" height="14"/><text class="bit" x="65.0" y="128.2" text-anchor="middle">0</text>
-    <rect class="lo" x="58" y="104" width="14" height="14"/><text class="bit" x="65.0" y="114.2" text-anchor="middle">1</text>
-    <text class="num" x="65.0" y="161" text-anchor="middle">5</text>
-    <rect class="lo" x="82" y="132" width="14" height="14"/><text class="bit" x="89.0" y="142.2" text-anchor="middle">0</text>
-    <rect class="lo" x="82" y="118" width="14" height="14"/><text class="bit" x="89.0" y="128.2" text-anchor="middle">1</text>
-    <text class="num" x="89.0" y="161" text-anchor="middle">2</text>
-    <rect class="lo" x="106" y="132" width="14" height="14"/><text class="bit" x="113.0" y="142.2" text-anchor="middle">1</text>
-    <rect class="lo" x="106" y="118" width="14" height="14"/><text class="bit" x="113.0" y="128.2" text-anchor="middle">1</text>
-    <rect class="lo" x="106" y="104" width="14" height="14"/><text class="bit" x="113.0" y="114.2" text-anchor="middle">1</text>
-    <text class="num" x="113.0" y="161" text-anchor="middle">7</text>
-    <rect class="lo" x="130" y="132" width="14" height="14"/><text class="bit" x="137.0" y="142.2" text-anchor="middle">0</text>
-    <rect class="lo" x="130" y="118" width="14" height="14"/><text class="bit" x="137.0" y="128.2" text-anchor="middle">0</text>
-    <rect class="lo" x="130" y="104" width="14" height="14"/><text class="bit" x="137.0" y="114.2" text-anchor="middle">1</text>
-    <text class="num" x="137.0" y="161" text-anchor="middle">4</text>
-    <rect class="lo" x="154" y="132" width="14" height="14"/><text class="bit" x="161.0" y="142.2" text-anchor="middle">0</text>
-    <rect class="lo" x="154" y="118" width="14" height="14"/><text class="bit" x="161.0" y="128.2" text-anchor="middle">1</text>
-    <rect class="lo" x="154" y="104" width="14" height="14"/><text class="bit" x="161.0" y="114.2" text-anchor="middle">1</text>
-    <text class="num" x="161.0" y="161" text-anchor="middle">6</text>
-    <rect class="lo" x="178" y="132" width="14" height="14"/><text class="bit" x="185.0" y="142.2" text-anchor="middle">1</text>
-    <text class="num" x="185.0" y="161" text-anchor="middle">1</text>
-    <rect class="lo" x="202" y="132" width="14" height="14"/><text class="bit" x="209.0" y="142.2" text-anchor="middle">0</text>
-    <rect class="lo" x="202" y="118" width="14" height="14"/><text class="bit" x="209.0" y="128.2" text-anchor="middle">1</text>
-    <rect class="lo" x="202" y="104" width="14" height="14"/><text class="bit" x="209.0" y="114.2" text-anchor="middle">0</text>
-    <text class="num" x="209.0" y="161" text-anchor="middle">90</text>
+    <rect class="lo" x="40" y="150" width="18" height="18"/><text class="bit" x="49.0" y="162.9" text-anchor="middle">1</text>
+    <rect class="lo" x="40" y="132" width="18" height="18"/><text class="bit" x="49.0" y="144.9" text-anchor="middle">1</text>
+    <text class="num" x="49.0" y="186" text-anchor="middle">3</text>
+    <rect class="lo" x="68" y="150" width="18" height="18"/><text class="bit" x="77.0" y="162.9" text-anchor="middle">1</text>
+    <rect class="lo" x="68" y="132" width="18" height="18"/><text class="bit" x="77.0" y="144.9" text-anchor="middle">0</text>
+    <rect class="lo" x="68" y="114" width="18" height="18"/><text class="bit" x="77.0" y="126.9" text-anchor="middle">1</text>
+    <text class="num" x="77.0" y="186" text-anchor="middle">5</text>
+    <rect class="lo" x="96" y="150" width="18" height="18"/><text class="bit" x="105.0" y="162.9" text-anchor="middle">0</text>
+    <rect class="lo" x="96" y="132" width="18" height="18"/><text class="bit" x="105.0" y="144.9" text-anchor="middle">1</text>
+    <text class="num" x="105.0" y="186" text-anchor="middle">2</text>
+    <rect class="lo" x="124" y="150" width="18" height="18"/><text class="bit" x="133.0" y="162.9" text-anchor="middle">1</text>
+    <rect class="lo" x="124" y="132" width="18" height="18"/><text class="bit" x="133.0" y="144.9" text-anchor="middle">1</text>
+    <rect class="lo" x="124" y="114" width="18" height="18"/><text class="bit" x="133.0" y="126.9" text-anchor="middle">1</text>
+    <text class="num" x="133.0" y="186" text-anchor="middle">7</text>
+    <rect class="lo" x="152" y="150" width="18" height="18"/><text class="bit" x="161.0" y="162.9" text-anchor="middle">0</text>
+    <rect class="lo" x="152" y="132" width="18" height="18"/><text class="bit" x="161.0" y="144.9" text-anchor="middle">0</text>
+    <rect class="lo" x="152" y="114" width="18" height="18"/><text class="bit" x="161.0" y="126.9" text-anchor="middle">1</text>
+    <text class="num" x="161.0" y="186" text-anchor="middle">4</text>
+    <rect class="lo" x="180" y="150" width="18" height="18"/><text class="bit" x="189.0" y="162.9" text-anchor="middle">0</text>
+    <rect class="lo" x="180" y="132" width="18" height="18"/><text class="bit" x="189.0" y="144.9" text-anchor="middle">1</text>
+    <rect class="lo" x="180" y="114" width="18" height="18"/><text class="bit" x="189.0" y="126.9" text-anchor="middle">1</text>
+    <text class="num" x="189.0" y="186" text-anchor="middle">6</text>
+    <rect class="lo" x="208" y="150" width="18" height="18"/><text class="bit" x="217.0" y="162.9" text-anchor="middle">1</text>
+    <text class="num" x="217.0" y="186" text-anchor="middle">1</text>
+    <rect class="lo" x="236" y="150" width="18" height="18"/><text class="bit" x="245.0" y="162.9" text-anchor="middle">0</text>
+    <rect class="lo" x="236" y="132" width="18" height="18"/><text class="bit" x="245.0" y="144.9" text-anchor="middle">1</text>
+    <rect class="lo" x="236" y="114" width="18" height="18"/><text class="bit" x="245.0" y="126.9" text-anchor="middle">0</text>
+    <text class="num" x="245.0" y="186" text-anchor="middle">90</text>
   </g>
 
   <g id="pf-hole" opacity="0">
-    <rect class="hole" x="202" y="90" width="14" height="14"/>
-    <rect class="hole" x="202" y="76" width="14" height="14"/>
-    <rect class="hole" x="202" y="62" width="14" height="14"/>
-    <rect class="hole" x="202" y="48" width="14" height="14"/>
+    <rect class="hole" x="236" y="96" width="18" height="18"/>
+    <rect class="hole" x="236" y="78" width="18" height="18"/>
+    <rect class="hole" x="236" y="60" width="18" height="18"/>
+    <rect class="hole" x="236" y="42" width="18" height="18"/>
   </g>
 
   <g id="pf-exc" opacity="0">
-    <rect class="boxr" x="288" y="38" width="106" height="76" rx="2"/>
-    <text class="lab" x="288" y="32">exceptions</text>
-    <text class="fx2" x="322" y="66">position 7</text>
-    <text class="fx2" x="322" y="82">high 1011</text>
+    <rect class="boxr" x="348" y="32" width="166" height="92" rx="2"/>
+    <text class="lab" x="348" y="26">exceptions</text>
+    <text class="fx2" x="386" y="65">position 7</text>
+    <text class="fx2" x="386" y="86">high 1011</text>
   </g>
 
   <g id="pf-high">
-    <rect class="hi" x="202" y="90" width="14" height="14"/><text class="bit" x="209.0" y="100.2" text-anchor="middle">1</text>
-    <rect class="hi" x="202" y="76" width="14" height="14"/><text class="bit" x="209.0" y="86.2" text-anchor="middle">1</text>
-    <rect class="hi" x="202" y="62" width="14" height="14"/><text class="bit" x="209.0" y="72.2" text-anchor="middle">0</text>
-    <rect class="hi" x="202" y="48" width="14" height="14"/><text class="bit" x="209.0" y="58.2" text-anchor="middle">1</text>
+    <rect class="hi" x="236" y="96" width="18" height="18"/><text class="bit" x="245.0" y="108.9" text-anchor="middle">1</text>
+    <rect class="hi" x="236" y="78" width="18" height="18"/><text class="bit" x="245.0" y="90.9" text-anchor="middle">1</text>
+    <rect class="hi" x="236" y="60" width="18" height="18"/><text class="bit" x="245.0" y="72.9" text-anchor="middle">0</text>
+    <rect class="hi" x="236" y="42" width="18" height="18"/><text class="bit" x="245.0" y="54.9" text-anchor="middle">1</text>
   </g>
 
   <g id="pf-line" opacity="0">
-    <line class="water" x1="16" y1="104" x2="222" y2="104"/>
-    <text class="bmark" x="226" y="108">b = 3</text>
+    <line class="water" x1="16" y1="114" x2="260" y2="114"/>
+    <text class="bmark" x="264" y="118">b = 3</text>
   </g>
 
   <g id="pf-body" opacity="0">
-    <text class="lab" x="16" y="182">body &#183; eight slots of b bits</text>
-    <rect class="slot" x="22" y="190" width="12" height="14"/><text class="bit" x="28.0" y="200.2" text-anchor="middle">0</text>
-    <rect class="slot" x="34" y="190" width="12" height="14"/><text class="bit" x="40.0" y="200.2" text-anchor="middle">1</text>
-    <rect class="slot" x="46" y="190" width="12" height="14"/><text class="bit" x="52.0" y="200.2" text-anchor="middle">1</text>
-    <rect class="slot" x="62" y="190" width="12" height="14"/><text class="bit" x="68.0" y="200.2" text-anchor="middle">1</text>
-    <rect class="slot" x="74" y="190" width="12" height="14"/><text class="bit" x="80.0" y="200.2" text-anchor="middle">0</text>
-    <rect class="slot" x="86" y="190" width="12" height="14"/><text class="bit" x="92.0" y="200.2" text-anchor="middle">1</text>
-    <rect class="slot" x="102" y="190" width="12" height="14"/><text class="bit" x="108.0" y="200.2" text-anchor="middle">0</text>
-    <rect class="slot" x="114" y="190" width="12" height="14"/><text class="bit" x="120.0" y="200.2" text-anchor="middle">1</text>
-    <rect class="slot" x="126" y="190" width="12" height="14"/><text class="bit" x="132.0" y="200.2" text-anchor="middle">0</text>
-    <rect class="slot" x="142" y="190" width="12" height="14"/><text class="bit" x="148.0" y="200.2" text-anchor="middle">1</text>
-    <rect class="slot" x="154" y="190" width="12" height="14"/><text class="bit" x="160.0" y="200.2" text-anchor="middle">1</text>
-    <rect class="slot" x="166" y="190" width="12" height="14"/><text class="bit" x="172.0" y="200.2" text-anchor="middle">1</text>
-    <rect class="slot" x="182" y="190" width="12" height="14"/><text class="bit" x="188.0" y="200.2" text-anchor="middle">1</text>
-    <rect class="slot" x="194" y="190" width="12" height="14"/><text class="bit" x="200.0" y="200.2" text-anchor="middle">0</text>
-    <rect class="slot" x="206" y="190" width="12" height="14"/><text class="bit" x="212.0" y="200.2" text-anchor="middle">0</text>
-    <rect class="slot" x="222" y="190" width="12" height="14"/><text class="bit" x="228.0" y="200.2" text-anchor="middle">1</text>
-    <rect class="slot" x="234" y="190" width="12" height="14"/><text class="bit" x="240.0" y="200.2" text-anchor="middle">1</text>
-    <rect class="slot" x="246" y="190" width="12" height="14"/><text class="bit" x="252.0" y="200.2" text-anchor="middle">0</text>
-    <rect class="slot" x="262" y="190" width="12" height="14"/><text class="bit" x="268.0" y="200.2" text-anchor="middle">0</text>
-    <rect class="slot" x="274" y="190" width="12" height="14"/><text class="bit" x="280.0" y="200.2" text-anchor="middle">0</text>
-    <rect class="slot" x="286" y="190" width="12" height="14"/><text class="bit" x="292.0" y="200.2" text-anchor="middle">1</text>
-    <rect class="slot" x="302" y="190" width="12" height="14"/><text class="bit" x="308.0" y="200.2" text-anchor="middle">0</text>
-    <rect class="slot" x="314" y="190" width="12" height="14"/><text class="bit" x="320.0" y="200.2" text-anchor="middle">1</text>
-    <rect class="slot" x="326" y="190" width="12" height="14"/><text class="bit" x="332.0" y="200.2" text-anchor="middle">0</text>
+    <text class="lab" x="16" y="212">body &#183; eight slots of b bits</text>
+    <rect class="slot" x="22" y="222" width="15" height="18"/><text class="bit" x="29.5" y="234.9" text-anchor="middle">0</text>
+    <rect class="slot" x="37" y="222" width="15" height="18"/><text class="bit" x="44.5" y="234.9" text-anchor="middle">1</text>
+    <rect class="slot" x="52" y="222" width="15" height="18"/><text class="bit" x="59.5" y="234.9" text-anchor="middle">1</text>
+    <rect class="slot" x="72" y="222" width="15" height="18"/><text class="bit" x="79.5" y="234.9" text-anchor="middle">1</text>
+    <rect class="slot" x="87" y="222" width="15" height="18"/><text class="bit" x="94.5" y="234.9" text-anchor="middle">0</text>
+    <rect class="slot" x="102" y="222" width="15" height="18"/><text class="bit" x="109.5" y="234.9" text-anchor="middle">1</text>
+    <rect class="slot" x="122" y="222" width="15" height="18"/><text class="bit" x="129.5" y="234.9" text-anchor="middle">0</text>
+    <rect class="slot" x="137" y="222" width="15" height="18"/><text class="bit" x="144.5" y="234.9" text-anchor="middle">1</text>
+    <rect class="slot" x="152" y="222" width="15" height="18"/><text class="bit" x="159.5" y="234.9" text-anchor="middle">0</text>
+    <rect class="slot" x="172" y="222" width="15" height="18"/><text class="bit" x="179.5" y="234.9" text-anchor="middle">1</text>
+    <rect class="slot" x="187" y="222" width="15" height="18"/><text class="bit" x="194.5" y="234.9" text-anchor="middle">1</text>
+    <rect class="slot" x="202" y="222" width="15" height="18"/><text class="bit" x="209.5" y="234.9" text-anchor="middle">1</text>
+    <rect class="slot" x="222" y="222" width="15" height="18"/><text class="bit" x="229.5" y="234.9" text-anchor="middle">1</text>
+    <rect class="slot" x="237" y="222" width="15" height="18"/><text class="bit" x="244.5" y="234.9" text-anchor="middle">0</text>
+    <rect class="slot" x="252" y="222" width="15" height="18"/><text class="bit" x="259.5" y="234.9" text-anchor="middle">0</text>
+    <rect class="slot" x="272" y="222" width="15" height="18"/><text class="bit" x="279.5" y="234.9" text-anchor="middle">1</text>
+    <rect class="slot" x="287" y="222" width="15" height="18"/><text class="bit" x="294.5" y="234.9" text-anchor="middle">1</text>
+    <rect class="slot" x="302" y="222" width="15" height="18"/><text class="bit" x="309.5" y="234.9" text-anchor="middle">0</text>
+    <rect class="slot" x="322" y="222" width="15" height="18"/><text class="bit" x="329.5" y="234.9" text-anchor="middle">0</text>
+    <rect class="slot" x="337" y="222" width="15" height="18"/><text class="bit" x="344.5" y="234.9" text-anchor="middle">0</text>
+    <rect class="slot" x="352" y="222" width="15" height="18"/><text class="bit" x="359.5" y="234.9" text-anchor="middle">1</text>
+    <rect class="slot" x="372" y="222" width="15" height="18"/><text class="bit" x="379.5" y="234.9" text-anchor="middle">0</text>
+    <rect class="slot" x="387" y="222" width="15" height="18"/><text class="bit" x="394.5" y="234.9" text-anchor="middle">1</text>
+    <rect class="slot" x="402" y="222" width="15" height="18"/><text class="bit" x="409.5" y="234.9" text-anchor="middle">0</text>
   </g>
 
-  <text id="pf-size" class="fx2" x="16" y="226" opacity="0">24 bits and one exception, not 8 &#215; 7 = 56</text>
+  <text id="pf-size" class="fx2" x="16" y="266" opacity="0">24 bits and one exception, not 8 &#215; 7 = 56</text>
 
-  <rect id="pf-mark" class="mark" x="300.5" y="188.5" width="39" height="17"/>
+  <rect id="pf-mark" class="mark" x="370.5" y="220.5" width="48" height="21"/>
   <g id="pf-dec" opacity="0">
-    <text class="fx" x="16" y="226">decode 010 | 1011 &#171; 3 = 2 + 88 = 90</text>
-    <text class="fx2" x="16" y="244">every slot is read at b, then exceptions are ORed back</text>
+    <text class="fx" x="16" y="266">decode 010 | 1011 &#171; 3 = 2 + 88 = 90</text>
+    <text class="fx2" x="16" y="288">every slot is read at b, then exceptions are ORed back</text>
   </g>
 </svg>

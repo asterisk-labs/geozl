@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=5">
+<link rel="stylesheet" href="assets/css/reading.css?v=6">
 </head>
 <body>
 <div class="page">
@@ -121,8 +121,8 @@ o[i] = mask[i] == 0 ? pattern : v[i];</code></pre>
       <section class="codec" id="pfor" data-no="13" data-ctid="0x72D70D" data-fam="green" data-page="codecs/pfor.html" style="--fam:var(--green)">
         <h3><span class="num">13</span>pfor</h3>
         <p><b>pfor</b> packs each block at <b>the bit width that block needs</b> and patches the few values that overflow it.</p>
-        <figure class="diagram stepper" data-beats="1.2,2.8,4.8,6.8,8.8">
-          <img src="assets/svg/codecs-light/pfor.svg" alt="pfor packs a block of 256 values at the bit width the block needs and patches the values that overflow it" loading="lazy">
+        <figure class="diagram mid stepper" data-beats="1.2,2.8,4.8,6.8,8.8">
+          <img src="assets/svg/codecs-light/pfor.svg?v=3" alt="pfor packs a block of 256 values at the bit width the block needs and patches the values that overflow it" loading="lazy">
           <figcaption>each block packed at its own width, with the values that overflow it patched</figcaption>
         </figure>
         <p>Use it after any predictor except planar, which has its own fused codec, as in <code>med&gt;zigzag&gt;pfor</code>. On skewed data, an entropy coder or PivCo does better. It also decodes on the GPU. <a href="pfor.html">How PFOR works</a> walks through the format.</p>
