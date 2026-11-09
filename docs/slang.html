@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="Why GeoZL writes its GPU kernels once in Slang, how they are compiled for each backend, embedded and loaded, and how a new backend is added.">
+<title>GeoZL · One kernel source in Slang</title>
+<link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/reading.css?v=10">
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <a class="lockup vt-lockup" href="index.html" aria-label="GeoZL home">
+      <img class="marksvg" src="assets/svg/mark-light.svg" alt="">
+      <span class="wm-sm">GeoZL</span>
+    </a>
+
+    <div class="offsite" aria-label="Project links">
+      <a href="https://github.com/asterisk-labs/geozl" title="GitHub" aria-label="GeoZL on GitHub" rel="noopener noreferrer">
+        <svg class="github" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg>
+      </a>
+      <a class="pypi" href="https://pypi.org/project/geozl/" title="PyPI" aria-label="GeoZL on PyPI" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.3 14.3 4.7v6.6L8 14.7l-6.3-3.4V4.7Z"></path><path d="M1.7 4.7 8 8.1l6.3-3.4M8 8.1v6.6"></path></svg>
+        <img class="mark-color" src="assets/svg/pypi-color.svg" alt="" width="18" height="16">
+      </a>
+      <a class="rumi" href="https://asterisk.coop/rumi/" title="Rumi" aria-label="Rumi, the raster format built with GeoZL" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 1h14v14H1zM1 5.5l6 .8 4.2 2.1L15 9.2M7 1l-.5 5.3 4.7 2.1L9.5 15"></path></svg>
+        <img class="mark-color" src="assets/svg/rumi-color.svg" alt="" width="16" height="16">
+      </a>
+      <a class="asterisk" href="https://asterisk.coop" title="asterisk labs" aria-label="asterisk labs" rel="noopener noreferrer">
+        <img class="mark-mono" src="assets/svg/asterisk-mark-black.svg" alt="" width="16" height="18">
+        <img class="mark-color" src="assets/svg/asterisk-mark-color.svg" alt="" width="16" height="18">
+      </a>
+    </div>
+
+    <nav class="nav" aria-label="Sections">
+      <a href="docs.html">Docs</a>
+      <a href="api.html">API</a>
+      <a href="https://earth-compress.github.io/benchmark/" rel="noopener noreferrer">Benchmark</a>
+    </nav>
+  </header>
+
+  <main class="doc">
+    <nav class="toc" aria-label="Contents">
+      <p class="toc-title">Docs</p>
+      <ol class="toc-pages">
+        <li class="toc-group">Reference</li>
+        <li><a href="docs.html">Codecs</a></li>
+        <li><a href="predictors.html">Predictors</a></li>
+        <li><a href="streams.html">Streams</a></li>
+        <li><a href="fused.html">Fused</a></li>
+        <li><a href="near-lossless.html">Near-lossless</a></li>
+        <li class="toc-group">CPU decoding</li>
+        <li><a href="cpu.html">Inside the CPU decoder</a></li>
+        <li class="toc-group">GPU-friendly codecs</li>
+        <li><a href="gpu-codecs.html">Why they fit a GPU</a></li>
+        <li><a href="pfor.html">PFOR</a></li>
+        <li><a href="pivco.html">PivCo</a></li>
+        <li class="toc-group">GPU decoding</li>
+        <li><a href="gpu.html">API</a></li>
+        <li><a href="gpu-internals.html">Inside the decoder</a></li>
+      </ol>
+    </nav>
+
+    <article class="content">
+      <h1>One kernel source in Slang</h1>
+      <ul class="facts">
+        <li>Slang <code>2026.19</code></li>
+        <li>Sources in <a href="https://github.com/asterisk-labs/geozl/tree/main/gpu/kernels" rel="noopener noreferrer"><code>gpu/kernels</code></a></li>
+        <li>Built by <a href="https://github.com/asterisk-labs/geozl/blob/main/tools/build_gpu_modules.py" rel="noopener noreferrer"><code>tools/build_gpu_modules.py</code></a></li>
+      </ul>
+      <p>Every GPU family speaks its own kernel language. NVIDIA drivers load PTX, Apple devices compile the Metal Shading Language, and WebGPU runs WGSL. Writing GeoZL's decoder once per family would mean every fix lands several times and the copies slowly drift apart.</p>
+      <p>GeoZL writes its kernels once, in Slang, and compiles them ahead of time for each backend. CUDA and Metal are the first two backends, and more are planned, WebGPU among them. The compiled kernels ship inside the library, so neither building GeoZL nor running it needs Slang.</p>
+      <figure class="diagram wide"><img src="assets/svg/gpu/slang-build.svg" alt="One Slang source in gpu/kernels, with programs, stages and common files, is compiled by slangc once per target. The Metal target gives Metal source that the Metal runtime compiles for the device. The PTX target goes through NVRTC 12.2 and the CUDA driver JIT compiles the PTX for the device. A WGSL target for a WebGPU backend is planned. Every target yields nine modules, one per program and sample width, hashed in sources.sha256 and embedded in the library." loading="lazy"><figcaption>One source, one compiled copy per target, loaded by a small runtime on each device.</figcaption></figure>
+
+      <h2 class="part" id="slang">What Slang is</h2>
+      <p><a href="https://shader-slang.org" rel="noopener noreferrer">Slang</a> is an open-source shading language, developed at NVIDIA and now hosted by Khronos. Its syntax is close to HLSL, and a single compiler, <code>slangc</code>, emits code for many targets, including Metal source, CUDA through PTX, SPIR-V for Vulkan and WGSL for WebGPU.</p>
+      <p>What matters most for GeoZL is that Slang has portable wave operations. The decoder leans on four of them, a prefix sum, a sum, an OR and a read from another thread. Here is the inner step of the PivCo merge from <code>gpu/kernels/stages/pivco.slang</code>, with comments added.</p>
+      <pre><code>uint ones = countbits(bits);                  // 1s in this thread's bitmap byte
+uint onesBefore = carry + WavePrefixSum(ones);  // 1s in the bytes before it
+uint zerosBefore = p0 - onesBefore;
+merge_byte(bits, p0, count, leftCount, onesBefore, zerosBefore,
+           outputBase, toLanes);
+carry += WaveActiveSum(ones);                 // 1s in the whole step</code></pre>
+      <p>On Metal, <code>WavePrefixSum</code> becomes <code>simd_prefix_exclusive_sum</code> and <code>WaveActiveSum</code> becomes <code>simd_sum</code>. In the PTX the same lines turn into <code>shfl.sync</code> warp shuffles. The kernel code does not change between them.</p>
+
+      <h2 class="part" id="layout">How the kernels are organised</h2>
+      <p><code>gpu/kernels</code> holds three kinds of file. <code>common/payload.slang</code> sets the constants every kernel shares, a 32-thread wave, four waves per group and eight values per thread, and declares the compressed payload buffer with helpers that load 8, 32 or 128 bits from any byte offset.</p>
+      <p><code>stages/</code> holds the decoding steps. <code>pfor.slang</code> unpacks one 256-value block in one wave, <code>pivco.slang</code> merges a Huffman tree from the leaves up, and <code>planar_zigzag.slang</code> undoes Zigzag and runs the inverse planar scans, one pass for narrow planes and a row pass and a column pass for wide ones.</p>
+      <p><code>programs/</code> holds the three programs the library loads. Each one includes the payload helpers first, so the payload stays at binding 0, then declares its task buffers and its entry points.</p>
+      <table class="spec">
+        <tr><th>pfor</th><td><code>unpack_blocks</code>, the three planar scans, <code>copy_raw</code></td></tr>
+        <tr><th>pivco</th><td><code>decode_symbols</code>, <code>unpack_lane_blocks</code>, <code>join_lanes</code>, the three planar scans, <code>copy_raw</code></td></tr>
+        <tr><th>place</th><td><code>place</code>, which copies decoded rectangles into the caller's target</td></tr>
+      </table>
+      <p>A program is compiled once per sample width. The macro <code>ELT_BYTES</code> picks the element type, so pfor and pivco come in widths 1 and 2 and place in 1, 2, 4, 8 and 16 bytes. That gives nine modules per target, named after program and width, such as <code>pfor2</code> or <code>place16</code>.</p>
+
+      <h2 class="part" id="build">Compiling a module for each target</h2>
+      <p><code>tools/build_gpu_modules.py</code> builds every module of one target into a directory, normally <code>core/src/gpu/modules</code>.</p>
+      <pre><code>python3 tools/build_gpu_modules.py /path/to/slangc metal core/src/gpu/modules
+python3 tools/build_gpu_modules.py /path/to/slangc ptx core/src/gpu/modules</code></pre>
+      <p>It first checks that <code>slangc</code> reports version 2026.19 and stops otherwise, because a different compiler would produce different modules. For each program and width it then runs <code>slangc</code> with every entry point of the program, <code>-target metal</code> or <code>-target ptx</code>, <code>-D ELT_BYTES</code> set to the width, and <code>-line-directive-mode none</code> so no file paths end up in the output.</p>
+      <p>Each compile also writes Slang's reflection JSON, and <code>tools/check_slang_layout.py</code> compares the buffer order it reports with the order the host binds. The host passes buffers by index, so a reordered declaration in a program would silently swap two of them at run time. The check turns that into a build failure.</p>
+      <p>Metal source builds anywhere <code>slangc</code> runs, a Linux machine included. PTX also needs NVRTC, the CUDA runtime compiler that <code>slangc</code> calls to turn its CUDA output into PTX.</p>
+
+      <h2 class="part" id="ptx">PTX and the oldest driver</h2>
+      <p>PTX is not machine code. The CUDA driver compiles it for the GPU it finds when the module loads, which is why one PTX file covers every NVIDIA generation from its target up. The checked-in modules target <code>sm_70</code>.</p>
+      <p>A driver only accepts PTX up to its own PTX version, and each NVRTC release writes a newer one. PTX from NVRTC 12.8 carries <code>.version 8.7</code>, and a 550 driver, which reads up to 8.4, rejects it. The rule is to build PTX with an NVRTC no newer than the oldest driver GeoZL should run on.</p>
+      <p>The checked-in PTX comes from NVRTC 12.2 and carries <code>.version 8.2</code>, so drivers from the CUDA 12.2 generation on can load it. When a driver refuses a module anyway, the error GeoZL returns carries the first line of the driver's JIT log, which names the PTX feature it rejected.</p>
+
+      <h2 class="part" id="manifest">Keeping the modules in step with the source</h2>
+      <p>The compiled modules are checked in, so a kernel change that is not rebuilt would ship old code. Each build writes <code>core/src/gpu/modules/sources.sha256</code> to catch that.</p>
+      <p>For every target the manifest records one digest of the compiler inputs and one hash per module. The input digest covers the Slang version, the target, the table of programs, entry points and widths, the fixed flags and the path and bytes of every <code>.slang</code> file under <code>gpu/kernels</code>. Four of its lines, with the hashes shortened, look like this.</p>
+      <pre><code>metal:pfor2.metal ccafb79e…
+metal:sources 222818d7…
+ptx:pfor2.ptx 6b6062d3…
+ptx:sources 1c6f4e28…</code></pre>
+      <p><code>build_gpu_modules.py --check</code> recomputes both and fails when the sources changed without a rebuild or when a module no longer matches its hash. It needs no Slang and no GPU, so CI runs it on every change. A kernel edit then comes with rebuilt Metal and PTX, or CI says which target is stale.</p>
+
+      <h2 class="part" id="loading">Loading the embedded modules</h2>
+      <p>At build time CMake picks the module kind for the platform, Metal source on Apple and PTX on Linux. <code>core/src/gpu/embed_modules.cmake</code> turns every module of that kind into a C byte array and writes a table of name, bytes and size, declared in <code>core/src/gpu/modules.h</code>. A build without GPU support compiles a stub instead, whose calls report that GPU support is not built in.</p>
+      <p>At run time the decoder looks a module up by program and width the first time a batch needs it, <code>pfor2</code> for a two-byte PFOR frame, and hands the bytes to the backend.</p>
+      <ul>
+        <li>The Metal runtime compiles the source with <code>newLibraryWithSource</code>, builds a pipeline per entry point and rejects any pipeline whose SIMD-group width is not 32.</li>
+        <li>The CUDA runtime opens <code>libcuda.so.1</code> with <code>dlopen</code>, so the library loads on machines without CUDA, and passes the PTX to <code>cuModuleLoadDataEx</code>, where the driver compiles it for the device.</li>
+      </ul>
+      <p>On CUDA, a program keeps its buffer pointers in module globals, so one program runs one batch at a time. Callers that need concurrent work create one decoder per stream.</p>
+      <div class="note"><p>Creating a decoder loads or compiles the kernels for its device, so create one decoder and reuse it.</p></div>
+
+      <h2 class="part" id="backends">Adding a backend</h2>
+      <p>The host API, capture, planning, task lists and staging are shared by every backend. <code>core/src/gpu/runtime.c</code> validates each call and forwards it through a small table of operations, <code>GeozlGpuBackendOps</code>, that opens a device, allocates and frees memory and staging, queues a batch of kernels and waits for it.</p>
+      <p>A new GPU family, WebGPU, Vulkan or HIP, needs three things. One runtime file implements that table and compiles in under its own define, as <code>runtime_metal.m</code> and <code>runtime_cuda.c</code> do. A backend id selects it. And <code>build_gpu_modules.py</code> gains the Slang target, with the module kind added to the CMake build so the outputs are embedded.</p>
+      <p>The kernels assume a 32-wide wave. A backend whose devices can run another width, as some WebGPU and Vulkan devices do, must ask for 32 or reject the device, as the Metal runtime does today. The formats, the kernels and every caller stay as they are.</p>
+
+      <nav class="pager" aria-label="Pages">
+        <a class="prev" href="gpu-internals.html"><span>Previous</span>Inside the GPU decoder</a>
+      </nav>
+    </article>
+
+    <nav class="toc onpage" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ol class="toc-sections">
+        <li><a href="#slang">What Slang is</a></li>
+        <li><a href="#layout">How the kernels are organised</a></li>
+        <li><a href="#build">Compiling a module for each target</a></li>
+        <li><a href="#ptx">PTX and the oldest driver</a></li>
+        <li><a href="#manifest">Keeping the modules in step with the source</a></li>
+        <li><a href="#loading">Loading the embedded modules</a></li>
+        <li><a href="#backends">Adding a backend</a></li>
+      </ol>
+    </nav>
+  </main>
+
+  <footer class="colophon">
+    <span>Made with</span>
+    <span class="heart" aria-label="love" role="img"></span>
+    <span>by</span>
+    <a class="by" href="https://asterisk.coop" rel="noopener noreferrer">
+      <img src="assets/svg/asterisk-mark-black.svg" alt="" width="15" height="17">
+      <span>asterisk labs</span>
+    </a>
+  </footer>
+</div>
+<script src="assets/js/toc.js" defer></script>
+<script src="assets/js/stepper.js?v=4" defer></script>
+</body>
+</html>
