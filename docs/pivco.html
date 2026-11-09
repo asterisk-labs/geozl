@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
-<meta name="description" content="How PivCo-Huffman reorders a Huffman code so a GPU can decode it in parallel.">
+<meta name="description" content="How PivCo-Huffman stores Huffman code bits by tree node so a block decodes in parallel.">
 <title>GeoZL · How PivCo works</title>
 <link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -74,7 +74,7 @@
         <li>In OpenZL 0.3, arXiv 2606.05765</li>
         <li>GeoZL codecs <code>lanes</code> (<code>0x72D713</code>) and <code>planar_zigzag_lanes</code> (<code>0x72D712</code>)</li>
       </ul>
-      <p>Huffman is one of the oldest compression methods. Its bit order makes its stream hard to decode on a GPU. PivCo keeps the Huffman codes but changes the bit order so a wave of threads can decode together. This page follows eight symbols from Huffman codes to GeoZL's GPU kernel.</p>
+      <p>Huffman is one of the oldest compression methods, and its bit order forces a decoder to read one code after another. PivCo keeps the Huffman codes but stores their bits in a different order, so many readers can decode the same block together. Eight symbols follow the whole path below, from Huffman codes to the bitmaps GeoZL writes.</p>
 
       <h2 class="part" id="huffman">Huffman, and why it is serial</h2>
       <p>The example string is <code>a b a c a b a a</code>. Five of eight symbols are <code>a</code>, so shorter codes save bits. Huffman builds a code where common symbols get short codes, so a becomes <code>0</code>, b becomes <code>10</code> and c becomes <code>11</code>.</p>
@@ -86,7 +86,7 @@
       <p>Each code follows a path through the tree. The first bit says whether we go left (to a) or right. On the right there is one more choice, left for b and right for c. Because no code is the start of another, the codes need no separators. The concatenated stream has eleven bits, <code>01001101000</code>.</p>
       <p>Concatenation makes Huffman decoding serial. The fourth symbol cannot be located before decoding the first three. Watch the reader below. It can only box a code once it reaches the code's last bit, and only then does the next code have a start. The fourth symbol, the slot marked with a question mark, is found only after the three codes before it.</p>
       <figure class="diagram wide stepper" data-beats="2.15,8.75,13.3"><img src="assets/svg/gpu/pivco-serial.svg" alt="A single reader walks the glued bits 01001101000 one at a time. Each symbol of the output appears only when its code ends, so the fourth symbol, c, is known only after the three codes before it." loading="lazy"><figcaption>one reader, one bit at a time, so a symbol is known only when its code ends</figcaption></figure>
-      <p>A CPU core can live with this. It walks the string one code at a time, and fast decoders hide some of the wait with lookup tables and several interleaved streams. A GPU cannot use many threads when there is only one starting position. Its strength is many threads doing the same thing on different data, and here there is only one place to start reading. One thread walks the string while the rest of the wave sits idle.</p>
+      <p>There is only one place to start reading, so a second reader has nothing to do until the first one is finished. Fast decoders hide some of the wait with lookup tables and several interleaved streams, but the chain itself stays. <a href="gpu-codecs.html">What a GPU needs</a> explains why a chain like this is the main obstacle on a GPU.</p>
 
       <h2 class="part" id="split">Storing the bits by tree node</h2>
       <p>PivCo writes code bits in tree order instead of symbol order. Every symbol passes through the root, so the root gets one bit per symbol, which is the first bit of its code. Here, that is <code>01010100</code>, where a 0 means a and a 1 means "b or c, ask the next node".</p>
@@ -95,14 +95,15 @@
       <p>There are eight at the root and three at the child, eleven in total, exactly as many as the glued Huffman string. PivCo retains the codes and their eleven bits. Each bit moves to the node where decoding uses it. Each of these per-node bit strings is called a bitmap, and one bitmap holds the decision for every symbol that reaches its node.</p>
 
       <h2 class="part" id="decode">Count the 1s before you</h2>
-      <p>Assign one thread to each symbol. Thread <code>t</code> reads bit <code>t</code> of the root bitmap, and it can do that right away, because the root bitmap has exactly one bit per symbol in symbol order. Threads <code>t0</code>, <code>t2</code>, <code>t4</code>, <code>t6</code> and <code>t7</code> read a 0, so their symbol is a and they are done.</p>
+      <p>Give every symbol its own reader, called a thread in the animation. Thread <code>t</code> reads bit <code>t</code> of the root bitmap, and it can do that right away, because the root bitmap has exactly one bit per symbol in symbol order. Threads <code>t0</code>, <code>t2</code>, <code>t4</code>, <code>t6</code> and <code>t7</code> read a 0, so their symbol is a and they are done.</p>
       <p>Threads that read 1 must locate their bit in the child. The child stores bits only for the symbols that went right, in the same order, so a thread's slot in the child is the number of symbols before it that also went right. Its child slot equals the number of earlier 1s in the root.</p>
       <p>Thread <code>t1</code> has no 1s before it and reads slot 0, a 0, so its symbol is b. Thread <code>t3</code> has one 1 before it, reads slot 1 and finds c. Thread <code>t5</code> has two, reads slot 2 and finds b. The animation shows eight root reads, five a outputs, one prefix sum, three child lookups and the b, c, b outputs together.</p>
       <figure class="diagram wide stepper" data-beats="2.55,5.15,7.55,9.95,14.3"><img src="assets/svg/gpu/pivco-count.svg" alt="Threads t0 to t7 read their root bits at once, and the five that read 0 write a. A prefix sum gives every thread the number of 1s before it. Threads t1, t3 and t5 get 0, 1 and 2, read that slot of the b or c bitmap, and write b, c and b at the same moment." loading="lazy"><figcaption>each thread finds its slot from a count, not from its neighbour's answer</figcaption></figure>
-      <p>No thread waits for another symbol. Each thread needs a count. <b>Popcount</b> is a single machine instruction, on CPUs and GPUs alike, that returns the number of 1s in a word. A thread masks off the bits after its own position, runs popcount, and has its slot. For bitmaps longer than one word, the threads of a wave add their counts with a prefix sum, which the GPU also does in a few instructions. A deeper tree repeats this count and child move at every level.</p>
+      <p>No thread waits for another symbol. Each one needs only a count. <b>Popcount</b> is a single machine instruction that returns the number of 1s in a word, so a thread masks off the bits after its own position, runs popcount, and has its slot. For bitmaps longer than one word, the threads add their per-word counts with a prefix sum. A deeper tree repeats this count and child move at every level.</p>
+      <p>The same counts also work in the other direction. A decoder can start at the leaves and merge each pair of children into its parent by the parent's bitmap, which is how GeoZL runs it on a GPU, described in <a href="gpu-internals.html">Inside the GPU decoder</a>.</p>
 
       <h2 class="part" id="format">The real format</h2>
-      <p>The real format also specifies the tree, bitmap layout and block size. First, the tree. PivCo never writes the tree into the frame. It writes the Huffman weights, and the encoder and the decoder each rebuild the same tree from them. OpenZL caps the table log at 12, so no code is longer than 12 bits and no tree deeper than 12 levels, a bound the GPU kernel depends on.</p>
+      <p>The real format also specifies the tree, bitmap layout and block size. First, the tree. PivCo never writes the tree into the frame. It writes the Huffman weights, and the encoder and the decoder each rebuild the same tree from them. OpenZL caps the table log at 12, so no code is longer than 12 bits and no tree deeper than 12 levels.</p>
       <p>Second, the bitmap layout. The nodes are written in pre-order, a node, then everything under its left child, then everything under its right child. What a node stores depends on its kind.</p>
       <table class="spec">
         <tr><th>internal node</th><td>a byte-aligned bitmap with one bit per symbol that reaches the node, 0 for left and 1 for right, then the count of 1s in it, unless both children are constant leaves</td></tr>
@@ -110,27 +111,15 @@
         <tr><th>constant leaf</th><td>nothing, since every symbol that reaches it is the same</td></tr>
       </table>
       <p>Here, the root and the "b or c" node are internal. The a, b and c nodes are constant leaves. The block holds the root bitmap and its count of 1s, then the child bitmap without a count. The leaves store nothing.</p>
-      <p>The stored count of 1s is what lets a decoder navigate this layout without decoding anything. Pre-order puts the left subtree first, and the count says how many symbols went right, so the decoder knows how many symbols each child receives and can find where every node's data starts. </p>
+      <p>The stored count of 1s is what lets a decoder navigate this layout without decoding anything. Pre-order puts the left subtree first, and the count says how many symbols went right, so the decoder knows how many symbols each child receives and can find where every node's data starts.</p>
       <p>The count also validates the bitmap. Before any decoding starts, GeoZL counts the 1s in every bitmap, compares them with the stored counts, and rejects a frame where they disagree or where the tree is deeper than 12. When both children are constant leaves nothing follows that needs to be located, so the count is left out.</p>
-      <p>Third, block size. A real lane is far longer than eight symbols, so PivCo cuts it into blocks, each with its own set of node bitmaps. GeoZL writes blocks of 32768 symbols. Blocks are independent, which is the coarse level of parallelism, one block per workgroup on the GPU.</p>
-
-      <h2 class="part" id="gpu">Decoding from the leaves up</h2>
-      <p>The example decodes from the root down and may touch twelve bitmaps. GeoZL's kernel works from leaves to root. At each node, it builds the symbols of that subtree in order.</p>
-      <p>The example now runs one depth at a time. Constant leaves repeat their symbol for every symbol that reaches them. At depth 2 the b and c leaves write <code>b b c</code>, and at depth 1 the a leaf writes its five a. At depth 1, the “b or c” node merges its children using bitmap <code>010</code>. A 0 takes the next left symbol, and a 1 takes the next right symbol. </p>
-      <p>At the root, the bitmap <code>01010100</code> merges the run of five a with <code>b c b</code> in the same way, and the original string comes out. Each bitmap bit selects the next left or right symbol. The a symbols take the left path, while b and c take the right.</p>
-      <figure class="diagram wide stepper" data-beats="2.95,7.15,10.95,15.3"><img src="assets/svg/gpu/pivco-climb.svg" alt="Decoding from the leaves up with two buffers. At depth 2 the b and c leaves write b b c into the lane buffer. At depth 1 the a leaf writes five a into scratch and the b or c node merges by 010, moving b c b down into scratch. At depth 0 the root merges by 01010100, moving every symbol back up into the lane buffer, giving a b a c a b a a." loading="lazy"><figcaption>each level merges the two ranges below it, and the symbols move back and forth between the lane buffer and scratch</figcaption></figure>
-      <p>Each node's output occupies a range of the block. Its left child's symbols come first, followed by its right child's. The b and c leaves fill the three slots that their parent reorders, and the a leaf fills the five slots before them. The merge permutes symbols within that range. Counts of earlier 0s or 1s locate each source symbol.</p>
-      <p>On the GPU, one workgroup of four waves takes one block and first loads the node tables, at most 511 nodes, into shared memory. Then it loops over the depths from 12 down to 0. At each depth, each wave takes a node at that depth.</p>
-      <p>A leaf writes its symbols directly, so a constant leaf repeats one symbol and a flat leaf looks each symbol up by its index. An internal node gives each lane of the wave one byte of its bitmap, which is eight symbols. Our whole example root would fit in the byte of a single lane.</p>
-      <p>The lane runs popcount on its byte, and a wave prefix sum over those counts tells every lane how many 1s come before its byte. The 0s before it follow by subtraction. From there the lane walks its eight bits, taking each symbol from the right child or the left child at the position those counts give. A barrier separates one depth from the next, since a parent can only merge once its children are done.</p>
-      <p>Writing into the buffer being read would overwrite symbols still needed by other threads. The kernel swaps two buffers at each level. Even depths write the lane buffer. Odd depths write scratch borrowed from the output allocation. Each level reads from the other buffer. The root is at depth 0, so the finished lane lands in the lane buffer without an allocation for the climb. <a href="gpu-internals.html">Inside the GPU decoder</a> covers how blocks are scheduled in a batch.</p>
-      <p>The GPU path refuses blocks shorter than 1024 symbols unless one block covers the whole lane. GeoZL's encoder writes 32768-symbol blocks, so this matters only for frames written with other settings.</p>
+      <p>Third, block size. A real lane is far longer than eight symbols, so PivCo cuts it into blocks, each with its own set of node bitmaps. GeoZL writes blocks of 32768 symbols. Blocks are independent, so separate blocks can always decode at the same time, on top of the parallelism inside each block.</p>
 
       <h2 class="part" id="lanes">Byte lanes in GeoZL</h2>
       <p>PivCo codes bytes, so GeoZL splits wider samples into byte lanes. For a 16-bit raster, GeoZL uses <code>transpose</code> to split samples into low-byte and high-byte lanes before Huffman coding. The low and high bytes of a sample rarely follow the same distribution, so every lane is coded on its own, with its own mode. Mode 0 is PivCo. Mode 1 is byte <a href="pfor.html">PFOR</a>, and the encoder keeps PFOR for a lane whenever it comes out smaller.</p>
       <p>GeoZL exposes two codecs for this layout. <code>lanes</code> is the recipe <code>id&gt;lanes</code>, and one-byte data has a single lane. <code>planar_zigzag_lanes</code> fuses <code>planar&gt;zigzag&gt;lanes</code>. Planar makes residuals, Zigzag makes them unsigned, and byte lanes are coded last.</p>
-      <p>The GPU reverses these stages. The PivCo lanes decode as described above and the PFOR lanes unpack with the PFOR kernel. A join pass then rebuilds each sample from its lanes, <code>lane0 | lane1 &lt;&lt; 8</code> for 16-bit data, and for the fused codec it also undoes Zigzag before the inverse planar pass runs. Today the device path covers one- and two-byte samples. Wider samples, and anything else the GPU does not handle, decode with OpenZL on the CPU and are uploaded.</p>
-      <p>PivCo-Huffman is Marcin Zukowski's design, described in arXiv 2606.05765 and shipped in OpenZL 0.3. GeoZL builds its byte-lane codecs, the fused planar variant and the GPU decoder on top of it.</p>
+      <p>Decoding runs these stages backwards. Every lane decodes on its own, as PivCo or as PFOR depending on its mode. A join then rebuilds each sample from its lanes, <code>lane0 | lane1 &lt;&lt; 8</code> for 16-bit data. For the fused codec the join also undoes Zigzag, and the inverse planar pass runs last.</p>
+      <p>PivCo-Huffman is Marcin Zukowski's design, described in arXiv 2606.05765 and shipped in OpenZL 0.3. GeoZL builds its byte-lane codecs and the fused planar variant on top of it.</p>
 
       <nav class="pager" aria-label="Pages">
         <a class="prev" href="pfor.html"><span>Previous</span>How PFOR works</a>
@@ -145,7 +134,6 @@
         <li><a href="#split">Storing the bits by tree node</a></li>
         <li><a href="#decode">Count the 1s before you</a></li>
         <li><a href="#format">The real format</a></li>
-        <li><a href="#gpu">Decoding from the leaves up</a></li>
         <li><a href="#lanes">Byte lanes in GeoZL</a></li>
       </ol>
     </nav>
