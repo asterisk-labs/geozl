@@ -75,6 +75,14 @@
       </ul>
       <p>A GPU runs the same small program on thousands of threads at once. Each thread must find its own input without waiting for another. GeoZL ends GPU recipes with PFOR or PivCo to meet that requirement.</p>
 
+      <h2 class="part" id="wave">A wave, 32 threads in step</h2>
+      <p>The threads are not scheduled one by one. A GPU groups them into <b>waves</b> of 32, or 64 on some chips, called warps on NVIDIA and SIMD-groups on Apple. Every thread of a wave runs the same instruction at the same moment, each on its own value, much like the lanes of a SIMD register on a CPU but many more of them.</p>
+      <p>Threads in a wave can pass values to a neighbour with a <b>shuffle</b>, for about the cost of an add. What they cannot do is wait for one another. Each thread has to work out where its own data starts, or the whole wave stalls.</p>
+      <figure class="diagram wide">
+        <img src="assets/svg/gpu/wave.svg?v=2" alt="One GPU wave of 32 threads, t0 to t31. One instruction is sent to all of them and each runs it on its own value. Neighbouring threads can pass a value with a shuffle. Each thread computes where its own data starts in the compressed block, so no thread waits for another. A GPU runs thousands of such waves." loading="lazy">
+        <figcaption>One instruction for all 32 threads, a cheap shuffle between neighbours, and an offset each thread finds on its own.</figcaption>
+      </figure>
+
       <h2 class="part" id="waiting">The problem is finding where you start</h2>
       <p>DEFLATE, zstd and plain Huffman streams use variable-length tokens. Each token has a variable length, and the only way to know where token i begins is to decode tokens 0 to <i>i − 1</i> first. Each thread must wait for the previous thread to locate the next token. A CPU can hide much of the few-cycle cost per token. On a GPU, one thread works while thousands idle.</p>
       <p>The animation codes the same eight symbols twice. In the Huffman row, watch the blue read position. The read position passes from thread to thread, so eight threads take eight turns. In the fixed-width row every thread computes its offset as <code>2 × i</code> and all eight start together, at the price of a few more bits.</p>
@@ -114,6 +122,7 @@
     <nav class="toc onpage" aria-label="On this page">
       <p class="toc-title">On this page</p>
       <ol class="toc-sections">
+        <li><a href="#wave">A wave, 32 threads in step</a></li>
         <li><a href="#waiting">The problem is finding where you start</a></li>
         <li><a href="#pfor">PFOR, where every value has the same width</a></li>
         <li><a href="#pivco">PivCo, Huffman stored in a different order</a></li>

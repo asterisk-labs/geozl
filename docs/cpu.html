@@ -72,7 +72,7 @@
       <ul class="facts">
         <li>SSE2, AVX2 and NEON kernels with a plain C fallback, picked once at run time. Sources in <a href="https://github.com/asterisk-labs/geozl/tree/main/core/src" rel="noopener noreferrer"><code>core/src</code></a>.</li>
       </ul>
-      <p>Reading a tile runs the decoder of every codec in its graph, so the decoders set the read speed. This page shows how the CPU decoders of <code>planar</code>, <code>med</code> and PFOR use vector instructions to handle many values at once, and why the same tricks do not carry over to a GPU.</p>
+      <p>Reading a tile runs the decoder of every codec in its graph, so the decoders set the read speed. This page shows how the CPU decoders of <code>planar</code>, <code>med</code> and PFOR use vector instructions to handle many values at once, and where a GPU differs.</p>
 
       <h2 class="part" id="simd">One instruction, many values</h2>
       <p>A CPU core can process several numbers with one instruction. A <b>vector register</b> has <b>lanes</b> that add, shift or compare values together. This is called <b>SIMD</b>, single instruction, multiple data. ARM chips, including Apple chips, use <b>NEON</b> with 128-bit registers. x86 uses <b>SSE2</b>, 128 bits on every 64-bit chip, and <b>AVX2</b>, 256 bits on most recent chips.</p>
@@ -84,7 +84,7 @@
 
       <h2 class="part" id="fit">What a decoder needs to use it</h2>
       <p>SIMD only helps when the lanes can work without talking to each other. SIMD needs <b>the same operation on neighbouring values</b>, adjacent memory and <b>no branch per value</b>. A row dependency makes value <code>i</code> wait for <code><i>i &minus; 1</i></code>. A CPU can pass one value between registers while it walks a row.</p>
-      <p>A GPU runs <b>thousands of threads</b> at once, so a serial carry along a row limits parallel decoding. The threads run in groups of 32 or 64 called waves, or warps on NVIDIA, which execute the same instruction together. Threads in a wave can share values, but each must locate its own compressed data. A codec can suit SIMD but not a GPU, or the reverse.</p>
+      <p>A GPU has different needs, since no thread can wait for a carry from another. <a href="gpu-codecs.html">Why they fit a GPU</a> explains them. A codec can suit SIMD but not a GPU, or the reverse.</p>
       <figure class="diagram wide">
         <img src="assets/svg/cpu/cpu-gpu.svg" alt="A CPU core with SIMD walks a row eight lanes per step and passes a carry from one register to the next for the cost of one add. A GPU runs thousands of threads at once, so a serial carry along the row limits parallel decoding." loading="lazy">
         <figcaption>A SIMD core can carry one number along the row. A serial carry limits GPU parallelism.</figcaption>
@@ -137,7 +137,7 @@
       <p>Each lane uses the same shift and mask, which suits SIMD. The layout is part of the format, 16 bytes on every machine, so the same frame is fast on NEON, SSE2 and AVX2. <a href="pfor.html">How PFOR works</a> covers the format itself.</p>
 
       <h2 class="part" id="gpu">From a register to a GPU</h2>
-      <p>Inverse planar prediction sums down columns and along rows. A GPU does both with a <b>wave prefix sum</b>, the same idea as the shifts above spread over 32 threads, so planar moves to the device without a format change. PFOR moves too, because a thread can compute where its values start. <code>med</code> and Huffman stay off the GPU path, which uses PivCo instead of Huffman. <a href="gpu-codecs.html">Why they fit a GPU</a> picks up the story from there.</p>
+      <p>Planar and PFOR also decode on a GPU, med and Huffman do not. <a href="gpu-codecs.html">Why they fit a GPU</a> explains what a GPU needs and how GeoZL meets it.</p>
 
       <nav class="pager" aria-label="Pages">
         <a class="prev" href="near-lossless.html"><span>Previous</span>Near-lossless</a>
