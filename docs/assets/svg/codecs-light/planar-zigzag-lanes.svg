@@ -1,37 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220" width="360" height="220" role="img" aria-label="Planar, Zigzag and PFOR fused into one codec">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 220" width="360" height="220" role="img" aria-label="Planar and Zigzag fused with a lane coder. The residuals split into byte lanes, and each lane is coded with PivCo Huffman or byte PFOR, whichever is smaller">
   <style><![CDATA[
     @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&display=swap');
 
     svg {
       --paper:#FFFFFF; --ink:#111111; --muted:#5C6370;
-      --gold:#B8900A; --green:#1D9A4A;
+      --gold:#B8900A; --green:#1D9A4A; --purple:#492AE8;
       background:transparent;
       font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
     }
     .frame { fill:none; stroke:var(--gold); stroke-width:2; }
     .box { fill:var(--paper); stroke:var(--ink); stroke-width:1.2; }
-    .box-end { fill:#E6F7EC; stroke:var(--green); stroke-width:1.4; }
+    .lane { fill:#E6F7EC; stroke:var(--green); stroke-width:1.3; }
+    .pick { fill:var(--paper); stroke:var(--ink); stroke-width:1.2; }
     .title { fill:var(--gold); font:500 11px "IBM Plex Mono",monospace; letter-spacing:.08em; }
-    .name { fill:var(--ink); font:700 13px "IBM Plex Mono",monospace; text-anchor:middle; }
-    .arrow { fill:none; stroke:var(--muted); stroke-width:1.5; marker-end:url(#arrow); }
+    .name { fill:var(--ink); font:700 12px "IBM Plex Mono",monospace; text-anchor:middle; }
+    .or { fill:var(--muted); font:500 10px "IBM Plex Mono",monospace; text-anchor:middle; }
+    .note { fill:var(--muted); font:500 10px "IBM Plex Mono",monospace; text-anchor:middle; }
+    .arrow { fill:none; stroke:var(--muted); stroke-width:1.4; marker-end:url(#arrow); }
   ]]></style>
 
-  <rect x="18" y="42" width="324" height="136" rx="5" class="frame"/>
-  <rect x="34" y="32" width="62" height="20" fill="#FFFFFF"/>
-  <text x="42" y="47" class="title">FUSED</text>
+  <rect x="12" y="28" width="336" height="176" rx="5" class="frame"/>
+  <rect x="26" y="18" width="62" height="20" fill="#FFFFFF"/>
+  <text x="34" y="33" class="title">FUSED</text>
 
-  <rect x="38" y="83" width="78" height="54" rx="3" class="box"/>
-  <text x="77" y="115" class="name">PLANAR</text>
+  <rect x="24" y="92" width="66" height="40" rx="3" class="box"/>
+  <text x="57" y="116" class="name">PLANAR</text>
+  <path d="M91 112 H101" class="arrow"/>
+  <rect x="104" y="92" width="66" height="40" rx="3" class="box"/>
+  <text x="137" y="116" class="name">ZIGZAG</text>
 
-  <path d="M117 110 H139" class="arrow"/>
+  <path d="M171 112 C180 112 178 72 189 72" class="arrow"/>
+  <path d="M171 112 C180 112 178 152 189 152" class="arrow"/>
 
-  <rect x="142" y="83" width="78" height="54" rx="3" class="box"/>
-  <text x="181" y="115" class="name">ZIGZAG</text>
+  <rect x="192" y="56" width="64" height="32" rx="3" class="lane"/>
+  <text x="224" y="76" class="name">BYTE 0</text>
+  <rect x="192" y="136" width="64" height="32" rx="3" class="lane"/>
+  <text x="224" y="156" class="name">BYTE 1</text>
 
-  <path d="M221 110 H243" class="arrow"/>
+  <path d="M257 72 H269" class="arrow"/>
+  <path d="M257 152 H269" class="arrow"/>
+  <rect x="272" y="50" width="64" height="44" rx="3" class="pick"/>
+  <text x="304" y="68" class="name">PIVCO</text><text x="304" y="84" class="or">or PFOR</text>
+  <rect x="272" y="130" width="64" height="44" rx="3" class="pick"/>
+  <text x="304" y="148" class="name">PIVCO</text><text x="304" y="164" class="or">or PFOR</text>
 
-  <rect x="246" y="83" width="78" height="54" rx="3" class="box-end"/>
-  <text x="285" y="115" class="name">PIVCO</text>
+  <text x="264" y="115" class="note">smaller wins,</text>
+  <text x="264" y="127" class="note">lane by lane</text>
+  <text x="180" y="194" class="note">one lane per residual byte, two for 16-bit samples</text>
 
   <defs>
     <marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto">

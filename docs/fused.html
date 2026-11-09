@@ -125,7 +125,7 @@ for (i = 0; i &lt; 256; i++) {
         <h3><span class="num">09</span>planar_zigzag_lanes</h3>
         <p><b>planar_zigzag_lanes</b> runs planar and Zigzag, then codes <b>each residual byte lane</b> on its own with PivCo Huffman, or with byte PFOR when that is smaller.</p>
         <figure class="diagram">
-          <img src="assets/svg/codecs-light/planar-zigzag-lanes.svg" alt="Planar and Zigzag followed by PivCo or PFOR byte lanes" loading="lazy">
+          <img src="assets/svg/codecs-light/planar-zigzag-lanes.svg?v=2" alt="Planar and Zigzag followed by PivCo or PFOR byte lanes" loading="lazy">
           <figcaption>planar and Zigzag, then one PivCo or PFOR coder per residual byte lane</figcaption>
         </figure>
         <p>Recipes spell it <code>planar&gt;zigzag&gt;lanes</code> for every sample width. It tends to beat planar_zigzag_pfor when residual bytes are skewed rather than merely small. <a href="pivco.html">How PivCo works</a> explains the format.</p>
