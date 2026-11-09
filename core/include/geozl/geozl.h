@@ -123,8 +123,9 @@ GEOZL_API int geozl_2d_compress_c(const char *method, uint32_t width,
 // Reusable graph for tiles with the same configuration. src fixes the lossy
 // grid, and a later tile the grid cannot hold to its bound is refused before
 // compression. That is a negative sample when src had none, a floating-point
-// magnitude above src's under LINEAR, or a value outside src's range under
-// SQRT. Integer LINEAR and every LOG grid span the whole dtype.
+// sample whose magnitude exceeds src's largest magnitude under LINEAR, or a
+// value outside src's range under SQRT. Integer LINEAR and every LOG grid span
+// the whole dtype.
 typedef struct geozl_2d_graph_s geozl_2d_graph;
 
 GEOZL_API int geozl_2d_graph_open_c(geozl_2d_graph **out, const char *method,

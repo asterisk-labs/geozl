@@ -105,7 +105,7 @@ if (gpu == NULL) {
 GeozlGpuFrame frames[TILES];
 for (size_t i = 0; i &lt; TILES; ++i)
   frames[i] = (GeozlGpuFrame){data[i], size[i], TILE * TILE * SAMPLE};</code></pre>
-      <p>Copies select windows and place them in the target. A <code>GeozlGpuCopy</code> reads <code>rows</code> rows of <code>width</code> samples out of one decoded frame and writes them into the target. Every offset and stride is in bytes and must be a multiple of the sample size. On each side there is a starting offset, a row stride, and a step between the samples of one row.</p>
+      <p>Copies select windows and place them in the target. A <code>GeozlGpuCopy</code> copies a window of <code>rows</code> × <code>width</code> samples from one decoded frame into the target. Every offset and stride is in bytes and must be a multiple of the sample size. On each side there is a starting offset, a row stride, and a step between the samples of one row.</p>
       <p>The first sample is at row 64, column 32 of a 256-sample row. Its byte offset is <code>(64 * 256 + 32) * 2 = 32832</code>. A tile row is <code>256 * 2 = 512</code> bytes, and neighbouring samples are 2 bytes apart. On the target side, window i starts after i earlier windows of <code>128 * 128 * 2 = 32768</code> bytes each, and a window row is <code>128 * 2 = 256</code> bytes.</p>
       <pre><code>GeozlGpuCopy copies[TILES];
 for (size_t i = 0; i &lt; TILES; ++i)
@@ -156,7 +156,7 @@ for (size_t i = 0; i &lt; TILES; ++i)
       <p>Keep the target allocation and stream alive until queued work finishes. Do not free or reuse the target before then. Other work on the same stream may read it because the stream orders that work. Call <code>geozl_gpu_synchronize</code> to wait for queued work and receive any error.</p>
       <pre><code>if (geozl_gpu_synchronize(gpu, error, sizeof error) != 0)
   fprintf(stderr, "decode failed: %s\n", error);</code></pre>
-      <p>Switching a decoder to a different stream, synchronizing it and destroying it all wait for everything in flight, so <code>geozl_gpu_destroy</code> is always safe once no other call is running. A backend may also finish the work before it returns. Code written to these rules is correct either way.</p>
+      <p>Switching a decoder to a different stream, synchronizing it and destroying it all wait for everything in flight, so <code>geozl_gpu_destroy</code> is always safe once no other call is running. A backend may also finish the work before <code>geozl_gpu_decode</code> returns.</p>
 
       <h2 class="part" id="memory">Memory and checksums</h2>
       <p>Most callers decode into memory their framework owns, as we did above. For tests or standalone tools, the decoder can allocate a target. <code>geozl_gpu_alloc</code> returns caller-owned memory on the decoder's device, <code>geozl_gpu_pointer</code> gives the device handle to put in <code>GeozlGpuTarget.memory</code>, and <code>geozl_gpu_free</code> releases it. The same lifetime rules apply, so synchronize before freeing.</p>

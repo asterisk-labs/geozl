@@ -83,7 +83,7 @@
       <p>Everything else, zstd, the entropy recipes, NoData, quantized frames, multi-chunk frames, decodes with OpenZL on the CPU and is uploaded as samples. Both kinds can share one call, so a batch with a few odd frames still lands in one tensor.</p>
 
       <h2 class="part" id="waves">Waves, and why a PFOR block is 256 values</h2>
-      <p>GPUs run threads in groups that execute one instruction together. It runs them in groups that execute the same instruction together. Slang calls this group a <b>wave</b>. GeoZL's waves are 32 threads wide.</p>
+      <p>A <b>wave</b> is a group of GPU threads that execute the same instruction together. GeoZL's Slang kernels use 32-thread waves.</p>
       <p>Threads in a wave exchange registers without memory. One thread can broadcast a register to the other 31. The wave can OR a value across all its threads, or give each thread the sum of the values held by the threads before it, a prefix sum. These are register exchanges, with no shared memory, no barrier, no waiting for the slowest thread in a larger group. Cross-wave work needs shared memory and a barrier.</p>
       <p>The decoder sizes PFOR work to one wave. Each thread handles 8 values, and 32 threads times 8 values is 256, which is exactly one PFOR block. One wave decodes one block, and four waves make a group of 128 threads.</p>
       <p>The animation follows one block through one wave. First every thread finds its eight values. Then, in list mode, the exception positions are folded into one mask that every thread holds. Last, each thread counts its rank.</p>
@@ -126,7 +126,7 @@
       <p>Changing streams, calling <code>geozl_gpu_synchronize</code> or destroying the decoder waits for queued work. Synchronize before freeing or reusing a target. On Metal, <code>geozl_gpu_decode</code> finishes before returning.</p>
       <figure class="diagram wide stepper" data-beats="2.55,5.75,8.35,12.35,15.25"><img src="assets/svg/gpu/internals-pipeline.svg" alt="A timeline with a CPU track, a GPU track and a track for each staging arena. The CPU plans call N into arena 0, the GPU decodes it while the CPU plans call N+1 into arena 1, and call N+2 waits until decode N has finished and freed arena 0, then plans into it while the GPU decodes N+1 and N+2 back to back." loading="lazy"><figcaption>Planning of the next call overlaps decoding of this one. Watch the wait before plan N+2. It is the only one, and it waits for the call that used the same arena.</figcaption></figure>
 
-      <h2 class="part" id="backends">One kernel source, any GPU</h2>
+      <h2 class="part" id="backends">One kernel source across GPU backends</h2>
       <p>GeoZL uses a vendor-independent kernel source. Each GPU family has its own language and its own runtime, and writing the kernels once per family would mean every fix lands several times and the copies slowly drift. GeoZL writes them once in <a href="https://shader-slang.org" rel="noopener noreferrer">Slang</a>, whose wave operations map onto each vendor's native groups. The build compiles them ahead of time for every backend it targets and embeds the results in the library.</p>
       <p>The host API, capture, planning, task lists and staging are shared across backends. What a backend adds is one runtime file behind a small table of operations that open a device, allocate and free memory, queue a kernel and wait. Supporting a new GPU is that file plus a Slang target, and the formats, the kernels and every caller stay as they are. Kernels require a 32-wide wave. A backend rejects devices that cannot provide it.</p>
       <div class="note"><p>Creating a decoder loads or compiles the kernels for its device, so create one decoder and reuse it.</p></div>
@@ -145,7 +145,7 @@
         <li><a href="#pivco">PivCo, from the leaves to the root</a></li>
         <li><a href="#planar">Undoing planar</a></li>
         <li><a href="#landing">Where the samples land, call after call</a></li>
-        <li><a href="#backends">One kernel source, any GPU</a></li>
+        <li><a href="#backends">One kernel source across GPU backends</a></li>
       </ol>
     </nav>
   </main>

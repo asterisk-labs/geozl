@@ -333,12 +333,12 @@ def compress(tile: ArrayLike, *, graph: Graph,
     The dtype must match exactly. Geometry is not checked against the graph.
 
     A lossy tile the graph's grid cannot hold to its bound is refused. That is
-    a negative sample when the raster had none, a floating-point magnitude
-    above the raster's under ``LINEAR``, or a finite value outside the
-    raster's range under ``SQRT``. Integer ``LINEAR`` and every ``LOG`` grid
-    span the whole dtype, so only the sign is checked there. NaN and infinity
-    are not checked, apart from ``LOG`` refusing ``-inf`` on a graph built
-    without negatives.
+    a negative sample when the raster had none, a floating-point sample whose
+    magnitude exceeds the raster's largest magnitude under ``LINEAR``, or a
+    finite value outside the raster's range under ``SQRT``. Integer ``LINEAR``
+    and every ``LOG`` grid span the whole dtype, so only the sign is checked
+    there. NaN and infinity are not checked, apart from ``LOG`` refusing
+    ``-inf`` on a graph built without negatives.
 
     ``coeffs`` attaches numeric vectors to this frame. Read them back with
     ``geozl.coeffs``; geozl does not assign meaning to them.

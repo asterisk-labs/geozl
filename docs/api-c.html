@@ -226,7 +226,7 @@ typedef struct {
   size_t bytes;
   void *stream;
 } GeozlGpuTarget;</code></pre>
-      <p>A <code>GeozlGpuFrame</code> is the compressed bytes and the exact size they decode to. A <code>GeozlGpuCopy</code> moves <code>rows</code> rows of <code>width</code> samples from one decoded frame into the target, with offsets and strides in bytes. A <code>GeozlGpuTarget</code> names the device memory, the byte offset and writable bytes after it, and the stream the work joins.</p>
+      <p>A <code>GeozlGpuFrame</code> is the compressed bytes and the exact size they decode to. A <code>GeozlGpuCopy</code> moves a window of <code>rows</code> × <code>width</code> samples from one decoded frame into the target, with offsets and strides in bytes. A <code>GeozlGpuTarget</code> names the device memory, the byte offset and writable bytes after it, and the stream the work joins.</p>
 <pre><code class="proto">int geozl_gpu_available(int deviceType);</code></pre>
       <p>Returns nonzero when this build drives the device type.</p>
 <pre><code class="proto">GeozlGpu *geozl_gpu_create(int deviceType, int device, size_t threads,
