@@ -29,24 +29,25 @@
   <rect x="104" y="92" width="66" height="40" rx="3" class="box"/>
   <text x="137" y="116" class="name">ZIGZAG</text>
 
-  <path d="M171 112 C180 112 178 72 189 72" class="arrow"/>
-  <path d="M171 112 C180 112 178 152 189 152" class="arrow"/>
+  <path d="M171 112 C178 112 176 72 183 72" class="arrow"/>
+  <path d="M171 112 C178 112 176 152 183 152" class="arrow"/>
 
-  <rect x="192" y="56" width="64" height="32" rx="3" class="lane"/>
-  <text x="224" y="76" class="name">BYTE 0</text>
-  <rect x="192" y="136" width="64" height="32" rx="3" class="lane"/>
-  <text x="224" y="156" class="name">BYTE 1</text>
+  <rect x="186" y="56" width="76" height="32" rx="3" class="lane"/>
+  <text x="224" y="76" class="name">LANE 0</text>
+  <rect x="186" y="136" width="76" height="32" rx="3" class="lane"/>
+  <text x="224" y="156" class="name">LANE W−1</text>
 
-  <path d="M257 72 H269" class="arrow"/>
-  <path d="M257 152 H269" class="arrow"/>
+  <path d="M263 72 H269" class="arrow"/>
+  <path d="M263 152 H269" class="arrow"/>
   <rect x="272" y="50" width="64" height="44" rx="3" class="pick"/>
   <text x="304" y="68" class="name">PIVCO</text><text x="304" y="84" class="or">or PFOR</text>
   <rect x="272" y="130" width="64" height="44" rx="3" class="pick"/>
   <text x="304" y="148" class="name">PIVCO</text><text x="304" y="164" class="or">or PFOR</text>
 
-  <text x="264" y="115" class="note">smaller wins,</text>
-  <text x="264" y="127" class="note">lane by lane</text>
-  <text x="180" y="194" class="note">one lane per residual byte, two for 16-bit samples</text>
+  <text x="224" y="116" class="note">&#8942;</text>
+  <text x="304" y="110" class="note">smaller wins,</text>
+  <text x="304" y="122" class="note">lane by lane</text>
+  <text x="180" y="194" class="note">W lanes, one per byte of a W-byte sample</text>
 
   <defs>
     <marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto">
