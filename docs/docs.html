@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=10">
+<link rel="stylesheet" href="assets/css/reading.css?v=11">
 </head>
 <body>
 <div class="page">
@@ -59,10 +59,10 @@
         <li><a href="pfor.html">PFOR</a></li>
         <li><a href="pivco.html">PivCo</a></li>
         <li class="toc-group">Optimizations</li>
-        <li><a href="cpu.html">CPU</a></li>
-        <li><a href="gpu-codecs.html">What a GPU needs</a></li>
-        <li><a href="gpu-internals.html">Inside the GPU decoder</a></li>
-        <li><a href="slang.html">Slang</a></li>
+        <li><a href="cpu.html">Fast on one core</a></li>
+        <li><a href="gpu-codecs.html">What a GPU wants</a></li>
+        <li><a href="gpu-internals.html">Bytes to tensors</a></li>
+        <li><a href="slang.html">One source, many GPUs</a></li>
       </ol>
     </nav>
 
@@ -99,7 +99,7 @@ out = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)</code></pre>
       </figure>
       <p>The four codec families are on separate pages. <a href="predictors.html"><b>Predictors</b></a> turn samples into small residuals. <a href="streams.html"><b>Stream</b></a> codecs split and pack. <a href="fused.html"><b>Fused</b></a> codecs run a common chain in one pass, and <code>planar&gt;zigzag</code> in the picture above is really one of them. <a href="near-lossless.html"><b>Quantizers</b></a> trade a bounded error for smaller numbers. Each codec ends with its CTid, its header and the call that builds it.</p>
       <p>Two algorithm pages follow the families. <a href="pfor.html"><b>PFOR</b></a> and <a href="pivco.html"><b>PivCo</b></a> are the coders behind the GPU recipes, explained from the block format up.</p>
-      <p>The optimization pages come last. <a href="cpu.html"><b>CPU</b></a> shows how the decoders use vector lanes. <a href="gpu-codecs.html"><b>What a GPU needs</b></a>, <a href="gpu-internals.html"><b>Inside the GPU decoder</b></a> and <a href="slang.html"><b>Slang</b></a> cover decoding on a GPU.</p>
+      <p>The optimization pages come last, as a series in four parts that tells how the decoders got fast. <a href="cpu.html"><b>Fast on one core</b></a> covers SIMD on a CPU. <a href="gpu-codecs.html"><b>What a GPU wants</b></a> explains which formats a GPU can decode and what that cost, <a href="gpu-internals.html"><b>Bytes to tensors</b></a> follows a batch into GPU memory, and <a href="slang.html"><b>One source, many GPUs</b></a> shows how one Slang source becomes the kernels for each backend.</p>
       <p>The <a href="api.html"><b>API</b></a> section documents the calls in every language.</p>
 
       <nav class="pager" aria-label="Pages">

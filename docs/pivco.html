@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=10">
+<link rel="stylesheet" href="assets/css/reading.css?v=11">
 </head>
 <body>
 <div class="page">
@@ -59,10 +59,10 @@
         <li><a href="pfor.html">PFOR</a></li>
         <li><a href="pivco.html" class="here" aria-current="page">PivCo</a></li>
         <li class="toc-group">Optimizations</li>
-        <li><a href="cpu.html">CPU</a></li>
-        <li><a href="gpu-codecs.html">What a GPU needs</a></li>
-        <li><a href="gpu-internals.html">Inside the GPU decoder</a></li>
-        <li><a href="slang.html">Slang</a></li>
+        <li><a href="cpu.html">Fast on one core</a></li>
+        <li><a href="gpu-codecs.html">What a GPU wants</a></li>
+        <li><a href="gpu-internals.html">Bytes to tensors</a></li>
+        <li><a href="slang.html">One source, many GPUs</a></li>
       </ol>
     </nav>
 
@@ -85,7 +85,7 @@
       <p>Each code follows a path through the tree. The first bit says whether we go left (to a) or right. On the right there is one more choice, left for b and right for c. Because no code is the start of another, the codes need no separators. The concatenated stream has eleven bits, <code>01001101000</code>.</p>
       <p>Concatenation makes Huffman decoding serial. The fourth symbol cannot be located before decoding the first three. Watch the reader below. It can only box a code once it reaches the code's last bit, and only then does the next code have a start. The fourth symbol, the slot marked with a question mark, is found only after the three codes before it.</p>
       <figure class="diagram wide stepper" data-beats="2.15,8.75,13.3"><img src="assets/svg/gpu/pivco-serial.svg" alt="A single reader walks the glued bits 01001101000 one at a time. Each symbol of the output appears only when its code ends, so the fourth symbol, c, is known only after the three codes before it." loading="lazy"><figcaption>one reader, one bit at a time, so a symbol is known only when its code ends</figcaption></figure>
-      <p>There is only one place to start reading, so a second reader has nothing to do until the first one is finished. Fast decoders hide some of the wait with lookup tables and several interleaved streams, but the chain itself stays. <a href="gpu-codecs.html">What a GPU needs</a> explains why a chain like this is the main obstacle on a GPU.</p>
+      <p>There is only one place to start reading, so a second reader has nothing to do until the first one is finished. Fast decoders hide some of the wait with lookup tables and several interleaved streams, but the chain itself stays. <a href="gpu-codecs.html">What a GPU wants from a format</a> explains why a chain like this is the main obstacle on a GPU.</p>
 
       <h2 class="part" id="split">Storing the bits by tree node</h2>
       <p>PivCo writes code bits in tree order instead of symbol order. Every symbol passes through the root, so the root gets one bit per symbol, which is the first bit of its code. Here, that is <code>01010100</code>, where a 0 means a and a 1 means "b or c, ask the next node".</p>
@@ -99,7 +99,7 @@
       <p>Thread <code>t1</code> has no 1s before it and reads slot 0, a 0, so its symbol is b. Thread <code>t3</code> has one 1 before it, reads slot 1 and finds c. Thread <code>t5</code> has two, reads slot 2 and finds b. The animation shows eight root reads, five a outputs, one prefix sum, three child lookups and the b, c, b outputs together.</p>
       <figure class="diagram wide stepper" data-beats="2.55,5.15,7.55,9.95,14.3"><img src="assets/svg/gpu/pivco-count.svg" alt="Threads t0 to t7 read their root bits at once, and the five that read 0 write a. A prefix sum gives every thread the number of 1s before it. Threads t1, t3 and t5 get 0, 1 and 2, read that slot of the b or c bitmap, and write b, c and b at the same moment." loading="lazy"><figcaption>each thread finds its slot from a count, not from its neighbour's answer</figcaption></figure>
       <p>No thread waits for another symbol. Each one needs only a count. <b>Popcount</b> is a single machine instruction that returns the number of 1s in a word, so a thread masks off the bits after its own position, runs popcount, and has its slot. For bitmaps longer than one word, the threads add their per-word counts with a prefix sum. A deeper tree repeats this count and child move at every level.</p>
-      <p>The same counts also work in the other direction. A decoder can start at the leaves and merge each pair of children into its parent by the parent's bitmap, which is how GeoZL runs it on a GPU, described in <a href="gpu-internals.html">Inside the GPU decoder</a>.</p>
+      <p>The same counts also work in the other direction. A decoder can start at the leaves and merge each pair of children into its parent by the parent's bitmap, which is how GeoZL runs it on a GPU, described in <a href="gpu-internals.html">From compressed bytes to a GPU tensor</a>.</p>
 
       <h2 class="part" id="format">The real format</h2>
       <p>The real format also specifies the tree, bitmap layout and block size. First, the tree. PivCo never writes the tree into the frame. It writes the Huffman weights, and the encoder and the decoder each rebuild the same tree from them. OpenZL caps the table log at 12, so no code is longer than 12 bits and no tree deeper than 12 levels.</p>
@@ -122,7 +122,7 @@
 
       <nav class="pager" aria-label="Pages">
         <a class="prev" href="pfor.html"><span>Previous</span>PFOR</a>
-        <a class="next" href="cpu.html"><span>Next</span>CPU</a>
+        <a class="next" href="cpu.html"><span>Next</span>Fast on one core</a>
       </nav>
     </article>
 

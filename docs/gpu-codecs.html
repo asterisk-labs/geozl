@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
-<meta name="description" content="What a GPU needs from a compressed format, and how PFOR and PivCo let every thread find its own input.">
-<title>GeoZL · What a GPU needs</title>
+<meta name="description" content="Part two of the optimizations series. What a GPU needs from a compressed format, how PFOR and PivCo let every thread find its own input, and what the fixed lane format cost.">
+<title>GeoZL · What a GPU wants from a format</title>
 <link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=10">
+<link rel="stylesheet" href="assets/css/reading.css?v=11">
 </head>
 <body>
 <div class="page">
@@ -59,20 +59,30 @@
         <li><a href="pfor.html">PFOR</a></li>
         <li><a href="pivco.html">PivCo</a></li>
         <li class="toc-group">Optimizations</li>
-        <li><a href="cpu.html">CPU</a></li>
-        <li><a href="gpu-codecs.html" class="here" aria-current="page">What a GPU needs</a></li>
-        <li><a href="gpu-internals.html">Inside the GPU decoder</a></li>
-        <li><a href="slang.html">Slang</a></li>
+        <li><a href="cpu.html">Fast on one core</a></li>
+        <li><a href="gpu-codecs.html" class="here" aria-current="page">What a GPU wants</a></li>
+        <li><a href="gpu-internals.html">Bytes to tensors</a></li>
+        <li><a href="slang.html">One source, many GPUs</a></li>
       </ol>
     </nav>
 
     <article class="content">
-      <h1>What a GPU needs</h1>
+      <h1>What a GPU wants from a format</h1>
       <ul class="facts">
         <li><a href="pfor.html">PFOR</a>, CTid <code>0x72D70D</code></li>
         <li><a href="pivco.html">PivCo-Huffman</a>, CTids <code>0x72D713</code> and <code>0x72D712</code></li>
       </ul>
-      <p>A GPU runs the same small program on thousands of threads at once. Each thread must find its own input without waiting for another. GeoZL ends its GPU recipes with PFOR or PivCo because both formats let every thread do that.</p>
+      <aside class="series" aria-label="Series">
+        <p class="series-title">Optimizations, a series in four parts</p>
+        <ol>
+          <li><a href="cpu.html">Fast on one core</a></li>
+          <li class="here" aria-current="page">What a GPU wants</li>
+          <li><a href="gpu-internals.html">Bytes to tensors</a></li>
+          <li><a href="slang.html">One source, many GPUs</a></li>
+        </ol>
+      </aside>
+      <p>At the end of <a href="cpu.html">part one</a> we had CPU decoders that kept a core busy, and a reason to go further. Rumi wanted training batches decoded straight into GPU memory. The first question was a narrow one. Which of our codecs can a GPU decode at all?</p>
+      <p>A GPU runs the same small program on thousands of threads at once, and each thread must find its own input without waiting for another. That one requirement splits the codecs cleanly. PFOR and PivCo meet it, which is why GeoZL's GPU recipes end in one of them. med and plain Huffman never will. Meeting it also changed the PivCo format in a way that cost ratio, which we only measured later, and the end of this part is about that bill.</p>
 
       <h2 class="part" id="wave">A wave, 32 threads in step</h2>
       <p>The threads are not scheduled one by one. A GPU groups them into <b>waves</b> of 32, or 64 on some chips, called warps on NVIDIA and SIMD-groups on Apple. Every thread of a wave runs the same instruction at the same moment, each on its own value, much like the lanes of a SIMD register on a CPU but many more of them.</p>
@@ -83,7 +93,7 @@
       </figure>
 
       <h2 class="part" id="waiting">The problem is finding where you start</h2>
-      <p>DEFLATE, zstd and plain Huffman streams are made of variable-length tokens. The only way to know where token <i>i</i> begins is to decode tokens 0 to <i>i − 1</i> first, so each thread waits for the one before it to find the next token. A CPU can hide much of the few-cycle cost per token. On a GPU, one thread works while thousands idle.</p>
+      <p>This is the whole difficulty, so it is worth slowing down for. DEFLATE, zstd and plain Huffman streams are made of variable-length tokens. The only way to know where token <i>i</i> begins is to decode tokens 0 to <i>i − 1</i> first, so each thread waits for the one before it to find the next token. A CPU can hide much of the few-cycle cost per token. On a GPU, one thread works while thousands idle.</p>
       <p>The animation codes the same eight symbols twice. In the Huffman row, watch the blue read position. It passes from thread to thread, so eight threads take eight turns. In the fixed-width row every thread computes its offset as <code>2 × i</code> and all eight start together, at the price of a few more bits.</p>
       <figure class="diagram wide stepper" data-beats="5.8,8.8,13.2"><img src="assets/svg/gpu/codecs-relay.svg" alt="The symbols a b a c a b a a as Huffman codes 0 10 0 11 0 10 0 0, one read position moves from t0 to t7, revealing offsets 0, 1, 3, 4, 6, 7, 9 and 10 in eight steps. As fixed 2-bit codes, threads t0 to t7 get offsets 0, 2 to 14 in the same instant and decode in one step." loading="lazy"><figcaption>Variable-length codes form a relay. Fixed-width codes let every thread start at once.</figcaption></figure>
       <p>A GPU format must let thread <code>t</code> locate its value without asking thread <code><i>t − 1</i></code>. PFOR gets there with a multiplication and PivCo with a count.</p>
@@ -95,19 +105,20 @@
       <p>The side list is in position order, so an exception's place in it is its <b>rank</b>, the number of exceptions before it. The wave keeps the exception positions as one bit mask that every thread holds, and a thread finds its rank by counting the set bits before its own position with popcount. Here t7 counts zero, reads <code>1011</code> from the start of the list, shifts it up by 3 and ORs it onto <code>010</code> to get 90.</p>
       <p>Real blocks hold 256 values, and one wave of 32 threads decodes a block at eight values per thread. Every thread knows its offset before any value is read, so all 32 start together. In the animation the top row is a chain where each value waits for the one before it, and the bottom row is a wave.</p>
       <figure class="diagram wide stepper" data-beats="5.35,7.55,12.3"><img src="assets/svg/gpu/pfor-wave.svg" alt="At the top, a chain where each value starts only after the one before, lighting up one at a time. At the bottom, the 32 threads of a wave each know their offset, bit t times 3, from 0 up to 93, and all start at the same instant." loading="lazy"><figcaption>A chain moves one value at a time. A wave starts all 32 threads at once.</figcaption></figure>
-      <p>Offsets, loads, popcounts, shifts and ORs are all local to a thread, and the mask is shared through registers. Nothing waits on memory written by another thread. <a href="gpu-internals.html#waves">Inside the GPU decoder</a> follows the real kernel through one 256-value block.</p>
+      <p>Offsets, loads, popcounts, shifts and ORs are all local to a thread, and the mask is shared through registers. Nothing waits on memory written by another thread. PFOR's block format came from SIMD on a CPU, seven weeks before our first GPU prototype, and the GPU decodes it without any change to the frames. <a href="gpu-internals.html#waves">Bytes to tensors</a> follows the real kernel through one 256-value block.</p>
 
       <h2 class="part" id="pivco">PivCo, where every thread counts 1s</h2>
       <p>Huffman codes skewed data with variable-length codes, and its single stream makes decoding serial. <a href="pivco.html">PivCo-Huffman</a> keeps exactly the same codes and changes only the order of the bits. Instead of writing each symbol's code in one piece, it writes, for every node of the Huffman tree, one bit per symbol that reaches that node, 0 for left and 1 for right.</p>
       <p>Thread <code>t</code> reads bit <code>t</code> of the root bitmap straight away. A thread that read a 1 finds its slot in the child bitmap by counting the 1s before it in the root. Popcount counts the 1s in a word and a wave prefix sum adds those counts across threads, so every thread has its slot after a few instructions.</p>
 
       <h2 class="part" id="leaves">PivCo, decoding from the leaves up</h2>
-      <p>Walking down from the root, each symbol visits one bitmap per bit of its code, up to twelve of them, and threads with short codes sit idle while the long ones finish. GeoZL's kernel turns the walk around. It starts at the deepest level and, at each node, builds the symbols of that node's subtree in order, so the threads of a wave all work on the same node.</p>
+      <p>Walking down from the root, each symbol visits one bitmap per bit of its code, up to twelve of them, and threads with short codes sit idle while the long ones finish. Our first prototype, on 8 October 2026, did walk down. It built a rank directory over the node bitmaps in a pass of its own, and on a synthetic test batch that directory came to 72.3 MB beside 104.7 MB of frames. By 11 October the kernel had turned the walk around and needed no directory.</p>
+      <p>It now starts at the deepest level and, at each node, builds the symbols of that node's subtree in order, so the threads of a wave all work on the same node.</p>
       <p>Take the eight symbols <code>a b a c a b a a</code> with codes a = <code>0</code>, b = <code>10</code> and c = <code>11</code>. The root bitmap is <code>01010100</code> and the “b or c” node holds <code>010</code>. A constant leaf repeats its symbol once for every symbol that reaches it. At depth 2 the b and c leaves write <code>b b c</code>, and at depth 1 the a leaf writes five a.</p>
       <p>A node merges what its children wrote. A 0 in its bitmap takes the next symbol from the left child and a 1 the next from the right. At depth 1 the “b or c” node merges <code>b b c</code> by <code>010</code> into <code>b c b</code>. At the root, <code>01010100</code> merges the five a with <code>b c b</code> and the original string comes out.</p>
       <figure class="diagram wide stepper" data-beats="2.95,7.15,10.95,15.3"><img src="assets/svg/gpu/pivco-climb.svg" alt="Decoding from the leaves up with two buffers. At depth 2 the b and c leaves write b b c into the lane buffer. At depth 1 the a leaf writes five a into scratch and the b or c node merges by 010, moving b c b down into scratch. At depth 0 the root merges by 01010100, moving every symbol back up into the lane buffer, giving a b a c a b a a." loading="lazy"><figcaption>Each level merges the two ranges below it, and the symbols move back and forth between the lane buffer and scratch.</figcaption></figure>
       <p>Each node's output fills one range of the block, its left child's symbols first and then its right child's. The merge only reorders symbols within that range. A thread holding bit <code>i</code> of a node's bitmap takes the left symbol numbered by the 0s before <code>i</code>, or the right symbol numbered by the 1s before it, which is the same popcount and prefix sum as before.</p>
-      <p>A node writes into the range its children occupy, so merging in place would overwrite symbols that other threads still need. The kernel keeps two buffers and swaps them at every level, and a barrier between levels makes sure a parent merges only once its children are done. The root sits at depth 0 and writes the lane buffer, so the finished lane lands there. <a href="gpu-internals.html#pivco">Inside the GPU decoder</a> shows how a group of four waves runs this on a 32&nbsp;768-symbol block.</p>
+      <p>A node writes into the range its children occupy, so merging in place would overwrite symbols that other threads still need. The kernel keeps two buffers and swaps them at every level, and a barrier between levels makes sure a parent merges only once its children are done. The root sits at depth 0 and writes the lane buffer, so the finished lane lands there. <a href="gpu-internals.html#pivco">Bytes to tensors</a> shows how a group of four waves runs this on a 32&nbsp;768-symbol block.</p>
 
       <h2 class="part" id="together">One idea, two shapes</h2>
       <p>Both codecs make data offsets computable per thread. PFOR multiplies and PivCo counts 1s. In the animation, watch each row of offsets appear in one instant, every thread at once, before any value is decoded. PFOR's thread t7 then pulls its exception bits 1011 up from the side list to make 90, and PivCo's threads holding a 1 carry their count down to their slot in the child bitmap.</p>
@@ -122,12 +133,24 @@
         <tr><th>best for</th><td>small residuals that do not repeat</td><td>bytes with a skewed distribution</td></tr>
         <tr><th>recipes</th><td><code>planar&gt;zigzag&gt;pfor</code>, <code>id&gt;pfor</code></td><td><code>planar&gt;zigzag&gt;lanes</code>, <code>id&gt;lanes</code></td></tr>
       </table>
-      <p>A single frame can use both. PivCo works on bytes, so a 16-bit raster is first split into a low-byte lane and a high-byte lane. The encoder codes each lane separately and keeps byte PFOR instead of PivCo for any lane where PFOR comes out smaller.</p>
-      <p>The recipe selects the codec. Frames that end in one of these codecs, with one- or two-byte samples, decode on a GPU through the <a href="api-gpu.html">GPU API</a>. Frames that end in zstd or the generic entropy coder still decode, but on the CPU, and their samples are uploaded afterwards. <a href="gpu-internals.html">Inside the GPU decoder</a> follows a batch through both paths.</p>
+      <p>A single frame can use both. PivCo works on bytes, so a 16-bit raster is first split into a low-byte lane and a high-byte lane. The encoder codes each lane separately and keeps byte PFOR instead of PivCo for any lane where PFOR comes out smaller. That is why, on 8 November 2026, we renamed the codec from <code>transpose_pivco</code> to <code>lanes</code>. It was never PivCo alone.</p>
+      <p>The recipe selects the codec. Frames that end in one of these codecs, with one- or two-byte samples, decode on a GPU through the <a href="api-gpu.html">GPU API</a>. Frames that end in zstd or the generic entropy coder still decode, but on the CPU, and their samples are uploaded afterwards.</p>
+
+      <h2 class="part" id="cost">What the fixed format cost</h2>
+      <p>PivCo reached GeoZL on 29 September 2026 as a set of terminals, chosen per stream with a byte histogram. In 0.19 the <code>pivco</code> and <code>transpose&gt;pivco</code> terminals did not send every stream to PivCo. A stream where one value held more than half of it went to OpenZL's FSE entropy coder instead, because Huffman cannot spend less than one bit per symbol and FSE can.</p>
+      <p>A GPU needs something stricter. The kernel has to know a frame's layout from its CTid, not from whatever OpenZL chose for each stream, so in 0.20, on 1 November, the lane format became fixed. Every byte lane is PivCo Huffman or byte PFOR, whichever is smaller, and the FSE fallback is gone. 0.20 is also where frame compatibility starts, so the format we fixed is the one we now keep.</p>
+      <p>We only saw the price when we re-measured the <a href="https://earth-compress.github.io/benchmark/" rel="noopener noreferrer">Earth Compress benchmark</a> with the pinned 0.31.0. On skewed data it was large. <code>med&gt;zigzag&gt;lanes</code> on the ESA WorldCover land cover corpus went from a ratio of 28.0 to 13.8. Pooled over the whole corpus, the planar lanes recipe went from 2.11 to 2.04.</p>
+      <p>Land cover is the extreme case in our corpus. A class map is flat over large areas, so after prediction most residuals are zero, and a stream dominated by one value is exactly where a floor of one bit per symbol hurts.</p>
+
+      <h2 class="part" id="rans">The rANS detour</h2>
+      <p>We tried to win the ratio back inside the GPU format. The prototype was a third lane coder, 32 interleaved rANS coders per block with a table per block, so that one GPU wave could decode one block. It did what we hoped on ratio. Pooled planar came back to 2.12 and ESA WorldCover to 27.7, and it decoded bit exact on Metal.</p>
+      <p>It cost more than it gave back. CPU decode on ESA WorldCover fell from about 4.1 to 1.5 GB/s, and small GPU batches got two to three times slower. We dropped it.</p>
+      <p>So <code>lanes</code> stays PivCo or byte PFOR per lane. If skewed data deserves its own GPU path, we would rather design that path on its own terms than bend the lane format around it. For data that is only ever read on a CPU, <code>planar&gt;zigzag&gt;transpose&gt;entropy</code> already gets that ratio, 2.13 pooled, at 0.91 GB/s on the same M5.</p>
+      <p>Knowing which formats a GPU can read is half the job. The other half is getting compressed bytes onto the device, planning the work on the CPU and landing the samples where the caller wants them. <a href="gpu-internals.html">Bytes to tensors</a>, the third part, follows a batch through all of it.</p>
 
       <nav class="pager" aria-label="Pages">
-        <a class="prev" href="cpu.html"><span>Previous</span>CPU</a>
-        <a class="next" href="gpu-internals.html"><span>Next</span>Inside the GPU decoder</a>
+        <a class="prev" href="cpu.html"><span>Previous</span>Fast on one core</a>
+        <a class="next" href="gpu-internals.html"><span>Next</span>Bytes to tensors</a>
       </nav>
     </article>
 
@@ -140,6 +163,8 @@
         <li><a href="#pivco">PivCo, where every thread counts 1s</a></li>
         <li><a href="#leaves">PivCo, decoding from the leaves up</a></li>
         <li><a href="#together">One idea, two shapes</a></li>
+        <li><a href="#cost">What the fixed format cost</a></li>
+        <li><a href="#rans">The rANS detour</a></li>
       </ol>
     </nav>
   </main>

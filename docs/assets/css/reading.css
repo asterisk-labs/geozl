@@ -554,6 +554,49 @@ pre {
   margin-bottom: 0;
 }
 
+/* Series: the parts of a multi-page story, the current one marked */
+
+.series {
+  margin: 0 0 36px;
+  padding: 14px 18px 15px;
+  border-radius: 6px;
+  background: var(--wash);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.content .series-title {
+  margin: 0 0 6px;
+  color: var(--faint);
+  font: 400 13px/1.4 var(--sans);
+  letter-spacing: 0.01em;
+}
+
+.series ol {
+  padding-left: 1.5em;
+  color: var(--dim);
+}
+
+.series li::marker {
+  color: var(--faint);
+  font: 400 12px var(--mono);
+}
+
+.series li.here {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.series li.here::marker { color: var(--violet); }
+
+.series li.here::after {
+  margin-left: 8px;
+  content: "this part";
+  color: var(--faint);
+  font-size: 13px;
+  font-weight: 400;
+}
+
 /* Code */
 
 pre {
@@ -616,6 +659,10 @@ pre code {
 .spec th + th {
   padding-left: 16px;
 }
+
+/* A results table: the recipe column takes the room, the numbers stay narrow */
+.spec.results td:first-child { width: 62%; }
+.spec.results td:not(:first-child) { white-space: nowrap; }
 
 /* Figures: drawn on the page, not boxed */
 

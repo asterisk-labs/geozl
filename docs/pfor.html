@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=10">
+<link rel="stylesheet" href="assets/css/reading.css?v=11">
 </head>
 <body>
 <div class="page">
@@ -59,10 +59,10 @@
         <li><a href="pfor.html" class="here" aria-current="page">PFOR</a></li>
         <li><a href="pivco.html">PivCo</a></li>
         <li class="toc-group">Optimizations</li>
-        <li><a href="cpu.html">CPU</a></li>
-        <li><a href="gpu-codecs.html">What a GPU needs</a></li>
-        <li><a href="gpu-internals.html">Inside the GPU decoder</a></li>
-        <li><a href="slang.html">Slang</a></li>
+        <li><a href="cpu.html">Fast on one core</a></li>
+        <li><a href="gpu-codecs.html">What a GPU wants</a></li>
+        <li><a href="gpu-internals.html">Bytes to tensors</a></li>
+        <li><a href="slang.html">One source, many GPUs</a></li>
       </ol>
     </nav>
 
@@ -99,7 +99,7 @@
       <p>Each block opens with two bytes, <code>b</code> and the exception count, up to 255. With no exceptions, the packed body follows. Otherwise a third byte gives the exception format. Its low seven bits give <code>eb</code>, the number of high bits per exception. Its top bit selects how positions are written.</p>
       <p>Every exception in the block uses the same <code>eb</code>, the difference between the widest value's bit width and <code>b</code>. In the example, 7 minus 3 gives four bits, and 90 uses all four.</p>
       <p>Exception positions use a list or a bitmap. A short ascending list uses one byte per position. When there are many, a 32-byte bitmap with one bit for each of the 256 values is smaller, since a list of 32 positions would already cost the same. After the positions, the stream packs each exception's <code>eb</code> high bits in position order.</p>
-      <p>The body comes last, 256 values of <code>b</code> bits, exactly 32 &times; <code>b</code> bytes. Its bits are dealt into 16-byte groups of lanes rather than written as one long string, a layout explained in <a href="cpu.html#pfor">Inside the CPU decoder</a>.</p>
+      <p>The body comes last, 256 values of <code>b</code> bits, exactly 32 &times; <code>b</code> bytes. Its bits are dealt into 16-byte groups of lanes rather than written as one long string, a layout explained in <a href="cpu.html#pfor">Fast on one CPU core</a>.</p>
       <p>The eight-value example fits into one block. A b byte of 3, an exception count of one, a descriptor saying four high bits and list mode, one position byte pointing at the 90, half a byte holding <code>1011</code>, and then the body. The block size and this layout are part of the wire format, so changing either would need a new CTid. The full field-by-field description lives in <code>core/src/pfor/spec.md</code>.</p>
 
       <h2 class="part" id="choosing">How the encoder chooses b</h2>
@@ -111,7 +111,7 @@
 
       <h2 class="part" id="geozl">Where GeoZL uses PFOR</h2>
       <p>GeoZL uses PFOR in three places. The <code>pfor</code> codec can be the last node of a recipe, as in <code>delta_1d&gt;pfor</code>. The fused codec <code>planar_zigzag_pfor</code>, behind the recipe <code>planar&gt;zigzag&gt;pfor</code>, uses the same block format for its residuals. Inside the <code>lanes</code> codecs, a byte lane uses PFOR whenever it comes out smaller than <a href="pivco.html">PivCo</a>.</p>
-      <p>Each value's fixed position is what makes PFOR fast to decode. <a href="cpu.html#pfor">Inside the CPU decoder</a> and <a href="gpu-internals.html">Inside the GPU decoder</a> show how that is used on a CPU and on a GPU.</p>
+      <p>Each value's fixed position is what makes PFOR fast to decode. <a href="cpu.html#pfor">Fast on one CPU core</a> and <a href="gpu-internals.html">From compressed bytes to a GPU tensor</a> show how that is used on a CPU and on a GPU.</p>
       <p>PFOR was introduced by Zukowski, Héman, Nes and Boncz in <i>Super-Scalar RAM-CPU Cache Compression</i>, ICDE 2006. The GeoZL block design follows TurboPFor by powturbo and contributors. It is an independent implementation and its frames are not bitstream compatible with TurboPFor.</p>
 
       <nav class="pager" aria-label="Pages">

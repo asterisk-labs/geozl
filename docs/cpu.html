@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
-<meta name="description" content="How GeoZL decodes fast on a CPU with SIMD, from a prefix sum in a register to PFOR in 16-byte lanes.">
-<title>GeoZL · Inside the CPU decoder</title>
+<meta name="description" content="Part one of the optimizations series. How we made the GeoZL decoders fast on one CPU core, from a prefix sum in a register to PFOR in 16-byte lanes.">
+<title>GeoZL · Fast on one CPU core</title>
 <link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=10">
+<link rel="stylesheet" href="assets/css/reading.css?v=11">
 </head>
 <body>
 <div class="page">
@@ -59,19 +59,29 @@
         <li><a href="pfor.html">PFOR</a></li>
         <li><a href="pivco.html">PivCo</a></li>
         <li class="toc-group">Optimizations</li>
-        <li><a href="cpu.html" class="here" aria-current="page">CPU</a></li>
-        <li><a href="gpu-codecs.html">What a GPU needs</a></li>
-        <li><a href="gpu-internals.html">Inside the GPU decoder</a></li>
-        <li><a href="slang.html">Slang</a></li>
+        <li><a href="cpu.html" class="here" aria-current="page">Fast on one core</a></li>
+        <li><a href="gpu-codecs.html">What a GPU wants</a></li>
+        <li><a href="gpu-internals.html">Bytes to tensors</a></li>
+        <li><a href="slang.html">One source, many GPUs</a></li>
       </ol>
     </nav>
 
     <article class="content">
-      <h1>Inside the CPU decoder</h1>
+      <h1>Fast on one CPU core</h1>
       <ul class="facts">
         <li>SSE2, AVX2 and NEON kernels with a plain C fallback, picked once at run time. Sources in <a href="https://github.com/asterisk-labs/geozl/tree/main/core/src" rel="noopener noreferrer"><code>core/src</code></a>.</li>
       </ul>
-      <p>Reading a tile runs the decoder of every codec in its graph, so the decoders set the read speed. On a CPU, the decoders of <code>planar</code>, <code>med</code> and PFOR use vector instructions to handle many values at once, and each one is shaped so that the vector lanes rarely wait on each other.</p>
+      <aside class="series" aria-label="Series">
+        <p class="series-title">Optimizations, a series in four parts</p>
+        <ol>
+          <li class="here" aria-current="page">Fast on one core</li>
+          <li><a href="gpu-codecs.html">What a GPU wants</a></li>
+          <li><a href="gpu-internals.html">Bytes to tensors</a></li>
+          <li><a href="slang.html">One source, many GPUs</a></li>
+        </ol>
+      </aside>
+      <p>Reading a tile runs the decoder of every codec in its graph, so the decoders set the read speed. This first part is about how we made those decoders fast on a single CPU core, roughly in the order we learned it, from the first predictor kernels in July 2026 to the PFOR and fused codecs that most recipes end in today.</p>
+      <p>The short version is that a core can work on eight or sixteen values per instruction, and nearly every speedup we found came from shaping a decoder so those values stop waiting on each other. The longer version has a wheel that quietly lost its fast path, a predictor that will not be parallel, and a block layout chosen for SIMD that the GPU kernel later read the same way.</p>
 
       <h2 class="part" id="simd">One instruction, many values</h2>
       <p>A CPU core can process several numbers with one instruction. A <b>vector register</b> has <b>lanes</b> that add, shift or compare values together. This is called <b>SIMD</b>, single instruction, multiple data. ARM chips, including Apple chips, use <b>NEON</b> with 128-bit registers. x86 uses <b>SSE2</b>, 128 bits on every 64-bit chip, and <b>AVX2</b>, 256 bits on most recent chips.</p>
@@ -79,11 +89,20 @@
         <img src="assets/svg/cpu/simd-lanes.svg" alt="Adding residuals to the row above one value at a time takes eight instructions in a row. A SIMD register holds eight uint16 lanes, so one instruction adds all eight at once. NEON and SSE2 registers are 128 bits, eight uint16 lanes. AVX2 registers are 256 bits, sixteen lanes." loading="lazy">
         <figcaption>A 128-bit register holds <b>8 samples of 16 bits</b>. One add does the work of eight.</figcaption>
       </figure>
-      <p>GeoZL carries kernels for NEON, SSE2 and AVX2. At run time, GeoZL chooses the widest supported kernel once. Builds without SIMD use plain C. All paths write <b>the same bytes</b>, so frames decode identically across machines.</p>
+      <p>GeoZL carries kernels for NEON, SSE2 and AVX2. At run time it chooses the widest kernel the machine supports, once, and builds without SIMD use plain C. All paths write <b>the same bytes</b>, so a frame decodes identically on every machine.</p>
+      <p>That last property is exactly what we wanted. In July it was also what hid a bug from us.</p>
+
+      <h2 class="part" id="avx2">The wheel that lost AVX2</h2>
+      <p>On 26 July 2026 we found that the x86 wheel we had published was running without AVX2. Nothing had failed. A wheel is built for the base x86-64 instruction set, so <code>-mavx2</code> is not available as a build flag, and the AVX2 kernels simply did not exist in it. The SSE2 kernels took over, wrote the same bytes, and every test passed.</p>
+      <p>The fix was to stop depending on build flags. Each AVX2 kernel now carries a target attribute, so it sits in the same object file as its SSE2 sibling, and the decoder asks the CPU once at run time which one to use. We measured it against a build with <code>-mavx2</code> everywhere and saw no difference.</p>
+      <p>The lesson we took from it is that a lost fast path is invisible from the outside, because the frames come out the same either way. So the same day we added <code>geozl.simd_info()</code>, which reports what a build carries, what the CPU supports and what actually runs. On the M5 we benchmark on, it says this.</p>
+      <pre><code>&gt;&gt;&gt; geozl.simd_info()
+{'built': ['scalar', 'neon'], 'cpu': ['scalar', 'neon'], 'active': 'neon'}</code></pre>
+      <p>A path listed under <code>cpu</code> but missing from <code>built</code> means a build is leaving speed behind. The release jobs fail a wheel when that happens on the runner. CI already ran the tests once per SIMD path, and since 3 November it also checks that each run used the path it was meant to, because the tests alone pass on any of them. Set <code>GEOZL_SIMD</code> before import to cap the active path if you want to compare them yourself.</p>
 
       <h2 class="part" id="fit">What a decoder needs to use it</h2>
-      <p>SIMD only helps when the lanes can work without talking to each other. SIMD needs <b>the same operation on neighbouring values</b>, adjacent memory and <b>no branch per value</b>. A row dependency makes value <code>i</code> wait for <code><i>i &minus; 1</i></code>. A CPU can pass one value between registers while it walks a row.</p>
-      <p>A GPU has different needs, since no thread can wait for a carry from another, so a codec can suit SIMD but not a GPU, or the reverse. <a href="gpu-codecs.html">What a GPU needs</a> explains them, and the table below sums up the difference.</p>
+      <p>SIMD only helps when the lanes can work without talking to each other. It needs <b>the same operation on neighbouring values</b>, adjacent memory and <b>no branch per value</b>. A row dependency makes value <code>i</code> wait for <code><i>i &minus; 1</i></code>. A CPU can live with one such dependency, because it can pass one value between registers while it walks a row.</p>
+      <p>A GPU has different needs, since no thread can wait for a carry from another, so a codec can suit SIMD but not a GPU, or the reverse. <a href="gpu-codecs.html">What a GPU wants</a>, the second part, is about that difference. The table below sums it up.</p>
       <figure class="diagram wide">
         <img src="assets/svg/cpu/cpu-gpu.svg" alt="A CPU core with SIMD walks a row eight lanes per step and passes a carry from one register to the next for the cost of one add. A GPU runs thousands of threads at once, so a serial carry along the row limits parallel decoding." loading="lazy">
         <figcaption>A SIMD core can carry one number along the row. A serial carry limits GPU parallelism.</figcaption>
@@ -97,15 +116,16 @@
       </table>
 
       <h2 class="part" id="planar">Planar, a row at a time</h2>
-      <p>Planar predicts every sample as <code>W + N − NW</code>. Decoding <code>x = W + N − NW + r</code> appears serial because each pixel needs W. Move W to the other side and it becomes <code>x[i] − x[i−1] = r[i] + N[i] − N[i−1]</code>. The right side uses the residual and the already decoded row above. Compute it across the row with vector math, then take a <b>prefix sum</b> to reconstruct the row.</p>
+      <p>Planar predicts every sample as <code>W + N − NW</code>. Decoding <code>x = W + N − NW + r</code> looks serial, because each pixel needs W. Move W to the other side and it becomes <code>x[i] − x[i−1] = r[i] + N[i] − N[i−1]</code>. The right side uses only the residual and the row above, which is already decoded. Compute it across the row with vector math, then take a <b>prefix sum</b> to reconstruct the row.</p>
       <figure class="diagram wide">
         <img src="assets/svg/codecs-light/planar-row.svg" alt="Decoding one row of planar. Row above 10 12 15 15, residuals 1 0 -1 2. Step 1 computes r plus N minus the N on its left for every column at once, 11 2 2 2. Step 2 takes a running sum, 11 13 15 17, which is the decoded row." loading="lazy">
         <figcaption>At the left edge W and NW count as zero.</figcaption>
       </figure>
-      <p>delta_w is the same prefix sum without the row above, delta_n needs no prefix sum at all, and wp_static reads only finished rows, so it closes the row the same way as planar.</p>
+      <p>This rearrangement is where our first optimized decoders started, on 4 July 2026, as a prefix sum fused into the planar decoder so the row above is folded in during the same pass.</p>
+      <p>The other linear predictors are variations on it. delta_w is the same prefix sum without the row above. delta_n needs no prefix sum at all, since a row is the row above plus its residuals, one SIMD add per register, which makes it the fastest predictor to decode. wp_static reads only finished rows, so it closes the row the same way as planar.</p>
 
       <h2 class="part" id="scan">A prefix sum inside a register</h2>
-      <p>A prefix sum appears serial because each lane needs the previous one. Inside a register, it is parallel. We <b>shift the register by one lane and add</b>, then by two, then by four. After three steps every lane holds the sum of all the lanes up to it. The figure uses eight 16-bit samples in one 128-bit register.</p>
+      <p>A prefix sum looks serial because each lane needs the previous one. Inside a register it is parallel. We <b>shift the register by one lane and add</b>, then by two, then by four. After three steps every lane holds the sum of all the lanes up to it. The figure uses eight 16-bit samples in one 128-bit register.</p>
       <figure class="diagram wide stepper" data-steps="5" data-src="assets/svg/cpu/scan-#.svg">
         <img class="stepper-view" tabindex="0" src="assets/svg/cpu/scan-5.svg" alt="A prefix sum of eight uint16 lanes in one register. C is 11 2 2 2 1 3 -1 -1. Shifting by one lane and adding gives 11 13 4 4 3 4 2 -2, by two lanes 11 13 15 17 7 8 5 2, by four lanes 11 13 15 17 18 21 20 19. The carry, zero at the row start, is added to every lane, and the last lane, 19, becomes the carry of the next register.">
         <div class="stepper-bar">
@@ -116,35 +136,74 @@
         </div>
         <figcaption>Eight lanes take <b>three</b> shift and add steps, sixteen take four. The serial part left is <b>one add per register</b>.</figcaption>
       </figure>
-      <p>The only thing that crosses from one register to the next is the <b>carry</b>, the running total so far. The carry does not become the bottleneck. The shifts and adds inside a register do not need the carry, so the CPU can start them early. Only the final carry add waits, once per register of 8 or 16 lanes. Wider registers mean fewer carries per row, at the cost of one more shift and add step inside each.</p>
+      <p>The only thing that crosses from one register to the next is the <b>carry</b>, the running total so far. The shifts and adds inside a register do not need it, so the CPU can start them early, and only the final carry add waits, once per register of 8 or 16 lanes. Wider registers mean fewer carries per row, at the cost of one more shift and add step inside each.</p>
+      <p>This is the 16-bit NEON version from <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/common/vprefix.h" rel="noopener noreferrer"><code>core/src/common/vprefix.h</code></a>, with comments added. The first function is the ladder in the figure, the second adds the carry.</p>
+      <pre><code>static inline uint16x8_t geozl_vprefix16_neon(uint16x8_t x) {
+  const uint16x8_t zero = vdupq_n_u16(0);
+  x = vaddq_u16(x, vextq_u16(zero, x, 7));  // shift by one lane and add
+  x = vaddq_u16(x, vextq_u16(zero, x, 6));  // by two
+  x = vaddq_u16(x, vextq_u16(zero, x, 4));  // by four
+  return x;
+}
+
+static inline uint16x8_t geozl_vscan16_neon(uint16x8_t x, uint16x8_t *carry) {
+  const uint16x8_t p = geozl_vprefix16_neon(x);
+  const uint16x8_t out = vaddq_u16(p, *carry);
+  *carry = vaddq_u16(*carry, geozl_vlast16_neon(p));  // old carry + this sum
+  return out;
+}</code></pre>
+      <p>The line that updates the carry is a change from 1 September 2026. Before it, the next carry was the last lane of the finished output, so pulling that lane out sat on the chain between one register and the next. Now the carry grows by the last lane of the register's own prefix sum, which is ready before the old carry arrives, and the chain from register to register is a single add.</p>
 
       <h2 class="part" id="serial">When the guess needs W</h2>
       <p>Planar uses a <b>sum</b>, so W cancels when rearranged. <b>med</b> takes a median of W, N and the planar guess, and <b>average</b> takes the mean of W and N. Neither cancels. Each sample needs its reconstructed left neighbour, which no prefix sum can supply.</p>
-      <p>Both decoders still do some work in parallel. med keeps <b>four rows in flight</b>, each one column behind the row above. Each row remains serial, but four independent chains keep the core busy. The median itself is computed with masks instead of branches, because a three-way choice is exactly the branch a CPU guesses wrong.</p>
+      <p>The honest result for these two is that we made them less slow, not fast. The 4 July kernels peeled the first row and the first column out of the loop, so the interior loop carries no boundary test. average then got a trick of its own. Its N half is known before the row starts, so it moves into a vectorized pass ahead of the row and leaves a minimal chain through W.</p>
+      <p>med got the bigger change on 20 September 2026. It now keeps <b>four rows in flight</b>, each one column behind the row above. Each row is still serial, but four independent chains keep the core busy. The median itself is computed with masks instead of branches, because a three-way choice is exactly the branch a CPU guesses wrong.</p>
       <figure class="diagram wide">
         <img src="assets/svg/cpu/med-wavefront.svg" alt="med decodes four rows at once. Each row is a serial chain through its west neighbour, but row 2 runs one column behind row 1, row 3 behind row 2 and row 4 behind row 3, so the four chains are independent and the lower rows read N and NW from registers." loading="lazy">
         <figcaption>Four chains a column apart. The pixel above each <b>?</b> is already done.</figcaption>
       </figure>
-      <p><code>med</code> decodes more slowly than <code>planar</code>. Start with <code>planar</code> when decode speed matters.</p>
+      <p>That staggered wavefront is the best we found for med on a CPU, and on a GPU the chain does not go at all. <code>med</code> still decodes more slowly than <code>planar</code>, so start with <code>planar</code> when decode speed matters.</p>
 
       <h2 class="part" id="pfor">PFOR in 16-byte lanes</h2>
-      <p>Bit packing has a lane problem of its own. Written as one long bit string, value <code>i</code> starts at bit <code>i &times; b</code>, which with b = 3 lands at arbitrary places inside bytes. Every value needs its own shift, and SIMD lanes need shuffling before they can unpack anything.</p>
+      <p>PFOR arrived on 17 August 2026, in 0.14.0, as a lossless codec, and replaced the older <code>store_lo</code> terminal in our recipes. Bit packing has a lane problem of its own, though. Written as one long bit string, value <code>i</code> starts at bit <code>i &times; b</code>, which with b = 3 lands at arbitrary places inside bytes. Every value needs its own shift, and SIMD lanes need shuffling before they can unpack anything.</p>
       <figure class="diagram wide">
         <img src="assets/svg/cpu/pfor-lanes.svg" alt="Two ways to pack 3-bit values. Packed one after another, values cut across byte boundaries at different places, so each needs its own shift. In GeoZL PFOR each lane is its own bit stream, so one 16-byte load holds the same slot of every lane at the same bits, and one shift, and and or unpack all eight." loading="lazy">
         <figcaption>The vertical layout turns unpacking into <b>shift, and, or</b>, with no shuffles at all.</figcaption>
       </figure>
       <p>GeoZL PFOR follows <a href="https://github.com/powturbo/TurboPFor-Integer-Compression" rel="noopener noreferrer">TurboPFor</a> and stores the body of a block <b>vertically</b>, in 16-byte groups split into lanes. With W-byte elements a group holds L = 16 / W lanes, sixteen for one-byte values and eight for two-byte values. Value <code>i</code> goes to lane <code>i mod L</code>, at slot <code>i div L</code> inside that lane, and every lane is its own little bit stream of b-bit values. A 256-value block fills exactly 2 &times; b groups whatever the element width.</p>
       <p>Take two-byte elements and the eight values from <a href="pfor.html#width">How PFOR works</a>, 3 5 2 7 4 6 1 90 at b = 3. Each one goes to a different lane at slot 0, and the next eight values, shown as <code>x8</code> onward, go to slot 1 of the same lanes. One 16-byte load brings in two bytes of every lane, enough for slots 0 to 4. The animation then picks out slot 0 at bits 0 to 2 and slot 1 at bits 3 to 5 across all eight lanes.</p>
-      <figure class="diagram wide stepper" data-beats="2.55,5.55,8.15,10.55,14.3"><img src="assets/svg/cpu/pfor-slots.svg" alt="The values 3 5 2 7 4 6 1 90 dealt into eight lanes of a 16-byte group, filling slot 0 of lanes 0 to 7, with the next eight values in slot 1. One 16-byte load covers two bytes of every lane, and slot 0 at bits 0 to 2, then slot 1 at bits 3 to 5, comes out of all eight lanes with one shift and mask." loading="lazy"><figcaption>value i goes to lane i mod 8 at slot i div 8, so one load serves the same slot of every lane</figcaption></figure>
-      <p>Every lane uses the same shift and mask, and no value needs bits from a neighbouring lane, so one register unpacks eight or sixteen values at a time. The exceptions are patched afterwards with the same OR on the few slots that need it.</p>
-      <p>A 16-byte group matches the 128-bit registers of NEON and SSE2, but the size is fixed by the format rather than by the machine. Frames look the same on every machine, so a file written on one CPU decodes just as fast on NEON, SSE2 or AVX2, and still decodes with plain C. <a href="pfor.html">How PFOR works</a> covers the rest of the block format.</p>
+      <figure class="diagram wide stepper" data-beats="2.55,5.55,8.15,10.55,14.3"><img src="assets/svg/cpu/pfor-slots.svg" alt="The values 3 5 2 7 4 6 1 90 dealt into eight lanes of a 16-byte group, filling slot 0 of lanes 0 to 7, with the next eight values in slot 1. One 16-byte load covers two bytes of every lane, and slot 0 at bits 0 to 2, then slot 1 at bits 3 to 5, comes out of all eight lanes with one shift and mask." loading="lazy"><figcaption>Value i goes to lane i mod 8 at slot i div 8, so one load serves the same slot of every lane.</figcaption></figure>
+      <p>Every lane uses the same shift and mask, and no value needs bits from a neighbouring lane, so one register unpacks eight or sixteen values at a time. The exceptions are patched afterwards with the same OR on the few slots that need it. The SIMD unpackers landed on 1 September 2026, chosen by value width and packed bit width, with scalar fast paths beside them.</p>
+      <p>A 16-byte group matches the 128-bit registers of NEON and SSE2, but the size is fixed by the format rather than by the machine. Frames look the same everywhere, so a file written on one CPU decodes just as fast on NEON, SSE2 or AVX2, and still decodes with plain C. The same layout later let a GPU thread read its eight values with one load, which part three comes back to. <a href="pfor.html">How PFOR works</a> covers the rest of the block format.</p>
+
+      <h2 class="part" id="fused">Fewer trips through memory</h2>
+      <p>Fast kernels expose a cost that slow ones hide, the memory traffic between them. Run a 2 MiB uint16 tile through planar, zigzag and pfor as three separate nodes and it moves about 10 MiB through memory, because each stage writes its whole output before the next one reads it. Fused into one codec it moves about 2 MiB plus the frame, since each sample stays in registers between the stages.</p>
+      <p>The fused planar Zigzag codecs arrived on 1 September 2026 together with the SIMD unpackers. They are why a recipe can say <code>planar&gt;zigzag&gt;pfor</code> and run <code>planar_zigzag_pfor</code>, which reconstructs one PFOR block at a time instead of allocating transformed copies of the whole input. <code>med_zigzag</code> followed on 20 September. <a href="fused.html">Fused</a> follows one tile through both versions.</p>
+
+      <h2 class="part" id="numbers">Where it adds up</h2>
+      <p>Here is where the CPU decoders stand today, pooled over the <a href="https://earth-compress.github.io/benchmark/" rel="noopener noreferrer">Earth Compress</a> lossless corpus of 27 corpora and 585 samples. Everything ran on one thread of an Apple M5 under macOS 26.4, GeoZL at 0.31.0. The speeds are one machine's numbers, and we would trust the ratios to travel further than the speeds.</p>
+      <table class="spec results">
+        <tr><td></td><td><b>ratio</b></td><td><b>decode</b></td></tr>
+        <tr><td><code>id&gt;pfor</code></td><td>1.18</td><td>10.0 GB/s</td></tr>
+        <tr><td><code>planar&gt;zigzag&gt;pfor</code></td><td>1.88</td><td>5.3 GB/s</td></tr>
+        <tr><td><code>planar&gt;zigzag&gt;lanes</code></td><td>2.04</td><td>3.4 GB/s</td></tr>
+        <tr><td><code>planar&gt;zigzag&gt;transpose&gt;entropy</code></td><td>2.13</td><td>0.91 GB/s</td></tr>
+        <tr><td><code>med&gt;zigzag&gt;transpose&gt;entropy</code></td><td>2.11</td><td>0.71 GB/s</td></tr>
+        <tr><td>zstd, level 3</td><td>1.47</td><td>1.1 GB/s</td></tr>
+        <tr><td>Blosc, zstd 3 with bitshuffle</td><td>1.64</td><td>0.94 GB/s</td></tr>
+        <tr><td>pco</td><td>2.13</td><td>0.94 GB/s</td></tr>
+        <tr><td>JPEG 2000</td><td>2.31</td><td>0.03 GB/s</td></tr>
+      </table>
+      <p class="source">Lossless results of the Earth Compress benchmark. The lanes recipe ran under its earlier name, <code>planar&gt;zigzag&gt;transpose&gt;pivco</code>, which writes the same frames. JPEG 2000 is pooled over the 445 samples it supports.</p>
+      <p>The shape of the trade is the thing to take away. Entropy coding buys the last few percent of ratio and costs most of the speed. PFOR is the opposite, and the lanes recipe sits between them. In our corpus, <code>planar&gt;zigzag&gt;pfor</code> decodes about six times faster than the planar entropy recipe for about 12% less ratio.</p>
 
       <h2 class="part" id="gpu">From a register to a GPU</h2>
-      <p>Planar, PFOR and the PivCo lanes also decode on a GPU. med, average and plain Huffman do not. <a href="gpu-codecs.html">What a GPU needs</a> explains what a GPU asks of a codec, and <a href="gpu-internals.html">Inside the GPU decoder</a> shows how GeoZL meets it.</p>
+      <p>Then came the reason for the rest of this series. <a href="https://asterisk.coop/rumi/" rel="noopener noreferrer">Rumi</a>, the raster format we build on GeoZL, feeds training batches to models, and a model wants a tensor in GPU memory, not a raster in host memory. Could the frames decode on the GPU itself?</p>
+      <p>Some of what we built for SIMD carries over and some does not. Planar, PFOR and the PivCo lanes also decode on a GPU. med, average and plain Huffman do not. <a href="gpu-codecs.html">What a GPU wants</a> explains why, and <a href="gpu-internals.html">Bytes to tensors</a> follows a batch through the GPU decoder.</p>
 
       <nav class="pager" aria-label="Pages">
         <a class="prev" href="pivco.html"><span>Previous</span>PivCo</a>
-        <a class="next" href="gpu-codecs.html"><span>Next</span>What a GPU needs</a>
+        <a class="next" href="gpu-codecs.html"><span>Next</span>What a GPU wants</a>
       </nav>
     </article>
 
@@ -152,11 +211,14 @@
       <p class="toc-title">On this page</p>
       <ol class="toc-sections">
         <li><a href="#simd">One instruction, many values</a></li>
+        <li><a href="#avx2">The wheel that lost AVX2</a></li>
         <li><a href="#fit">What a decoder needs</a></li>
         <li><a href="#planar">Planar, a row at a time</a></li>
         <li><a href="#scan">A prefix sum in a register</a></li>
         <li><a href="#serial">When the guess needs W</a></li>
         <li><a href="#pfor">PFOR in 16-byte lanes</a></li>
+        <li><a href="#fused">Fewer trips through memory</a></li>
+        <li><a href="#numbers">Where it adds up</a></li>
         <li><a href="#gpu">From a register to a GPU</a></li>
       </ol>
     </nav>

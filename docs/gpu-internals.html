@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
-<meta name="description" content="How GeoZL decodes PFOR and PivCo frames on a GPU, from capture and planning on the CPU to waves, kernels and where the samples land.">
-<title>GeoZL · Inside the GPU decoder</title>
+<meta name="description" content="Part three of the optimizations series. How GeoZL decodes a batch of frames into GPU memory, from capture and planning on the CPU to the kernels and staging.">
+<title>GeoZL · From compressed bytes to a GPU tensor</title>
 <link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=10">
+<link rel="stylesheet" href="assets/css/reading.css?v=11">
 </head>
 <body>
 <div class="page">
@@ -59,34 +59,44 @@
         <li><a href="pfor.html">PFOR</a></li>
         <li><a href="pivco.html">PivCo</a></li>
         <li class="toc-group">Optimizations</li>
-        <li><a href="cpu.html">CPU</a></li>
-        <li><a href="gpu-codecs.html">What a GPU needs</a></li>
-        <li><a href="gpu-internals.html" class="here" aria-current="page">Inside the GPU decoder</a></li>
-        <li><a href="slang.html">Slang</a></li>
+        <li><a href="cpu.html">Fast on one core</a></li>
+        <li><a href="gpu-codecs.html">What a GPU wants</a></li>
+        <li><a href="gpu-internals.html" class="here" aria-current="page">Bytes to tensors</a></li>
+        <li><a href="slang.html">One source, many GPUs</a></li>
       </ol>
     </nav>
 
     <article class="content">
-      <h1>Inside the GPU decoder</h1>
+      <h1>From compressed bytes to a GPU tensor</h1>
       <ul class="facts">
         <li>Kernels written once in <a href="slang.html">Slang</a> and compiled for each backend. Sources in <a href="https://github.com/asterisk-labs/geozl/tree/main/gpu/kernels" rel="noopener noreferrer"><code>gpu/kernels</code></a> and <a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/gpu" rel="noopener noreferrer"><code>core/src/gpu</code></a>.</li>
       </ul>
-      <p>A training batch holds GeoZL frames of 16-bit tiles compressed with <code>planar&gt;zigzag&gt;pfor</code> in host memory. The model needs one tensor on the GPU. One route decodes on the CPU and copies full samples to the GPU. That route uses CPU cores and transfers the full raster across the bus.</p>
-      <p>GeoZL can instead send the compressed frames and expand them on the device, in a few passes the CPU plans ahead. Calling the <a href="api-gpu.html">GPU API</a> needs none of these details.</p>
+      <aside class="series" aria-label="Series">
+        <p class="series-title">Optimizations, a series in four parts</p>
+        <ol>
+          <li><a href="cpu.html">Fast on one core</a></li>
+          <li><a href="gpu-codecs.html">What a GPU wants</a></li>
+          <li class="here" aria-current="page">Bytes to tensors</li>
+          <li><a href="slang.html">One source, many GPUs</a></li>
+        </ol>
+      </aside>
+      <p>This is the part the whole GPU effort was for. <a href="https://asterisk.coop/rumi/" rel="noopener noreferrer">Rumi</a> decodes training batches straight into GPU memory through <code>geozl_gpu_decode</code>, because a model wants a tensor on the device, not a raster in host memory. <a href="gpu-codecs.html">Part two</a> settled which formats a GPU can read. This part follows a batch from host memory to the tensor.</p>
+      <p>Picture a batch of GeoZL frames, 16-bit tiles compressed with <code>planar&gt;zigzag&gt;pfor</code>, sitting in host memory. One route decodes them on the CPU and copies full samples to the GPU. That route uses CPU cores and transfers the full raster across the bus. GeoZL can instead send the compressed frames and expand them on the device, in a few passes the CPU plans ahead. Calling the <a href="api-gpu.html">GPU API</a> needs none of these details.</p>
+      <p>We built it in about a month. The first prototype decoded on 8 October 2026. Capture, planning, the Metal and CUDA runtimes and validation followed on 11 October. On 26 and 27 October the backends went behind one runtime, staging became reusable, and frame batches decoded straight into CUDA and Metal memory. On 5 November planning moved onto the capture threads, CUDA calls began to overlap, and the frame plans got a fuzzer of their own. The same day Metal shipped in the macOS wheels and <code>geozl/gpu.h</code> joined the supported C API.</p>
 
       <h2 class="part" id="bus">Move the compressed bytes, not the raster</h2>
       <p>The host-to-device bus limits this transfer. Decoded tiles are often much larger than their frames. CPU decoding then transfers more bytes and uses data-loader cores. Device decoding transfers compressed bytes and a small block task list. In the animation, watch what crosses the bus in each row, and which side's cores do the work.</p>
       <figure class="diagram wide stepper" data-beats="2.75,5.95,8.75,10.95,13.25"><img src="assets/svg/gpu/internals-bus.svg" alt="Two rows. In the top row the CPU cores stay busy expanding the frame into the full raster in host memory, then the whole raster crosses the bus. In the bottom row only the frame and a short task list cross the bus, and the waves expand the raster in device memory while the CPU cores stay free." loading="lazy"><figcaption>Decode on the CPU and the full raster crosses the bus. Decode on the GPU and only the frame and its task list do.</figcaption></figure>
-      <p>This only works for formats whose threads can find their own input, which is why the device path ends in PFOR or PivCo. <a href="gpu-codecs.html">What a GPU needs</a> explains how each one does it.</p>
+      <p>This only works for formats whose threads can find their own input, which is why the device path ends in PFOR or PivCo. <a href="gpu-codecs.html">What a GPU wants</a> explains how each one does it.</p>
       <p>A frame goes to the device when it is a single chunk, its last codec is pfor, lanes or one of their fused planar forms, and its samples are one or two bytes wide. The device recipes are <code>id&gt;pfor</code>, <code>planar&gt;zigzag&gt;pfor</code>, <code>id&gt;lanes</code> and <code>planar&gt;zigzag&gt;lanes</code>.</p>
-      <p>Everything else, zstd, the entropy recipes, NoData, quantized frames, multi-chunk frames, decodes with OpenZL on the CPU and is uploaded as samples. Both kinds can share one call, so a batch with a few odd frames still lands in one tensor.</p>
+      <p>Everything else, zstd, the entropy recipes, NoData, quantized frames, multi-chunk frames, decodes with OpenZL on the CPU and is uploaded as samples. Both kinds can share one call, so a batch with a few odd frames still lands in one tensor. We think that matters more than it sounds. A data loader should not have to sort its frames by codec before it asks for a batch.</p>
 
       <h2 class="part" id="waves">Waves, and why a PFOR block is 256 values</h2>
       <p>GeoZL's kernels use 32-thread <a href="gpu-codecs.html#wave">waves</a>. Threads in a wave exchange registers without memory. One thread can broadcast a register to the other 31. The wave can OR a value across all its threads, or give each thread the sum of the values held by the threads before it, a prefix sum. None of this touches shared memory or waits at a barrier for the slowest thread in a larger group. Work that crosses waves needs both.</p>
       <p>The decoder therefore sizes PFOR work to one wave. Each thread handles 8 values, and 32 threads times 8 values is 256, which is exactly one PFOR block. One wave decodes one block, and four waves make a group of 128 threads.</p>
       <p>The animation follows one block through one wave. First every thread finds its eight values. Then, in list mode, the exception positions are folded into one mask that every thread holds. Last, each thread counts its rank.</p>
       <figure class="diagram wide stepper" data-beats="2.95,7.35,10.35,12.75,15.25"><img src="assets/svg/gpu/internals-wave.svg" alt="A row of threads t0 to t31. Thread t starts at value 8t and bit offset t times b. Threads t0 to t5 each hold one exception position, and a wave OR drops all six into one 256-bit mask that every thread holds. Each thread counts the mask bits before 8t to get its rank, and the threads that own exceptions, t2, t5, t8, t30 and t31, read their high bits at rank times eb." loading="lazy"><figcaption>One wave, one block. Thread t owns values 8t..8t+7 (16-bit samples). The positions, the mask and the ranks never leave registers.</figcaption></figure>
-      <p>PFOR's lane layout determines the bit offsets. The body is cut into 16-byte groups, and values are interleaved across the lanes of a group, so the eight values a thread owns sit side by side in the same slot. With 16-bit samples, thread <code>t</code> reads slot <code>t</code>, which starts at bit <code>t × b</code> of every lane. One 16-byte load gets all eight, and a second load is needed only when the bits straddle two groups.</p>
+      <p>PFOR's lane layout determines the bit offsets, and here the layout from <a href="cpu.html#pfor">part one</a> pays off a second time. The body is cut into 16-byte groups, and values are interleaved across the lanes of a group, so the eight values a thread owns sit side by side in the same slot. With 16-bit samples, thread <code>t</code> reads slot <code>t</code>, which starts at bit <code>t × b</code> of every lane. One 16-byte load gets all eight, and a second load is needed only when the bits straddle two groups.</p>
       <p>A block marks its exceptions either as a 32-byte bitmap or as a short list of positions. In bitmap mode, threads 0 to 7 each load one 32-bit word of the bitmap and broadcast it, and after eight broadcasts every thread holds the whole 256-bit mask. In list mode, the wave reads 32 positions at a time, one per thread, and folds them into the same mask with a wave OR.</p>
       <p>A thread's rank is the number of exceptions before its first value, at position <code>8t</code>. It sums popcounts over the earlier mask words, reads its high bits at <code>rank × eb</code>, shifts them past the low <code>b</code> bits and ORs them in. A 512-value block across two waves would need shared memory and a barrier for the mask and the ranks. The 256-value block avoids that cost.</p>
       <p>In the fused <code>planar&gt;zigzag&gt;pfor</code> codec, the same pass also undoes Zigzag before it stores. Undoing the planar prediction needs whole rows, so it runs in the passes described in <a href="#planar">Undoing planar</a>.</p>
@@ -95,8 +105,9 @@
       <p>Kernels receive planned payloads, not complete GeoZL frames. The CPU locates and validates each PFOR or PivCo stream and builds its task list without decoding samples.</p>
       <p>First, <b>capture</b>. OpenZL still parses the frame and checks its compressed checksum on the CPU, as it would for a normal decode. At the last node of the graph, though, GeoZL swaps its own decoder for a capture hook. The hook checks the codec header, stages the header and payload, and stops OpenZL before raster materialization.</p>
       <p>If another codec has expanded the payload on the way, or the PFOR or PivCo node is not the root, capture gives up on the device and the frame decodes on the CPU. A frame that OpenZL stored raw, because compression did not make it smaller, is decoded on the CPU and copied.</p>
-      <p>Second, <b>planning</b>. A bad length can make a GPU kernel write out of bounds, so the planner checks lengths before writing tasks. It also checks bit widths and exception widths, compares bitmap popcounts with exception counts, requires ascending position lists, and rejects trailing bytes. For PivCo, it checks tree depth and each stored count of 1s against its bitmap. Only then does it write one task per PFOR or PivCo block. A malformed frame rejects the whole call.</p>
-      <p>Host threads take frames from a shared counter. Each thread captures and plans the same frame, keeping its bytes in the core's cache and avoiding another memory read. Threads build separate task lists, then merge them in frame order. Output does not depend on which thread took a frame.</p>
+      <p>Second, <b>planning</b>. Planning is where a mistake would cost the most, because a bad length can make a GPU kernel write out of bounds. So the planner checks lengths before writing tasks. It also checks bit widths and exception widths, compares bitmap popcounts with exception counts, requires ascending position lists, and rejects trailing bytes. For PivCo, it checks tree depth and each stored count of 1s against its bitmap. Only then does it write one task per PFOR or PivCo block. A malformed frame rejects the whole call.</p>
+      <p>Since 5 November a fuzzer generates and mutates PFOR and PivCo frames and checks the per-frame and batch plans against each other, against CPU decoding, and against the payload and lane bounds.</p>
+      <p>Host threads take frames from a shared counter. Since that same day, each thread captures and plans the same frame, keeping its bytes in the core's cache and avoiding another memory read. Threads build separate task lists, then merge them in frame order. Output does not depend on which thread took a frame.</p>
       <p>Third, <b>staging</b>. A device usually cannot read ordinary host memory directly, so data is first copied into a buffer the driver can transfer from. GeoZL writes captured payloads and task lists straight into memory the GPU can read, page-locked or shared with the device, whichever the backend offers. The device reads the staged bytes without another host copy. Staging is a bump allocator that grows in chunks and reserves headroom. Calls no larger than the largest batch seen reuse that reserve without allocating.</p>
 
       <h2 class="part" id="pivco">PivCo, one block per group of four waves</h2>
@@ -106,10 +117,10 @@
       <p>Leaves are simpler. A constant leaf repeats one symbol, and a flat leaf reads a fixed-width index per symbol.</p>
       <p>The two buffers the levels swap between cost no extra allocation. Even levels write the lane buffer, and odd levels write scratch borrowed from the output allocation. At the root, at level 0, the lane is complete.</p>
       <p>The remaining stages run in separate passes. Byte lanes that the encoder kept as byte PFOR are unpacked, a join pass builds each sample from its byte lanes, low byte first, and for planar frames undoes Zigzag. Then comes the inverse planar scan.</p>
-      <p>The GPU path rejects a frame whose PivCo block size is under 1024 symbols, unless one block covers the whole lane. GeoZL's encoder uses 32&nbsp;768, so frames it wrote never hit that limit.</p>
+      <p>The GPU path rejects a frame whose PivCo block size is under 1024 symbols, unless one block covers the whole lane, because such a frame would plan far more than it decodes. GeoZL's encoder uses 32&nbsp;768, so frames it wrote never hit that limit.</p>
 
       <h2 class="part" id="planar">Undoing planar</h2>
-      <p>Planar stores <code>x - (W + N - NW)</code> as its residual. Reconstruction sums residuals above and to the left of each sample. Undoing planar is a two-dimensional prefix sum, which a wave can compute.</p>
+      <p>Planar stores <code>x - (W + N - NW)</code> as its residual. Reconstruction sums residuals above and to the left of each sample. Undoing planar is a two-dimensional prefix sum, which a wave can compute. On a CPU we carried one number along a row. Here 32 threads share a row, and a wave prefix sum hands each of them the total of the threads before it.</p>
       <p>For a plane up to 256 columns wide, one wave takes the whole plane, each thread owning eight columns. Each thread sums eight values per row. A wave prefix sum adds earlier threads, then the thread keeps running column sums in registers for later rows. The next row is loaded while the current one is summed. One pass, one wave per plane, nothing in shared memory.</p>
       <p>The animation shows row sums followed by column sums. First the sums sweep along each row, with the wave prefix sum carrying the total of <code>t0</code>'s eight columns into <code>t1</code>'s, then running sums go down the columns and each cell becomes its sample. The kernel does both for one row before it moves to the next.</p>
       <figure class="diagram wide stepper" data-beats="2.15,5.95,9.15,12.55,15.25"><img src="assets/svg/gpu/internals-planar.svg" alt="A grid of 3 rows and 16 columns of planar residuals, columns 0 to 7 owned by thread t0 and 8 to 15 by t1. Both threads sum their own eight columns along each row together, a wave prefix sum hands each row total of t0 to t1, and running sums down the columns turn every cell into its sample." loading="lazy"><figcaption>Undoing planar is a 2D prefix sum, along the rows and then down the columns.</figcaption></figure>
@@ -119,14 +130,26 @@
       <h2 class="part" id="landing">Where the samples land, call after call</h2>
       <p>The API describes windows, interleaved bands and mosaics as copies of strided rectangles. If every device frame is copied whole into a contiguous, non-overlapping span of a 16-byte-aligned target, kernels decode into the target and skip a pass. Otherwise frames decode into scratch, and a <code>place</code> kernel copies the requested rectangles with their strides. PivCo uses scratch for temporary symbols in both cases.</p>
       <p>Data loaders repeat batches of similar size, so per-call device allocation adds overhead. Each program keeps up to four finished device allocations and hands one to the next request it fits, as long as the request is not much smaller than the spare. In a steady loop, calls neither allocate nor free device memory, and staging has already stopped growing.</p>
-      <p>On CUDA, <code>geozl_gpu_decode</code> queues work on the caller's stream and returns. The decoder has two staging arenas. While the GPU decodes call N from one, the CPU captures and plans N+1 into the other. A call waits before reusing the arena from two calls earlier on the same stream. The caller's training step can run alongside both.</p>
+      <p>On CUDA, <code>geozl_gpu_decode</code> queues work on the caller's stream and returns. Since 5 November the decoder has two staging arenas. While the GPU decodes call N from one, the CPU captures and plans N+1 into the other. A call waits before reusing the arena from two calls earlier on the same stream. The caller's training step can run alongside both.</p>
       <p>Changing streams, calling <code>geozl_gpu_synchronize</code> or destroying the decoder waits for queued work. Synchronize before freeing or reusing a target. On Metal, <code>geozl_gpu_decode</code> finishes before returning.</p>
       <figure class="diagram wide stepper" data-beats="2.55,5.75,8.35,12.35,15.25"><img src="assets/svg/gpu/internals-pipeline.svg" alt="A timeline with a CPU track, a GPU track and a track for each staging arena. The CPU plans call N into arena 0, the GPU decodes it while the CPU plans call N+1 into arena 1, and call N+2 waits until decode N has finished and freed arena 0, then plans into it while the GPU decodes N+1 and N+2 back to back." loading="lazy"><figcaption>Planning of the next call overlaps decoding of this one. Watch the wait before plan N+2. It is the only one, and it waits for the call that used the same arena.</figcaption></figure>
-      <p>The kernels themselves come from one Slang source compiled ahead of time for each backend. <a href="slang.html">One kernel source in Slang</a> follows them from source to device.</p>
+
+      <h2 class="part" id="speed">How fast, on one machine</h2>
+      <p>GPU numbers depend on the device, the batch and what you count, so we keep these narrow. They are kernel times only, from the PivCo benchmark in <a href="https://github.com/asterisk-labs/geozl/tree/main/gpu/proto" rel="noopener noreferrer"><code>gpu/proto</code></a>, run on the Apple M5's GPU through Metal with frames from the Earth Compress corpora. They leave out capture, planning and the copy to the device.</p>
+      <table class="spec results">
+        <tr><td></td><td><b>samples</b></td><td><b>kernel time</b></td></tr>
+        <tr><td>IMERG precipitation</td><td>uint16</td><td>8.0 ms, about 11.8 GB/s</td></tr>
+        <tr><td>Sentinel-2, 10 m</td><td>uint16</td><td>14.3 ms</td></tr>
+        <tr><td>Landsat 8 OLI</td><td>uint16</td><td>7.9 ms</td></tr>
+        <tr><td>ESA WorldCover</td><td>uint8</td><td>1.0 ms</td></tr>
+        <tr><td>Landsat 5 thermal</td><td>uint8</td><td>0.54 ms</td></tr>
+      </table>
+      <p>Each time covers one batch of that corpus's frames. Only IMERG has a throughput beside it here, so read the other rows as times for their own batches rather than as a ranking. On another GPU, or through CUDA, expect different numbers.</p>
+      <p>All of this runs from kernels written once. <a href="slang.html">One source, many GPUs</a>, the last part, follows them from the Slang source to each device.</p>
 
       <nav class="pager" aria-label="Pages">
-        <a class="prev" href="gpu-codecs.html"><span>Previous</span>What a GPU needs</a>
-        <a class="next" href="slang.html"><span>Next</span>Slang</a>
+        <a class="prev" href="gpu-codecs.html"><span>Previous</span>What a GPU wants</a>
+        <a class="next" href="slang.html"><span>Next</span>One source, many GPUs</a>
       </nav>
     </article>
 
@@ -139,6 +162,7 @@
         <li><a href="#pivco">PivCo, one block per group of four waves</a></li>
         <li><a href="#planar">Undoing planar</a></li>
         <li><a href="#landing">Where the samples land, call after call</a></li>
+        <li><a href="#speed">How fast, on one machine</a></li>
       </ol>
     </nav>
   </main>

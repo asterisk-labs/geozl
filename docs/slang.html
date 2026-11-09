@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
-<meta name="description" content="Why GeoZL writes its GPU kernels once in Slang, how they are compiled for each backend, embedded and loaded, and how a new backend is added.">
-<title>GeoZL · One kernel source in Slang</title>
+<meta name="description" content="Part four of the optimizations series. How GeoZL writes its GPU kernels once in Slang and compiles them ahead of time for each backend.">
+<title>GeoZL · One kernel source for many GPUs</title>
 <link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=10">
+<link rel="stylesheet" href="assets/css/reading.css?v=11">
 </head>
 <body>
 <div class="page">
@@ -59,22 +59,32 @@
         <li><a href="pfor.html">PFOR</a></li>
         <li><a href="pivco.html">PivCo</a></li>
         <li class="toc-group">Optimizations</li>
-        <li><a href="cpu.html">CPU</a></li>
-        <li><a href="gpu-codecs.html">What a GPU needs</a></li>
-        <li><a href="gpu-internals.html">Inside the GPU decoder</a></li>
-        <li><a href="slang.html" class="here" aria-current="page">Slang</a></li>
+        <li><a href="cpu.html">Fast on one core</a></li>
+        <li><a href="gpu-codecs.html">What a GPU wants</a></li>
+        <li><a href="gpu-internals.html">Bytes to tensors</a></li>
+        <li><a href="slang.html" class="here" aria-current="page">One source, many GPUs</a></li>
       </ol>
     </nav>
 
     <article class="content">
-      <h1>One kernel source in Slang</h1>
+      <h1>One kernel source for many GPUs</h1>
       <ul class="facts">
         <li>Slang <code>2026.19</code></li>
         <li>Sources in <a href="https://github.com/asterisk-labs/geozl/tree/main/gpu/kernels" rel="noopener noreferrer"><code>gpu/kernels</code></a></li>
         <li>Built by <a href="https://github.com/asterisk-labs/geozl/blob/main/tools/build_gpu_modules.py" rel="noopener noreferrer"><code>tools/build_gpu_modules.py</code></a></li>
       </ul>
+      <aside class="series" aria-label="Series">
+        <p class="series-title">Optimizations, a series in four parts</p>
+        <ol>
+          <li><a href="cpu.html">Fast on one core</a></li>
+          <li><a href="gpu-codecs.html">What a GPU wants</a></li>
+          <li><a href="gpu-internals.html">Bytes to tensors</a></li>
+          <li class="here" aria-current="page">One source, many GPUs</li>
+        </ol>
+      </aside>
       <p>Every GPU family speaks its own kernel language. NVIDIA drivers load PTX, Apple devices compile the Metal Shading Language, and WebGPU runs WGSL. Writing GeoZL's decoder once per family would mean every fix lands several times and the copies slowly drift apart.</p>
-      <p>GeoZL writes its kernels once, in Slang, and compiles them ahead of time for each backend. CUDA and Metal are the first two backends, and more are planned, WebGPU among them. The compiled kernels ship inside the library, so neither building GeoZL nor running it needs Slang.</p>
+      <p>GeoZL avoids that. Its first GPU prototype, on 8 October 2026, already had its kernels in Slang, and the decoder from <a href="gpu-internals.html">part three</a> still has exactly one kernel source. It is compiled ahead of time for each backend. CUDA and Metal are the first two backends, and more are planned, WebGPU among them. The compiled kernels ship inside the library, so neither building GeoZL nor running it needs Slang.</p>
+      <p>This last part is about the plumbing that keeps it true, from the Slang source to a module loaded on the device.</p>
       <figure class="diagram wide"><img src="assets/svg/gpu/slang-build.svg" alt="One Slang source in gpu/kernels, with programs, stages and common files, is compiled by slangc once per target. The Metal target gives Metal source that the Metal runtime compiles for the device. The PTX target goes through NVRTC 12.2 and the CUDA driver JIT compiles the PTX for the device. A WGSL target for a WebGPU backend is planned. Every target yields nine modules, one per program and sample width, hashed in sources.sha256 and embedded in the library." loading="lazy"><figcaption>One source, one compiled copy per target, loaded by a small runtime on each device.</figcaption></figure>
 
       <h2 class="part" id="slang">What Slang is</h2>
@@ -100,26 +110,26 @@ carry += WaveActiveSum(ones);                 // 1s in the whole step</code></pr
       <p>A program is compiled once per sample width. The macro <code>ELT_BYTES</code> picks the element type, so pfor and pivco come in widths 1 and 2 and place in 1, 2, 4, 8 and 16 bytes. That gives nine modules per target, named after program and width, such as <code>pfor2</code> or <code>place16</code>.</p>
 
       <h2 class="part" id="build">Compiling a module for each target</h2>
-      <p><code>tools/build_gpu_modules.py</code> builds every module of one target into a directory, normally <code>core/src/gpu/modules</code>.</p>
+      <p><code>tools/build_gpu_modules.py</code> builds every module of one target into a directory, normally <code>core/src/gpu/modules</code>. These two lines rebuild both targets we ship.</p>
       <pre><code>python3 tools/build_gpu_modules.py /path/to/slangc metal core/src/gpu/modules
 python3 tools/build_gpu_modules.py /path/to/slangc ptx core/src/gpu/modules</code></pre>
       <p>It first checks that <code>slangc</code> reports version 2026.19 and stops otherwise, because a different compiler would produce different modules. For each program and width it then runs <code>slangc</code> with every entry point of the program, <code>-target metal</code> or <code>-target ptx</code>, <code>-D ELT_BYTES</code> set to the width, and <code>-line-directive-mode none</code> so no file paths end up in the output.</p>
-      <p>Each compile also writes Slang's reflection JSON, and <code>tools/check_slang_layout.py</code> compares the buffer order it reports with the order the host binds. The host passes buffers by index, so a reordered declaration in a program would silently swap two of them at run time. The check turns that into a build failure.</p>
+      <p>Each compile also writes Slang's reflection JSON, and <code>tools/check_slang_layout.py</code> compares the buffer order it reports with the order the host binds. The host passes buffers by index, so a reordered declaration in a program would silently swap two of them at run time. The check turns that into a build failure. A silent swap is the kind of bug we would rather never have to find, so we made the build find it.</p>
       <p>Metal source builds anywhere <code>slangc</code> runs, a Linux machine included. PTX also needs NVRTC, the CUDA runtime compiler that <code>slangc</code> calls to turn its CUDA output into PTX.</p>
 
       <h2 class="part" id="ptx">PTX and the oldest driver</h2>
       <p>PTX is not machine code. The CUDA driver compiles it for the GPU it finds when the module loads, which is why one PTX file covers every NVIDIA generation from its target up. The checked-in modules target <code>sm_70</code>.</p>
-      <p>A driver only accepts PTX up to its own PTX version, and each NVRTC release writes a newer one. PTX from NVRTC 12.8 carries <code>.version 8.7</code>, and a 550 driver, which reads up to 8.4, rejects it. The rule is to build PTX with an NVRTC no newer than the oldest driver GeoZL should run on.</p>
-      <p>The checked-in PTX comes from NVRTC 12.2 and carries <code>.version 8.2</code>, so drivers from the CUDA 12.2 generation on can load it. When a driver refuses a module anyway, the error GeoZL returns carries the first line of the driver's JIT log, which names the PTX feature it rejected.</p>
+      <p>A driver only accepts PTX up to its own PTX version, and each NVRTC release writes a newer one. PTX from NVRTC 12.8 carries <code>.version 8.7</code>, and a 550 driver, which reads up to 8.4, rejects it. So the compiler is chosen by the oldest driver we want to support, not by the newest toolkit we have. Build PTX with an NVRTC no newer than the oldest driver GeoZL should run on.</p>
+      <p>The checked-in PTX comes from NVRTC 12.2 and carries <code>.version 8.2</code>, so drivers from the CUDA 12.2 generation on can load it. NVRTC does not exist for macOS, so we regenerated the PTX on a workstation with two RTX A5500 cards and CUDA 12.2. When a driver refuses a module anyway, the error GeoZL returns carries the first line of the driver's JIT log, which names the PTX feature it rejected.</p>
 
       <h2 class="part" id="manifest">Keeping the modules in step with the source</h2>
-      <p>The compiled modules are checked in, so a kernel change that is not rebuilt would ship old code. Each build writes <code>core/src/gpu/modules/sources.sha256</code> to catch that.</p>
+      <p>The compiled modules are checked in, so a kernel change that is not rebuilt would ship old code. Since 30 October each build writes <code>core/src/gpu/modules/sources.sha256</code> to catch that.</p>
       <p>For every target the manifest records one digest of the compiler inputs and one hash per module. The input digest covers the Slang version, the target, the table of programs, entry points and widths, the fixed flags and the path and bytes of every <code>.slang</code> file under <code>gpu/kernels</code>. Four of its lines, with the hashes shortened, look like this.</p>
       <pre><code>metal:pfor2.metal ccafb79e…
 metal:sources 222818d7…
 ptx:pfor2.ptx 6b6062d3…
 ptx:sources 1c6f4e28…</code></pre>
-      <p><code>build_gpu_modules.py --check</code> recomputes both and fails when the sources changed without a rebuild or when a module no longer matches its hash. It needs no Slang and no GPU, so CI runs it on every change. A kernel edit then comes with rebuilt Metal and PTX, or CI says which target is stale.</p>
+      <p><code>build_gpu_modules.py --check</code> recomputes both and fails when the sources changed without a rebuild or when a module no longer matches its hash. It needs no Slang and no GPU, so CI runs it on every change. A kernel edit then comes with rebuilt Metal and PTX, or CI says which target is stale. That matters most for PTX, which cannot be rebuilt on macOS at all.</p>
 
       <h2 class="part" id="loading">Loading the embedded modules</h2>
       <p>At build time CMake picks the module kind for the platform, Metal source on Apple and PTX on Linux. <code>core/src/gpu/embed_modules.cmake</code> turns every module of that kind into a C byte array and writes a table of name, bytes and size, declared in <code>core/src/gpu/modules.h</code>. A build without GPU support compiles a stub instead, whose calls report that GPU support is not built in.</p>
@@ -132,12 +142,16 @@ ptx:sources 1c6f4e28…</code></pre>
       <div class="note"><p>Creating a decoder loads or compiles the kernels for its device, so create one decoder and reuse it.</p></div>
 
       <h2 class="part" id="backends">Adding a backend</h2>
-      <p>The host API, capture, planning, task lists and staging are shared by every backend. <code>core/src/gpu/runtime.c</code> validates each call and forwards it through a small table of operations, <code>GeozlGpuBackendOps</code>, that opens a device, allocates and frees memory and staging, queues a batch of kernels and waits for it.</p>
+      <p>The host API, capture, planning, task lists and staging are shared by every backend. Since 26 October <code>core/src/gpu/runtime.c</code> validates each call and forwards it through a small table of operations, <code>GeozlGpuBackendOps</code>, that opens a device, allocates and frees memory and staging, queues a batch of kernels and waits for it.</p>
       <p>A new GPU family, WebGPU, Vulkan or HIP, needs three things. One runtime file implements that table and compiles in under its own define, as <code>runtime_metal.m</code> and <code>runtime_cuda.c</code> do. A backend id selects it. And <code>build_gpu_modules.py</code> gains the Slang target, with the module kind added to the CMake build so the outputs are embedded.</p>
       <p>The kernels assume a 32-wide wave. A backend whose devices can run another width, as some WebGPU and Vulkan devices do, must ask for 32 or reject the device, as the Metal runtime does today. The formats, the kernels and every caller stay as they are.</p>
 
+      <h2 class="part" id="next">Where this leaves us</h2>
+      <p>That is the end of the series, and not of the work. Over four months the decoders went from a prefix sum in a register to batches landing in GPU memory, and most of what made them fast was the same idea at two scales, letting every lane or thread find its own input. The one place we paid for it in ratio, skewed data in the lanes format, is still open, and we would rather design a GPU path for it on its own than reopen the format.</p>
+      <p>WebGPU is among the backends we plan, and on devices that run another wave width it will have to ask for 32 or turn the device away, as Metal does. If you would rather use all this than read about it, the <a href="api-gpu.html">GPU API</a> is where to start, and the <a href="https://earth-compress.github.io/benchmark/" rel="noopener noreferrer">benchmark</a> has the numbers behind <a href="cpu.html#numbers">part one</a>.</p>
+
       <nav class="pager" aria-label="Pages">
-        <a class="prev" href="gpu-internals.html"><span>Previous</span>Inside the GPU decoder</a>
+        <a class="prev" href="gpu-internals.html"><span>Previous</span>Bytes to tensors</a>
       </nav>
     </article>
 
@@ -151,6 +165,7 @@ ptx:sources 1c6f4e28…</code></pre>
         <li><a href="#manifest">Keeping the modules in step with the source</a></li>
         <li><a href="#loading">Loading the embedded modules</a></li>
         <li><a href="#backends">Adding a backend</a></li>
+        <li><a href="#next">Where this leaves us</a></li>
       </ol>
     </nav>
   </main>
