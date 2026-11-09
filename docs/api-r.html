@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=10">
+<link rel="stylesheet" href="assets/css/reading.css?v=11">
 </head>
 <body>
 <div class="page">
@@ -53,11 +53,12 @@
         <li class="toc-group">Languages</li>
         <li><a href="api-python.html">Python</a></li>
         <li><a href="api-c.html">C</a></li>
-        <li><a href="api-gpu.html">GPU decoding</a></li>
         <li><a href="api-r.html" class="here" aria-current="page">R</a>
         </li>
         <li><a href="api-julia.html">Julia</a></li>
         <li><a href="api-js.html">JavaScript</a></li>
+        <li class="toc-group">Guides</li>
+        <li><a href="api-gpu.html">GPU decoding</a></li>
       </ol>
     </nav>
 
@@ -158,7 +159,7 @@ g$error                                      # "LINEAR:MAX_ERROR=2"</code></pre>
       <p>The R package covers <code>profile</code>, <code>graph</code>, <code>compress</code>, <code>decompress</code> and <code>coeffs</code>. It has no OpenZL nodes like <code>geozl.lossless</code> and <code>geozl.lossy</code>, no <code>fit_noise</code> and no GPU decode. A SQRT recipe without <code>A=</code> and <code>B=</code> is fitted on the raster given to <code>geozl_graph</code>. To share one curve across products, fit it in Python with <a href="api-python.html#lossy"><code>fit_noise</code></a> and pass the recipe it writes.</p>
 
       <nav class="pager" aria-label="Pages">
-        <a class="prev" href="api-gpu.html"><span>Previous</span>GPU decoding</a>
+        <a class="prev" href="api-c.html"><span>Previous</span>C</a>
         <a class="next" href="api-julia.html"><span>Next</span>Julia</a>
       </nav>
     </article>

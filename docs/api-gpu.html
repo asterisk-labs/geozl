@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=10">
+<link rel="stylesheet" href="assets/css/reading.css?v=11">
 </head>
 <body>
 <div class="page">
@@ -53,10 +53,11 @@
         <li class="toc-group">Languages</li>
         <li><a href="api-python.html">Python</a></li>
         <li><a href="api-c.html">C</a></li>
-        <li><a href="api-gpu.html" class="here" aria-current="page">GPU decoding</a></li>
         <li><a href="api-r.html">R</a></li>
         <li><a href="api-julia.html">Julia</a></li>
         <li><a href="api-js.html">JavaScript</a></li>
+        <li class="toc-group">Guides</li>
+        <li><a href="api-gpu.html" class="here" aria-current="page">GPU decoding</a></li>
       </ol>
     </nav>
 
@@ -142,7 +143,7 @@ for (size_t i = 0; i &lt; TILES; ++i)
       <figure class="diagram wide stepper" data-beats="2.75,6.95,10.95,14.3"><img src="assets/svg/gpu/api-routing.svg" alt="Five frames in one call, f0 to f4. Frame f0 planar&gt;zigzag&gt;pfor and f2 id&gt;lanes take the device path, for PFOR or PivCo frames with one chunk and 1 or 2 byte samples, where the CPU parses and plans and then the GPU expands the payload. Frame f1 zstd, f3 id&gt;pfor with 2 chunks and f4 nodata take the host path, where OpenZL decodes on the CPU and the samples are uploaded. All five then move into the same target through the same copies." loading="lazy"><figcaption>Routing is per frame, so a PFOR frame with two chunks goes to the host like any other graph. The device path still starts on the CPU, but its raster is only ever expanded on the GPU.</figcaption></figure>
       <p>Host and device frames can share one call and reach the same target through the same copies. For GPU reading, write frames with pfor or lanes recipes.</p>
       <p>The <code>forceHost</code> argument of <code>geozl_gpu_decode</code> takes one byte per frame, or <code>NULL</code> for automatic routing. A nonzero byte routes that frame through the host.</p>
-      <p><a href="gpu-internals.html">Inside the GPU decoder</a> covers the staging and kernels behind this routing.</p>
+      <p><a href="gpu-internals.html">From compressed bytes to a GPU tensor</a> covers the staging and kernels behind this routing.</p>
 
       <h2 class="part" id="timing">When the work is done</h2>
       <p><code>geozl_gpu_decode</code> can return before samples are ready.</p>
@@ -167,8 +168,7 @@ geozl_gpu_destroy(gpu);</code></pre>
       <p>OpenZL frames can carry two checksums, one over the compressed bytes and one over the decoded content. With <code>verifyChecksums</code> set, frames that decode on the host check both. Frames that decode on the device check only the compressed checksum, on the CPU, before their payload is staged. The device path cannot check the content checksum because decoded samples do not return to the host. The compressed checksum still catches a corrupted or truncated file, so keep it on for any frame that comes from outside the process.</p>
 
       <nav class="pager" aria-label="Pages">
-        <a class="prev" href="api-c.html"><span>Previous</span>C</a>
-        <a class="next" href="api-r.html"><span>Next</span>R</a>
+        <a class="prev" href="api-js.html"><span>Previous</span>JavaScript</a>
       </nav>
     </article>
 
