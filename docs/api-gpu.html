@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
 <meta name="description" content="Decode GeoZL frames straight into GPU memory with geozl/gpu.h.">
-<title>GeoZL · GPU API</title>
+<title>GeoZL · GPU decoding</title>
 <link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -40,35 +40,28 @@
 
     <nav class="nav" aria-label="Sections">
       <a href="docs.html">Docs</a>
-      <a href="api.html">API</a>
+      <a href="api.html" class="here">API</a>
       <a href="https://earth-compress.github.io/benchmark/" rel="noopener noreferrer">Benchmark</a>
     </nav>
   </header>
 
   <main class="doc">
     <nav class="toc" aria-label="Contents">
-      <p class="toc-title">Docs</p>
+      <p class="toc-title">API</p>
       <ol class="toc-pages">
-        <li class="toc-group">Reference</li>
-        <li><a href="docs.html">Codecs</a></li>
-        <li><a href="predictors.html">Predictors</a></li>
-        <li><a href="streams.html">Streams</a></li>
-        <li><a href="fused.html">Fused</a></li>
-        <li><a href="near-lossless.html">Near-lossless</a></li>
-        <li class="toc-group">CPU decoding</li>
-        <li><a href="cpu.html">Inside the CPU decoder</a></li>
-        <li class="toc-group">GPU-friendly codecs</li>
-        <li><a href="gpu-codecs.html">Why they fit a GPU</a></li>
-        <li><a href="pfor.html">PFOR</a></li>
-        <li><a href="pivco.html">PivCo</a></li>
-        <li class="toc-group">GPU decoding</li>
-        <li><a href="gpu.html" class="here">API</a></li>
-        <li><a href="gpu-internals.html">Inside the decoder</a></li>
+        <li><a href="api.html">Overview</a></li>
+        <li class="toc-group">Languages</li>
+        <li><a href="api-python.html">Python</a></li>
+        <li><a href="api-c.html">C</a></li>
+        <li><a href="api-gpu.html" class="here" aria-current="page">GPU decoding</a></li>
+        <li><a href="api-r.html">R</a></li>
+        <li><a href="api-julia.html">Julia</a></li>
+        <li><a href="api-js.html">JavaScript</a></li>
       </ol>
     </nav>
 
     <article class="content">
-      <h1>GPU API</h1>
+      <h1>GPU decoding</h1>
       <ul class="facts">
         <li>Header <code>geozl/gpu.h</code>, prototypes in the <a href="api-c.html#c-gpu">C API</a></li>
         <li>Part of the stable source API from 0.30.0</li>
@@ -78,7 +71,8 @@
       <p>GeoZL's GPU API accepts compressed frames and a device destination. The caller specifies where each decoded rectangle lands in a device buffer. It decodes on the GPU where the frame allows it, on the CPU where it must, and writes the samples in place. For the frames that decode on the device, the decompressed raster never exists in host memory at all.</p>
 
       <h2 class="part" id="callers">Who calls it</h2>
-      <p>The C API is in <code>geozl/gpu.h</code> and has been stable at the source level since 0.30.0. There is no Python API for it yet. <a href="https://asterisk.coop/rumi">Rumi</a> uses it to fill training batches from <code>.rumi</code> files. A Python binding is planned on the same calls.</p>
+      <p>GPU decoding is a C API, in <code>geozl/gpu.h</code>. Python, R, Julia and JavaScript have no GPU call today, and a Python binding on the same calls is planned.</p>
+      <p><a href="https://asterisk.coop/rumi/" rel="noopener noreferrer">Rumi</a> uses it to fill training batches from <code>.rumi</code> files.</p>
       <p>The header uses DLPack device type numbers, so a tensor's device type can pass through unchanged. The rest of the API is vendor independent. Device memory is a backend buffer handle passed as a pointer-sized value. Calls, copies and rules are the same across supported GPUs. <code>geozl_gpu_available(type)</code> reports whether the build supports a device type.</p>
       <p>The example uses four 256 by 256 tiles of unsigned 16-bit samples. Each tile has one compressed frame. The output is four 128 by 128 windows, each starting at row 64 and column 32, in a 4 by 128 by 128 GPU tensor.</p>
 
@@ -143,14 +137,17 @@ for (size_t i = 0; i &lt; TILES; ++i)
       <p>A frame uses the GPU if its last codec is pfor or lanes, it has one chunk, and its elements match 1- or 2-byte target samples. In terms of recipes, that is <code>id&gt;pfor</code>, <code>planar&gt;zigzag&gt;pfor</code>, <code>id&gt;lanes</code> and <code>planar&gt;zigzag&gt;lanes</code>. </p>
       <p>The CPU still parses device-routed frames. OpenZL reads the frame. GeoZL captures the payload before the last codec expands it, validates and plans its blocks, and places them in GPU-readable staging. The expansion, any inverse planar step, and the copies into the target all happen on the device.</p>
       <p>Other frames decode with OpenZL on the CPU. Their samples enter host staging, then are uploaded and placed by the same copies. This includes zstd and other entropy graphs, NoData and quantized frames, raw frames, and frames with more than one chunk. Multi-plane planar frames with planes shorter than 256 samples also use the host path.</p>
-      <p>GPU kernels need threads to locate values independently. PFOR and PivCo provide that property. <a href="pfor.html">How PFOR works</a> and <a href="pivco.html">How PivCo works</a> explain why.</p>
+      <p>GPU kernels need threads to locate values independently, and PFOR and PivCo provide that property. <a href="gpu-codecs.html">GPU-friendly codecs</a> explains why, and <a href="pfor.html">PFOR</a> and <a href="pivco.html">PivCo</a> describe each format.</p>
       <p>In the picture below, one call carries five frames. The animation routes single-chunk PFOR and PivCo frames through CPU planning and GPU expansion. Zstd, NoData and a two-chunk PFOR frame decode on the CPU and upload to the same target.</p>
       <figure class="diagram wide stepper" data-beats="2.75,6.95,10.95,14.3"><img src="assets/svg/gpu/api-routing.svg" alt="Five frames in one call, f0 to f4. Frame f0 planar&gt;zigzag&gt;pfor and f2 id&gt;lanes take the device path, for PFOR or PivCo frames with one chunk and 1 or 2 byte samples, where the CPU parses and plans and then the GPU expands the payload. Frame f1 zstd, f3 id&gt;pfor with 2 chunks and f4 nodata take the host path, where OpenZL decodes on the CPU and the samples are uploaded. All five then move into the same target through the same copies." loading="lazy"><figcaption>Routing is per frame, so a PFOR frame with two chunks goes to the host like any other graph. The device path still starts on the CPU, but its raster is only ever expanded on the GPU.</figcaption></figure>
-      <p>Host and device frames can share one call and reach the same target through the same copies. For GPU reading, write frames with pfor or lanes recipes. Its <code>forceHost</code> argument takes one byte per frame, or <code>NULL</code> for automatic routing. A nonzero byte routes that frame through the host. <a href="gpu-internals.html">Inside the GPU decoder</a> covers staging and kernels.</p>
+      <p>Host and device frames can share one call and reach the same target through the same copies. For GPU reading, write frames with pfor or lanes recipes.</p>
+      <p>The <code>forceHost</code> argument of <code>geozl_gpu_decode</code> takes one byte per frame, or <code>NULL</code> for automatic routing. A nonzero byte routes that frame through the host.</p>
+      <p><a href="gpu-internals.html">Inside the GPU decoder</a> covers the staging and kernels behind this routing.</p>
 
       <h2 class="part" id="timing">When the work is done</h2>
       <p><code>geozl_gpu_decode</code> can return before samples are ready.</p>
-      <p>On CUDA, the call returns when work is queued on <code>target-&gt;stream</code>. Kernels may still be running. Metal finishes before returning. On CUDA, host threads can parse and plan the next batch while the GPU decodes this one. Two staging areas let a call wait only for the call two before it on the same stream. A later call may report an earlier device failure without waiting for the earlier decode to finish.</p>
+      <p>A backend may return once the work is queued on <code>target-&gt;stream</code>, with kernels still running, or finish before it returns. CUDA queues and Metal finishes. Code that always synchronizes before it reads or frees the target works on every backend.</p>
+      <p>When the work is queued, host threads can parse and plan the next batch while the GPU decodes this one. Two staging areas let a call wait only for the call two before it on the same stream. A later call may report an earlier device failure without waiting for the earlier decode to finish.</p>
       <p>The timeline below shows two calls on one stream. The host returns from the first queued decode, then prepares the second while GPU kernels run. The target stays in use until <code>geozl_gpu_synchronize</code> returns.</p>
       <figure class="diagram wide stepper" data-beats="3.45,7.65,11.15,14.3"><img src="assets/svg/gpu/api-timing.svg" alt="A CUDA timeline with host, device stream and target rows and a time marker sweeping right. Decode #1 on the host returns once its work is queued. Kernels #1 then run on the device stream while the host runs decode #2, and kernels #2 follow. The host waits in synchronize while kernels #2 run. The target is marked in use, keep alive from the first return until synchronize returns, and free, reuse after that." loading="lazy"><figcaption>On CUDA, a return means queued. After <code>geozl_gpu_synchronize</code> returns, the target may be freed or reused.</figcaption></figure>
       <p>Keep the target allocation and stream alive until queued work finishes. Do not free or reuse the target before then. Other work on the same stream may read it because the stream orders that work. Call <code>geozl_gpu_synchronize</code> to wait for queued work and receive any error.</p>
@@ -170,8 +167,8 @@ geozl_gpu_destroy(gpu);</code></pre>
       <p>OpenZL frames can carry two checksums, one over the compressed bytes and one over the decoded content. With <code>verifyChecksums</code> set, frames that decode on the host check both. Frames that decode on the device check only the compressed checksum, on the CPU, before their payload is staged. The device path cannot check the content checksum because decoded samples do not return to the host. The compressed checksum still catches a corrupted or truncated file, so keep it on for any frame that comes from outside the process.</p>
 
       <nav class="pager" aria-label="Pages">
-        <a class="prev" href="pivco.html"><span>Previous</span>How PivCo works</a>
-        <a class="next" href="gpu-internals.html"><span>Next</span>Inside the GPU decoder</a>
+        <a class="prev" href="api-c.html"><span>Previous</span>C</a>
+        <a class="next" href="api-r.html"><span>Next</span>R</a>
       </nav>
     </article>
 

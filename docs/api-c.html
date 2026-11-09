@@ -52,8 +52,8 @@
         <li><a href="api.html">Overview</a></li>
         <li class="toc-group">Languages</li>
         <li><a href="api-python.html">Python</a></li>
-        <li><a href="api-c.html" class="here" aria-current="page">C</a>
-        </li>
+        <li><a href="api-c.html" class="here" aria-current="page">C</a></li>
+        <li><a href="api-gpu.html">GPU decoding</a></li>
         <li><a href="api-r.html">R</a></li>
         <li><a href="api-julia.html">Julia</a></li>
         <li><a href="api-js.html">JavaScript</a></li>
@@ -195,7 +195,7 @@ size_t geozl_coeffs_pack(void *dst, size_t dstCapacity,
       <p>Reads a blob into <code>dst</code>, vectors back to back, and their lengths into <code>counts</code>. Returns 0 on success, 1 when <code>src</code> is not a GeoZL blob, -1 when it is invalid and -2 when a buffer is too small, with the sizes still written. Call with both buffers <code>NULL</code> to learn the sizes first.</p>
 
       <h2 class="part" id="c-gpu">GPU decode</h2>
-      <p>The decoder in <code>geozl/gpu.h</code> writes frames straight into device memory on a GPU. CUDA and Metal are the first backends. <a href="gpu.html">GPU API</a> walks through a full call.</p>
+      <p>The decoder in <code>geozl/gpu.h</code> writes frames straight into device memory on a GPU. CUDA and Metal are the first backends. <a href="api-gpu.html">GPU decoding</a> walks through a full call, and this section lists the exact prototypes.</p>
 <pre><code>#define GEOZL_GPU_DEVICE_CUDA 2     // DLPack device types
 #define GEOZL_GPU_DEVICE_METAL 8
 
@@ -251,7 +251,7 @@ void geozl_gpu_free(GeozlGpuMemory *memory);</code></pre>
 
       <nav class="pager" aria-label="Pages">
         <a class="prev" href="api-python.html"><span>Previous</span>Python</a>
-        <a class="next" href="api-r.html"><span>Next</span>R</a>
+        <a class="next" href="api-gpu.html"><span>Next</span>GPU decoding</a>
       </nav>
     </article>
 
