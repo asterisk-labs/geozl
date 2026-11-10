@@ -106,7 +106,15 @@
         <img src="assets/svg/pfor-block.svg?v=4" alt="Inside an OpenZL frame, pfor carries a nine-byte codec header, a 64-bit element count and an 8-bit element width, followed by blocks of 256 values back to back. Block 0, the eight example values repeated 32 times, holds b equal to 3, an exception count of 32, a format byte saying eb is 4 bits and positions are a bitmap, a 32-byte bitmap, 16 bytes of high bits, and a 96-byte body, 147 bytes in all." loading="lazy">
         <figcaption>The eight values repeated 32 times fill one block of 147 bytes instead of 256. Every 90 is an exception and keeps its 4 high bits 1011 apart.</figcaption>
       </figure>
-      <p>A block opens with <code>b</code> and its exception count. Without exceptions the body follows at once. Otherwise a format byte gives <code>eb</code>, the high bits every exception carries, and how positions are stored. A short list costs one byte per position, and from 32 exceptions on a 32-byte bitmap is no larger, so the encoder switches to it there.</p>
+      <p>A block opens with <code>b</code> and its exception count, and the count decides what follows. A block stores its exception positions in one of three ways.</p>
+      <table class="spec">
+        <tr><th>exceptions</th><td><b>after <code>b</code> and the count</b></td></tr>
+        <tr><th>none</th><td>the body</td></tr>
+        <tr><th>1 to 31</th><td>a format byte, one byte per position, the high bits, the body</td></tr>
+        <tr><th>32 to 255</th><td>a format byte, a 32-byte bitmap, the high bits, the body</td></tr>
+      </table>
+      <p>The format byte holds <code>eb</code>, the high bits every exception carries, and one bit that says list or bitmap. A list costs one byte per exception, so from 32 exceptions on a bitmap with one bit per value is no larger, and the encoder switches to it there. The block above has one 90 in every eight values, exactly 32 exceptions, so it uses the bitmap.</p>
+      <p>A decoder reads all three, on a CPU or on a GPU. A CPU core walks the positions in order, from the list or from the set bits of the bitmap, and patches each value as it goes. On a GPU every thread patches its own values at the same time, so the threads first turn either form into the same bitmap, as <a href="gpu-codecs.html#pfor">What a GPU wants</a> shows.</p>
       <p>The body is always 32 &times; <code>b</code> bytes, laid out in 16-byte lane groups that <a href="cpu.html#pfor">Fast on one CPU core</a> explains. Block size and layout are part of the wire format, so changing either would need a new CTid. Every field is described in <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/pfor/spec.md" rel="noopener noreferrer"><code>core/src/pfor/spec.md</code></a>.</p>
 
       <h2 class="part" id="choosing">How the encoder chooses b</h2>
