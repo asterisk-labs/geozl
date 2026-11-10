@@ -113,7 +113,7 @@ Export the pair from the package `__init__.py` and add the decoder to
 Syntax check the binding against the real OpenZL headers. They come from the
 submodule, so a fresh clone runs `make submodules` first.
 
-```
+```bash
 gcc -fsyntax-only -std=c11 -Icore/include -Icore/src -Iextern/openzl/include \
     core/src/foo/decode_foo_binding.c
 ```

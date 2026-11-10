@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=18">
+<link rel="stylesheet" href="assets/css/reading.css?v=19">
 </head>
 <body>
 <div class="page">
@@ -87,10 +87,10 @@
       <h2 class="part" id="simd">One instruction, many values</h2>
       <p>A CPU core can process several numbers with one instruction. A <b>vector register</b> has <b>lanes</b> that add, shift or compare values together. This is called <b>SIMD</b>, single instruction, multiple data. ARM chips, including Apple chips, use <b>NEON</b> with 128-bit registers. x86 uses <b>SSE2</b>, 128 bits on every 64-bit chip, and <b>AVX2</b>, 256 bits on most recent chips.</p>
       <p><b>Before.</b> The straightforward decoder handles one value per instruction. The simplest predictor shows it best. delta_n predicts each sample from the one above it, so decoding a row is the row above plus the residuals, one add per sample.</p>
-      <pre><code>for (size_t c = 0; c &lt; w; ++c)
+      <pre><code class="language-c">for (size_t c = 0; c &lt; w; ++c)
   row[c] = res[c] + up[c];   // one sample per add</code></pre>
       <p><b>After.</b> A vector register is one wide register cut into lanes. A 128-bit NEON or SSE2 register holds eight 16-bit samples side by side, and one add instruction adds two such registers lane by lane, eight sums for the price of one. So the decoder loads eight residuals into one register, the eight samples above them into another, adds once, and stores eight finished samples.</p>
-      <pre><code>uint16x8_t r = vld1q_u16(res + c);    // 8 residuals in one register
+      <pre><code class="language-c">uint16x8_t r = vld1q_u16(res + c);    // 8 residuals in one register
 uint16x8_t u = vld1q_u16(up + c);     // the 8 samples above them
 vst1q_u16(row + c, vaddq_u16(r, u));  // one add, 8 finished samples</code></pre>
       <p>This only works because no sample in the row needs the one next to it. Each lane does its own sum and never looks at its neighbour. That is also why we did not write this code for delta_n ourselves. The loop in GeoZL is the plain one above, and the compiler sees that its iterations are independent and turns it into exactly these NEON or SSE2 adds.</p>
@@ -120,7 +120,7 @@ vst1q_u16(row + c, vaddq_u16(r, u));  // one add, 8 finished samples</code></pre
       <h2 class="part" id="planar">Planar, a row at a time</h2>
       <p>Planar predicts every sample as <code>W + N − NW</code>, the left neighbour plus the one above minus the one above left.</p>
       <p><b>Before.</b> Written as it reads, the decoder is a loop in which every sample needs the sample just decoded on its left.</p>
-      <pre><code>for (size_t c = 1; c &lt; w; ++c)
+      <pre><code class="language-c">for (size_t c = 1; c &lt; w; ++c)
   x[c] = x[c - 1] + N[c] - NW[c] + r[c];   // waits for x[c - 1]</code></pre>
       <p>Lanes cannot help here, because lane <code>i</code> would need the result of lane <code><i>i &minus; 1</i></code> from the same instruction.</p>
       <figure class="diagram wide">
@@ -134,14 +134,14 @@ vst1q_u16(row + c, vaddq_u16(r, u));  // one add, 8 finished samples</code></pre
       </figure>
       <p>Without lanes the rearrangement buys nothing. Run one value at a time it is as slow as the loop above, because each sample still puts one add on the chain. It pays off only because it moves everything except the running total into lanes.</p>
       <p>Our first release already decoded planar this way, but in two passes over each row. One pass wrote the row step into the output row, and a second pass ran the prefix sum over it.</p>
-      <pre><code>pre16(d + off, s + off, d + off - w, w);   // row step, written to the row
+      <pre><code class="language-c">pre16(d + off, s + off, d + off - w, w);   // row step, written to the row
 scan16(d + off, d + off, w);               // prefix sum, reads the row back</code></pre>
       <p>Then <a href="https://github.com/asterisk-labs/geozl/commits/main/?since=2026-07-04&amp;until=2026-07-04" rel="noopener noreferrer">we fused the two</a>. The row step is now computed in a register and handed straight to the prefix sum, so each row is read and written once. On the test tile that made planar about 1.6 times faster.</p>
       <p>The other linear predictors are variations on it. delta_w is the same prefix sum without the row above. wp_static reads only finished rows, so it folds its weighted sum of the row above into the residual and closes the row with the same prefix sum as planar.</p>
 
       <h2 class="part" id="scan">A prefix sum inside a register</h2>
       <p><b>Before.</b> A prefix sum written plainly is a running total, one add per sample, and every add waits for the one before it. Eight samples take eight adds in a row, whatever the register width.</p>
-      <pre><code>for (size_t i = 0; i &lt; n; ++i) {
+      <pre><code class="language-c">for (size_t i = 0; i &lt; n; ++i) {
   acc += c[i];   // waits for the previous add
   x[i] = acc;
 }</code></pre>
@@ -161,7 +161,7 @@ scan16(d + off, d + off, w);               // prefix sum, reads the row back</co
         <figcaption>Each lane adds the lane k places to its left, k = 1, 2, 4. Every step joins two blocks already summed, so the block doubles and three steps reach the whole register.</figcaption>
       </figure>
       <p>This is the NEON code, from <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/common/vprefix.h" rel="noopener noreferrer"><code>core/src/common/vprefix.h</code></a>, with the values of the figure above in the comments and the window size in brackets. <code>vextq_u16(zero, x, 7)</code> is <code>x</code> moved one lane to the right with a zero coming in on the left, and <code>vaddq_u16</code> adds two registers lane by lane.</p>
-      <pre><code>const uint16x8_t zero = vdupq_n_u16(0);
+      <pre><code class="language-c">const uint16x8_t zero = vdupq_n_u16(0);
 uint16x8_t x = vld1q_u16(c);              // 11  2  2  2  1  3 -1 -1
 x = vaddq_u16(x, vextq_u16(zero, x, 7));  // 11 13  4  4  3  4  2 -2 (2)
 x = vaddq_u16(x, vextq_u16(zero, x, 6));  // 11 13 15 17  7  8  5  2 (4)
@@ -179,12 +179,12 @@ x = vaddq_u16(x, vextq_u16(zero, x, 4));  // 11 13 15 17 18 21 20 19 (8)</code><
       </figure>
       <p>The own sums of a register depend on nothing outside it, so the CPU can work out those of registers 2, 3 and 4 ahead of time, side by side. Only the carry has to go in order. The carry of register 3 needs the one of register 2, which needs the one of register 1. So the speed of the whole row is set by how long it takes to pass the carry from one register to the next. <a href="https://github.com/asterisk-labs/geozl/commit/850b1d06" rel="noopener noreferrer">We made that step shorter</a>.</p>
       <p><b>Before.</b> The next carry was the last lane of the finished row. The CPU first had to add the old carry, 19, to all eight lanes, which gives 21 to 29, and only then could it copy the last lane, 29, out as the next carry. Two steps one after the other, for every register. This is the NEON loop as it was, from <a href="https://github.com/asterisk-labs/geozl/blob/4a87b561/core/src/common/scan.h#L120-L130" rel="noopener noreferrer"><code>core/src/common/scan.h</code></a>.</p>
-      <pre><code>uint16x8_t x = geozl_vprefix16_neon(vld1q_u16(src + i));
+      <pre><code class="language-c">uint16x8_t x = geozl_vprefix16_neon(vld1q_u16(src + i));
 x = vaddq_u16(x, carry);         // add the carry to every lane
 vst1q_u16(dst + i, x);
 carry = geozl_vlast16_neon(x);   // copy the last lane of the output</code></pre>
       <p><b>After.</b> The next carry is the old carry plus the last of the register's own sums, 19 + 10 = 29. The 10 was ready before the 19 arrived, so when the 19 comes a single add gives the next carry. Adding 19 to the eight lanes to write the row still happens, but off to the side, and nothing waits for it. Back to the bank account, February's closing balance is January's plus February's net, and the statement line by line can be written afterwards. This is the 16-bit NEON version from <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/common/vprefix.h" rel="noopener noreferrer"><code>core/src/common/vprefix.h</code></a>, with comments added. <code>geozl_vprefix16_neon</code> is the three shifts and adds shown above.</p>
-      <pre><code>static inline uint16x8_t geozl_vscan16_neon(uint16x8_t x, uint16x8_t *carry) {
+      <pre><code class="language-c">static inline uint16x8_t geozl_vscan16_neon(uint16x8_t x, uint16x8_t *carry) {
   const uint16x8_t p = geozl_vprefix16_neon(x);
   const uint16x8_t out = vaddq_u16(p, *carry);
   *carry = vaddq_u16(*carry, geozl_vlast16_neon(p));  // old carry + this sum
@@ -203,7 +203,7 @@ carry = geozl_vlast16_neon(x);   // copy the last lane of the output</code></pre
       <h3 id="serial-edges">Edges, in both</h3>
       <p>Both predictors read three neighbours, W on the left, N above and NW above left. On the first row and the first column some of them fall outside the tile and count as zero.</p>
       <p><b>Before.</b> The first decoders tested for the edges of the tile on every sample.</p>
-      <pre><code>W  = (c &gt; 0)          ? d[i - 1]     : 0;
+      <pre><code class="language-c">W  = (c &gt; 0)          ? d[i - 1]     : 0;
 N  = (r &gt; 0)          ? d[i - w]     : 0;
 NW = (r &gt; 0 &amp;&amp; c &gt; 0) ? d[i - w - 1] : 0;</code></pre>
       <p><b>After.</b> The current kernels decode <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/average/decode_average_kernel.c#L25-L39" rel="noopener noreferrer">the first row and the first column in loops of their own</a>, so the interior loop reads its three neighbours with no test at all.</p>
@@ -221,7 +221,7 @@ NW = (r &gt; 0 &amp;&amp; c &gt; 0) ? d[i - w - 1] : 0;</code></pre>
         <img src="assets/svg/cpu/average-before-after.svg?v=1" alt="Before, the serial loop of average computes the whole mean for each sample, half of N, half of W, the shared low bit W and N and 1, and the residual, one sample at a time, although half of N does not need W. After, half of N plus the residual, B, and the low bit of N, L, are computed for every column at once in lanes before the row starts, and the serial loop keeps only the three steps that need W, half of W, W and L, and plus B." loading="lazy">
         <figcaption>Everything that needs only N runs for the whole row at once. The loop keeps what needs W.</figcaption>
       </figure>
-      <pre><code>for (c = 0; c &lt; w; ++c) {        // in lanes, ahead of the row
+      <pre><code class="language-c">for (c = 0; c &lt; w; ++c) {        // in lanes, ahead of the row
   B[c] = res[c] + (up[c] &gt;&gt; 1);
   L[c] = up[c] &amp; 1;
 }
@@ -232,7 +232,7 @@ for (c = 1; c &lt; w; ++c)          // the chain through W
       <h3 id="serial-med">med</h3>
       <p>med guesses each sample as the median of W, N and the planar guess <code>W + N − NW</code>. Picking the middle one of the three lets it follow an edge in the image, where planar would overshoot.</p>
       <p><b>Before.</b> At first med <a href="https://github.com/asterisk-labs/geozl/blob/6c0798b1/core/src/med/decode_med_kernel.c#L11-L33" rel="noopener noreferrer">decoded one row at a time</a> with the median written as a three-way choice.</p>
-      <pre><code>P = (NW &gt;= max(W, N)) ? min(W, N)
+      <pre><code class="language-c">P = (NW &gt;= max(W, N)) ? min(W, N)
   : (NW &lt;= min(W, N)) ? max(W, N)
   : W + N - NW;</code></pre>
       <p>Each sample waits for the previous one, and the core has nothing else to work on while it waits.</p>
@@ -247,7 +247,7 @@ for (c = 1; c &lt; w; ++c)          // the chain through W
       <h2 class="part" id="pfor">PFOR in 16-byte lanes</h2>
       <p>PFOR <a href="https://github.com/asterisk-labs/geozl/commits/main/?since=2026-08-17&amp;until=2026-08-17" rel="noopener noreferrer">arrived in 0.14.0</a> as a lossless codec and <a href="https://github.com/asterisk-labs/geozl/commit/e5bd9694" rel="noopener noreferrer">replaced the older <code>store_lo</code> terminal</a> in our recipes. It packs each block of 256 values at the bit width b that most of them need. <a href="pfor.html">How PFOR works</a> covers the format. Here the only question is how to unpack it fast.</p>
       <p><b>Before.</b> The textbook layout puts the values one after another in one long bit string. With b = 3, value <code>i</code> starts at bit <code>3i</code>, somewhere inside a byte, so every value needs its own position and its own shift, and no two lanes can share one.</p>
-      <pre><code>for (size_t i = 0; i &lt; 256; ++i) {
+      <pre><code class="language-c">for (size_t i = 0; i &lt; 256; ++i) {
   size_t pos = i * b;                                  // where value i starts
   v[i] = (load64(p + pos / 8) &gt;&gt; (pos % 8)) &amp; mask;  // a different shift each time
 }</code></pre>
@@ -314,6 +314,7 @@ for (c = 1; c &lt; w; ++c)          // the chain through W
   </footer>
 </div>
 <script src="assets/js/toc.js" defer></script>
+<script src="assets/js/code.js?v=1" defer></script>
 <script src="assets/js/stepper.js?v=4" defer></script>
 </body>
 </html>

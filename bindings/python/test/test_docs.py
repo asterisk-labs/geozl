@@ -43,7 +43,8 @@ def test_agent_skill_tracks_the_release_and_its_references_resolve():
 
 
 def _sig_lines(body: str, kind: str) -> list[str]:
-    blocks = re.findall(rf'<pre><code class="{kind}">(.*?)</code></pre>', body, re.S)
+    pattern = rf'<pre[^>]*><code class="{kind}(?: [^"]*)?">(.*?)</code></pre>'
+    blocks = re.findall(pattern, body, re.S)
     return [html.unescape(block) for block in blocks]
 
 

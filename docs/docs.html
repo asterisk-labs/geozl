@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=18">
+<link rel="stylesheet" href="assets/css/reading.css?v=19">
 </head>
 <body>
 <div class="page">
@@ -97,7 +97,7 @@
       <p>Each frame stores its graph as a decode recipe. A reader looks up the codecs by CTid. A shipped CTid is never renumbered or reused.</p>
       <p>Graphs can vary between frames. A DEM and a land cover map can use different graphs. They can also vary by band, season or location, including ocean, mountain and city tiles. Frames for a training loop can use a GPU recipe.</p>
       <p>A <b>recipe</b> names the graph in data-flow order. The first code line builds the graph shown above.</p>
-      <pre><code>g = geozl.graph(tile, "planar&gt;zigzag&gt;transpose&gt;entropy", nodata=-32768)
+      <pre><code class="language-python">g = geozl.graph(tile, "planar&gt;zigzag&gt;transpose&gt;entropy", nodata=-32768)
 frame = geozl.compress(tile, graph=g)
 out = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)</code></pre>
       <p><code>nodata=</code> adds the first step, and <code>error=</code> would add a quantizer right after it. <code>decompress</code> returns <b>bytes</b>. The frame stores neither dtype nor shape, so retain both separately. <code>geozl.profile</code> tries candidate recipes on a tile and <b>ranks them</b>.</p>
@@ -138,6 +138,7 @@ out = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)</code></pre>
   </footer>
 </div>
 <script src="assets/js/toc.js" defer></script>
+<script src="assets/js/code.js?v=1" defer></script>
 <script src="assets/js/stepper.js?v=4" defer></script>
 </body>
 </html>

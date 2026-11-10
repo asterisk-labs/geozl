@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=18">
+<link rel="stylesheet" href="assets/css/reading.css?v=19">
 </head>
 <body>
 <div class="page">
@@ -96,12 +96,12 @@
           <tr><th>types</th><td>integers 8 to 64-bit &middot; floats 16 to 64-bit</td></tr>
           <tr><th>decode</th><td>x = q &middot; step, or a copy when the stream holds the reconstruction</td></tr>
         </table>
-        <pre class="algo"><code>// integer input
+        <pre class="algo"><code class="language-pseudo">// integer input
 step = max(1, floor(2 * MAX_ERROR));
 
 q = sign(s) * ((abs(s) + step / 2) / step);   // encode
 o = clamp(q * step);                           // decode</code></pre>
-        <pre><code>error="LINEAR:MAX_ERROR=5"</code></pre>
+        <pre><code class="language-python">error="LINEAR:MAX_ERROR=5"</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/quant_linear" rel="noopener noreferrer">Source in core/src/quant_linear</a></p>
       </section>
       <section class="codec" id="quant_log" data-no="16" data-ctid="0x72D782" data-fam="orange" data-page="codecs/quant-log.html" style="--fam:var(--orange)">
@@ -119,12 +119,12 @@ o = clamp(q * step);                           // decode</code></pre>
           <tr><th>types</th><td>integers 8 to 64-bit &middot; floats 16 to 64-bit</td></tr>
           <tr><th>decode</th><td>one table lookup, or a copy when the stream holds the reconstruction</td></tr>
         </table>
-        <pre class="algo"><code>// float input, A is -24 for f16, -149 for f32, -1074 for f64
+        <pre class="algo"><code class="language-pseudo">// float input, A is -24 for f16, -149 for f32, -1074 for f64
 q = index of the nearest level in log2 space;   // encode
 
 o = q == 0 ? 0                                  // decode
            : sign(q) * exp2(A + (abs(q) - 1) * step);</code></pre>
-        <pre><code>error="LOG:MAX_ERROR=1%"</code></pre>
+        <pre><code class="language-python">error="LOG:MAX_ERROR=1%"</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/quant_log" rel="noopener noreferrer">Source in core/src/quant_log</a></p>
       </section>
       <section class="codec" id="quant_sqrt" data-no="17" data-ctid="0x72D783" data-fam="orange" data-page="codecs/quant-sqrt.html" style="--fam:var(--orange)">
@@ -142,13 +142,13 @@ o = q == 0 ? 0                                  // decode
           <tr><th>types</th><td>integers 8 to 64-bit &middot; floats 16 to 64-bit</td></tr>
           <tr><th>decode</th><td>x = (q &middot; step)&#178; &minus; offset, or a copy when the stream holds the reconstruction</td></tr>
         </table>
-        <pre class="algo"><code>// encode, the nearest level in the original units
+        <pre class="algo"><code class="language-pseudo">// encode, the nearest level in the original units
 t = (s + offset) / (step * step);
 q = t &lt;= 0.25 ? 0 : floor(0.5 + sqrt(t - 0.25));
 
 // decode
 o = (q * step) * (q * step) - offset;</code></pre>
-        <pre><code>error="SQRT:MAX_ERROR=0.5N"</code></pre>
+        <pre><code class="language-python">error="SQRT:MAX_ERROR=0.5N"</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/quant_sqrt" rel="noopener noreferrer">Source in core/src/quant_sqrt</a></p>
       </section>
 
@@ -179,6 +179,7 @@ o = (q * step) * (q * step) - offset;</code></pre>
   </footer>
 </div>
 <script src="assets/js/toc.js" defer></script>
+<script src="assets/js/code.js?v=1" defer></script>
 <script src="assets/js/stepper.js?v=4" defer></script>
 </body>
 </html>

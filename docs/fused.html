@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=18">
+<link rel="stylesheet" href="assets/css/reading.css?v=19">
 </head>
 <body>
 <div class="page">
@@ -98,14 +98,14 @@
           <tr><th>decode</th><td>inverse Zigzag, then planar reconstruction</td></tr>
           <tr><th>next</th><td>a packer or entropy stage, also folded into <a href="#planar_zigzag_pfor">planar_zigzag_pfor</a></td></tr>
         </table>
-        <pre class="algo"><code>// encode
+        <pre class="algo"><code class="language-pseudo">// encode
 r = s - (W + N - NW);
 z = (r &lt;&lt; 1) ^ (r &gt;&gt; (bits - 1));   // zigzag, small signed to small unsigned
 
 // decode
 r = (z &gt;&gt; 1) ^ -(z &amp; 1);
 o = r + W + N - NW;                  // a prefix sum per row, as planar</code></pre>
-        <pre><code>geozl.lossless.PlanarZigzag(width, planes=1)</code></pre>
+        <pre><code class="language-python">geozl.lossless.PlanarZigzag(width, planes=1)</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag" rel="noopener noreferrer">Source in core/src/planar_zigzag</a></p>
       </section>
       <section class="codec" id="planar_zigzag_pfor" data-no="12" data-ctid="0x72D710" data-fam="gold" data-page="codecs/planar-zigzag-pfor.html" style="--fam:var(--gold)">
@@ -122,13 +122,13 @@ o = r + W + N - NW;                  // a prefix sum per row, as planar</code></
           <tr><th>values</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit numeric elements</td></tr>
           <tr><th>geometry</th><td>width = columns<br>planes = contiguous independent rasters</td></tr>
         </table>
-        <pre class="algo"><code>// decode, one block of 256 values at a time
+        <pre class="algo"><code class="language-pseudo">// decode, one block of 256 values at a time
 pfor_unpack(block, z);               // into a 2 KiB scratch buffer
 for (i = 0; i &lt; 256; i++) {
   r = (z[i] &gt;&gt; 1) ^ -(z[i] &amp; 1);
   o = r + W + N - NW;                // straight into the output
 }</code></pre>
-        <pre><code>geozl.lossless.PlanarZigzagPfor(width, planes=1)</code></pre>
+        <pre><code class="language-python">geozl.lossless.PlanarZigzagPfor(width, planes=1)</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag_pfor" rel="noopener noreferrer">Source in core/src/planar_zigzag_pfor</a></p>
       </section>
       <section class="codec" id="planar_zigzag_lanes" data-no="13" data-ctid="0x72D712" data-fam="gold" data-page="codecs/planar-zigzag-lanes.html" style="--fam:var(--gold)">
@@ -146,7 +146,7 @@ for (i = 0; i &lt; 256; i++) {
           <tr><th>lanes</th><td>one per residual byte, PivCo Huffman,<br>or byte PFOR where that is smaller</td></tr>
           <tr><th>geometry</th><td>width = columns<br>planes = contiguous independent rasters</td></tr>
         </table>
-        <pre class="algo"><code>// decode, one lane per byte of the sample
+        <pre class="algo"><code class="language-pseudo">// decode, one lane per byte of the sample
 for (k = 0; k &lt; sizeof(T); k++) decode_lane(k, lane[k]);   // PivCo or PFOR
 for (i = 0; i &lt; n; i++) {
   z = 0;
@@ -154,7 +154,7 @@ for (i = 0; i &lt; n; i++) {
   r = (z &gt;&gt; 1) ^ -(z &amp; 1);
   o = r + W + N - NW;
 }</code></pre>
-        <pre><code>geozl.graph(tile, "planar&gt;zigzag&gt;lanes")</code></pre>
+        <pre><code class="language-python">geozl.graph(tile, "planar&gt;zigzag&gt;lanes")</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag_lanes" rel="noopener noreferrer">Source in core/src/planar_zigzag_lanes</a></p>
       </section>
       <section class="codec" id="med_zigzag" data-no="14" data-ctid="0x72D711" data-fam="gold" data-page="codecs/med-zigzag.html" style="--fam:var(--gold)">
@@ -172,14 +172,14 @@ for (i = 0; i &lt; n; i++) {
           <tr><th>decode</th><td>inverse Zigzag folded into the MED reconstruction</td></tr>
           <tr><th>next</th><td>an entropy stage, usually after a byte transpose</td></tr>
         </table>
-        <pre class="algo"><code>// encode
+        <pre class="algo"><code class="language-pseudo">// encode
 r = s - med(W, N, NW);
 z = (r &lt;&lt; 1) ^ (r &gt;&gt; (bits - 1));
 
 // decode, one sample at a time along each row
 r = (z &gt;&gt; 1) ^ -(z &amp; 1);
 o = r + med(W, N, NW);</code></pre>
-        <pre><code>geozl.lossless.MedZigzag(width, planes=1)</code></pre>
+        <pre><code class="language-python">geozl.lossless.MedZigzag(width, planes=1)</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/med_zigzag" rel="noopener noreferrer">Source in core/src/med_zigzag</a></p>
       </section>
 
@@ -211,6 +211,7 @@ o = r + med(W, N, NW);</code></pre>
   </footer>
 </div>
 <script src="assets/js/toc.js" defer></script>
+<script src="assets/js/code.js?v=1" defer></script>
 <script src="assets/js/stepper.js?v=4" defer></script>
 </body>
 </html>

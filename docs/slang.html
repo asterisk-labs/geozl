@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=18">
+<link rel="stylesheet" href="assets/css/reading.css?v=19">
 </head>
 <body>
 <div class="page">
@@ -92,7 +92,7 @@
       <h2 class="part" id="slang">What Slang is</h2>
       <p><a href="https://shader-slang.org" rel="noopener noreferrer">Slang</a> is an open-source shading language, developed at NVIDIA and now hosted by Khronos. Its syntax is close to HLSL, and a single compiler, <code>slangc</code>, emits code for many targets, including Metal source, CUDA through PTX, SPIR-V for Vulkan and WGSL for WebGPU.</p>
       <p>What matters most for GeoZL is that Slang has portable wave operations, a prefix sum, a sum, an OR and a read from another thread. Here is the inner step of the PivCo merge from <a href="https://github.com/asterisk-labs/geozl/blob/main/gpu/kernels/stages/pivco.slang#L130-L135" rel="noopener noreferrer"><code>pivco.slang</code></a>, with comments added.</p>
-      <pre><code>uint ones = countbits(bits);                    // 1s in my byte
+      <pre><code class="language-slang">uint ones = countbits(bits);                    // 1s in my byte
 uint onesBefore = carry + WavePrefixSum(ones);  // 1s before me
 uint zerosBefore = p0 - onesBefore;
 merge_byte(bits, p0, count, leftCount, onesBefore, zerosBefore,
@@ -121,7 +121,7 @@ carry += WaveActiveSum(ones);                   // 1s in the step</code></pre>
 
       <h2 class="part" id="build">Compiling a module for each target</h2>
       <p><a href="https://github.com/asterisk-labs/geozl/blob/main/tools/build_gpu_modules.py" rel="noopener noreferrer"><code>tools/build_gpu_modules.py</code></a> builds every module of one target into a directory, normally <a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/gpu/modules" rel="noopener noreferrer"><code>core/src/gpu/modules</code></a>. These two lines rebuild both targets we ship.</p>
-      <pre><code>python3 tools/build_gpu_modules.py slangc metal core/src/gpu/modules
+      <pre><code class="language-sh">python3 tools/build_gpu_modules.py slangc metal core/src/gpu/modules
 python3 tools/build_gpu_modules.py slangc ptx core/src/gpu/modules</code></pre>
       <p>It first <a href="https://github.com/asterisk-labs/geozl/blob/main/tools/build_gpu_modules.py#L102-L106" rel="noopener noreferrer">checks that slangc reports version 2026.19</a>, because another compiler would write different modules. Then, for each program and width, it <a href="https://github.com/asterisk-labs/geozl/blob/main/tools/build_gpu_modules.py#L109-L123" rel="noopener noreferrer">runs slangc</a> with every entry point of the program, the target, <code>ELT_BYTES</code> set to the width, and <code>-line-directive-mode none</code> so no file path ends up in the output.</p>
       <p><b>Without a check.</b> The host hands buffers to a kernel by index, and Slang numbers them in the order a program declares them. Swap two declarations and the kernel reads one buffer as another, with no error at all.</p>
@@ -205,6 +205,7 @@ python3 tools/build_gpu_modules.py slangc ptx core/src/gpu/modules</code></pre>
   </footer>
 </div>
 <script src="assets/js/toc.js" defer></script>
+<script src="assets/js/code.js?v=1" defer></script>
 <script src="assets/js/stepper.js?v=4" defer></script>
 </body>
 </html>

@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=18">
+<link rel="stylesheet" href="assets/css/reading.css?v=19">
 </head>
 <body>
 <div class="page">
@@ -83,9 +83,9 @@
       <p>The JavaScript package is GeoZL built as a WebAssembly ES module. It compresses and decompresses raw bytes in one call each and writes the same frames as the other bindings.</p>
 
       <h2 class="part" id="install">Install</h2>
-<pre><code>npm install @asterisk-labs/geozl</code></pre>
+<pre><code class="language-sh">npm install @asterisk-labs/geozl</code></pre>
       <p>It needs a runtime with WebAssembly Memory64, such as Node.js 24 or newer. A browser deployment serves <code>geozl.js</code> and <code>geozl.wasm</code> together, or passes <code>wasmUrl</code> to <code>createGeoZL</code> when they live apart. TypeScript declarations ship in <code>geozl_api.d.ts</code>.</p>
-<pre><code>import {createGeoZL, DType} from '@asterisk-labs/geozl';
+<pre><code class="language-ts">import {createGeoZL, DType} from '@asterisk-labs/geozl';
 
 const tile = new Uint16Array(256 * 256);
 for (let i = 0; i &lt; tile.length; i++) {
@@ -104,7 +104,7 @@ const back = new Uint16Array(
       <p>Every call throws an <code>Error</code> on failure. When the library refuses a recipe, tile or frame, the error carries the <a href="https://github.com/facebook/openzl" rel="noopener noreferrer">OpenZL</a> error code as <code>code</code>.</p>
 
       <h3 id="createGeoZL">createGeoZL</h3>
-<pre><code class="sig">createGeoZL(options?: GeoZLOptions): Promise&lt;GeoZL&gt;</code></pre>
+<pre><code class="sig language-ts">createGeoZL(options?: GeoZLOptions): Promise&lt;GeoZL&gt;</code></pre>
       <p>Loads the WebAssembly module and resolves to an object with <code>compress</code> and <code>decompress</code>. Each call to <code>createGeoZL</code> loads its own module.</p>
       <table class="spec">
         <tr><th>wasmUrl</th><td>Where to fetch <code>geozl.wasm</code>. Defaults to the file beside <code>geozl_api.js</code>.</td></tr>
@@ -113,7 +113,7 @@ const back = new Uint16Array(
       </table>
 
       <h3 id="compress">compress</h3>
-<pre><code class="sig">geozl.compress(data: Uint8Array, options: CompressOptions): Uint8Array</code></pre>
+<pre><code class="sig language-ts">geozl.compress(data: Uint8Array, options: CompressOptions): Uint8Array</code></pre>
       <p>Builds the graph for a recipe and compresses <code>data</code> with it in one call, as <a href="api-c.html#c-2d"><code>geozl_2d_compress_c</code></a> does. <code>data</code> holds little-endian samples of <code>dtype</code>, and its length must be a nonzero multiple of the sample width that splits into whole rows.</p>
       <table class="spec">
         <tr><th>method</th><td>A recipe such as <code>"planar&gt;zigzag&gt;pfor"</code>. <a href="api-python.html#graph">Python's <code>graph</code></a> lists them all.</td></tr>
@@ -124,22 +124,22 @@ const back = new Uint16Array(
         <tr><th>nodataMode</th><td>A <a href="#constants"><code>NoData</code></a> value. <code>NONE</code> by default, which does not look for NaN. Only <code>NAN</code> keeps NaN under a lossy <code>error</code>.</td></tr>
         <tr><th>nodataBits</th><td>The sentinel's bit pattern at the sample width, a number or bigint, read in <code>VALUE</code> mode. For an int16 sentinel of -9999 pass <code>0xD8F1</code>.</td></tr>
       </table>
-<pre><code>const lossy = geozl.compress(bytes, {
+<pre><code class="language-ts">const lossy = geozl.compress(bytes, {
   method: 'planar&gt;zigzag&gt;pfor', width: 256, dtype: DType.U16,
   error: 'LINEAR:MAX_ERROR=2',
 });</code></pre>
 
       <h3 id="decompress">decompress</h3>
-<pre><code class="sig">geozl.decompress(frame: Uint8Array, options?: DecompressOptions): Uint8Array</code></pre>
+<pre><code class="sig language-ts">geozl.decompress(frame: Uint8Array, options?: DecompressOptions): Uint8Array</code></pre>
       <p>Decodes a non-empty frame into its raw bytes. The frame stores no dtype or shape, so view the bytes with the typed array they were written from.</p>
       <table class="spec">
         <tr><th>verify</th><td>Check the frame checksums. Defaults to <code>true</code>.</td></tr>
         <tr><th>maxOutputSize</th><td>Refuse a frame that declares more output bytes than this. Set it for untrusted frames.</td></tr>
       </table>
-<pre><code>const samples = new Uint16Array(geozl.decompress(lossy).buffer);</code></pre>
+<pre><code class="language-ts">const samples = new Uint16Array(geozl.decompress(lossy).buffer);</code></pre>
 
       <h3 id="constants">DType and NoData</h3>
-<pre><code class="sig">DType   {U8, U16, U32, U64, I8, I16, I32, I64, F16, F32, F64}
+<pre><code class="sig language-ts">DType   {U8, U16, U32, U64, I8, I16, I32, I64, F16, F32, F64}
 NoData  {NONE, NAN, VALUE}</code></pre>
       <p>Frozen objects of the codes the C library takes. <code>DType</code> runs from 0 for <code>U8</code> to 10 for <code>F64</code>, the <code>geozl_dtype</code> codes of the <a href="api-c.html#types">C API</a>.</p>
 
@@ -177,5 +177,6 @@ NoData  {NONE, NAN, VALUE}</code></pre>
   </footer>
 </div>
 <script src="assets/js/toc.js" defer></script>
+<script src="assets/js/code.js?v=1" defer></script>
 </body>
 </html>

@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=18">
+<link rel="stylesheet" href="assets/css/reading.css?v=19">
 </head>
 <body>
 <div class="page">
@@ -83,12 +83,12 @@
       <p>The R package has the graph, compress, decompress and profile calls of the Python package and writes the same frames. It works on the double, integer and raw vectors that terra and stars hold.</p>
 
       <h2 class="part" id="install">Install</h2>
-<pre><code>install.packages("geozl", repos = "https://asterisk-labs.r-universe.dev")
+<pre><code class="language-r">install.packages("geozl", repos = "https://asterisk-labs.r-universe.dev")
 
 # or from GitHub
 remotes::install_github("asterisk-labs/geozl", subdir = "bindings/r")</code></pre>
       <p>A source install compiles GeoZL and <a href="https://github.com/facebook/openzl" rel="noopener noreferrer">OpenZL</a> with their own CMake files, so it needs CMake 3.21 or newer and C11 and C++17 compilers. webR is not supported, because it runs on wasm32.</p>
-<pre><code>library(geozl)
+<pre><code class="language-r">library(geozl)
 
 tile &lt;- outer(1:256, 1:256, function(x, y) 1000 + 3 * (x - 1) + 2 * (y - 1))
 
@@ -102,7 +102,7 @@ identical(back, tile)                        # TRUE</code></pre>
       <p>Every exported function is below. Bad arguments and a frame or recipe the library refuses stop with an R error.</p>
 
       <h3 id="geozl_profile">geozl_profile</h3>
-<pre><code class="sig">geozl_profile(x, prior = "planar", width = NULL, planes = NULL,
+<pre><code class="sig language-r">geozl_profile(x, prior = "planar", width = NULL, planes = NULL,
     error = NULL, reps = 5L, nodata = NULL, datatype = NULL,
     verify = FALSE)</code></pre>
       <p>Compresses and decompresses <code>x</code> with every recipe the prior allows and ranks them by compression ratio. Recipes that do not apply to the input are left out.</p>
@@ -113,11 +113,11 @@ identical(back, tile)                        # TRUE</code></pre>
         <tr><th>others</th><td>As in <a href="#geozl_graph"><code>geozl_graph</code></a>.</td></tr>
       </table>
       <p>Returns a <code>geozl_profile</code> data frame, best ratio first, with the columns <code>graph</code>, <code>bytes</code>, <code>ratio</code>, <code>encode_mbps</code>, <code>decode_mbps</code> and <code>shannon_pct</code>. <code>print</code> shows the input and settings above the table.</p>
-<pre><code>rows &lt;- geozl_profile(tile, prior = NULL, datatype = "uint16", reps = 1)
+<pre><code class="language-r">rows &lt;- geozl_profile(tile, prior = NULL, datatype = "uint16", reps = 1)
 rows$graph[[1]]                              # "med&gt;zigzag&gt;zstd"</code></pre>
 
       <h3 id="geozl_graph">geozl_graph</h3>
-<pre><code class="sig">geozl_graph(x, method, width = NULL, planes = NULL, error = NULL,
+<pre><code class="sig language-r">geozl_graph(x, method, width = NULL, planes = NULL, error = NULL,
     nodata = NULL, datatype = NULL)</code></pre>
       <p>Builds a reusable graph for one recipe. The graph fixes the recipe, the storage type and the geometry of every tile compressed with it.</p>
       <table class="spec">
@@ -131,20 +131,20 @@ rows$graph[[1]]                              # "med&gt;zigzag&gt;zstd"</code></p
       </table>
       <p>Returns a <code>geozl_graph</code> with the fields <code>method</code>, <code>width</code>, <code>planes</code>, <code>datatype</code>, <code>error</code> and <code>nodata</code>. It wraps native state, so it is not thread safe and does not survive saving and reloading.</p>
       <p>Samples are converted to <code>datatype</code> first. Integer types refuse values that are not whole or do not fit, and float types round to nearest. A raw vector is taken as native samples of <code>datatype</code> already.</p>
-<pre><code>g &lt;- geozl_graph(tile, "planar&gt;zigzag&gt;pfor", error = 2, datatype = "uint16")
+<pre><code class="language-r">g &lt;- geozl_graph(tile, "planar&gt;zigzag&gt;pfor", error = 2, datatype = "uint16")
 g$error                                      # "LINEAR:MAX_ERROR=2"</code></pre>
 
       <h3 id="geozl_compress">geozl_compress</h3>
-<pre><code class="sig">geozl_compress(x, graph, coeffs = NULL)</code></pre>
+<pre><code class="sig language-r">geozl_compress(x, graph, coeffs = NULL)</code></pre>
       <p>Compresses one tile with a graph and returns the frame as a raw vector. <code>x</code> is converted to the graph's datatype, and its geometry is not checked against the graph.</p>
       <table class="spec">
         <tr><th>graph</th><td>A graph from <code>geozl_graph</code>.</td></tr>
         <tr><th>coeffs</th><td>A list of integer vectors stored in the frame header, read back with <a href="#geozl_coeffs"><code>geozl_coeffs</code></a>. GeoZL gives them no meaning.</td></tr>
       </table>
-<pre><code>frame &lt;- geozl_compress(tile, g, coeffs = list(c(1L, 2L, 3L), 4L))</code></pre>
+<pre><code class="language-r">frame &lt;- geozl_compress(tile, g, coeffs = list(c(1L, 2L, 3L), 4L))</code></pre>
 
       <h3 id="geozl_decompress">geozl_decompress</h3>
-<pre><code class="sig">geozl_decompress(frame, datatype = NULL, dim = NULL, as = NULL,
+<pre><code class="sig language-r">geozl_decompress(frame, datatype = NULL, dim = NULL, as = NULL,
     nodata = NULL, verify = TRUE, max_output_size = NULL)</code></pre>
       <p>Decodes a frame. The frame stores no datatype or shape, so pass the ones it was written with.</p>
       <table class="spec">
@@ -155,12 +155,12 @@ g$error                                      # "LINEAR:MAX_ERROR=2"</code></pre>
         <tr><th>verify</th><td>Check the frame checksums.</td></tr>
         <tr><th>max_output_size</th><td>Refuse a frame that declares more output bytes than this. Set it for untrusted frames.</td></tr>
       </table>
-<pre><code>back &lt;- geozl_decompress(frame, "uint16", dim = dim(tile), as = "integer")</code></pre>
+<pre><code class="language-r">back &lt;- geozl_decompress(frame, "uint16", dim = dim(tile), as = "integer")</code></pre>
 
       <h3 id="geozl_coeffs">geozl_coeffs</h3>
-<pre><code class="sig">geozl_coeffs(frame)</code></pre>
+<pre><code class="sig language-r">geozl_coeffs(frame)</code></pre>
       <p>Returns the coefficient vectors stored by <code>geozl_compress</code> as a list of integer vectors, or <code>NULL</code> when the frame has none. Only the frame header is read.</p>
-<pre><code>geozl_coeffs(frame)                          # list(c(1L, 2L, 3L), 4L)</code></pre>
+<pre><code class="language-r">geozl_coeffs(frame)                          # list(c(1L, 2L, 3L), 4L)</code></pre>
 
       <h2 class="part" id="rasters">Rasters</h2>
       <p>The fastest-varying dimension is the row. An array shaped <code>(x, y)</code> or <code>(x, y, band)</code>, as stars holds a raster, gives the same frame as Python does for <code>(y, x)</code> or <code>(band, y, x)</code>.</p>
@@ -203,5 +203,6 @@ g$error                                      # "LINEAR:MAX_ERROR=2"</code></pre>
   </footer>
 </div>
 <script src="assets/js/toc.js" defer></script>
+<script src="assets/js/code.js?v=1" defer></script>
 </body>
 </html>

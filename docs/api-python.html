@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=18">
+<link rel="stylesheet" href="assets/css/reading.css?v=19">
 </head>
 <body>
 <div class="page">
@@ -80,14 +80,14 @@
           <li><a href="api-gpu.html">GPU decoding</a></li>
         </ol>
       </aside>
-<pre><code>pip install geozl</code></pre>
+<pre><code class="language-sh">pip install geozl</code></pre>
       <p>The top-level calls need only NumPy. <code>geozl.lossless</code> and <code>geozl.lossy</code> also need the <code>openzl</code> package. On other platforms a source install builds the native library first.</p>
 
       <h2 class="part" id="geozl">geozl</h2>
       <p>Everything below is in <code>geozl.__all__</code>. Arrays go in as NumPy arrays or anything <code>np.ascontiguousarray</code> accepts, in native byte order, at 1, 2, 4 or 8 bytes per sample.</p>
 
       <h3 id="profile">profile</h3>
-<pre><code class="sig">geozl.profile(tile, *, prior='planar', width=None, planes=None, error=None,
+<pre><code class="sig language-python">geozl.profile(tile, *, prior='planar', width=None, planes=None, error=None,
     reps=5, nodata=None, verify=False) -&gt; ProfileResults</code></pre>
       <p>Compresses and decompresses <code>tile</code> with every candidate recipe and returns one row per recipe, sorted by compression ratio. Timing runs in C and keeps the fastest of <code>reps</code> round trips.</p>
       <table class="spec">
@@ -103,7 +103,7 @@
       <p>Raises <code>ValueError</code> for <code>reps</code> below 1, an unknown prior, a bad error budget or geometry, and a dtype that is not native byte order or not 1, 2, 4 or 8 bytes. Raises <code>RuntimeError</code> when every recipe fails.</p>
 
       <h3 id="graph">graph</h3>
-<pre><code class="sig">geozl.graph(raster, method, *, width=None, planes=None, error=None,
+<pre><code class="sig language-python">geozl.graph(raster, method, *, width=None, planes=None, error=None,
     nodata=None) -&gt; Graph</code></pre>
       <p>Builds a reusable compression graph for one recipe. The graph owns its compression context and is not thread safe, so use one per thread.</p>
       <table class="spec">
@@ -115,11 +115,11 @@
       </table>
       <p>Returns a <a href="#graph-class"><code>Graph</code></a>.</p>
       <p>Raises <code>ValueError</code> for an empty method, a bad budget, geometry or dtype, a lossy budget on a dtype the quantizers lack, such as complex, and a sentinel on <code>float16</code>. Raises <code>RuntimeError</code> when the C library refuses the recipe, such as an unknown method, a terminal that does not take the sample width, or a bound finer than the dtype resolves.</p>
-<pre><code>g = geozl.graph(tile, "planar&gt;zigzag&gt;pfor", error=2)
+<pre><code class="language-python">g = geozl.graph(tile, "planar&gt;zigzag&gt;pfor", error=2)
 g.error                                     # 'LINEAR:MAX_ERROR=2'</code></pre>
 
       <h3 id="compress">compress</h3>
-<pre><code class="sig">geozl.compress(tile, *, graph, coeffs=None) -&gt; bytes</code></pre>
+<pre><code class="sig language-python">geozl.compress(tile, *, graph, coeffs=None) -&gt; bytes</code></pre>
       <p>Compresses one tile with a prepared graph and returns the frame. The dtype must equal the graph's. The geometry is not checked against the graph.</p>
       <table class="spec">
         <tr><th>graph</th><td>A <code>Graph</code> from <code>geozl.graph</code>.</td></tr>
@@ -129,7 +129,7 @@ g.error                                     # 'LINEAR:MAX_ERROR=2'</code></pre>
       <p>That check refuses a negative sample where the raster had none, a floating-point sample whose magnitude exceeds the raster's largest magnitude under <code>LINEAR</code>, and a finite value outside the raster's range under <code>SQRT</code>. Integer <code>LINEAR</code> and every <code>LOG</code> grid span the whole dtype, so only the sign is checked there. NaN and infinity are not checked, apart from <code>LOG</code> refusing <code>-inf</code> on a graph built without negatives.</p>
 
       <h3 id="decompress">decompress</h3>
-<pre><code class="sig">geozl.decompress(frame, *, verify=True, max_output_size=None) -&gt; ndarray</code></pre>
+<pre><code class="sig language-python">geozl.decompress(frame, *, verify=True, max_output_size=None) -&gt; ndarray</code></pre>
       <p>Decodes a frame into a flat, 8-byte aligned <code>uint8</code> array. The frame stores no dtype or shape, so restore them with <code>.view(dtype).reshape(shape)</code>.</p>
       <table class="spec">
         <tr><th>verify</th><td>Check the frame checksums. Set <code>False</code> to skip them.</td></tr>
@@ -138,10 +138,10 @@ g.error                                     # 'LINEAR:MAX_ERROR=2'</code></pre>
       <p>Raises <code>ValueError</code> when <code>max_output_size</code> is negative, not finite or below the declared size. Raises <code>RuntimeError</code> for an unreadable or corrupt frame.</p>
 
       <h3 id="coeffs">coeffs</h3>
-<pre><code class="sig">geozl.coeffs(frame) -&gt; tuple[tuple[int, ...], ...] | None</code></pre>
+<pre><code class="sig language-python">geozl.coeffs(frame) -&gt; tuple[tuple[int, ...], ...] | None</code></pre>
       <p>Returns the coefficient vectors stored by <code>compress</code>, or <code>None</code> when the frame has none. Only the frame header is read.</p>
       <p>Raises <code>RuntimeError</code> for an unreadable frame or one older than OpenZL format 22.</p>
-<pre><code>frame = geozl.compress(tile, graph=g, coeffs=[[1, 2, 3], [4]])
+<pre><code class="language-python">frame = geozl.compress(tile, graph=g, coeffs=[[1, 2, 3], [4]])
 geozl.coeffs(frame)                         # ((1, 2, 3), (4,))</code></pre>
 
       <h3 id="error">Error budgets</h3>
@@ -163,11 +163,11 @@ geozl.coeffs(frame)                         # ((1, 2, 3), (4,))</code></pre>
       <p>It is a list of profile rows that also keeps the input and settings as the attributes <code>shape</code>, <code>dtype</code>, <code>raw_bytes</code>, <code>width</code>, <code>planes</code>, <code>prior</code>, <code>reps</code> and <code>error</code>. <code>print(rows)</code> shows them above the table.</p>
 
       <h3 id="simd_info">simd_info</h3>
-<pre><code class="sig">geozl.simd_info() -&gt; SimdInfo</code></pre>
+<pre><code class="sig language-python">geozl.simd_info() -&gt; SimdInfo</code></pre>
       <p>Returns a dict with the SIMD paths compiled in (<code>built</code>), those the CPU supports (<code>cpu</code>) and the one in use (<code>active</code>). The names are <code>scalar</code>, <code>sse2</code>, <code>avx2</code> and <code>neon</code>. Set <code>GEOZL_SIMD</code> to one of them before import to cap the active path.</p>
 
       <h3 id="register_decoders">register_decoders</h3>
-<pre><code class="sig">geozl.register_decoders(dctx) -&gt; None</code></pre>
+<pre><code class="sig language-python">geozl.register_decoders(dctx) -&gt; None</code></pre>
       <p>Registers the decoders of the low-level codec classes in an <code>openzl.ext.DCtx</code>, the six predictors, <code>planar_zigzag</code>, <code>med_zigzag</code>, <code>planar_zigzag_pfor</code>, <code>deinterleave</code>, <code>nodata</code>, <code>pfor</code> and the three quantizers. <code>lanes</code> and <code>planar_zigzag_lanes</code> exist only in C and are not registered, so decode frames that use them with <code>geozl.decompress</code>. Raises <code>ModuleNotFoundError</code> when the <code>openzl</code> package is missing.</p>
 
       <h3 id="version">__version__</h3>
@@ -175,7 +175,7 @@ geozl.coeffs(frame)                         # ((1, 2, 3), (4,))</code></pre>
 
       <h2 class="part" id="lossless">geozl.lossless</h2>
       <p>The lossless codecs as <code>openzl.ext</code> nodes, for graphs the recipe grid does not cover. The module needs the <code>openzl</code> package. Where OpenZL publishes no wheel, <code>geozl.lossless</code> and <code>geozl.lossy</code> are absent from <code>geozl</code> and the calls above still work.</p>
-<pre><code class="sig">geozl.lossless.DeltaW(width)
+<pre><code class="sig language-python">geozl.lossless.DeltaW(width)
 geozl.lossless.DeltaN(width, planes=1)
 geozl.lossless.Planar(width, planes=1)
 geozl.lossless.PlanarZigzag(width, planes=1)
@@ -193,10 +193,10 @@ geozl.lossless.Pfor()</code></pre>
         <tr><th>Nodata</th><td>Splits holes into a validity mask and fills them. Pass <code>value</code> and <code>dtype</code> together for a sentinel, or neither to mask NaNs. <code>radius</code> is the largest error of later stages, 0 for a lossless graph.</td></tr>
         <tr><th>WpStatic</th><td>Fits four weights and a shift per stream, shared by all planes.</td></tr>
       </table>
-<pre><code class="sig">geozl.lossless.component_dtype(dtype)
+<pre><code class="sig language-python">geozl.lossless.component_dtype(dtype)
 geozl.lossless.nodata_bits(value, dtype) -&gt; int</code></pre>
       <p><code>component_dtype</code> returns the real dtype of a complex dtype, <code>float32</code> for <code>complex64</code>. <code>nodata_bits</code> returns a sentinel's bit pattern as an unsigned integer, the form <code>Nodata</code> stores.</p>
-<pre><code class="sig">geozl.lossless.pfor_bound(nb_elts, elt_width)
+<pre><code class="sig language-python">geozl.lossless.pfor_bound(nb_elts, elt_width)
 geozl.lossless.pfor_encode(values)
 geozl.lossless.pfor_decode(packed, nb_elts, dtype)
 geozl.lossless.planar_zigzag_pfor_bound(nb_elts, elt_width)
@@ -205,7 +205,7 @@ geozl.lossless.planar_zigzag_pfor_decode(packed, nb_elts, dtype, width,
     planes=1)</code></pre>
       <p>Encode and decode the raw payload of <code>Pfor</code> and <code>PlanarZigzagPfor</code>, the bytes inside the frame without the OpenZL frame around them. The GPU decoder expands this payload, so these help test another reader against it.</p>
       <p>The <code>bound</code> functions return the worst case payload size, or 0 for a refused geometry. The <code>encode</code> functions raise <code>ValueError</code> for a refused geometry and the <code>decode</code> functions for a corrupt stream.</p>
-<pre><code>import numpy as np
+<pre><code class="language-python">import numpy as np
 import openzl.ext as zl
 import geozl
 
@@ -226,17 +226,17 @@ back = dctx.decompress(frame)[0].content.as_nparray().view(np.uint16)
 assert np.array_equal(back.reshape(tile.shape), tile)</code></pre>
 
       <h2 class="part" id="lossy">geozl.lossy</h2>
-<pre><code class="sig">geozl.lossy.QuantLinear(recipe, dtype)
+<pre><code class="sig language-python">geozl.lossy.QuantLinear(recipe, dtype)
 geozl.lossy.QuantLog(recipe, dtype)
 geozl.lossy.QuantSqrt(recipe, dtype)</code></pre>
       <p>The three quantizers as nodes, called like the lossless ones. <code>recipe</code> is a full recipe string such as <code>"LINEAR:MAX_ERROR=0.5"</code>. The grid is resolved from each stream they encode, so there is no shared domain or cross-tile check as in <code>geozl.graph</code>. A <code>QuantSqrt</code> recipe must carry <code>A=</code> and <code>B=</code>, since a node cannot fit them.</p>
       <p>The compression context must disable the content checksum with <code>cctx.set_parameter(zl.CParam.ContentChecksum, 2)</code>, and without it <code>cctx.compress</code> raises <code>RuntimeError</code>. The constructors raise <code>ValueError</code> for a recipe they cannot parse, a <code>QuantSqrt</code> recipe without <code>A=</code> and <code>B=</code>, or a dtype without a kernel. The decoders are <code>QuantLinearDecoder</code>, <code>QuantLogDecoder</code> and <code>QuantSqrtDecoder</code>.</p>
-<pre><code class="sig">geozl.lossy.fit_noise(data)
+<pre><code class="sig language-python">geozl.lossy.fit_noise(data)
 geozl.lossy.Noise(a, b, blocks, bins, range, colin, resid)
 geozl.lossy.Noise.recipe(max_error)</code></pre>
       <p><code>fit_noise</code> fits <code>variance = a + b x</code> to a 2d raster, an <code>(N, H, W)</code> stack or a sequence of 2d rasters of one dtype, and returns a frozen <code>Noise</code>. The other fields are fit diagnostics. <code>Noise.recipe(k)</code> returns the SQRT recipe for a bound of <code>k</code> sigmas with the fitted curve, so one grid serves every tile.</p>
       <p><code>fit_noise</code> raises <code>ValueError</code> for the wrong dimensions, mixed dtypes or a side under 10 samples, and <code>RuntimeError</code> when the data supports no fit, such as a constant raster. <code>recipe</code> raises <code>ValueError</code> for a bound that is not positive.</p>
-<pre><code>rng = np.random.default_rng(0)
+<pre><code class="language-python">rng = np.random.default_rng(0)
 counts = rng.poisson(100, (256, 256)).astype(np.uint16)
 noise = geozl.lossy.fit_noise(counts)
 g = geozl.graph(counts, "planar&gt;zigzag&gt;pfor", error=noise.recipe(2))</code></pre>
@@ -279,5 +279,6 @@ g = geozl.graph(counts, "planar&gt;zigzag&gt;pfor", error=noise.recipe(2))</code
   </footer>
 </div>
 <script src="assets/js/toc.js" defer></script>
+<script src="assets/js/code.js?v=1" defer></script>
 </body>
 </html>

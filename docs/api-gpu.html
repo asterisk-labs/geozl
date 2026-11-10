@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=18">
+<link rel="stylesheet" href="assets/css/reading.css?v=19">
 </head>
 <body>
 <div class="page">
@@ -90,7 +90,7 @@
 
       <h2 class="part" id="decoder">A decoder you make once</h2>
       <p>Create one <code>GeozlGpu</code> and reuse it across batches. It holds the device, the kernels it has loaded, host staging that the GPU reads directly, and a small cache of device scratch. Creation opens the device and loads the small <code>place</code> kernel, so a missing driver fails before training starts. The PFOR and PivCo kernels load the first time a batch needs them.</p>
-      <pre><code>char error[512];
+      <pre><code class="language-c">char error[512];
 // deviceType and deviceId come from the tensor's DLPack device
 GeozlGpu *gpu = geozl_gpu_create(deviceType, deviceId, 4, 64 &lt;&lt; 20, 1,
                                  error, sizeof error);
@@ -106,14 +106,14 @@ if (gpu == NULL) {
       <h2 class="part" id="call">Frames, copies and the target</h2>
       <p>A call takes frames, copies and a target buffer.</p>
       <p>A <code>GeozlGpuFrame</code> is the compressed bytes plus the exact number of bytes the frame decodes to. Caller metadata supplies the decoded byte count before payload parsing. Each of our tiles decodes to 256 times 256 samples of 2 bytes.</p>
-      <pre><code>enum { TILES = 4, TILE = 256, WINDOW = 128, SAMPLE = 2 };
+      <pre><code class="language-c">enum { TILES = 4, TILE = 256, WINDOW = 128, SAMPLE = 2 };
 
 GeozlGpuFrame frames[TILES];
 for (size_t i = 0; i &lt; TILES; ++i)
   frames[i] = (GeozlGpuFrame){data[i], size[i], TILE * TILE * SAMPLE};</code></pre>
       <p>Copies select windows and place them in the target. A <code>GeozlGpuCopy</code> copies a window of <code>rows</code> × <code>width</code> samples from one decoded frame into the target. Every offset and stride is in bytes and must be a multiple of the sample size. On each side there is a starting offset, a row stride, and a step between the samples of one row.</p>
       <p>The first sample is at row 64, column 32 of a 256-sample row. Its byte offset is <code>(64 * 256 + 32) * 2 = 32832</code>. A tile row is <code>256 * 2 = 512</code> bytes, and neighbouring samples are 2 bytes apart. On the target side, window i starts after i earlier windows of <code>128 * 128 * 2 = 32768</code> bytes each, and a window row is <code>128 * 2 = 256</code> bytes.</p>
-      <pre><code>GeozlGpuCopy copies[TILES];
+      <pre><code class="language-c">GeozlGpuCopy copies[TILES];
 for (size_t i = 0; i &lt; TILES; ++i)
   copies[i] = (GeozlGpuCopy){
       .frame = i,
@@ -131,7 +131,7 @@ for (size_t i = 0; i &lt; TILES; ++i)
       <p>Here, both step fields equal the sample size, but they also support other layouts. Suppose instead that our four frames were four bands of the same 128 by 128 window and the model wanted them interleaved, channels last. Band b starts at <code>destination = b * 2</code>. Its <code>destinationStep = 4 * 2 = 8</code> bytes, and <code>destinationRow = 128 * 8 = 1024</code> bytes. Nothing else changes. The same fields can also place tiles side by side in a larger mosaic, or take only every other column.</p>
       <p>Copies must not overlap in the target. No two copies in a call may write the same target sample. Copies run in parallel on the device, so overlapping writes would have no defined winner. The decoder does not check for overlap, so keeping copies apart is up to the caller, as <a href="https://github.com/asterisk-labs/geozl/blob/main/core/include/geozl/gpu.h#L27-L31" rel="noopener noreferrer"><code>gpu.h</code></a> states. It does reject a copy that reaches outside its frame or the target, and a copy with more than one row or column needs nonzero destination strides.</p>
       <p>The target is a <code>GeozlGpuTarget</code>, which holds the device memory, a byte offset into it, how many bytes are writable after that offset, and the stream the work should join. The target may be a framework-owned device buffer. Its device handle goes in as a pointer-sized value.</p>
-      <pre><code>GeozlGpuTarget target = {
+      <pre><code class="language-c">GeozlGpuTarget target = {
     .memory = (void *)(uintptr_t)batch, // the tensor's device handle
     .offset = 0,
     .bytes = TILES * WINDOW * WINDOW * SAMPLE,
@@ -139,7 +139,7 @@ for (size_t i = 0; i &lt; TILES; ++i)
 };</code></pre>
       <p>A framework stream can consume the batch after decode on the same queue. Passing that stream lets the decode join the same queue, so the model's next kernel runs after the samples land without any extra waiting on the host. <code>NULL</code> means the default stream. A backend without streams ignores the field.</p>
       <p><code>sampleBytes</code> is the width of one target sample, 1, 2, 4, 8 or 16 bytes, and the target address must be aligned to it. <code>elementBytes</code> is the width of values stored in each frame and must divide <code>sampleBytes</code>. Both are 2 in this example because the frames and target use 16-bit samples.</p>
-      <pre><code>if (geozl_gpu_decode(gpu, frames, TILES, copies, TILES, SAMPLE, SAMPLE,
+      <pre><code class="language-c">if (geozl_gpu_decode(gpu, frames, TILES, copies, TILES, SAMPLE, SAMPLE,
                      &amp;target, NULL, error, sizeof error) != 0)
   fprintf(stderr, "decode failed: %s\n", error);</code></pre>
       <p>The two sizes may differ, but <code>elementBytes</code> must divide <code>sampleBytes</code>. A frame that stores the bytes of 16-bit samples as plain bytes, for example, decodes with <code>elementBytes</code> of 1 into 2-byte samples. As the next section shows, only frames where the two are equal can decode on the device.</p>
@@ -163,13 +163,13 @@ for (size_t i = 0; i &lt; TILES; ++i)
       <p>The timeline below shows two calls on one stream. The host returns from the first queued decode, then prepares the second while GPU kernels run. The target stays in use until <code>geozl_gpu_synchronize</code> returns.</p>
       <figure class="diagram wide stepper" data-beats="3.45,7.65,11.15,14.3"><img src="assets/svg/gpu/api-timing.svg" alt="A CUDA timeline with host, device stream and target rows and a time marker sweeping right. Decode #1 on the host returns once its work is queued. Kernels #1 then run on the device stream while the host runs decode #2, and kernels #2 follow. The host waits in synchronize while kernels #2 run. The target is marked in use, keep alive from the first return until synchronize returns, and free, reuse after that." loading="lazy"><figcaption>On CUDA, a return means queued. After <code>geozl_gpu_synchronize</code> returns, the target may be freed or reused.</figcaption></figure>
       <p>Keep the target allocation and stream alive until queued work finishes. Do not free or reuse the target before then. Other work on the same stream may read it because the stream orders that work. Call <code>geozl_gpu_synchronize</code> to wait for queued work and receive any error.</p>
-      <pre><code>if (geozl_gpu_synchronize(gpu, error, sizeof error) != 0)
+      <pre><code class="language-c">if (geozl_gpu_synchronize(gpu, error, sizeof error) != 0)
   fprintf(stderr, "decode failed: %s\n", error);</code></pre>
       <p>Switching a decoder to a different stream, synchronizing it and destroying it all wait for everything in flight, so <code>geozl_gpu_destroy</code> is always safe once no other call is running. A backend may also finish the work before <code>geozl_gpu_decode</code> returns.</p>
 
       <h2 class="part" id="memory">Memory and checksums</h2>
       <p>Most callers decode into memory their framework owns, as we did above. For tests or standalone tools, the decoder can allocate a target. <code>geozl_gpu_alloc</code> returns caller-owned memory on the decoder's device, <code>geozl_gpu_pointer</code> gives the device handle to put in <code>GeozlGpuTarget.memory</code>, and <code>geozl_gpu_free</code> releases it. The same lifetime rules apply, so synchronize before freeing.</p>
-      <pre><code>GeozlGpuMemory *memory =
+      <pre><code class="language-c">GeozlGpuMemory *memory =
     geozl_gpu_alloc(gpu, TILES * WINDOW * WINDOW * SAMPLE, error, sizeof error);
 GeozlGpuTarget target = {geozl_gpu_pointer(memory), 0,
                          TILES * WINDOW * WINDOW * SAMPLE, NULL};
@@ -207,6 +207,7 @@ geozl_gpu_destroy(gpu);</code></pre>
   </footer>
 </div>
 <script src="assets/js/toc.js" defer></script>
+<script src="assets/js/code.js?v=1" defer></script>
 <script src="assets/js/stepper.js?v=4" defer></script>
 </body>
 </html>

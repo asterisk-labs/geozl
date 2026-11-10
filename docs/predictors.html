@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=18">
+<link rel="stylesheet" href="assets/css/reading.css?v=19">
 </head>
 <body>
 <div class="page">
@@ -100,14 +100,14 @@
           <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit elements, read as integers</td></tr>
           <tr><th>decode</th><td>r&#7522; + previous reconstructed, per row (prefix sum)</td></tr>
         </table>
-        <pre class="algo"><code>// encode, each row on its own
+        <pre class="algo"><code class="language-pseudo">// encode, each row on its own
 r[y][0] = s[y][0];
 for (x = 1; x &lt; w; x++) r[y][x] = s[y][x] - s[y][x - 1];
 
 // decode, a prefix sum along the row
 o[y][0] = r[y][0];
 for (x = 1; x &lt; w; x++) o[y][x] = r[y][x] + o[y][x - 1];</code></pre>
-        <pre><code>geozl.lossless.DeltaW(width)</code></pre>
+        <pre><code class="language-python">geozl.lossless.DeltaW(width)</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/delta_w" rel="noopener noreferrer">Source in core/src/delta_w</a></p>
       </section>
       <section class="codec" id="delta_n" data-no="02" data-ctid="0x72D702" data-fam="purple" data-page="codecs/delta-n.html" style="--fam:var(--purple)">
@@ -124,14 +124,14 @@ for (x = 1; x &lt; w; x++) o[y][x] = r[y][x] + o[y][x - 1];</code></pre>
           <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit elements, read as integers</td></tr>
           <tr><th>decode</th><td>r&#7522; + row above, per column</td></tr>
         </table>
-        <pre class="algo"><code>// encode, the first row stays whole
+        <pre class="algo"><code class="language-pseudo">// encode, the first row stays whole
 for (y = 1; y &lt; h; y++)
   for (x = 0; x &lt; w; x++) r[y][x] = s[y][x] - s[y - 1][x];
 
 // decode, each row is one vector add
 for (y = 1; y &lt; h; y++)
   for (x = 0; x &lt; w; x++) o[y][x] = r[y][x] + o[y - 1][x];</code></pre>
-        <pre><code>geozl.lossless.DeltaN(width, planes=1)</code></pre>
+        <pre><code class="language-python">geozl.lossless.DeltaN(width, planes=1)</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/delta_n" rel="noopener noreferrer">Source in core/src/delta_n</a></p>
       </section>
       <section class="codec" id="planar" data-no="03" data-ctid="0x72D703" data-fam="purple" data-page="codecs/planar.html" style="--fam:var(--purple)">
@@ -148,7 +148,7 @@ for (y = 1; y &lt; h; y++)
           <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit elements, read as integers</td></tr>
           <tr><th>decode</th><td>fold N&minus;NW from the row above, then prefix-sum the row</td></tr>
         </table>
-        <pre class="algo"><code>// a neighbour outside the plane reads as zero
+        <pre class="algo"><code class="language-pseudo">// a neighbour outside the plane reads as zero
 W  = x > 0          ? s[y][x - 1]     : 0;
 N  = y > 0          ? s[y - 1][x]     : 0;
 NW = x > 0 &amp;&amp; y > 0 ? s[y - 1][x - 1] : 0;
@@ -159,7 +159,7 @@ r[y][x] = s[y][x] - (W + N - NW);
 // decode, the same neighbours read from the output o
 t[x] = r[y][x] + N - NW;   // the row above is already decoded
 o[y][x] = t[x] + W;        // a prefix sum along the row</code></pre>
-        <pre><code>geozl.lossless.Planar(width, planes=1)</code></pre>
+        <pre><code class="language-python">geozl.lossless.Planar(width, planes=1)</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar" rel="noopener noreferrer">Source in core/src/planar</a></p>
       </section>
       <section class="codec" id="med" data-no="04" data-ctid="0x72D705" data-fam="purple" data-page="codecs/med.html" style="--fam:var(--purple)">
@@ -176,14 +176,14 @@ o[y][x] = t[x] + W;        // a prefix sum along the row</code></pre>
           <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit elements, read as integers</td></tr>
           <tr><th>decode</th><td>median(W, N, W+N&minus;NW) per sample, in order</td></tr>
         </table>
-        <pre class="algo"><code>// prediction, from W, N and NW as unsigned integers
+        <pre class="algo"><code class="language-pseudo">// prediction, from W, N and NW as unsigned integers
 if (NW &gt;= max(W, N))      p = min(W, N);
 else if (NW &lt;= min(W, N)) p = max(W, N);
 else                      p = W + N - NW;
 
 r = s - p;   // encode
 o = r + p;   // decode, one sample at a time</code></pre>
-        <pre><code>geozl.lossless.Med(width, planes=1)</code></pre>
+        <pre><code class="language-python">geozl.lossless.Med(width, planes=1)</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/med" rel="noopener noreferrer">Source in core/src/med</a></p>
       </section>
       <section class="codec" id="average" data-no="05" data-ctid="0x72D706" data-fam="purple" data-page="codecs/average.html" style="--fam:var(--purple)">
@@ -200,12 +200,12 @@ o = r + p;   // decode, one sample at a time</code></pre>
           <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit elements, read as integers</td></tr>
           <tr><th>decode</th><td>floor((W + N) / 2) per sample, in order</td></tr>
         </table>
-        <pre class="algo"><code>// floor((W + N) / 2) without overflow
+        <pre class="algo"><code class="language-pseudo">// floor((W + N) / 2) without overflow
 p = (W &gt;&gt; 1) + (N &gt;&gt; 1) + (W &amp; N &amp; 1);
 
 r = s - p;   // encode
 o = r + p;   // decode, one sample at a time</code></pre>
-        <pre><code>geozl.lossless.Average(width, planes=1)</code></pre>
+        <pre><code class="language-python">geozl.lossless.Average(width, planes=1)</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/average" rel="noopener noreferrer">Source in core/src/average</a></p>
       </section>
       <section class="codec" id="wp_static" data-no="06" data-ctid="0x72D707" data-fam="purple" data-page="codecs/wp-static.html" style="--fam:var(--purple)">
@@ -222,13 +222,13 @@ o = r + p;   // decode, one sample at a time</code></pre>
           <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit elements, read as integers</td></tr>
           <tr><th>decode</th><td>P = W + ((&#931; c&#7522;&middot;tap&#7522; + round) &gt;&gt; shift), prefix sum per row</td></tr>
         </table>
-        <pre class="algo"><code>// weights cN, cNW, cNE, cNN and shift are in the header
+        <pre class="algo"><code class="language-pseudo">// weights cN, cNW, cNE, cNN and shift are in the header
 rnd = shift ? 1 &lt;&lt; (shift - 1) : 0;
 K = (cN * N + cNW * NW + cNE * NE + cNN * NN + rnd) &gt;&gt; shift;
 
 r = s - (W + K);   // encode
 o = r + W + K;     // decode, K is known from the rows above</code></pre>
-        <pre><code>geozl.lossless.WpStatic(width, planes=1)</code></pre>
+        <pre><code class="language-python">geozl.lossless.WpStatic(width, planes=1)</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/wp_static" rel="noopener noreferrer">Source in core/src/wp_static</a></p>
       </section>
 
@@ -262,6 +262,7 @@ o = r + W + K;     // decode, K is known from the rows above</code></pre>
   </footer>
 </div>
 <script src="assets/js/toc.js" defer></script>
+<script src="assets/js/code.js?v=1" defer></script>
 <script src="assets/js/stepper.js?v=4" defer></script>
 </body>
 </html>

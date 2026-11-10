@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=18">
+<link rel="stylesheet" href="assets/css/reading.css?v=19">
 </head>
 <body>
 <div class="page">
@@ -83,11 +83,11 @@
       <p>The Julia package has the graph, compress, decompress and profile calls of the Python package and writes the same frames. It works on Julia's own integer and float arrays without conversion.</p>
 
       <h2 class="part" id="install">Install</h2>
-<pre><code>using Pkg
+<pre><code class="language-julia">using Pkg
 Pkg.Registry.add(url = "https://github.com/asterisk-labs/AsteriskRegistry")
 Pkg.add("GeoZL")</code></pre>
       <p>The package calls <code>libgeozl</code> directly. It loads the library named by <code>GEOZL_LIB_PATH</code>, then the one <code>make lib</code> builds in a checkout, then the artifact a release publishes for Linux x86-64 and macOS arm64, downloaded on first use.</p>
-<pre><code>using GeoZL
+<pre><code class="language-julia">using GeoZL
 
 tile = [UInt16(1000 + 3 * (x - 1) + 2 * (y - 1)) for x in 1:256, y in 1:256]
 
@@ -101,7 +101,7 @@ back == tile                                 # true</code></pre>
       <p>The module exports only <code>GeoZLError</code>, so call the functions as <code>GeoZL.graph</code> and so on. Bad arguments throw <code>ArgumentError</code>, and a recipe, tile or frame the library refuses throws <code>GeoZLError</code>.</p>
 
       <h3 id="profile">profile</h3>
-<pre><code class="sig">GeoZL.profile(x; prior="planar", width=nothing, planes=nothing,
+<pre><code class="sig language-julia">GeoZL.profile(x; prior="planar", width=nothing, planes=nothing,
     error=nothing, reps=5, nodata=nothing, verify=false) -&gt; Profile</code></pre>
       <p>Compresses and decompresses <code>x</code> with every recipe <code>prior</code> allows and ranks them by ratio. Recipes that do not apply to the input are left out.</p>
       <table class="spec">
@@ -111,11 +111,11 @@ back == tile                                 # true</code></pre>
         <tr><th>others</th><td>As in <a href="#graph"><code>graph</code></a>.</td></tr>
       </table>
       <p>Returns a <a href="#types"><code>Profile</code></a>, best ratio first.</p>
-<pre><code>rows = GeoZL.profile(tile; prior = nothing, reps = 1)
+<pre><code class="language-julia">rows = GeoZL.profile(tile; prior = nothing, reps = 1)
 rows[1].graph                                # "med&gt;zigzag&gt;zstd"</code></pre>
 
       <h3 id="graph">graph</h3>
-<pre><code class="sig">GeoZL.graph(x, method; width=nothing, planes=nothing, error=nothing,
+<pre><code class="sig language-julia">GeoZL.graph(x, method; width=nothing, planes=nothing, error=nothing,
     nodata=nothing) -&gt; Graph</code></pre>
       <p>Builds a reusable graph for one recipe. The graph fixes the element type and the geometry of every tile compressed with it.</p>
       <table class="spec">
@@ -126,16 +126,16 @@ rows[1].graph                                # "med&gt;zigzag&gt;zstd"</code></p
         <tr><th>error</th><td><code>nothing</code> or <code>0</code> for lossless, a number for an absolute bound, <code>"1%"</code> for a relative bound, or a full <code>LINEAR</code>, <code>LOG</code> or <code>SQRT</code> recipe, as in <a href="api-python.html#error">Python</a>.</td></tr>
         <tr><th>nodata</th><td>A sentinel. <code>missing</code> values in <code>x</code> are stored as it. NaN holes in a float raster are found without it.</td></tr>
       </table>
-<pre><code>g = GeoZL.graph(tile, "planar&gt;zigzag&gt;pfor"; error = 2)
+<pre><code class="language-julia">g = GeoZL.graph(tile, "planar&gt;zigzag&gt;pfor"; error = 2)
 g.error                                      # "LINEAR:MAX_ERROR=2"</code></pre>
 
       <h3 id="compress">compress</h3>
-<pre><code class="sig">GeoZL.compress(x, g::Graph; coeffs=nothing) -&gt; Vector{UInt8}</code></pre>
+<pre><code class="sig language-julia">GeoZL.compress(x, g::Graph; coeffs=nothing) -&gt; Vector{UInt8}</code></pre>
       <p>Compresses one tile with a graph and returns the frame. The element type must be the graph's, and the geometry is not checked. <code>coeffs</code>, a vector of integer vectors, is stored in the frame header and read back with <a href="#coeffs"><code>coeffs</code></a>.</p>
-<pre><code>frame = GeoZL.compress(tile, g; coeffs = [[1, 2, 3], [4]])</code></pre>
+<pre><code class="language-julia">frame = GeoZL.compress(tile, g; coeffs = [[1, 2, 3], [4]])</code></pre>
 
       <h3 id="decompress">decompress</h3>
-<pre><code class="sig">GeoZL.decompress(frame; verify=true, max_output_size=nothing) -&gt; Vector{UInt8}
+<pre><code class="sig language-julia">GeoZL.decompress(frame; verify=true, max_output_size=nothing) -&gt; Vector{UInt8}
 GeoZL.decompress(T, frame, dims...; nodata=nothing, verify=true,
     max_output_size=nothing) -&gt; Array{T}</code></pre>
       <p>Decodes a frame. Without <code>T</code> the result is the raw native bytes. With it, the frame decodes in place into an <code>Array{T}</code> shaped <code>dims</code>, which may also be given as a tuple.</p>
@@ -144,12 +144,12 @@ GeoZL.decompress(T, frame, dims...; nodata=nothing, verify=true,
         <tr><th>verify</th><td>Check the frame checksums.</td></tr>
         <tr><th>max_output_size</th><td>Refuse a frame that declares more output bytes than this. Set it for untrusted frames.</td></tr>
       </table>
-<pre><code>back = GeoZL.decompress(UInt16, frame, size(tile))</code></pre>
+<pre><code class="language-julia">back = GeoZL.decompress(UInt16, frame, size(tile))</code></pre>
 
       <h3 id="coeffs">coeffs</h3>
-<pre><code class="sig">GeoZL.coeffs(frame) -&gt; Union{Nothing,Vector{Vector{Int32}}}</code></pre>
+<pre><code class="sig language-julia">GeoZL.coeffs(frame) -&gt; Union{Nothing,Vector{Vector{Int32}}}</code></pre>
       <p>Returns the coefficient vectors stored by <code>compress</code>, or <code>nothing</code> when the frame has none. Only the frame header is read.</p>
-<pre><code>GeoZL.coeffs(frame)                          # [[1, 2, 3], [4]]</code></pre>
+<pre><code class="language-julia">GeoZL.coeffs(frame)                          # [[1, 2, 3], [4]]</code></pre>
 
       <h3 id="types">Types</h3>
       <table class="spec">
@@ -200,5 +200,6 @@ GeoZL.decompress(T, frame, dims...; nodata=nothing, verify=true,
   </footer>
 </div>
 <script src="assets/js/toc.js" defer></script>
+<script src="assets/js/code.js?v=1" defer></script>
 </body>
 </html>

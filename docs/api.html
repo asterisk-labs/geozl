@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=18">
+<link rel="stylesheet" href="assets/css/reading.css?v=19">
 </head>
 <body>
 <div class="page">
@@ -83,7 +83,7 @@
       <p>Four calls cover most use. <code>profile</code> measures candidate recipes on a tile, <code>graph</code> builds one, <code>compress</code> runs tiles through it and <code>decompress</code> reads a frame back. The <a href="https://colab.research.google.com/github/asterisk-labs/geozl/blob/main/docs/notebooks/high-level-api.ipynb" rel="noopener noreferrer">notebook</a> runs them on a DEM tile.</p>
 
       <h2 class="part" id="loop">The four calls</h2>
-<pre><code>import numpy as np
+<pre><code class="language-python">import numpy as np
 import geozl
 
 y, x = np.mgrid[0:256, 0:256]
@@ -131,5 +131,6 @@ assert np.array_equal(back, tile)</code></pre>
   </footer>
 </div>
 <script src="assets/js/toc.js" defer></script>
+<script src="assets/js/code.js?v=1" defer></script>
 </body>
 </html>

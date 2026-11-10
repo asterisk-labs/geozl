@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=18">
+<link rel="stylesheet" href="assets/css/reading.css?v=19">
 </head>
 <body>
 <div class="page">
@@ -94,14 +94,14 @@
           <tr><th>lanes</th><td>even &#8968;N/2&#8969; &middot; odd &#8970;N/2&#8971;</td></tr>
           <tr><th>decode</th><td>element 2k from lane 0, 2k+1 from lane 1</td></tr>
         </table>
-        <pre class="algo"><code>// encode
+        <pre class="algo"><code class="language-pseudo">// encode
 even[k] = s[2 * k];
 odd[k]  = s[2 * k + 1];
 
 // decode
 o[2 * k]     = even[k];
 o[2 * k + 1] = odd[k];</code></pre>
-        <pre><code>geozl.lossless.Deinterleave()</code></pre>
+        <pre><code class="language-python">geozl.lossless.Deinterleave()</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/deinterleave" rel="noopener noreferrer">Source in core/src/deinterleave</a></p>
       </section>
       <section class="codec" id="nodata" data-no="08" data-ctid="0x72D70C" data-fam="green" data-page="codecs/nodata.html" style="--fam:var(--green)">
@@ -120,7 +120,7 @@ o[2 * k + 1] = odd[k];</code></pre>
           <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit samples</td></tr>
           <tr><th>decode</th><td>restore the nodata pattern where the mask marks a hole</td></tr>
         </table>
-        <pre class="algo"><code>// encode, compared as bit patterns so -0.0 and NaN payloads count
+        <pre class="algo"><code class="language-pseudo">// encode, compared as bit patterns so -0.0 and NaN payloads count
 mask[i] = (s[i] == pattern) ? 0 : 1;
 v[i] = mask[i] ? s[i] : last valid sample of the row, or the one above;
 
@@ -129,7 +129,7 @@ o[i] = mask[i] == 0 ? pattern : v[i];
 
 // decode, guarded form, mask codes 1 to 3 pick a replacement
 o[i] = mask[i] == 0 ? pattern : v[i] != pattern ? v[i] : replacement[mask[i]];</code></pre>
-        <pre><code>geozl.lossless.Nodata(width, value, dtype, radius)</code></pre>
+        <pre><code class="language-python">geozl.lossless.Nodata(width, value, dtype, radius)</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/nodata" rel="noopener noreferrer">Source in core/src/nodata</a></p>
       </section>
       <section class="codec" id="pfor" data-no="09" data-ctid="0x72D70D" data-fam="green" data-page="codecs/pfor.html" style="--fam:var(--green)">
@@ -147,7 +147,7 @@ o[i] = mask[i] == 0 ? pattern : v[i] != pattern ? v[i] : replacement[mask[i]];</
           <tr><th>layout</th><td>lane interleaved over a 16-byte group</td></tr>
           <tr><th>credit</th><td>design after <a href="https://github.com/powturbo/TurboPFor-Integer-Compression/graphs/contributors" rel="noopener noreferrer" style="text-decoration:underline">TurboPFor</a> by powturbo and contributors</td></tr>
         </table>
-        <pre class="algo"><code>// encode one block of 256 values
+        <pre class="algo"><code class="language-pseudo">// encode one block of 256 values
 b = the width whose block is smallest, counting 4 extra bits per exception;
 pack the low b bits of every value;
 for each value at or above 1 &lt;&lt; b: keep its position and its bits above b;
@@ -155,7 +155,7 @@ for each value at or above 1 &lt;&lt; b: keep its position and its bits above b;
 // decode
 unpack 256 values of b bits;
 for (j = 0; j &lt; nexc; j++) v[pos[j]] |= hi[j] &lt;&lt; b;</code></pre>
-        <pre><code>geozl.lossless.Pfor()</code></pre>
+        <pre><code class="language-python">geozl.lossless.Pfor()</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/pfor" rel="noopener noreferrer">Source in core/src/pfor</a></p>
       </section>
       <section class="codec" id="lanes" data-no="10" data-ctid="0x72D713" data-fam="green" data-page="codecs/lanes.html" style="--fam:var(--green)">
@@ -173,7 +173,7 @@ for (j = 0; j &lt; nexc; j++) v[pos[j]] |= hi[j] &lt;&lt; b;</code></pre>
           <tr><th>lanes</th><td>one per byte, stored least-significant first</td></tr>
           <tr><th>mode</th><td>PivCo Huffman, or byte PFOR when smaller</td></tr>
         </table>
-        <pre class="algo"><code>// encode, byte k of every sample goes to lane k
+        <pre class="algo"><code class="language-pseudo">// encode, byte k of every sample goes to lane k
 for (i = 0; i &lt; n; i++)
   for (k = 0; k &lt; sizeof(T); k++) lane[k][i] = s[i] &gt;&gt; (8 * k);
 // each lane is then coded with PivCo or PFOR
@@ -183,7 +183,7 @@ for (i = 0; i &lt; n; i++) {
   o[i] = 0;
   for (k = 0; k &lt; sizeof(T); k++) o[i] |= (T)lane[k][i] &lt;&lt; (8 * k);
 }</code></pre>
-        <pre><code>geozl.graph(tile, "id&gt;lanes")</code></pre>
+        <pre><code class="language-python">geozl.graph(tile, "id&gt;lanes")</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/lanes" rel="noopener noreferrer">Source in core/src/lanes</a></p>
       </section>
 
@@ -215,6 +215,7 @@ for (i = 0; i &lt; n; i++) {
   </footer>
 </div>
 <script src="assets/js/toc.js" defer></script>
+<script src="assets/js/code.js?v=1" defer></script>
 <script src="assets/js/stepper.js?v=4" defer></script>
 </body>
 </html>

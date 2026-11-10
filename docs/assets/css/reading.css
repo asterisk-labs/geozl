@@ -640,11 +640,27 @@ pre {
   line-height: 1.65;
   tab-size: 4;
   -webkit-text-size-adjust: 100%;
+  --code-comment: #676e7b;
+  --code-keyword: #492ae8;
+  --code-function: #0a5fb4;
+  --code-type: #8a6d00;
+  --code-string: #17803d;
+  --code-number: #c2410c;
 }
 
 pre code {
   font-size: inherit;
 }
+
+/* Syntax colors, as spans that code.js adds. Every color keeps 4.5:1 on the
+   block background. */
+
+.tok-com { color: var(--code-comment); }
+.tok-kw { color: var(--code-keyword); }
+.tok-fn { color: var(--code-function); }
+.tok-type { color: var(--code-type); }
+.tok-str { color: var(--code-string); }
+.tok-num { color: var(--code-number); }
 
 /* Tables: rows of label and value, hairlines only */
 
