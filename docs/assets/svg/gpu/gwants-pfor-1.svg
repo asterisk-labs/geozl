@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 350" width="680" height="350" role="img" aria-label="Step 1 of 6. eight values at b = 3 bits, and 90 does not fit."><style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&amp;display=swap');svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
+.cap{fill:#111111;font:500 13px "IBM Plex Mono",monospace}.num{fill:#492AE8;font-weight:700}
+.lab{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.labs{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace;text-anchor:middle}
+.sm{fill:#5C6370;font:500 9.5px "IBM Plex Mono",monospace;text-anchor:middle;paint-order:stroke;stroke:#FFFFFF;stroke-width:3px;stroke-linejoin:round}
+.v{fill:#111111;font:600 12.5px "IBM Plex Mono",monospace;text-anchor:middle}
+.vb{fill:#111111;font:600 11px "IBM Plex Mono",monospace;text-anchor:middle}
+.note{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.eq{fill:#7A5D00;font:600 12px "IBM Plex Mono",monospace}
+.op{fill:#492AE8;font:700 12px "IBM Plex Mono",monospace}
+.opm{fill:#492AE8;font:700 12px "IBM Plex Mono",monospace;text-anchor:middle}
+.bad{fill:#C0392B;font:600 11px "IBM Plex Mono",monospace}
+.good{fill:#1D7A3E;font:600 11px "IBM Plex Mono",monospace}
+.in{fill:#ECE9FD;stroke:#492AE8;stroke-width:1.1}
+.in2{fill:#E3F2FF;stroke:#2B6CB0;stroke-width:1.1}
+.dim{fill:#F3F3F1;stroke:#D3D6DB;stroke-width:1}
+.cell{fill:#FFFFFF;stroke:#D3D6DB;stroke-width:.8}
+.hot{fill:#FEF6D3;stroke:#E0A800;stroke-width:1.6}
+.out{fill:#C4FFC2;stroke:#1D7A3E;stroke-width:1.2}
+.red{fill:#FDE8E8;stroke:#C0392B;stroke-width:1.2}
+.ring{fill:none;stroke:#E0A800;stroke-width:2.4}
+.ln{fill:none;stroke:#B9BEC6;stroke-width:1}
+.lnh{fill:none;stroke:#E0A800;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.arr{fill:none;stroke:#492AE8;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.arrg{fill:none;stroke:#9AA1AB;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}
+.arrr{fill:none;stroke:#C0392B;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.rule{stroke:#E3E5E8;stroke-width:1}
+.brk{fill:none;stroke:#9AA1AB;stroke-width:1.1}]]></style><text class="cap" x="20" y="20"><tspan class="num">1</tspan>  eight values at b = 3 bits, and 90 does not fit</text><text class="lab" x="20" y="61">values</text><rect class="in" x="140" y="44" width="52" height="26" rx="3"/><text class="v" x="166.0" y="61.5">3</text><text class="sm" x="166.0" y="84">011</text><rect class="in" x="202" y="44" width="52" height="26" rx="3"/><text class="v" x="228.0" y="61.5">5</text><text class="sm" x="228.0" y="84">101</text><rect class="in" x="264" y="44" width="52" height="26" rx="3"/><text class="v" x="290.0" y="61.5">2</text><text class="sm" x="290.0" y="84">010</text><rect class="in" x="326" y="44" width="52" height="26" rx="3"/><text class="v" x="352.0" y="61.5">7</text><text class="sm" x="352.0" y="84">111</text><rect class="in" x="388" y="44" width="52" height="26" rx="3"/><text class="v" x="414.0" y="61.5">4</text><text class="sm" x="414.0" y="84">100</text><rect class="in" x="450" y="44" width="52" height="26" rx="3"/><text class="v" x="476.0" y="61.5">6</text><text class="sm" x="476.0" y="84">110</text><rect class="in" x="512" y="44" width="52" height="26" rx="3"/><text class="v" x="538.0" y="61.5">1</text><text class="sm" x="538.0" y="84">001</text><rect class="red" x="574" y="44" width="52" height="26" rx="3"/><text class="v" x="600.0" y="61.5">90</text><text class="sm" x="600.0" y="84">1011010</text><text class="bad" x="140" y="114">90 = 1011010 needs 7 bits, the other seven fit in 3</text></svg>

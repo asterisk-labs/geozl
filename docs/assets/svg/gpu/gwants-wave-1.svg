@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 280" width="640" height="280" role="img" aria-label="Step 1 of 3. one instruction runs on every thread of the wave, each on its own value."><style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&amp;display=swap');svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
+.cap{fill:#111111;font:500 13px "IBM Plex Mono",monospace}.num{fill:#492AE8;font-weight:700}
+.lab{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.labs{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace;text-anchor:middle}
+.sm{fill:#5C6370;font:500 9.5px "IBM Plex Mono",monospace;text-anchor:middle;paint-order:stroke;stroke:#FFFFFF;stroke-width:3px;stroke-linejoin:round}
+.v{fill:#111111;font:600 12.5px "IBM Plex Mono",monospace;text-anchor:middle}
+.vb{fill:#111111;font:600 11px "IBM Plex Mono",monospace;text-anchor:middle}
+.note{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.eq{fill:#7A5D00;font:600 12px "IBM Plex Mono",monospace}
+.op{fill:#492AE8;font:700 12px "IBM Plex Mono",monospace}
+.opm{fill:#492AE8;font:700 12px "IBM Plex Mono",monospace;text-anchor:middle}
+.bad{fill:#C0392B;font:600 11px "IBM Plex Mono",monospace}
+.good{fill:#1D7A3E;font:600 11px "IBM Plex Mono",monospace}
+.in{fill:#ECE9FD;stroke:#492AE8;stroke-width:1.1}
+.in2{fill:#E3F2FF;stroke:#2B6CB0;stroke-width:1.1}
+.dim{fill:#F3F3F1;stroke:#D3D6DB;stroke-width:1}
+.cell{fill:#FFFFFF;stroke:#D3D6DB;stroke-width:.8}
+.hot{fill:#FEF6D3;stroke:#E0A800;stroke-width:1.6}
+.out{fill:#C4FFC2;stroke:#1D7A3E;stroke-width:1.2}
+.red{fill:#FDE8E8;stroke:#C0392B;stroke-width:1.2}
+.ring{fill:none;stroke:#E0A800;stroke-width:2.4}
+.ln{fill:none;stroke:#B9BEC6;stroke-width:1}
+.lnh{fill:none;stroke:#E0A800;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.arr{fill:none;stroke:#492AE8;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.arrg{fill:none;stroke:#9AA1AB;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}
+.arrr{fill:none;stroke:#C0392B;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.rule{stroke:#E3E5E8;stroke-width:1}
+.brk{fill:none;stroke:#9AA1AB;stroke-width:1.1}]]></style><text class="cap" x="20" y="20"><tspan class="num">1</tspan>  one instruction runs on every thread of the wave, each on its own value</text><text class="labs" x="127.0" y="62">t0</text><text class="labs" x="189.0" y="62">t1</text><text class="labs" x="251.0" y="62">t2</text><text class="labs" x="313.0" y="62">t3</text><text class="labs" x="375.0" y="62">t4</text><text class="labs" x="437.0" y="62">t5</text><text class="labs" x="499.0" y="62">t6</text><text class="labs" x="561.0" y="62">t7</text><text class="note" x="100" y="268">8 threads drawn, a wave has 32, and a GPU runs thousands of waves at once</text><rect class="hot" x="224" y="30" width="240" height="22" rx="3"/><text class="vb" x="344.0" y="45.5">x = 2 &#215; x</text><text class="lab" x="20" y="100">x</text><text class="lab" x="20" y="166">2 &#215; x</text><rect class="in" x="100" y="84" width="54" height="26" rx="3"/><text class="v" x="127.0" y="101.5">3</text><path class="arrg" d="M127.0 112 L127.0 146"/><path class="arrg" d="M124.4 140.6 L127.0 146 L129.6 140.6"/><rect class="out" x="100" y="150" width="54" height="26" rx="3"/><text class="v" x="127.0" y="167.5">6</text><rect class="in" x="162" y="84" width="54" height="26" rx="3"/><text class="v" x="189.0" y="101.5">5</text><path class="arrg" d="M189.0 112 L189.0 146"/><path class="arrg" d="M186.4 140.6 L189.0 146 L191.6 140.6"/><rect class="out" x="162" y="150" width="54" height="26" rx="3"/><text class="v" x="189.0" y="167.5">10</text><rect class="in" x="224" y="84" width="54" height="26" rx="3"/><text class="v" x="251.0" y="101.5">2</text><path class="arrg" d="M251.0 112 L251.0 146"/><path class="arrg" d="M248.4 140.6 L251.0 146 L253.6 140.6"/><rect class="out" x="224" y="150" width="54" height="26" rx="3"/><text class="v" x="251.0" y="167.5">4</text><rect class="in" x="286" y="84" width="54" height="26" rx="3"/><text class="v" x="313.0" y="101.5">7</text><path class="arrg" d="M313.0 112 L313.0 146"/><path class="arrg" d="M310.4 140.6 L313.0 146 L315.6 140.6"/><rect class="out" x="286" y="150" width="54" height="26" rx="3"/><text class="v" x="313.0" y="167.5">14</text><rect class="in" x="348" y="84" width="54" height="26" rx="3"/><text class="v" x="375.0" y="101.5">4</text><path class="arrg" d="M375.0 112 L375.0 146"/><path class="arrg" d="M372.4 140.6 L375.0 146 L377.6 140.6"/><rect class="out" x="348" y="150" width="54" height="26" rx="3"/><text class="v" x="375.0" y="167.5">8</text><rect class="in" x="410" y="84" width="54" height="26" rx="3"/><text class="v" x="437.0" y="101.5">6</text><path class="arrg" d="M437.0 112 L437.0 146"/><path class="arrg" d="M434.4 140.6 L437.0 146 L439.6 140.6"/><rect class="out" x="410" y="150" width="54" height="26" rx="3"/><text class="v" x="437.0" y="167.5">12</text><rect class="in" x="472" y="84" width="54" height="26" rx="3"/><text class="v" x="499.0" y="101.5">1</text><path class="arrg" d="M499.0 112 L499.0 146"/><path class="arrg" d="M496.4 140.6 L499.0 146 L501.6 140.6"/><rect class="out" x="472" y="150" width="54" height="26" rx="3"/><text class="v" x="499.0" y="167.5">2</text><rect class="in" x="534" y="84" width="54" height="26" rx="3"/><text class="v" x="561.0" y="101.5">2</text><path class="arrg" d="M561.0 112 L561.0 146"/><path class="arrg" d="M558.4 140.6 L561.0 146 L563.6 140.6"/><rect class="out" x="534" y="150" width="54" height="26" rx="3"/><text class="v" x="561.0" y="167.5">4</text><text class="eq" x="100" y="204">one instruction, eight results in the same moment</text></svg>

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 266" width="660" height="266" role="img" aria-label="Without Slang, the decoder would exist once per GPU language, CUDA C, Metal and WGSL, and a fix made in one copy would still have to be ported to the others. With Slang, one source in gpu/kernels is compiled by slangc into Metal source and PTX, such as pfor2.metal and pfor2.ptx, with WGSL planned, and the compiled modules are embedded in the GeoZL library, so a fix is made once and every target gets it at the next build."><style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&amp;display=swap');svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
+.tag{fill:#5C6370;font:600 10.5px "IBM Plex Mono",monospace;letter-spacing:.06em}
+.tagA{fill:#492AE8;font:600 10.5px "IBM Plex Mono",monospace;letter-spacing:.06em}
+.cap{fill:#111111;font:500 13px "IBM Plex Mono",monospace}.num{fill:#492AE8;font-weight:700}
+.ttl{fill:#111111;font:600 12.5px "IBM Plex Mono",monospace}
+.lab{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.sm{fill:#5C6370;font:500 10px "IBM Plex Mono",monospace}
+.c{fill:#111111;font:600 11px "IBM Plex Mono",monospace;text-anchor:middle}
+.cs{fill:#111111;font:500 10.5px "IBM Plex Mono",monospace;text-anchor:middle}
+.cl{fill:#111111;font:500 10.5px "IBM Plex Mono",monospace}
+.code{fill:#111111;font:500 11px "IBM Plex Mono",monospace}
+.v{fill:#111111;font:600 13px "IBM Plex Mono",monospace;text-anchor:middle}
+.vg{fill:#B9BEC6;font:600 13px "IBM Plex Mono",monospace;text-anchor:middle}
+.bx{fill:#ECE9FD;stroke:#492AE8;stroke-width:1.2}
+.ok{fill:#C4FFC2;stroke:#1D7A3E;stroke-width:1.2}
+.q{fill:#FEF6D3;stroke:#E0A800;stroke-width:1.2}
+.grey{fill:#F3F3F1;stroke:#9AA1AB;stroke-width:1.1}
+.plan{fill:#FFFFFF;stroke:#9AA1AB;stroke-width:1.1;stroke-dasharray:4 3}
+.bad{fill:#FDE8E8;stroke:#C0392B;stroke-width:1.2}
+.cell{fill:#FFFFFF;stroke:#D3D6DB;stroke-width:1}
+.hl{fill:none;stroke:#E0A800;stroke-width:2.4}
+.badt{fill:#C0392B;font:600 10.5px "IBM Plex Mono",monospace}
+.okt{fill:#1D7A3E;font:600 10.5px "IBM Plex Mono",monospace}
+.pt{fill:#492AE8;font:600 11px "IBM Plex Mono",monospace}
+.eq{fill:#7A5D00;font:600 12px "IBM Plex Mono",monospace}
+.arr{fill:none;stroke:#492AE8;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.arrg{fill:none;stroke:#9AA1AB;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:4 3}
+.arrr{fill:none;stroke:#C0392B;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.ln{stroke:#B9BEC6;stroke-width:1.1}
+.lnh{stroke:#E0A800;stroke-width:2.2}
+.rule{stroke:#E3E5E8;stroke-width:1}]]></style><text class="tag" x="20" y="20">WITHOUT</text><text class="ttl" x="96" y="20">one copy of the decoder per GPU language</text><rect class="grey" x="20" y="36" width="196" height="30" rx="4"/><text class="c" x="118.0" y="55.0">decoder in CUDA C</text><text class="okt" x="20" y="84">a fix lands here</text><rect class="grey" x="230" y="36" width="196" height="30" rx="4"/><text class="c" x="328.0" y="55.0">decoder in Metal</text><text class="badt" x="230" y="84">the fix still has to be ported</text><rect class="grey" x="440" y="36" width="196" height="30" rx="4"/><text class="c" x="538.0" y="55.0">decoder in WGSL</text><text class="badt" x="440" y="84">the fix still has to be ported</text><line class="rule" x1="20" y1="102" x2="640" y2="102"/><text class="tagA" x="20" y="126">WITH</text><text class="ttl" x="96" y="126">one Slang source, a compiled copy per target</text><rect class="bx" x="20" y="150" width="120" height="40" rx="4"/><text class="cs" x="80.0" y="167.0">gpu/kernels</text><text class="cs" x="80.0" y="181.0">Slang</text><rect class="q" x="172" y="150" width="80" height="40" rx="4"/><text class="c" x="212.0" y="174.0">slangc</text><path class="arr" d="M140 170 L170 170"/><path class="arr" d="M164.6 172.6 L170 170 L164.6 167.4"/><rect class="ok" x="290" y="136" width="130" height="24" rx="4"/><text class="cs" x="355.0" y="152.0">pfor2.metal …</text><path class="arr" d="M252 170 L288 148"/><path class="arr" d="M284.8 153.0 L288 148 L282.0 148.6"/><rect class="ok" x="290" y="168" width="130" height="24" rx="4"/><text class="cs" x="355.0" y="184.0">pfor2.ptx …</text><path class="arr" d="M252 170 L288 180"/><path class="arr" d="M282.1 181.1 L288 180 L283.5 176.0"/><rect class="plan" x="290" y="200" width="130" height="24" rx="4"/><text class="cs" x="355.0" y="216.0">WGSL, planned</text><path class="arrg" d="M252 170 L288 212"/><path class="arr" d="M282.5 209.6 L288 212 L286.5 206.2"/><rect class="grey" x="456" y="150" width="184" height="40" rx="4"/><text class="cs" x="548.0" y="167.0">embedded in the</text><text class="cs" x="548.0" y="181.0">GeoZL library</text><path class="arr" d="M420 144 L454 160"/><path class="arr" d="M448.0 160.1 L454 160 L450.2 155.3"/><path class="arr" d="M420 176 L454 176"/><path class="arr" d="M448.6 178.6 L454 176 L448.6 173.4"/><text class="okt" x="20" y="252">a fix is made once in Slang, and every target gets it at the next build</text></svg>

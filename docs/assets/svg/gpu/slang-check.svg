@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 326" width="660" height="326" role="img" aria-label="Without the check, if two buffer declarations in programs/pfor.slang were swapped, the kernel would bind planes at 1 and blocks at 2 while the host still passes blocks at 1 and planes at 2, so the kernel would read plane tasks as block tasks with no error. With the check, every build has slangc write reflection JSON and check_slang_layout.py compares the binding order with the host order, so the swap fails the build with unexpected pfor buffer layout."><style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&amp;display=swap');svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
+.tag{fill:#5C6370;font:600 10.5px "IBM Plex Mono",monospace;letter-spacing:.06em}
+.tagA{fill:#492AE8;font:600 10.5px "IBM Plex Mono",monospace;letter-spacing:.06em}
+.cap{fill:#111111;font:500 13px "IBM Plex Mono",monospace}.num{fill:#492AE8;font-weight:700}
+.ttl{fill:#111111;font:600 12.5px "IBM Plex Mono",monospace}
+.lab{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.sm{fill:#5C6370;font:500 10px "IBM Plex Mono",monospace}
+.c{fill:#111111;font:600 11px "IBM Plex Mono",monospace;text-anchor:middle}
+.cs{fill:#111111;font:500 10.5px "IBM Plex Mono",monospace;text-anchor:middle}
+.cl{fill:#111111;font:500 10.5px "IBM Plex Mono",monospace}
+.code{fill:#111111;font:500 11px "IBM Plex Mono",monospace}
+.v{fill:#111111;font:600 13px "IBM Plex Mono",monospace;text-anchor:middle}
+.vg{fill:#B9BEC6;font:600 13px "IBM Plex Mono",monospace;text-anchor:middle}
+.bx{fill:#ECE9FD;stroke:#492AE8;stroke-width:1.2}
+.ok{fill:#C4FFC2;stroke:#1D7A3E;stroke-width:1.2}
+.q{fill:#FEF6D3;stroke:#E0A800;stroke-width:1.2}
+.grey{fill:#F3F3F1;stroke:#9AA1AB;stroke-width:1.1}
+.plan{fill:#FFFFFF;stroke:#9AA1AB;stroke-width:1.1;stroke-dasharray:4 3}
+.bad{fill:#FDE8E8;stroke:#C0392B;stroke-width:1.2}
+.cell{fill:#FFFFFF;stroke:#D3D6DB;stroke-width:1}
+.hl{fill:none;stroke:#E0A800;stroke-width:2.4}
+.badt{fill:#C0392B;font:600 10.5px "IBM Plex Mono",monospace}
+.okt{fill:#1D7A3E;font:600 10.5px "IBM Plex Mono",monospace}
+.pt{fill:#492AE8;font:600 11px "IBM Plex Mono",monospace}
+.eq{fill:#7A5D00;font:600 12px "IBM Plex Mono",monospace}
+.arr{fill:none;stroke:#492AE8;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.arrg{fill:none;stroke:#9AA1AB;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:4 3}
+.arrr{fill:none;stroke:#C0392B;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.ln{stroke:#B9BEC6;stroke-width:1.1}
+.lnh{stroke:#E0A800;stroke-width:2.2}
+.rule{stroke:#E3E5E8;stroke-width:1}]]></style><text class="tag" x="20" y="20">WITHOUT</text><text class="ttl" x="96" y="20">if two declarations in programs/pfor.slang were swapped</text><text class="lab" x="20" y="40">kernel binds</text><rect class="grey" x="20" y="48" width="150" height="20" rx="3"/><text class="sm" x="28" y="62">0</text><text class="cl" x="48" y="62">payload</text><rect class="bad" x="20" y="72" width="150" height="20" rx="3"/><text class="sm" x="28" y="86">1</text><text class="cl" x="48" y="86">planes</text><rect class="bad" x="20" y="96" width="150" height="20" rx="3"/><text class="sm" x="28" y="110">2</text><text class="cl" x="48" y="110">blocks</text><rect class="grey" x="20" y="120" width="150" height="20" rx="3"/><text class="sm" x="28" y="134">3</text><text class="cl" x="48" y="134">output</text><rect class="grey" x="20" y="144" width="150" height="20" rx="3"/><text class="sm" x="28" y="158">4</text><text class="cl" x="48" y="158">outputBytes</text><rect class="grey" x="20" y="168" width="150" height="20" rx="3"/><text class="sm" x="28" y="182">5</text><text class="cl" x="48" y="182">rawValues</text><rect class="grey" x="20" y="192" width="150" height="20" rx="3"/><text class="sm" x="28" y="206">6</text><text class="cl" x="48" y="206">rawCopies</text><text class="lab" x="250" y="40">host passes</text><rect class="grey" x="250" y="48" width="150" height="20" rx="3"/><text class="sm" x="258" y="62">0</text><text class="cl" x="278" y="62">payload</text><rect class="bad" x="250" y="72" width="150" height="20" rx="3"/><text class="sm" x="258" y="86">1</text><text class="cl" x="278" y="86">blocks</text><rect class="bad" x="250" y="96" width="150" height="20" rx="3"/><text class="sm" x="258" y="110">2</text><text class="cl" x="278" y="110">planes</text><rect class="grey" x="250" y="120" width="150" height="20" rx="3"/><text class="sm" x="258" y="134">3</text><text class="cl" x="278" y="134">output</text><rect class="grey" x="250" y="144" width="150" height="20" rx="3"/><text class="sm" x="258" y="158">4</text><text class="cl" x="278" y="158">outputBytes</text><rect class="grey" x="250" y="168" width="150" height="20" rx="3"/><text class="sm" x="258" y="182">5</text><text class="cl" x="278" y="182">rawValues</text><rect class="grey" x="250" y="192" width="150" height="20" rx="3"/><text class="sm" x="258" y="206">6</text><text class="cl" x="278" y="206">rawCopies</text><text class="badt" x="430" y="80">the kernel reads plane tasks</text><text class="badt" x="430" y="96">as block tasks, and nothing</text><text class="badt" x="430" y="112">reports an error</text><line class="rule" x1="20" y1="232" x2="640" y2="232"/><text class="tagA" x="20" y="256">WITH</text><text class="ttl" x="96" y="256">the check, every build compares the two orders</text><rect class="bx" x="20" y="272" width="150" height="40" rx="4"/><text class="cs" x="95.0" y="289.0">slangc writes</text><text class="cs" x="95.0" y="303.0">reflection JSON</text><rect class="q" x="210" y="272" width="190" height="40" rx="4"/><text class="cs" x="305.0" y="289.0">check_slang_layout.py</text><text class="cs" x="305.0" y="303.0">against the host order</text><path class="arr" d="M170 292 L208 292"/><path class="arr" d="M202.6 294.6 L208 292 L202.6 289.4"/><rect class="bad" x="440" y="272" width="200" height="40" rx="4"/><text class="cs" x="540.0" y="289.0">build fails, unexpected</text><text class="cs" x="540.0" y="303.0">pfor buffer layout</text><path class="arr" d="M400 292 L438 292"/><path class="arr" d="M432.6 294.6 L438 292 L432.6 289.4"/></svg>

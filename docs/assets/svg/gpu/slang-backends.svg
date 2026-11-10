@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 232" width="660" height="232" role="img" aria-label="Capture, planning, task lists and staging are shared by every backend. runtime.c checks each call and forwards it through the GeozlGpuBackendOps table to runtime_metal.m under GEOZL_GPU_METAL or runtime_cuda.c under GEOZL_GPU_CUDA. A new backend such as WebGPU, Vulkan or HIP adds one runtime file and its Slang target in build_gpu_modules.py."><style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&amp;display=swap');svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
+.tag{fill:#5C6370;font:600 10.5px "IBM Plex Mono",monospace;letter-spacing:.06em}
+.tagA{fill:#492AE8;font:600 10.5px "IBM Plex Mono",monospace;letter-spacing:.06em}
+.cap{fill:#111111;font:500 13px "IBM Plex Mono",monospace}.num{fill:#492AE8;font-weight:700}
+.ttl{fill:#111111;font:600 12.5px "IBM Plex Mono",monospace}
+.lab{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.sm{fill:#5C6370;font:500 10px "IBM Plex Mono",monospace}
+.c{fill:#111111;font:600 11px "IBM Plex Mono",monospace;text-anchor:middle}
+.cs{fill:#111111;font:500 10.5px "IBM Plex Mono",monospace;text-anchor:middle}
+.cl{fill:#111111;font:500 10.5px "IBM Plex Mono",monospace}
+.code{fill:#111111;font:500 11px "IBM Plex Mono",monospace}
+.v{fill:#111111;font:600 13px "IBM Plex Mono",monospace;text-anchor:middle}
+.vg{fill:#B9BEC6;font:600 13px "IBM Plex Mono",monospace;text-anchor:middle}
+.bx{fill:#ECE9FD;stroke:#492AE8;stroke-width:1.2}
+.ok{fill:#C4FFC2;stroke:#1D7A3E;stroke-width:1.2}
+.q{fill:#FEF6D3;stroke:#E0A800;stroke-width:1.2}
+.grey{fill:#F3F3F1;stroke:#9AA1AB;stroke-width:1.1}
+.plan{fill:#FFFFFF;stroke:#9AA1AB;stroke-width:1.1;stroke-dasharray:4 3}
+.bad{fill:#FDE8E8;stroke:#C0392B;stroke-width:1.2}
+.cell{fill:#FFFFFF;stroke:#D3D6DB;stroke-width:1}
+.hl{fill:none;stroke:#E0A800;stroke-width:2.4}
+.badt{fill:#C0392B;font:600 10.5px "IBM Plex Mono",monospace}
+.okt{fill:#1D7A3E;font:600 10.5px "IBM Plex Mono",monospace}
+.pt{fill:#492AE8;font:600 11px "IBM Plex Mono",monospace}
+.eq{fill:#7A5D00;font:600 12px "IBM Plex Mono",monospace}
+.arr{fill:none;stroke:#492AE8;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.arrg{fill:none;stroke:#9AA1AB;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:4 3}
+.arrr{fill:none;stroke:#C0392B;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.ln{stroke:#B9BEC6;stroke-width:1.1}
+.lnh{stroke:#E0A800;stroke-width:2.2}
+.rule{stroke:#E3E5E8;stroke-width:1}]]></style><text class="ttl" x="20" y="20">shared by every backend</text><rect class="grey" x="20" y="32" width="144" height="28" rx="4"/><text class="cs" x="92.0" y="50.0">capture</text><rect class="grey" x="176" y="32" width="144" height="28" rx="4"/><text class="cs" x="248.0" y="50.0">planning</text><rect class="grey" x="332" y="32" width="144" height="28" rx="4"/><text class="cs" x="404.0" y="50.0">task lists</text><rect class="grey" x="488" y="32" width="144" height="28" rx="4"/><text class="cs" x="560.0" y="50.0">staging</text><rect class="q" x="20" y="84" width="612" height="30" rx="4"/><text class="cs" x="326.0" y="103.0">runtime.c checks each call and forwards it through GeozlGpuBackendOps</text><path class="arr" d="M326 60 L326 82"/><path class="arr" d="M323.4 76.6 L326 82 L328.6 76.6"/><rect class="bx" x="20" y="146" width="188" height="42" rx="4"/><text class="cs" x="114.0" y="164.0">runtime_metal.m</text><text class="cs" x="114.0" y="178.0">GEOZL_GPU_METAL</text><path class="arr" d="M326 114 L114 144"/><path class="arr" d="M119.0 140.7 L114 144 L119.7 145.8"/><rect class="bx" x="232" y="146" width="188" height="42" rx="4"/><text class="cs" x="326.0" y="164.0">runtime_cuda.c</text><text class="cs" x="326.0" y="178.0">GEOZL_GPU_CUDA</text><path class="arr" d="M326 114 L326 144"/><path class="arr" d="M323.4 138.6 L326 144 L328.6 138.6"/><rect class="plan" x="444" y="146" width="188" height="42" rx="4"/><text class="cs" x="538.0" y="164.0">a new runtime file</text><text class="cs" x="538.0" y="178.0">WebGPU, Vulkan or HIP</text><path class="arrg" d="M326 114 L538 144"/><path class="arr" d="M532.3 145.8 L538 144 L533.0 140.7"/><text class="sm" x="444" y="206">plus its Slang target in</text><text class="sm" x="444" y="220">build_gpu_modules.py</text></svg>

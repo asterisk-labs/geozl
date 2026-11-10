@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 262" width="660" height="262" role="img" aria-label="At build time CMake picks the Metal source modules on Apple and the PTX modules on Linux, and embed_modules.cmake turns each into bytes in a table, such as pfor2, bytes and size, inside the library. At run time the first batch of two-byte PFOR frames looks up pfor2 and hands it to the backend. Metal compiles the source and builds one pipeline per entry point, rejecting a SIMD-group width other than 32. The CUDA driver JIT compiles the PTX for the device, and libcuda.so.1 is opened at run time so the library loads on machines without CUDA."><style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&amp;display=swap');svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
+.tag{fill:#5C6370;font:600 10.5px "IBM Plex Mono",monospace;letter-spacing:.06em}
+.tagA{fill:#492AE8;font:600 10.5px "IBM Plex Mono",monospace;letter-spacing:.06em}
+.cap{fill:#111111;font:500 13px "IBM Plex Mono",monospace}.num{fill:#492AE8;font-weight:700}
+.ttl{fill:#111111;font:600 12.5px "IBM Plex Mono",monospace}
+.lab{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.sm{fill:#5C6370;font:500 10px "IBM Plex Mono",monospace}
+.c{fill:#111111;font:600 11px "IBM Plex Mono",monospace;text-anchor:middle}
+.cs{fill:#111111;font:500 10.5px "IBM Plex Mono",monospace;text-anchor:middle}
+.cl{fill:#111111;font:500 10.5px "IBM Plex Mono",monospace}
+.code{fill:#111111;font:500 11px "IBM Plex Mono",monospace}
+.v{fill:#111111;font:600 13px "IBM Plex Mono",monospace;text-anchor:middle}
+.vg{fill:#B9BEC6;font:600 13px "IBM Plex Mono",monospace;text-anchor:middle}
+.bx{fill:#ECE9FD;stroke:#492AE8;stroke-width:1.2}
+.ok{fill:#C4FFC2;stroke:#1D7A3E;stroke-width:1.2}
+.q{fill:#FEF6D3;stroke:#E0A800;stroke-width:1.2}
+.grey{fill:#F3F3F1;stroke:#9AA1AB;stroke-width:1.1}
+.plan{fill:#FFFFFF;stroke:#9AA1AB;stroke-width:1.1;stroke-dasharray:4 3}
+.bad{fill:#FDE8E8;stroke:#C0392B;stroke-width:1.2}
+.cell{fill:#FFFFFF;stroke:#D3D6DB;stroke-width:1}
+.hl{fill:none;stroke:#E0A800;stroke-width:2.4}
+.badt{fill:#C0392B;font:600 10.5px "IBM Plex Mono",monospace}
+.okt{fill:#1D7A3E;font:600 10.5px "IBM Plex Mono",monospace}
+.pt{fill:#492AE8;font:600 11px "IBM Plex Mono",monospace}
+.eq{fill:#7A5D00;font:600 12px "IBM Plex Mono",monospace}
+.arr{fill:none;stroke:#492AE8;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.arrg{fill:none;stroke:#9AA1AB;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:4 3}
+.arrr{fill:none;stroke:#C0392B;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.ln{stroke:#B9BEC6;stroke-width:1.1}
+.lnh{stroke:#E0A800;stroke-width:2.2}
+.rule{stroke:#E3E5E8;stroke-width:1}]]></style><text class="tag" x="20" y="20">BUILD TIME</text><text class="ttl" x="112" y="20">CMake embeds one kind of module</text><rect class="grey" x="20" y="36" width="150" height="40" rx="4"/><text class="cs" x="95.0" y="53.0">*.metal on Apple</text><text class="cs" x="95.0" y="67.0">*.ptx on Linux</text><rect class="q" x="210" y="36" width="190" height="40" rx="4"/><text class="cs" x="305.0" y="60.0">embed_modules.cmake</text><rect class="ok" x="440" y="36" width="200" height="40" rx="4"/><text class="cs" x="540.0" y="53.0">{&quot;pfor2&quot;, bytes, size}</text><text class="cs" x="540.0" y="67.0">in the library</text><path class="arr" d="M170 56 L208 56"/><path class="arr" d="M202.6 58.6 L208 56 L202.6 53.4"/><path class="arr" d="M400 56 L438 56"/><path class="arr" d="M432.6 58.6 L438 56 L432.6 53.4"/><line class="rule" x1="20" y1="96" x2="640" y2="96"/><text class="tagA" x="20" y="120">RUN TIME</text><text class="ttl" x="112" y="120">the first batch that needs it loads it</text><rect class="bx" x="20" y="136" width="150" height="40" rx="4"/><text class="cs" x="95.0" y="153.0">two-byte PFOR</text><text class="cs" x="95.0" y="167.0">frames arrive</text><rect class="q" x="210" y="136" width="190" height="40" rx="4"/><text class="cs" x="305.0" y="160.0">find_module(&quot;pfor2&quot;)</text><path class="arr" d="M170 156 L208 156"/><path class="arr" d="M202.6 158.6 L208 156 L202.6 153.4"/><rect class="bx" x="440" y="132" width="200" height="46" rx="4"/><text class="cs" x="540.0" y="152.0">Metal compiles the source</text><text class="cs" x="540.0" y="166.0">one pipeline per entry</text><rect class="bx" x="440" y="192" width="200" height="46" rx="4"/><text class="cs" x="540.0" y="212.0">CUDA driver JIT compiles</text><text class="cs" x="540.0" y="226.0">the PTX for the device</text><path class="arr" d="M400 150 L438 152"/><path class="arr" d="M432.5 154.3 L438 152 L432.7 149.1"/><path class="arr" d="M400 164 L438 212"/><path class="arr" d="M432.6 209.4 L438 212 L436.7 206.1"/><text class="sm" x="440" y="194" dy="-2"></text><text class="sm" x="20" y="200">Metal rejects a pipeline whose</text><text class="sm" x="20" y="214">SIMD-group width is not 32</text><text class="sm" x="20" y="236">CUDA opens libcuda.so.1 at run time,</text><text class="sm" x="20" y="250">so the library loads without CUDA</text></svg>

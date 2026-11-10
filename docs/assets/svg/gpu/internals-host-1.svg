@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 312" width="700" height="312" role="img" aria-label="Step 1 of 4. OpenZL reads the frame header and graph on the CPU, as for any decode."><style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&amp;display=swap');svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
+.cap{fill:#111111;font:500 13px "IBM Plex Mono",monospace}.num{fill:#492AE8;font-weight:700}
+.ttl{fill:#111111;font:600 12px "IBM Plex Mono",monospace}
+.lab{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.sm{fill:#5C6370;font:500 9.5px "IBM Plex Mono",monospace;text-anchor:middle;paint-order:stroke;stroke:#FFFFFF;stroke-width:3px;stroke-linejoin:round}
+.smL{fill:#5C6370;font:500 9.5px "IBM Plex Mono",monospace}
+.v{fill:#111111;font:600 11.5px "IBM Plex Mono",monospace;text-anchor:middle}
+.vs{fill:#111111;font:600 10px "IBM Plex Mono",monospace;text-anchor:middle}
+.note{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.eq{fill:#7A5D00;font:600 11.5px "IBM Plex Mono",monospace}
+.op{fill:#492AE8;font:700 11.5px "IBM Plex Mono",monospace}
+.good{fill:#1D7A3E;font:600 11px "IBM Plex Mono",monospace}
+.bad{fill:#B42318;font:600 11px "IBM Plex Mono",monospace}
+.panel{fill:#FAFAF8;stroke:#D3D6DB;stroke-width:1}
+.val{fill:#ECE9FD;stroke:#492AE8;stroke-width:1.1}
+.val2{fill:#E3F2FF;stroke:#2B6CB0;stroke-width:1.1}
+.dim{fill:#F3F3F1;stroke:#D3D6DB;stroke-width:1}
+.cell{fill:#FFFFFF;stroke:#D3D6DB;stroke-width:.8}
+.hot{fill:#FEF6D3;stroke:#E0A800;stroke-width:1.6}
+.out{fill:#C4FFC2;stroke:#1D7A3E;stroke-width:1.2}
+.busy{fill:#492AE8;stroke:#492AE8;stroke-width:1}
+.idle{fill:#FFFFFF;stroke:#9AA1AB;stroke-width:1}
+.red{fill:#FDE8E8;stroke:#B42318;stroke-width:1.1}
+.ln{stroke:#B9BEC6;stroke-width:1;fill:none}
+.lnh{stroke:#E0A800;stroke-width:2;fill:none}
+.bar{stroke:#B42318;stroke-width:1.6;stroke-dasharray:4 3}
+.rule{stroke:#E3E5E8;stroke-width:1}
+.arr{fill:none;stroke:#492AE8;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.arrg{fill:none;stroke:#9AA1AB;stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round}
+.arry{fill:none;stroke:#E0A800;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}]]></style><text class="cap" x="20" y="20"><tspan class="num">1</tspan>  OpenZL reads the frame header and graph on the CPU, as for any decode</text><text class="smL" x="20.0" y="40.0">one frame, a 2 MiB tile through planar&gt;zigzag&gt;pfor</text><rect class="hot" x="20.0" y="46.0" width="160.0" height="32.0" rx="3"/><text class="vs" x="100.0" y="59.5" text-anchor="middle">frame header, graph</text><text class="vs" x="100.0" y="72.5" text-anchor="middle">and codec headers</text><rect class="val2" x="180.0" y="46.0" width="62.0" height="32.0" rx="3"/><text class="vs" x="211.0" y="66.0" text-anchor="middle">block 0</text><rect class="val2" x="242.0" y="46.0" width="62.0" height="32.0" rx="3"/><text class="vs" x="273.0" y="66.0" text-anchor="middle">block 1</text><rect class="val2" x="304.0" y="46.0" width="62.0" height="32.0" rx="3"/><text class="vs" x="335.0" y="66.0" text-anchor="middle">block 2</text><rect class="cell" x="366.0" y="46.0" width="60.0" height="32.0" rx="3"/><text class="vs" x="396.0" y="66.0" text-anchor="middle">...</text><rect class="val2" x="426.0" y="46.0" width="62.0" height="32.0" rx="3"/><text class="vs" x="457.0" y="59.5" text-anchor="middle">block</text><text class="vs" x="457.0" y="72.5" text-anchor="middle">4095</text><rect class="hot" x="488.0" y="46.0" width="70.0" height="32.0" rx="3"/><text class="vs" x="523.0" y="66.0" text-anchor="middle">checksum</text><text class="note" x="20.0" y="104.0">With verification on, the compressed checksum is checked here, so a corrupt</text><text class="note" x="20.0" y="120.0">frame stops before anything reaches the GPU. Then OpenZL walks to the last node.</text><text class="smL" x="680.0" y="154.0" text-anchor="end">staging, page-locked or shared memory the GPU can read</text><rect class="panel" x="20.0" y="160.0" width="660.0" height="30.0" rx="4"/></svg>

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 300" width="680" height="300" role="img" aria-label="Step 1 of 5. eight threads, one symbol each, coded with Huffman, a = 0, b = 10, c = 11."><style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&amp;display=swap');svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
+.cap{fill:#111111;font:500 13px "IBM Plex Mono",monospace}.num{fill:#492AE8;font-weight:700}
+.lab{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.labs{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace;text-anchor:middle}
+.sm{fill:#5C6370;font:500 9.5px "IBM Plex Mono",monospace;text-anchor:middle;paint-order:stroke;stroke:#FFFFFF;stroke-width:3px;stroke-linejoin:round}
+.v{fill:#111111;font:600 12.5px "IBM Plex Mono",monospace;text-anchor:middle}
+.vb{fill:#111111;font:600 11px "IBM Plex Mono",monospace;text-anchor:middle}
+.note{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.eq{fill:#7A5D00;font:600 12px "IBM Plex Mono",monospace}
+.op{fill:#492AE8;font:700 12px "IBM Plex Mono",monospace}
+.opm{fill:#492AE8;font:700 12px "IBM Plex Mono",monospace;text-anchor:middle}
+.bad{fill:#C0392B;font:600 11px "IBM Plex Mono",monospace}
+.good{fill:#1D7A3E;font:600 11px "IBM Plex Mono",monospace}
+.in{fill:#ECE9FD;stroke:#492AE8;stroke-width:1.1}
+.in2{fill:#E3F2FF;stroke:#2B6CB0;stroke-width:1.1}
+.dim{fill:#F3F3F1;stroke:#D3D6DB;stroke-width:1}
+.cell{fill:#FFFFFF;stroke:#D3D6DB;stroke-width:.8}
+.hot{fill:#FEF6D3;stroke:#E0A800;stroke-width:1.6}
+.out{fill:#C4FFC2;stroke:#1D7A3E;stroke-width:1.2}
+.red{fill:#FDE8E8;stroke:#C0392B;stroke-width:1.2}
+.ring{fill:none;stroke:#E0A800;stroke-width:2.4}
+.ln{fill:none;stroke:#B9BEC6;stroke-width:1}
+.lnh{fill:none;stroke:#E0A800;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.arr{fill:none;stroke:#492AE8;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.arrg{fill:none;stroke:#9AA1AB;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}
+.arrr{fill:none;stroke:#C0392B;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.rule{stroke:#E3E5E8;stroke-width:1}
+.brk{fill:none;stroke:#9AA1AB;stroke-width:1.1}]]></style><text class="cap" x="20" y="20"><tspan class="num">1</tspan>  eight threads, one symbol each, coded with Huffman, a = 0, b = 10, c = 11</text><text class="lab" x="20" y="58">symbol</text><text class="labs" x="138.0" y="40">t0</text><rect class="in2" x="112" y="44" width="52" height="22" rx="3"/><text class="v" x="138.0" y="59.5">a</text><text class="labs" x="200.0" y="40">t1</text><rect class="in2" x="174" y="44" width="52" height="22" rx="3"/><text class="v" x="200.0" y="59.5">b</text><text class="labs" x="262.0" y="40">t2</text><rect class="in2" x="236" y="44" width="52" height="22" rx="3"/><text class="v" x="262.0" y="59.5">a</text><text class="labs" x="324.0" y="40">t3</text><rect class="in2" x="298" y="44" width="52" height="22" rx="3"/><text class="v" x="324.0" y="59.5">c</text><text class="labs" x="386.0" y="40">t4</text><rect class="in2" x="360" y="44" width="52" height="22" rx="3"/><text class="v" x="386.0" y="59.5">a</text><text class="labs" x="448.0" y="40">t5</text><rect class="in2" x="422" y="44" width="52" height="22" rx="3"/><text class="v" x="448.0" y="59.5">b</text><text class="labs" x="510.0" y="40">t6</text><rect class="in2" x="484" y="44" width="52" height="22" rx="3"/><text class="v" x="510.0" y="59.5">a</text><text class="labs" x="572.0" y="40">t7</text><rect class="in2" x="546" y="44" width="52" height="22" rx="3"/><text class="v" x="572.0" y="59.5">a</text><text class="lab" x="20" y="120">Huffman</text><rect class="cell" x="112" y="104" width="31" height="24"/><rect class="cell" x="143" y="104" width="31" height="24"/><rect class="cell" x="174" y="104" width="31" height="24"/><rect class="cell" x="205" y="104" width="31" height="24"/><rect class="cell" x="236" y="104" width="31" height="24"/><rect class="cell" x="267" y="104" width="31" height="24"/><rect class="cell" x="298" y="104" width="31" height="24"/><rect class="cell" x="329" y="104" width="31" height="24"/><rect class="cell" x="360" y="104" width="31" height="24"/><rect class="cell" x="391" y="104" width="31" height="24"/><rect class="cell" x="422" y="104" width="31" height="24"/><rect class="in" x="113" y="105" width="29" height="22" rx="2"/><text class="v" x="127.5" y="120.5">0</text><rect class="dim" x="144" y="105" width="60" height="22" rx="2"/><text class="v" x="174.0" y="120.5">?</text><rect class="dim" x="206" y="105" width="29" height="22" rx="2"/><text class="v" x="220.5" y="120.5">?</text><rect class="dim" x="237" y="105" width="60" height="22" rx="2"/><text class="v" x="267.0" y="120.5">?</text><rect class="dim" x="299" y="105" width="29" height="22" rx="2"/><text class="v" x="313.5" y="120.5">?</text><rect class="dim" x="330" y="105" width="60" height="22" rx="2"/><text class="v" x="360.0" y="120.5">?</text><rect class="dim" x="392" y="105" width="29" height="22" rx="2"/><text class="v" x="406.5" y="120.5">?</text><rect class="dim" x="423" y="105" width="29" height="22" rx="2"/><text class="v" x="437.5" y="120.5">?</text><text class="sm" x="127.5" y="98">0</text><text class="eq" x="112" y="168">where does t1 start? only t0 can tell, after reading its own code</text></svg>

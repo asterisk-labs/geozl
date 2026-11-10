@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 280" width="640" height="280" role="img" aria-label="Step 2 of 3. a shuffle hands a value to the next thread, for about the cost of an add."><style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&amp;display=swap');svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
+.cap{fill:#111111;font:500 13px "IBM Plex Mono",monospace}.num{fill:#492AE8;font-weight:700}
+.lab{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.labs{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace;text-anchor:middle}
+.sm{fill:#5C6370;font:500 9.5px "IBM Plex Mono",monospace;text-anchor:middle;paint-order:stroke;stroke:#FFFFFF;stroke-width:3px;stroke-linejoin:round}
+.v{fill:#111111;font:600 12.5px "IBM Plex Mono",monospace;text-anchor:middle}
+.vb{fill:#111111;font:600 11px "IBM Plex Mono",monospace;text-anchor:middle}
+.note{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.eq{fill:#7A5D00;font:600 12px "IBM Plex Mono",monospace}
+.op{fill:#492AE8;font:700 12px "IBM Plex Mono",monospace}
+.opm{fill:#492AE8;font:700 12px "IBM Plex Mono",monospace;text-anchor:middle}
+.bad{fill:#C0392B;font:600 11px "IBM Plex Mono",monospace}
+.good{fill:#1D7A3E;font:600 11px "IBM Plex Mono",monospace}
+.in{fill:#ECE9FD;stroke:#492AE8;stroke-width:1.1}
+.in2{fill:#E3F2FF;stroke:#2B6CB0;stroke-width:1.1}
+.dim{fill:#F3F3F1;stroke:#D3D6DB;stroke-width:1}
+.cell{fill:#FFFFFF;stroke:#D3D6DB;stroke-width:.8}
+.hot{fill:#FEF6D3;stroke:#E0A800;stroke-width:1.6}
+.out{fill:#C4FFC2;stroke:#1D7A3E;stroke-width:1.2}
+.red{fill:#FDE8E8;stroke:#C0392B;stroke-width:1.2}
+.ring{fill:none;stroke:#E0A800;stroke-width:2.4}
+.ln{fill:none;stroke:#B9BEC6;stroke-width:1}
+.lnh{fill:none;stroke:#E0A800;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.arr{fill:none;stroke:#492AE8;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.arrg{fill:none;stroke:#9AA1AB;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}
+.arrr{fill:none;stroke:#C0392B;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.rule{stroke:#E3E5E8;stroke-width:1}
+.brk{fill:none;stroke:#9AA1AB;stroke-width:1.1}]]></style><text class="cap" x="20" y="20"><tspan class="num">2</tspan>  a shuffle hands a value to the next thread, for about the cost of an add</text><text class="labs" x="127.0" y="62">t0</text><text class="labs" x="189.0" y="62">t1</text><text class="labs" x="251.0" y="62">t2</text><text class="labs" x="313.0" y="62">t3</text><text class="labs" x="375.0" y="62">t4</text><text class="labs" x="437.0" y="62">t5</text><text class="labs" x="499.0" y="62">t6</text><text class="labs" x="561.0" y="62">t7</text><text class="note" x="100" y="268">8 threads drawn, a wave has 32, and a GPU runs thousands of waves at once</text><text class="lab" x="20" y="100">x</text><text class="lab" x="20" y="186">from t &#8722; 1</text><rect class="in" x="100" y="84" width="54" height="26" rx="3"/><text class="v" x="127.0" y="101.5">3</text><path class="arr" d="M133.0 112 Q158.0 146.0 183.0 168"/><path class="arr" d="M177.2 166.4 L183.0 168 L180.7 162.5"/><rect class="dim" x="100" y="170" width="54" height="26" rx="3"/><text class="v" x="127.0" y="187.5">&#8211;</text><rect class="in" x="162" y="84" width="54" height="26" rx="3"/><text class="v" x="189.0" y="101.5">5</text><path class="arr" d="M195.0 112 Q220.0 146.0 245.0 168"/><path class="arr" d="M239.2 166.4 L245.0 168 L242.7 162.5"/><rect class="out" x="162" y="170" width="54" height="26" rx="3"/><text class="v" x="189.0" y="187.5">3</text><rect class="in" x="224" y="84" width="54" height="26" rx="3"/><text class="v" x="251.0" y="101.5">2</text><path class="arr" d="M257.0 112 Q282.0 146.0 307.0 168"/><path class="arr" d="M301.2 166.4 L307.0 168 L304.7 162.5"/><rect class="out" x="224" y="170" width="54" height="26" rx="3"/><text class="v" x="251.0" y="187.5">5</text><rect class="in" x="286" y="84" width="54" height="26" rx="3"/><text class="v" x="313.0" y="101.5">7</text><path class="arr" d="M319.0 112 Q344.0 146.0 369.0 168"/><path class="arr" d="M363.2 166.4 L369.0 168 L366.7 162.5"/><rect class="out" x="286" y="170" width="54" height="26" rx="3"/><text class="v" x="313.0" y="187.5">2</text><rect class="in" x="348" y="84" width="54" height="26" rx="3"/><text class="v" x="375.0" y="101.5">4</text><path class="arr" d="M381.0 112 Q406.0 146.0 431.0 168"/><path class="arr" d="M425.2 166.4 L431.0 168 L428.7 162.5"/><rect class="out" x="348" y="170" width="54" height="26" rx="3"/><text class="v" x="375.0" y="187.5">7</text><rect class="in" x="410" y="84" width="54" height="26" rx="3"/><text class="v" x="437.0" y="101.5">6</text><path class="arr" d="M443.0 112 Q468.0 146.0 493.0 168"/><path class="arr" d="M487.2 166.4 L493.0 168 L490.7 162.5"/><rect class="out" x="410" y="170" width="54" height="26" rx="3"/><text class="v" x="437.0" y="187.5">4</text><rect class="in" x="472" y="84" width="54" height="26" rx="3"/><text class="v" x="499.0" y="101.5">1</text><path class="arr" d="M505.0 112 Q530.0 146.0 555.0 168"/><path class="arr" d="M549.2 166.4 L555.0 168 L552.7 162.5"/><rect class="out" x="472" y="170" width="54" height="26" rx="3"/><text class="v" x="499.0" y="187.5">6</text><rect class="in" x="534" y="84" width="54" height="26" rx="3"/><text class="v" x="561.0" y="101.5">2</text><rect class="out" x="534" y="170" width="54" height="26" rx="3"/><text class="v" x="561.0" y="187.5">1</text><text class="eq" x="100" y="224">registers to registers, no trip through memory</text></svg>
