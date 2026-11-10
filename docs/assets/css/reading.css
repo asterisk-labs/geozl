@@ -1386,25 +1386,21 @@ pre code {
 
 .content .example .links {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 16px;
   margin-top: auto;
 }
 
 .content .example a.icon {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--edge);
-  border-radius: 50%;
   color: var(--ink);
   text-decoration: none;
-  transition: background 160ms ease;
+  transition: opacity 160ms ease;
 }
 
-.content .example a.icon:hover { background: var(--wash); }
-.content .example a.icon svg { width: 18px; height: 18px; fill: currentColor; }
+.content .example a.icon:hover { opacity: 0.65; }
+.content .example a.icon svg { width: 22px; height: 22px; fill: currentColor; }
+.content .example a.icon img { width: 24px; height: 24px; }
 
 .example.soon {
   border-style: dashed;
