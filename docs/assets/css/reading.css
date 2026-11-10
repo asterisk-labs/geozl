@@ -1384,18 +1384,27 @@ pre code {
   color: var(--dim);
 }
 
-.content .example a.open {
-  align-self: flex-start;
+.content .example .links {
+  display: flex;
+  gap: 10px;
   margin-top: auto;
-  padding: 8px 14px;
-  border-radius: 16px;
-  background: var(--violet);
-  color: #ffffff;
-  font: 600 12px var(--mono);
-  text-decoration: none;
 }
 
-.content .example a.open:hover { background: #3a1fd0; }
+.content .example a.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--edge);
+  border-radius: 50%;
+  color: var(--ink);
+  text-decoration: none;
+  transition: background 160ms ease;
+}
+
+.content .example a.icon:hover { background: var(--wash); }
+.content .example a.icon svg { width: 18px; height: 18px; fill: currentColor; }
 
 .example.soon {
   border-style: dashed;
