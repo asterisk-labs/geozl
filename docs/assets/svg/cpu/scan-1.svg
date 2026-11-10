@@ -1,21 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" width="640" height="220" role="img" aria-label="Step 1 of 5, one row of c in a 128-bit register, 8 lanes"><style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap');
-svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
-.ttl{fill:#111111;font:600 13px "IBM Plex Mono",monospace}
-.cap{fill:#111111;font:500 13px "IBM Plex Mono",monospace}
-.n{fill:#492AE8;font-weight:600}
-.lab{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
-.num{font:600 13px "IBM Plex Mono",monospace;text-anchor:middle}
-.mid{text-anchor:middle}
-.grey{fill:#F3F3F1;stroke:#9AA1AB}.greyt{fill:#5C6370}
-.ink{fill:#FFFFFF;stroke:#111111}.inkt{fill:#111111}
-.ind{fill:#ECE9FD;stroke:#492AE8;stroke-width:1.3}.indt{fill:#492AE8}
-.mint{fill:#C4FFC2;stroke:#1D7A3E;stroke-width:1.3}.mintt{fill:#1D7A3E}
-.yel{fill:#FEF6D3;stroke:#F7CC09;stroke-width:1.3}.yelt{fill:#7A5D00}
-.faint{fill:#FFFFFF;stroke:#E6E6E3}.faintt{fill:#C4C8CE}
-.reg{fill:none;stroke:#111111;stroke-width:1.4}
-.arr{fill:none;stroke:#492AE8;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
-.arrg{fill:none;stroke:#9AA1AB;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}
-.arrm{fill:none;stroke:#1D7A3E;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
-.in{animation:in .45s cubic-bezier(.4,0,.2,1) both}
-@keyframes in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.in{animation:none}}]]></style><text class="cap" x="20" y="26"><tspan class="n">1</tspan>  one row of c in a 128-bit register, 8 lanes</text><text class="lab mid" x="176.0" y="56">lane 0</text><text class="lab mid" x="236.0" y="56">lane 1</text><text class="lab mid" x="296.0" y="56">lane 2</text><text class="lab mid" x="356.0" y="56">lane 3</text><text class="lab mid" x="416.0" y="56">lane 4</text><text class="lab mid" x="476.0" y="56">lane 5</text><text class="lab mid" x="536.0" y="56">lane 6</text><text class="lab mid" x="596.0" y="56">lane 7</text><text class="lab" x="20" y="88">c</text><rect class="ind" x="150" y="68" width="52" height="30" rx="4"/><text class="num indt" x="176.0" y="88">11</text><rect class="ind" x="210" y="68" width="52" height="30" rx="4"/><text class="num indt" x="236.0" y="88">2</text><rect class="ind" x="270" y="68" width="52" height="30" rx="4"/><text class="num indt" x="296.0" y="88">2</text><rect class="ind" x="330" y="68" width="52" height="30" rx="4"/><text class="num indt" x="356.0" y="88">2</text><rect class="ind" x="390" y="68" width="52" height="30" rx="4"/><text class="num indt" x="416.0" y="88">1</text><rect class="ind" x="450" y="68" width="52" height="30" rx="4"/><text class="num indt" x="476.0" y="88">3</text><rect class="ind" x="510" y="68" width="52" height="30" rx="4"/><text class="num indt" x="536.0" y="88">&#8722;1</text><rect class="ind" x="570" y="68" width="52" height="30" rx="4"/><text class="num indt" x="596.0" y="88">&#8722;1</text><text class="lab" x="20" y="124">r + N &#8722; N on the left,</text><text class="lab" x="20" y="140">from the row step</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 392" width="620" height="392" role="img" aria-label="Step 1 of 4. lane 5 starts with only its own value. lane 5 = 3."><style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&amp;display=swap');svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
+.cap{fill:#111111;font:500 13px "IBM Plex Mono",monospace}.num{fill:#492AE8;font-weight:700}
+.lab{fill:#5C6370;font:500 11.5px "IBM Plex Mono",monospace}
+.hd{fill:#5C6370;font:500 10.5px "IBM Plex Mono",monospace;text-anchor:middle}
+.hd5{fill:#7A5D00;font:700 10.5px "IBM Plex Mono",monospace;text-anchor:middle}
+.v{fill:#111111;font:600 14px "IBM Plex Mono",monospace;text-anchor:middle}
+.in{fill:#ECE9FD;stroke:#492AE8;stroke-width:1.2}
+.res{fill:#C4FFC2;stroke:#1D7A3E;stroke-width:1.2}
+.win{fill:#FFF4C2;stroke:#E0A800;stroke-width:1.2}
+.l5{fill:none;stroke:#E0A800;stroke-width:2.6}
+.e{stroke:#D3D6DB;stroke-width:1.1}
+.e5{stroke:#E0A800;stroke-width:2.6;stroke-linecap:round}
+.op{fill:#492AE8;font:600 11px "IBM Plex Mono",monospace}
+.eq{fill:#7A5D00;font:600 12.5px "IBM Plex Mono",monospace}
+.note{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}]]></style><text class="cap" x="20" y="22"><tspan class="num">1</tspan>  lane 5 starts with only its own value</text><text class="hd" x="156.0" y="46">lane 0</text><text class="hd" x="216.0" y="46">lane 1</text><text class="hd" x="276.0" y="46">lane 2</text><text class="hd" x="336.0" y="46">lane 3</text><text class="hd" x="396.0" y="46">lane 4</text><text class="hd5" x="456.0" y="46">lane 5</text><text class="hd" x="516.0" y="46">lane 6</text><text class="hd" x="576.0" y="46">lane 7</text><text class="lab" x="20" y="75">input</text><rect class="in" x="132" y="56" width="48" height="28" rx="4"/><text class="v" x="156.0" y="75">11</text><rect class="in" x="192" y="56" width="48" height="28" rx="4"/><text class="v" x="216.0" y="75">2</text><rect class="in" x="252" y="56" width="48" height="28" rx="4"/><text class="v" x="276.0" y="75">2</text><rect class="in" x="312" y="56" width="48" height="28" rx="4"/><text class="v" x="336.0" y="75">2</text><rect class="in" x="372" y="56" width="48" height="28" rx="4"/><text class="v" x="396.0" y="75">1</text><rect class="win" x="432" y="56" width="48" height="28" rx="4"/><text class="v" x="456.0" y="75">3</text><rect class="in" x="492" y="56" width="48" height="28" rx="4"/><text class="v" x="516.0" y="75">&#8722;1</text><rect class="in" x="552" y="56" width="48" height="28" rx="4"/><text class="v" x="576.0" y="75">&#8722;1</text><rect class="l5" x="429" y="53" width="54" height="34" rx="5"/><text class="eq" x="132" y="360">lane 5 = 3</text><text class="note" x="132" y="380">it should end as 11 + 2 + 2 + 2 + 1 + 3 = 21</text></svg>
