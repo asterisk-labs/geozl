@@ -43,7 +43,7 @@ docs/
     ├── js/main.js           codec list read by test_catalog.py; no page loads it
     ├── js/toc.js            highlights the current section in the docs sidebar
     ├── js/stepper.js        steps through the figures marked .stepper
-    ├── js/code.js           colors the code blocks, by the language class on each
+    ├── js/code.js           colors the code blocks and adds their copy buttons
     └── svg/
         ├── mark.svg          animated 2x2 prediction mark
         ├── banner.svg        the README banner

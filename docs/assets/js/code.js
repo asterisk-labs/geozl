@@ -1,6 +1,4 @@
-/* Colors the code blocks. Each block names its language with a class on its
-   code element, as in <code class="language-python">, and stays plain text
-   when this script does not run. */
+/* Syntax highlighting and copy buttons for code blocks. */
 (function () {
   'use strict';
 
@@ -33,7 +31,7 @@
   var LANGUAGES = {
     c: c,
 
-    /* The algorithm boxes, C syntax with English in places. */
+    /* C-like pseudocode. */
     pseudo: {
       comment: C_COMMENT,
       string: C_STRING,
@@ -136,8 +134,7 @@
     return j < 0 || text[j] === '\n';
   }
 
-  /* What an identifier is, from the word, the text after it and what came
-     before it in the statement. */
+  /* Classify an identifier from its local context. */
   function classify(lang, word, after, state) {
     if (lang.keywords[word]) return 'kw';
     if (lang.literals[word]) return 'num';
@@ -195,7 +192,7 @@
     return out.html();
   }
 
-  /* Shell, a command at the start of each line and after | ; &&. */
+  /* Highlight the first word of each shell command. */
   function shell(text) {
     var out = new Output();
     var command = true;
@@ -226,5 +223,76 @@
     var text = code.textContent;
     if (name === 'sh') code.innerHTML = shell(text);
     else if (LANGUAGES[name]) code.innerHTML = highlight(LANGUAGES[name], text);
+  });
+
+  /* Add a copy button to each block. */
+
+  var ICONS = '<span class="code-copy-icon">' +
+    '<svg class="icon-copy" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h10v10H8z"></path><path d="M6 15H4V4h11v2"></path></svg>' +
+    '<svg class="icon-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg>' +
+    '</span>';
+
+  function copyFallback(text) {
+    var area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (error) { ok = false; }
+    area.remove();
+    return ok;
+  }
+
+  function copy(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text)
+        .then(function () { return true; })
+        .catch(function () { return copyFallback(text); });
+    }
+    return Promise.resolve(copyFallback(text));
+  }
+
+  var blocks = document.querySelectorAll('pre > code');
+  if (!blocks.length) return;
+
+  var feedback = document.createElement('p');
+  feedback.className = 'code-feedback';
+  feedback.setAttribute('aria-live', 'polite');
+  document.body.appendChild(feedback);
+
+  Array.prototype.forEach.call(blocks, function (code) {
+    var pre = code.parentNode;
+    var block = document.createElement('div');
+    block.className = 'code-block';
+    pre.parentNode.insertBefore(block, pre);
+    block.appendChild(pre);
+
+    var button = document.createElement('button');
+    button.className = 'code-copy';
+    button.type = 'button';
+    button.setAttribute('aria-label', 'Copy code');
+    button.innerHTML = ICONS;
+    var toast = document.createElement('span');
+    toast.className = 'code-copied';
+    toast.setAttribute('aria-hidden', 'true');
+    toast.textContent = 'Copied';
+    block.appendChild(button);
+    block.appendChild(toast);
+
+    var timer = 0;
+    button.addEventListener('click', function () {
+      copy(code.textContent).then(function (ok) {
+        block.classList.toggle('is-copied', ok);
+        feedback.textContent = ok ? 'Code copied.' : 'Select the code and copy it by hand.';
+        window.clearTimeout(timer);
+        timer = window.setTimeout(function () {
+          block.classList.remove('is-copied');
+          feedback.textContent = '';
+        }, 1600);
+      });
+    });
   });
 })();

@@ -652,8 +652,7 @@ pre code {
   font-size: inherit;
 }
 
-/* Syntax colors, as spans that code.js adds. Every color keeps 4.5:1 on the
-   block background. */
+/* Syntax colors inserted by code.js. */
 
 .tok-com { color: var(--code-comment); }
 .tok-kw { color: var(--code-keyword); }
@@ -661,6 +660,115 @@ pre code {
 .tok-type { color: var(--code-type); }
 .tok-str { color: var(--code-string); }
 .tok-num { color: var(--code-number); }
+
+/* Code copy control. */
+
+.code-block {
+  position: relative;
+}
+
+.code-copy {
+  position: absolute;
+  top: 14px;
+  right: 0;
+  z-index: 1;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px 0 18px;
+  border: 0;
+  background: linear-gradient(90deg, rgba(246, 246, 244, 0), var(--wash) 16px);
+  color: var(--dim);
+  cursor: pointer;
+  transition: opacity 160ms ease;
+}
+
+.code-copy:focus-visible { outline: 0; }
+
+.code-copy-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.code-copy:focus-visible .code-copy-icon {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .code-copy { opacity: 0; }
+  .code-block:hover .code-copy,
+  .code-copy:focus-visible,
+  .code-block.is-copied .code-copy { opacity: 1; }
+}
+
+.code-copy:hover .code-copy-icon,
+.code-copy:focus-visible .code-copy-icon,
+.code-block.is-copied .code-copy-icon {
+  color: var(--ink);
+  background: var(--wash-deep);
+}
+
+.code-copy svg {
+  grid-area: 1 / 1;
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  transition: opacity 180ms ease, transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.code-copy .icon-check {
+  opacity: 0;
+  transform: scale(0.4);
+  stroke-width: 2.2;
+}
+
+.code-block.is-copied .icon-copy {
+  opacity: 0;
+  transform: scale(0.4);
+}
+
+.code-block.is-copied .icon-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.code-copied {
+  position: absolute;
+  top: 19px;
+  right: 46px;
+  z-index: 1;
+  padding: 5px 9px;
+  border-radius: 3px;
+  background: var(--ink);
+  color: var(--bg);
+  font: 500 11px/1 var(--mono);
+  letter-spacing: 0.03em;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(4px);
+  transition: opacity 180ms ease, transform 220ms ease;
+}
+
+.code-block.is-copied .code-copied {
+  opacity: 1;
+  transform: none;
+}
+
+.code-feedback {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 
 /* Tables: rows of label and value, hairlines only */
 
@@ -1182,11 +1290,15 @@ pre code {
     border-radius: 0;
     font-size: 12.5px;
   }
+  .code-copy { top: 13px; right: -16px; }
+  .code-copied { top: 18px; right: 30px; }
   .row { grid-template-columns: 56px max-content; gap: 10px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .heart { animation: none; }
+  .code-copy svg,
+  .code-copied { transition: none; }
 }
 
 /* Page list groups: the same quiet label as the section groups, without the rail inset */
@@ -1365,7 +1477,7 @@ pre code {
   .diagram.wide .player-view { width: 560px; }
 }
 
-/* Example cards, one notebook each */
+/* Example cards. */
 
 .examples {
   display: grid;
