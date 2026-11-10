@@ -1368,7 +1368,7 @@ pre code {
   background: var(--bg);
 }
 
-.content .example h3 {
+.content .example h3:not(.codec h3) {
   margin: 0;
   font-size: 18px;
 }

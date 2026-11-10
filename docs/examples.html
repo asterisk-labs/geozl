@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=15">
+<link rel="stylesheet" href="assets/css/reading.css?v=16">
 </head>
 <body>
 <div class="page">
@@ -51,13 +51,14 @@
       <p class="toc-title">Examples</p>
       <ol class="toc-pages toc-examples">
         <li class="toc-group">In Colab</li>
-        <li><a href="#four-calls">The four calls on a DEM tile</a></li>
-        <li><a href="#gpu-batches">Windows into GPU memory</a></li>
+        <li><a href="#high-level-api">High-level API</a></li>
+        <li><a href="#gpu-rumi">GPU decoding with Rumi</a></li>
         <li class="toc-group">Coming soon</li>
-        <li><a href="#bounded-error">Bounded error</a></li>
-        <li><a href="#nodata">Masks and NoData</a></li>
-        <li><a href="#cubes">Band cubes</a></li>
-        <li><a href="#graphs">Your own graph</a></li>
+        <li><a href="#zarr">GeoZL in Zarr</a></li>
+        <li><a href="#bounded-error">Bounded-error compression</a></li>
+        <li><a href="#nodata">NoData</a></li>
+        <li><a href="#cubes">Multi-band cubes</a></li>
+        <li><a href="#graphs">Low-level OpenZL graphs</a></li>
       </ol>
     </nav>
 
@@ -66,49 +67,55 @@
       <ul class="facts">
         <li>Notebooks that run in <a href="https://colab.research.google.com/" rel="noopener noreferrer">Google Colab</a> with nothing to install beforehand.</li>
       </ul>
-      <p>Each example is a notebook on real Earth observation data. Open one in Colab, run the cells from the top, and change the data or the recipe as you go. The <a href="api.html">API</a> pages explain every call they use.</p>
+      <p>Each example is a notebook. Open it in Colab and run the cells from the top. The <a href="api.html">API</a> pages explain every call they use.</p>
 
       <h2 class="part" id="colab">In Colab</h2>
       <div class="examples">
-        <section class="example" id="four-calls">
-          <h3>The four calls on a DEM tile</h3>
-          <p>Profile the recipes on a Copernicus DEM tile, build the best graph, compress the tile and read it back, the whole high-level API in one notebook.</p>
-          <p class="tags">Python · lossless · Copernicus DEM</p>
+        <section class="example" id="high-level-api">
+          <h3>High-level API</h3>
+          <p><code>profile</code>, <code>graph</code>, <code>compress</code> and <code>decompress</code> on a Copernicus DEM tile.</p>
+          <p class="tags">Python · CPU</p>
           <a class="open" href="https://colab.research.google.com/github/asterisk-labs/geozl/blob/main/docs/notebooks/high-level-api.ipynb" rel="noopener noreferrer">Open in Colab</a>
         </section>
-        <section class="example" id="gpu-batches">
-          <h3>Windows straight into GPU memory</h3>
-          <p>Write a small Rumi image, read a window directly into a CUDA tensor and check it against the CPU reader. Select a GPU runtime first.</p>
-          <p class="tags">Python · Rumi · GPU</p>
+        <section class="example" id="gpu-rumi">
+          <h3>GPU decoding with Rumi</h3>
+          <p>Read a Rumi window into a CUDA tensor and check it against the CPU reader.</p>
+          <p class="tags">Python · GPU</p>
           <a class="open" href="https://colab.research.google.com/github/asterisk-labs/rumi/blob/main/examples/rumi-gpu.ipynb" rel="noopener noreferrer">Open in Colab</a>
         </section>
       </div>
 
       <h2 class="part" id="soon">Coming soon</h2>
-      <p>These are being written. Each will open in Colab the same way once it is ready.</p>
+      <p>These are being written and will open in Colab the same way.</p>
       <div class="examples">
+        <section class="example soon" id="zarr">
+          <h3>GeoZL in Zarr</h3>
+          <p>GeoZL as the chunk codec of a Zarr array, on the CPU.</p>
+          <p class="tags">Python · CPU</p>
+          <span class="soon-tag">Coming soon</span>
+        </section>
         <section class="example soon" id="bounded-error">
-          <h3>Bounded error on precipitation</h3>
-          <p>Compress IMERG precipitation with an absolute and a relative bound, then check that every sample stays inside it.</p>
-          <p class="tags">Python · near-lossless · IMERG</p>
+          <h3>Bounded-error compression</h3>
+          <p><code>error=</code> with an absolute and a relative bound.</p>
+          <p class="tags">Python · CPU</p>
           <span class="soon-tag">Coming soon</span>
         </section>
         <section class="example soon" id="nodata">
-          <h3>Masks, NoData and land cover</h3>
-          <p>Declare NoData on a Sentinel-2 scene and code ESA WorldCover classes with lanes, then compare the ratio with and without the mask.</p>
-          <p class="tags">Python · NoData · ESA WorldCover</p>
+          <h3>NoData</h3>
+          <p>Compress a raster with declared NoData values.</p>
+          <p class="tags">Python · CPU</p>
           <span class="soon-tag">Coming soon</span>
         </section>
         <section class="example soon" id="cubes">
-          <h3>Band cubes and planes</h3>
-          <p>Compress a Sentinel-2 band cube plane by plane and across bands, and see which one a given scene prefers.</p>
-          <p class="tags">Python · planes · Sentinel-2</p>
+          <h3>Multi-band cubes</h3>
+          <p>Compress a band cube with <code>planes</code>.</p>
+          <p class="tags">Python · CPU</p>
           <span class="soon-tag">Coming soon</span>
         </section>
         <section class="example soon" id="graphs">
-          <h3>Your own OpenZL graph</h3>
-          <p>Put GeoZL nodes inside a low-level OpenZL graph, and split complex SAR samples with deinterleave before predicting them.</p>
-          <p class="tags">Python · openzl.ext · SAR</p>
+          <h3>Low-level OpenZL graphs</h3>
+          <p>GeoZL nodes inside an <code>openzl.ext</code> graph.</p>
+          <p class="tags">Python · CPU</p>
           <span class="soon-tag">Coming soon</span>
         </section>
       </div>
