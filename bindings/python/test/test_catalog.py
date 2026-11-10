@@ -163,7 +163,7 @@ def test_catalog_contents_list_every_section():
         listed = re.findall(r'<li><a href="#(\w+)"><span class="toc-no">(\d+)</span>', _read(page))
         assert listed == [(c["name"], c["no"]) for c in catalog_cards([page])]
 
-    total = re.search(r"<li>Codecs (\d+)</li>", _read(OVERVIEW))
+    total = re.search(r"(\d+) codecs", _read(OVERVIEW))
     assert total is not None
     assert int(total.group(1)) == len(catalog_cards())
 

@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=12">
+<link rel="stylesheet" href="assets/css/reading.css?v=14">
 </head>
 <body>
 <div class="page">
@@ -78,9 +78,9 @@
           <li><a href="near-lossless.html">Near-lossless</a></li>
         </ol>
       </aside>
-      <p>A <b>fused</b> codec runs the chain in <b>one pass</b>. Separate nodes write each stage's full output to memory before the next stage reads it. A fused codec keeps samples in registers between stages, reading the input once and writing the output once. Both produce the same decoded data.</p>
+      <p>A <b>fused</b> codec runs the chain in <b>one pass</b>. Separate nodes write each stage's full output to memory before the next stage reads it. A fused codec keeps samples in registers, or in a buffer of one 256-value block that stays in cache, between stages, so it never writes a whole intermediate stream. It reads the input once and writes the output once. Both produce the same decoded data.</p>
       <p>Fusion helps most when cheap steps such as planar, zigzag and pfor spend more time moving data than computing. Follow one 1024 × 1024 uint16 tile of 2 MiB through separate and fused <code>planar&gt;zigzag&gt;pfor</code>.</p>
-      <figure class="diagram wide stepper" data-beats="2.2,4.4,6.6,9.2"><img src="assets/svg/codecs-light/fused-vs-separate.svg" alt="As separate nodes, planar reads the 2 MiB tile and writes 2 MiB of residuals, zigzag reads them and writes 2 MiB of unsigned values, and pfor reads those and writes the frame, 10 MiB of memory plus the frame. Fused into one codec, the tile is read once and the frame written once, 2 MiB plus the frame, with each sample kept in registers." loading="lazy"><figcaption>Separate nodes pass the whole tile through memory between every step. The fused codec reads it once.</figcaption></figure>
+      <figure class="diagram wide stepper" data-beats="2.2,4.4,6.6,9.2"><img src="assets/svg/codecs-light/fused-vs-separate.svg" alt="As separate nodes, planar reads the 2 MiB tile and writes 2 MiB of residuals, zigzag reads them and writes 2 MiB of unsigned values, and pfor reads those and writes the frame, 10 MiB of memory plus the frame. Fused into one codec, the tile is read once and the frame written once, 2 MiB plus the frame, with samples kept in registers and one small block buffer." loading="lazy"><figcaption>Separate nodes pass the whole tile through memory between every step. The fused codec reads it once.</figcaption></figure>
       <p>GeoZL uses a fused codec when that chain has a fused implementation. The available fused codecs are listed below.</p>
       <section class="codec" id="planar_zigzag" data-no="11" data-ctid="0x72D70F" data-fam="gold" data-page="codecs/planar-zigzag.html" style="--fam:var(--gold)">
         <h3><span class="num">11</span>planar_zigzag</h3>
@@ -93,7 +93,7 @@
         <table class="spec">
           <tr><th>ctid</th><td>0x72D70F</td></tr>
           <tr><th>header</th><td>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</td></tr>
-          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit integers</td></tr>
+          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit elements, read as integers</td></tr>
           <tr><th>decode</th><td>inverse Zigzag, then planar reconstruction</td></tr>
           <tr><th>next</th><td>a packer or entropy stage, also folded into <a href="#planar_zigzag_pfor">planar_zigzag_pfor</a></td></tr>
         </table>
@@ -167,7 +167,7 @@ for (i = 0; i &lt; n; i++) {
         <table class="spec">
           <tr><th>ctid</th><td>0x72D711</td></tr>
           <tr><th>header</th><td>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</td></tr>
-          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit integers</td></tr>
+          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit elements, read as integers</td></tr>
           <tr><th>decode</th><td>inverse Zigzag folded into the MED reconstruction</td></tr>
           <tr><th>next</th><td>an entropy stage, usually after a byte transpose</td></tr>
         </table>

@@ -63,7 +63,7 @@
 
       <div class="panel">
         <img class="diagram" src="../assets/svg/codecs/nodata.svg"
-             alt="nodata splits the raster into a filled value stream and a validity mask. Holes are filled from the west neighbour, and on decode the stored pattern is written back wherever the mask is zero">
+             alt="nodata splits the raster into a filled value stream and a validity mask. Holes are filled from the west neighbour, or from the sample above when the hole opens a row, and on decode the stored pattern is written back wherever the mask is zero">
         <span class="p-cap">holes leave as a mask, values fill in behind them</span>
       </div>
     </main>

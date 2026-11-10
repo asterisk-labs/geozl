@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=12">
+<link rel="stylesheet" href="assets/css/reading.css?v=14">
 </head>
 <body>
 <div class="page">
@@ -79,6 +79,7 @@
         </ol>
       </aside>
       <p>A <b>quantizer</b> snaps each sample to a grid, so the error never passes the bound you set. Every stage after it is lossless. <b>quant_linear</b> bounds the absolute error, <b>quant_log</b> the relative error, and <b>quant_sqrt</b> an error that grows with the signal, like sensor noise.</p>
+      <p>The bound covers every finite sample. NaN and infinities are outside it and belong to the <a href="streams.html#nodata">nodata</a> codec. On floats, quant_log and quant_sqrt guarantee their bound only from the smallest normal value up, because subnormals sit a fixed gap apart that no bound shrinking with the signal can cover.</p>
       <section class="codec" id="quant_linear" data-no="15" data-ctid="0x72D781" data-fam="orange" data-page="codecs/quant-linear.html" style="--fam:var(--orange)">
         <h3><span class="num">15</span>quant_linear</h3>
         <p><b>quant_linear</b> snaps samples to <b>one uniform grid</b>, so every sample comes back within MAX_ERROR of where it started, in the data&#8217;s own units.</p>

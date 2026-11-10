@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=12">
+<link rel="stylesheet" href="assets/css/reading.css?v=14">
 </head>
 <body>
 <div class="page">
@@ -69,9 +69,7 @@
     <article class="content">
       <h1>GeoZL codecs</h1>
       <ul class="facts">
-        <li>Version 0.31.0</li>
-        <li>Codecs 17</li>
-        <li>License BSD-3-Clause</li>
+        <li>GeoZL 0.31.0, 17 codecs, BSD-3-Clause licence.</li>
       </ul>
       <aside class="series" aria-label="Section">
         <p class="series-title">Codecs, in five pages</p>
@@ -83,7 +81,7 @@
           <li><a href="near-lossless.html">Near-lossless</a></li>
         </ol>
       </aside>
-      <p><b><a href="https://github.com/facebook/zstd" rel="noopener noreferrer">zstd</a></b>, <b>Deflate</b> and <b>Blosc</b> treat a raster as a line of bytes. They do not use pixel neighbours, the −32768 no-data value, or the slowly changing high byte of a 16-bit elevation. GeoZL adds small codecs for these raster properties. GeoZL supplies these codecs to <a href="https://github.com/facebook/openzl" rel="noopener noreferrer">OpenZL</a>, a compression framework built from <b>graphs of codecs</b>.</p>
+      <p><b><a href="https://github.com/facebook/zstd" rel="noopener noreferrer">zstd</a></b> and <b>Deflate</b> on their own treat a raster as a line of bytes. They do not use pixel neighbours, the −32768 no-data value, or the slowly changing high byte of a 16-bit elevation. <a href="https://github.com/Blosc/c-blosc" rel="noopener noreferrer">Blosc</a> gets part of the way with byte shuffle and bitshuffle, which group the high bytes together, but it still knows nothing of neighbours in two dimensions or of no-data. GeoZL adds small codecs for these raster properties. GeoZL supplies these codecs to <a href="https://github.com/facebook/openzl" rel="noopener noreferrer">OpenZL</a>, a compression framework built from <b>graphs of codecs</b>.</p>
       <p>The figure follows one row of an elevation tile through a graph. Use the <b>buttons</b> or <b>arrow keys</b> to follow each codec.</p>
       <figure class="diagram wide stepper" data-steps="6" data-src="assets/svg/codecs-light/graph-step-#.svg">
         <img class="stepper-view" tabindex="0" src="assets/svg/codecs-light/graph-step-6.svg" alt="One row of an int16 elevation tile, 412 415 -32768 418 421 423, through a GeoZL graph in six steps. The nodata step moves the hole to a mask and fills the gap with 415. The planar step leaves 412 3 0 3 3 2. The zigzag step makes it 824 6 0 6 6 4. The transpose step splits it into a low byte lane 56 6 0 6 6 4 and a high byte lane 3 0 0 0 0 0. The entropy step codes each stream, and the frame stores them with the graph.">
@@ -104,7 +102,7 @@ out = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)</code></pre>
       <p><code>nodata=</code> adds the first step, and <code>error=</code> would add a quantizer right after it. <code>decompress</code> returns <b>bytes</b>. The frame stores neither dtype nor shape, so retain both separately. <code>geozl.profile</code> tries candidate recipes on a tile and <b>ranks them</b>.</p>
       <p>All GeoZL codecs fit into this chain. The map places all <b>seventeen codecs</b> beside the OpenZL codecs they work with.</p>
       <figure class="diagram wide">
-        <img src="assets/svg/codecs-light/geozl-map.svg" alt="The seventeen GeoZL codecs by where they sit in a graph. Split, nodata and deinterleave. Quantize, quant_linear, quant_log and quant_sqrt. Predict, delta_w, delta_n, planar, med, average and wp_static. Code, pfor and lanes, next to OpenZL's zigzag, transpose, entropy and zstd. Fused codecs run predict and code in one pass, planar_zigzag, med_zigzag, planar_zigzag_pfor and planar_zigzag_lanes. pfor, lanes and the two fused codecs ending in them also decode on the GPU." loading="lazy">
+        <img src="assets/svg/codecs-light/geozl-map.svg?v=2" alt="The seventeen GeoZL codecs by where they sit in a graph. Split, nodata and deinterleave. Quantize, quant_linear, quant_log and quant_sqrt. Predict, delta_w, delta_n, planar, med, average and wp_static. Code, pfor and lanes, next to OpenZL's zigzag, transpose, entropy and zstd. Fused codecs run several steps in one pass. planar_zigzag and med_zigzag predict and zigzag and still need a code step after them, planar_zigzag_pfor and planar_zigzag_lanes code as well. pfor, lanes and the two fused codecs ending in them also decode on the GPU." loading="lazy">
         <figcaption>The first two slots are optional. Codecs marked <b>gpu</b> also decode on the GPU.</figcaption>
       </figure>
       <p>The four codec families are on separate pages. <a href="predictors.html"><b>Predictors</b></a> turn samples into small residuals. <a href="streams.html"><b>Stream</b></a> codecs split and pack. <a href="fused.html"><b>Fused</b></a> codecs run a common chain in one pass, and <code>planar&gt;zigzag</code> in the picture above is really one of them. <a href="near-lossless.html"><b>Quantizers</b></a> trade a bounded error for smaller numbers. Each codec ends with its CTid, its header and the call that builds it.</p>

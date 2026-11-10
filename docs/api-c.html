@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=12">
+<link rel="stylesheet" href="assets/css/reading.css?v=14">
 </head>
 <body>
 <div class="page">
@@ -64,8 +64,7 @@
     <article class="content">
       <h1>C</h1>
       <ul class="facts">
-        <li>Headers in <a href="https://github.com/asterisk-labs/geozl/tree/main/core/include/geozl" rel="noopener noreferrer"><code>core/include/geozl</code></a></li>
-        <li>Every binding calls this library</li>
+        <li>Headers in <a href="https://github.com/asterisk-labs/geozl/tree/main/core/include/geozl" rel="noopener noreferrer"><code>core/include/geozl</code></a>, the library every binding calls.</li>
       </ul>
       <aside class="series" aria-label="Section">
         <p class="series-title">API, in seven pages</p>
@@ -84,7 +83,7 @@ make lib        # core/build/libgeozl, with OpenZL linked in</code></pre>
       <p>Include <a href="https://github.com/asterisk-labs/geozl/blob/main/core/include/geozl/geozl.h" rel="noopener noreferrer"><code>geozl/geozl.h</code></a> for compression, <a href="https://github.com/asterisk-labs/geozl/blob/main/core/include/geozl/coeffs.h" rel="noopener noreferrer"><code>geozl/coeffs.h</code></a> for coefficients and <a href="https://github.com/asterisk-labs/geozl/blob/main/core/include/geozl/gpu.h" rel="noopener noreferrer"><code>geozl/gpu.h</code></a> for GPU decode. The CMake project in <a href="https://github.com/asterisk-labs/geozl/tree/main/core" rel="noopener noreferrer"><code>core/</code></a> also installs the headers and the library.</p>
 
       <h2 class="part" id="types">Types and errors</h2>
-      <p>The C library holds everything the Python calls use. Functions that return <code>int</code> return 0 on success and otherwise a <code>ZL_ErrorCode</code>, with a message written to <code>errCtx</code> when it is not <code>NULL</code>. The headers are the supported source API, and before 1.0 they may change in any release, as <a href="https://github.com/asterisk-labs/geozl/blob/main/docs/c-api.md" rel="noopener noreferrer">C API stability</a> sets out.</p>
+      <p>The C library holds everything the Python calls use. The compress, decompress, graph, bench and frame size calls of <code>geozl.h</code> return 0 on success and otherwise a <code>ZL_ErrorCode</code>, and those that take <code>errCtx</code> write a message there when it is not <code>NULL</code>. The other functions that return <code>int</code> follow their own rule, given in their entries below. <code>geozl_owns_ctid</code> and <code>geozl_ctid_is_lossy</code> return nonzero for yes, <code>geozl_2d_grid_c</code> returns -1 for an unknown prior, <code>geozl_2d_frame_coeffs_c</code> and <code>geozl_coeffs_parse</code> have codes of their own, and the GPU calls that can fail write their message into an error buffer. The headers are the supported source API, and before 1.0 they may change in any release, as <a href="https://github.com/asterisk-labs/geozl/blob/main/docs/c-api.md" rel="noopener noreferrer">C API stability</a> sets out.</p>
 <pre><code>typedef enum {
   GEOZL_DT_U8 = 0, GEOZL_DT_U16 = 1, GEOZL_DT_U32 = 2, GEOZL_DT_U64 = 3,
   GEOZL_DT_I8 = 4, GEOZL_DT_I16 = 5, GEOZL_DT_I32 = 6, GEOZL_DT_I64 = 7,
@@ -114,7 +113,7 @@ typedef enum {
 <pre><code class="proto">int geozl_2d_decompress_c(const void *frame, size_t frameSize, void *dst,
                           size_t dstCapacity, size_t *outSize, int verify,
                           char *errCtx, size_t errCtxSize);</code></pre>
-      <p>Decompresses a frame into <code>dst</code>, which should be 8-byte aligned for numeric output. <code>verify</code> set to 0 skips checksum verification.</p>
+      <p>Decompresses a frame into <code>dst</code>, which must be 8-byte aligned. <code>verify</code> set to 0 skips checksum verification.</p>
 <pre><code class="proto">int geozl_2d_bench_c(const char *method, uint32_t width, uint32_t planes,
                      const char *error, int dtype, int nodataMode,
                      uint64_t nodataBits, const void *src, size_t numElts,

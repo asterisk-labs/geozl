@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=12">
+<link rel="stylesheet" href="assets/css/reading.css?v=14">
 </head>
 <body>
 <div class="page">
@@ -107,10 +107,11 @@ o[2 * k + 1] = odd[k];</code></pre>
         <h3><span class="num">08</span>nodata</h3>
         <p><b>nodata</b> takes the holes out before anything predicts. It writes a <b>validity mask</b> and fills each hole with the last valid sample of its row, or the sample above when the hole opens the row.</p>
         <figure class="diagram stepper" data-beats="2.2,4.5,6.8,9">
-          <img src="assets/svg/codecs-light/nodata.svg" alt="nodata splits the raster into a filled value stream and a validity mask. Holes are filled from the west neighbour, and on decode the stored pattern is written back wherever the mask is zero" loading="lazy">
+          <img src="assets/svg/codecs-light/nodata.svg" alt="nodata splits the raster into a filled value stream and a validity mask. Holes are filled from the west neighbour, or from the sample above when the hole opens a row, and on decode the stored pattern is written back wherever the mask is zero" loading="lazy">
           <figcaption>holes leave as a mask, and values are filled in behind them</figcaption>
         </figure>
-        <p>We get it from <code>nodata=</code>, or automatically on a float raster that holds NaNs. It keeps quantized samples off the sentinel while preserving the error bound. Use it only on tiles that have holes.</p>
+        <p>We get it from <code>nodata=</code>, or automatically on a float raster that holds NaNs. Use it only on tiles that have holes.</p>
+        <p>The pseudocode below is the plain form, a mask of 0 for a hole and 1 for a valid sample. With a declared sentinel and a quantizer after it, the encoder writes the guarded form. A quantizer can rebuild a valid sample exactly on the sentinel, so the mask also records which side of the sentinel each valid sample lies on, 1 above, 2 below and 3 for the other signed zero, and the decoder puts back the matching replacement value instead of a hole.</p>
         <table class="spec">
           <tr><th>ctid</th><td>0x72D70C</td></tr>
           <tr><th>header</th><td>the nodata pattern, optionally followed by three replacement values</td></tr>
@@ -122,8 +123,11 @@ o[2 * k + 1] = odd[k];</code></pre>
 mask[i] = (s[i] == pattern) ? 0 : 1;
 v[i] = mask[i] ? s[i] : last valid sample of the row, or the one above;
 
-// decode
-o[i] = mask[i] == 0 ? pattern : v[i];</code></pre>
+// decode, plain form
+o[i] = mask[i] == 0 ? pattern : v[i];
+
+// decode, guarded form, mask codes 1 to 3 pick a replacement
+o[i] = mask[i] == 0 ? pattern : v[i] != pattern ? v[i] : replacement[mask[i]];</code></pre>
         <pre><code>geozl.lossless.Nodata(width, value, dtype, radius)</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/nodata" rel="noopener noreferrer">Source in core/src/nodata</a></p>
       </section>
@@ -134,7 +138,7 @@ o[i] = mask[i] == 0 ? pattern : v[i];</code></pre>
           <img src="assets/svg/codecs-light/pfor.svg?v=3" alt="pfor packs a block of 256 values at the bit width the block needs and patches the values that overflow it" loading="lazy">
           <figcaption>each block packed at its own width, with the values that overflow it patched</figcaption>
         </figure>
-        <p>Use it after any predictor except planar, which has its own fused codec, as in <code>med&gt;zigzag&gt;pfor</code>. On skewed data, an entropy coder or PivCo does better. It also decodes on the GPU. <a href="pfor.html">How PFOR works</a> walks through the format.</p>
+        <p>Use it after any predictor, as in <code>med&gt;zigzag&gt;pfor</code>. After planar, the recipe <code>planar&gt;zigzag&gt;pfor</code> runs the <a href="fused.html#planar_zigzag_pfor">fused codec</a> instead. On skewed data, an entropy coder or PivCo does better. It also decodes on the GPU. <a href="pfor.html">How PFOR works</a> walks through the format.</p>
         <table class="spec">
           <tr><th>ctid</th><td>0x72D70D</td></tr>
           <tr><th>header</th><td>uint64 count &middot; uint8 element width</td></tr>
@@ -143,9 +147,9 @@ o[i] = mask[i] == 0 ? pattern : v[i];</code></pre>
           <tr><th>credit</th><td>design after <a href="https://github.com/powturbo/TurboPFor-Integer-Compression/graphs/contributors" rel="noopener noreferrer" style="text-decoration:underline">TurboPFor</a> by powturbo and contributors</td></tr>
         </table>
         <pre class="algo"><code>// encode one block of 256 values
-b = the width that makes the block smallest;
+b = the width whose block is smallest, counting 4 extra bits per exception;
 pack the low b bits of every value;
-for each value above 1 &lt;&lt; b: keep its position and its bits above b;
+for each value at or above 1 &lt;&lt; b: keep its position and its bits above b;
 
 // decode
 unpack 256 values of b bits;

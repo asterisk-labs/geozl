@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=12">
+<link rel="stylesheet" href="assets/css/reading.css?v=14">
 </head>
 <body>
 <div class="page">
@@ -64,9 +64,7 @@
     <article class="content">
       <h1>GPU decoding</h1>
       <ul class="facts">
-        <li>Header <a href="https://github.com/asterisk-labs/geozl/blob/main/core/include/geozl/gpu.h" rel="noopener noreferrer"><code>geozl/gpu.h</code></a>, prototypes in the <a href="api-c.html#c-gpu">C API</a></li>
-        <li>Part of the stable source API from 0.30.0</li>
-        <li>One API for every GPU backend</li>
+        <li>Header <a href="https://github.com/asterisk-labs/geozl/blob/main/core/include/geozl/gpu.h" rel="noopener noreferrer"><code>geozl/gpu.h</code></a>, part of the supported source API since 0.30.0, with one API for every GPU backend and its prototypes in the <a href="api-c.html#c-gpu">C API</a>.</li>
       </ul>
       <aside class="series" aria-label="Section">
         <p class="series-title">API, in seven pages</p>
@@ -90,7 +88,7 @@
       <p>The example uses four 256 by 256 tiles of unsigned 16-bit samples. Each tile has one compressed frame. The output is four 128 by 128 windows, each starting at row 64 and column 32, in a 4 by 128 by 128 GPU tensor.</p>
 
       <h2 class="part" id="decoder">A decoder you make once</h2>
-      <p>Create one <code>GeozlGpu</code> and reuse it across batches. It holds the device, compiled kernels, host staging that the GPU reads directly, and a small cache of device scratch. Creation opens the device, so a missing driver fails before training starts.</p>
+      <p>Create one <code>GeozlGpu</code> and reuse it across batches. It holds the device, the kernels it has loaded, host staging that the GPU reads directly, and a small cache of device scratch. Creation opens the device and loads the small <code>place</code> kernel, so a missing driver fails before training starts. The PFOR and PivCo kernels load the first time a batch needs them.</p>
       <pre><code>char error[512];
 // deviceType and deviceId come from the tensor's DLPack device
 GeozlGpu *gpu = geozl_gpu_create(deviceType, deviceId, 4, 64 &lt;&lt; 20, 1,
@@ -101,7 +99,7 @@ if (gpu == NULL) {
 }</code></pre>
       <p>The first two arguments pick the device type and the device index. The third, <code>threads</code>, caps the host threads one decode may use. GPU frames still need <a href="https://github.com/facebook/openzl" rel="noopener noreferrer">OpenZL</a> to parse them and GeoZL to check and plan the payload on the CPU. Those threads take frames from a shared counter, so more threads help when a batch has many frames. 0 means one.</p>
       <p><code>maxDecodedBytes</code> limits the sum of decoded frame sizes per call and must be nonzero. The decoder checks it before reserving staging or device memory. Our four tiles decode to 512 KiB in total. A 64 MiB limit allows bigger batches. <code>verifyChecksums</code> enables frame checksum verification.</p>
-      <p>All calls use the same error convention. Each function takes a character buffer and its capacity, returns 0 on success (or a non-NULL pointer, for the constructors), and on failure writes a short message into the buffer.</p>
+      <p>The calls that can fail share one error convention. <code>geozl_gpu_create</code>, <code>geozl_gpu_decode</code>, <code>geozl_gpu_synchronize</code> and <code>geozl_gpu_alloc</code> take a character buffer and its capacity, return 0 or a non-NULL pointer on success, and on failure write a short message into the buffer. <code>geozl_gpu_available</code> returns nonzero when the build drives the device type, <code>geozl_gpu_pointer</code> returns the device address, and <code>geozl_gpu_destroy</code> and <code>geozl_gpu_free</code> return nothing.</p>
       <p>A decoder serves one call at a time. If two threads decode in parallel, each needs its own.</p>
 
       <h2 class="part" id="call">Frames, copies and the target</h2>
@@ -130,7 +128,7 @@ for (size_t i = 0; i &lt; TILES; ++i)
       <p>The animation follows one of these copies. The animation starts at byte 32832 of the tile. Source rows are 512 bytes apart, target rows are 256 bytes apart, and the four window slots start at multiples of 32768.</p>
       <figure class="diagram wide stepper" data-beats="2.95,5.75,9.15,13.3"><img src="assets/svg/gpu/api-copy.svg" alt="A stack of four decoded 256 by 256 tiles with a 128 by 128 window at row 64, column 32, labelled source 32832. A dashed band and a bracket under the tile mark sourceRow 512, one tile row. The window rows travel into the first slot of a four-slot batch, where a bracket marks destinationRow 256, one window row. Then the windows of the other three tiles travel into their slots together, labelled with destinations 0, 32768, 65536 and 98304." loading="lazy"><figcaption>One copy per tile. <code>source</code> and <code>sourceRow</code> describe where the window sits in the decoded frame. <code>destination</code> and <code>destinationRow</code> describe where it goes in the batch.</figcaption></figure>
       <p>Here, both step fields equal the sample size, but they also support other layouts. Suppose instead that our four frames were four bands of the same 128 by 128 window and the model wanted them interleaved, channels last. Band b starts at <code>destination = b * 2</code>. Its <code>destinationStep = 4 * 2 = 8</code> bytes, and <code>destinationRow = 128 * 8 = 1024</code> bytes. Nothing else changes. The same fields can also place tiles side by side in a larger mosaic, or take only every other column.</p>
-      <p>Copies must not overlap in the target. No two copies in a call may write the same target sample. Copies run in parallel on the device, so overlapping writes would have no defined winner, and the decoder rejects them instead of guessing. A copy also may not reach outside its frame or the target, and a copy with more than one row or column needs nonzero destination strides.</p>
+      <p>Copies must not overlap in the target. No two copies in a call may write the same target sample. Copies run in parallel on the device, so overlapping writes would have no defined winner. The decoder does not check for overlap, so keeping copies apart is up to the caller, as <a href="https://github.com/asterisk-labs/geozl/blob/main/core/include/geozl/gpu.h#L27-L31" rel="noopener noreferrer"><code>gpu.h</code></a> states. It does reject a copy that reaches outside its frame or the target, and a copy with more than one row or column needs nonzero destination strides.</p>
       <p>The target is a <code>GeozlGpuTarget</code>, which holds the device memory, a byte offset into it, how many bytes are writable after that offset, and the stream the work should join. The target may be a framework-owned device buffer. Its device handle goes in as a pointer-sized value.</p>
       <pre><code>GeozlGpuTarget target = {
     .memory = (void *)(uintptr_t)batch, // the tensor's device handle
@@ -139,7 +137,7 @@ for (size_t i = 0; i &lt; TILES; ++i)
     .stream = stream,                   // the framework's stream, or NULL
 };</code></pre>
       <p>A framework stream can consume the batch after decode on the same queue. Passing that stream lets the decode join the same queue, so the model's next kernel runs after the samples land without any extra waiting on the host. <code>NULL</code> means the default stream. A backend without streams ignores the field.</p>
-      <p><code>sampleBytes</code> is the width of one target sample, and the target address must be aligned to it. <code>elementBytes</code> is the width of values stored in each frame. Both are 2 in this example because the frames and target use 16-bit samples.</p>
+      <p><code>sampleBytes</code> is the width of one target sample, 1, 2, 4, 8 or 16 bytes, and the target address must be aligned to it. <code>elementBytes</code> is the width of values stored in each frame and must divide <code>sampleBytes</code>. Both are 2 in this example because the frames and target use 16-bit samples.</p>
       <pre><code>if (geozl_gpu_decode(gpu, frames, TILES, copies, TILES, SAMPLE, SAMPLE,
                      &amp;target, NULL, error, sizeof error) != 0)
   fprintf(stderr, "decode failed: %s\n", error);</code></pre>

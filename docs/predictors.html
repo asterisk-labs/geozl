@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=12">
+<link rel="stylesheet" href="assets/css/reading.css?v=14">
 </head>
 <body>
 <div class="page">
@@ -96,7 +96,7 @@
         <table class="spec">
           <tr><th>ctid</th><td>0x72D701</td></tr>
           <tr><th>header</th><td>uint32 &middot; row width in samples</td></tr>
-          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit integers</td></tr>
+          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit elements, read as integers</td></tr>
           <tr><th>decode</th><td>r&#7522; + previous reconstructed, per row (prefix sum)</td></tr>
         </table>
         <pre class="algo"><code>// encode, each row on its own
@@ -120,7 +120,7 @@ for (x = 1; x &lt; w; x++) o[y][x] = r[y][x] + o[y][x - 1];</code></pre>
         <table class="spec">
           <tr><th>ctid</th><td>0x72D702</td></tr>
           <tr><th>header</th><td>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</td></tr>
-          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit integers</td></tr>
+          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit elements, read as integers</td></tr>
           <tr><th>decode</th><td>r&#7522; + row above, per column</td></tr>
         </table>
         <pre class="algo"><code>// encode, the first row stays whole
@@ -135,7 +135,7 @@ for (y = 1; y &lt; h; y++)
       </section>
       <section class="codec" id="planar" data-no="03" data-ctid="0x72D703" data-fam="purple" data-page="codecs/planar.html" style="--fam:var(--purple)">
         <h3><span class="num">03</span>planar</h3>
-        <p><b>planar</b> predicts each sample as <b>W + N &minus; NW</b>, which continues the local slope. On a perfect plane every residual is zero, and on real terrain they stay small.</p>
+        <p><b>planar</b> predicts each sample as <b>W + N &minus; NW</b>, which continues the local slope. On a perfect plane every residual away from the first row and column is zero, and on real terrain they stay small.</p>
         <figure class="diagram stepper" data-beats="1.54,3.15,4.76,6.3">
           <img src="assets/svg/codecs-light/planar.svg" alt="planar predicts a pixel from the plane through its west, north and north-west neighbours. P equals W plus N minus NW" loading="lazy">
           <figcaption>W + N &minus; NW continues the local slope, so any plane predicts with zero residual</figcaption>
@@ -144,15 +144,20 @@ for (y = 1; y &lt; h; y++)
         <table class="spec">
           <tr><th>ctid</th><td>0x72D703</td></tr>
           <tr><th>header</th><td>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</td></tr>
-          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit integers</td></tr>
+          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit elements, read as integers</td></tr>
           <tr><th>decode</th><td>fold N&minus;NW from the row above, then prefix-sum the row</td></tr>
         </table>
-        <pre class="algo"><code>// encode, neighbours outside the plane are zero
+        <pre class="algo"><code>// a neighbour outside the plane reads as zero
+W  = x > 0          ? s[y][x - 1]     : 0;
+N  = y > 0          ? s[y - 1][x]     : 0;
+NW = x > 0 &amp;&amp; y > 0 ? s[y - 1][x - 1] : 0;
+
+// encode
 r[y][x] = s[y][x] - (W + N - NW);
 
-// decode, N - NW comes from the row above, then a prefix sum
-t[x] = r[y][x] + o[y - 1][x] - o[y - 1][x - 1];
-o[y][x] = t[x] + o[y][x - 1];</code></pre>
+// decode, the same neighbours read from the output o
+t[x] = r[y][x] + N - NW;   // the row above is already decoded
+o[y][x] = t[x] + W;        // a prefix sum along the row</code></pre>
         <pre><code>geozl.lossless.Planar(width, planes=1)</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar" rel="noopener noreferrer">Source in core/src/planar</a></p>
       </section>
@@ -167,7 +172,7 @@ o[y][x] = t[x] + o[y][x - 1];</code></pre>
         <table class="spec">
           <tr><th>ctid</th><td>0x72D705</td></tr>
           <tr><th>header</th><td>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</td></tr>
-          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit integers</td></tr>
+          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit elements, read as integers</td></tr>
           <tr><th>decode</th><td>median(W, N, W+N&minus;NW) per sample, in order</td></tr>
         </table>
         <pre class="algo"><code>// prediction, from W, N and NW as unsigned integers
@@ -191,7 +196,7 @@ o = r + p;   // decode, one sample at a time</code></pre>
         <table class="spec">
           <tr><th>ctid</th><td>0x72D706</td></tr>
           <tr><th>header</th><td>uint32 &middot; row width in samples<br>+ uint32 &middot; plane count, when above one</td></tr>
-          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit integers</td></tr>
+          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit elements, read as integers</td></tr>
           <tr><th>decode</th><td>floor((W + N) / 2) per sample, in order</td></tr>
         </table>
         <pre class="algo"><code>// floor((W + N) / 2) without overflow
@@ -213,7 +218,7 @@ o = r + p;   // decode, one sample at a time</code></pre>
         <table class="spec">
           <tr><th>ctid</th><td>0x72D707</td></tr>
           <tr><th>header</th><td>uint32 width &middot; uint8 shift &middot; 4&times;int16 coeffs<br>+ uint32 &middot; plane count, when above one</td></tr>
-          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit integers</td></tr>
+          <tr><th>widths</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit elements, read as integers</td></tr>
           <tr><th>decode</th><td>P = W + ((&#931; c&#7522;&middot;tap&#7522; + round) &gt;&gt; shift), prefix sum per row</td></tr>
         </table>
         <pre class="algo"><code>// weights cN, cNW, cNE, cNN and shift are in the header

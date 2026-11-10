@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=12">
+<link rel="stylesheet" href="assets/css/reading.css?v=14">
 </head>
 <body>
 <div class="page">
@@ -65,8 +65,7 @@
     <article class="content">
       <h1>Python</h1>
       <ul class="facts">
-        <li>Package <code>geozl</code> on <a href="https://pypi.org/project/geozl/" rel="noopener noreferrer">PyPI</a></li>
-        <li>Wheels for Linux x86-64 and macOS arm64</li>
+        <li>Package <code>geozl</code> on <a href="https://pypi.org/project/geozl/" rel="noopener noreferrer">PyPI</a>, with wheels for Linux x86-64 and macOS arm64.</li>
       </ul>
       <aside class="series" aria-label="Section">
         <p class="series-title">API, in seven pages</p>
@@ -168,7 +167,7 @@ geozl.coeffs(frame)                         # ((1, 2, 3), (4,))</code></pre>
 
       <h3 id="register_decoders">register_decoders</h3>
 <pre><code class="sig">geozl.register_decoders(dctx) -&gt; None</code></pre>
-      <p>Registers every GeoZL decoder in an <code>openzl.ext.DCtx</code>, for frames built with the low-level codec classes. Raises <code>ModuleNotFoundError</code> when the <code>openzl</code> package is missing.</p>
+      <p>Registers the decoders of the low-level codec classes in an <code>openzl.ext.DCtx</code>, the six predictors, <code>planar_zigzag</code>, <code>med_zigzag</code>, <code>planar_zigzag_pfor</code>, <code>deinterleave</code>, <code>nodata</code>, <code>pfor</code> and the three quantizers. <code>lanes</code> and <code>planar_zigzag_lanes</code> exist only in C and are not registered, so decode frames that use them with <code>geozl.decompress</code>. Raises <code>ModuleNotFoundError</code> when the <code>openzl</code> package is missing.</p>
 
       <h3 id="version">__version__</h3>
       <p>The installed version string, or <code>"0+unknown"</code> when the package metadata is missing.</p>
