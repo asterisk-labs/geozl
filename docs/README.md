@@ -28,6 +28,7 @@ docs/
 ├── api-c.html          every public C function, checked by test_docs.py
 ├── api-gpu.html        the geozl/gpu.h API, as a guide
 ├── api-r.html, api-julia.html, api-js.html  the R, Julia and JavaScript bindings
+├── examples.html       example notebooks that open in Colab, and the ones coming soon
 ├── codecs/*.html       17 pages, one per documented codec
 ├── compatibility.md    frame compatibility policy
 ├── c-api.md            C source compatibility policy

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="GeoZL examples you can run in Colab, and the ones on the way.">
+<title>GeoZL · Examples</title>
+<link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/reading.css?v=15">
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <a class="lockup vt-lockup" href="index.html" aria-label="GeoZL home">
+      <img class="marksvg" src="assets/svg/mark-light.svg" alt="">
+      <span class="wm-sm">GeoZL</span>
+    </a>
+
+    <div class="offsite" aria-label="Project links">
+      <a href="https://github.com/asterisk-labs/geozl" title="GitHub" aria-label="GeoZL on GitHub" rel="noopener noreferrer">
+        <svg class="github" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg>
+      </a>
+      <a class="pypi" href="https://pypi.org/project/geozl/" title="PyPI" aria-label="GeoZL on PyPI" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.3 14.3 4.7v6.6L8 14.7l-6.3-3.4V4.7Z"></path><path d="M1.7 4.7 8 8.1l6.3-3.4M8 8.1v6.6"></path></svg>
+        <img class="mark-color" src="assets/svg/pypi-color.svg" alt="" width="18" height="16">
+      </a>
+      <a class="rumi" href="https://asterisk.coop/rumi/" title="Rumi" aria-label="Rumi, the raster format built with GeoZL" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 1h14v14H1zM1 5.5l6 .8 4.2 2.1L15 9.2M7 1l-.5 5.3 4.7 2.1L9.5 15"></path></svg>
+        <img class="mark-color" src="assets/svg/rumi-color.svg" alt="" width="16" height="16">
+      </a>
+      <a class="asterisk" href="https://asterisk.coop" title="asterisk labs" aria-label="asterisk labs" rel="noopener noreferrer">
+        <img class="mark-mono" src="assets/svg/asterisk-mark-black.svg" alt="" width="16" height="18">
+        <img class="mark-color" src="assets/svg/asterisk-mark-color.svg" alt="" width="16" height="18">
+      </a>
+    </div>
+
+    <nav class="nav" aria-label="Sections">
+      <a href="docs.html">Docs</a>
+      <a href="api.html">API</a>
+      <a href="examples.html" class="here">Examples</a>
+      <a href="https://earth-compress.github.io/benchmark/" rel="noopener noreferrer">Benchmark</a>
+    </nav>
+  </header>
+
+  <main class="doc">
+    <nav class="toc" aria-label="Contents">
+      <p class="toc-title">Examples</p>
+      <ol class="toc-pages toc-examples">
+        <li class="toc-group">In Colab</li>
+        <li><a href="#four-calls">The four calls on a DEM tile</a></li>
+        <li><a href="#gpu-batches">Windows into GPU memory</a></li>
+        <li class="toc-group">Coming soon</li>
+        <li><a href="#bounded-error">Bounded error</a></li>
+        <li><a href="#nodata">Masks and NoData</a></li>
+        <li><a href="#cubes">Band cubes</a></li>
+        <li><a href="#graphs">Your own graph</a></li>
+      </ol>
+    </nav>
+
+    <article class="content">
+      <h1>Examples</h1>
+      <ul class="facts">
+        <li>Notebooks that run in <a href="https://colab.research.google.com/" rel="noopener noreferrer">Google Colab</a> with nothing to install beforehand.</li>
+      </ul>
+      <p>Each example is a notebook on real Earth observation data. Open one in Colab, run the cells from the top, and change the data or the recipe as you go. The <a href="api.html">API</a> pages explain every call they use.</p>
+
+      <h2 class="part" id="colab">In Colab</h2>
+      <div class="examples">
+        <section class="example" id="four-calls">
+          <h3>The four calls on a DEM tile</h3>
+          <p>Profile the recipes on a Copernicus DEM tile, build the best graph, compress the tile and read it back, the whole high-level API in one notebook.</p>
+          <p class="tags">Python · lossless · Copernicus DEM</p>
+          <a class="open" href="https://colab.research.google.com/github/asterisk-labs/geozl/blob/main/docs/notebooks/high-level-api.ipynb" rel="noopener noreferrer">Open in Colab</a>
+        </section>
+        <section class="example" id="gpu-batches">
+          <h3>Windows straight into GPU memory</h3>
+          <p>Write a small Rumi image, read a window directly into a CUDA tensor and check it against the CPU reader. Select a GPU runtime first.</p>
+          <p class="tags">Python · Rumi · GPU</p>
+          <a class="open" href="https://colab.research.google.com/github/asterisk-labs/rumi/blob/main/examples/rumi-gpu.ipynb" rel="noopener noreferrer">Open in Colab</a>
+        </section>
+      </div>
+
+      <h2 class="part" id="soon">Coming soon</h2>
+      <p>These are being written. Each will open in Colab the same way once it is ready.</p>
+      <div class="examples">
+        <section class="example soon" id="bounded-error">
+          <h3>Bounded error on precipitation</h3>
+          <p>Compress IMERG precipitation with an absolute and a relative bound, then check that every sample stays inside it.</p>
+          <p class="tags">Python · near-lossless · IMERG</p>
+          <span class="soon-tag">Coming soon</span>
+        </section>
+        <section class="example soon" id="nodata">
+          <h3>Masks, NoData and land cover</h3>
+          <p>Declare NoData on a Sentinel-2 scene and code ESA WorldCover classes with lanes, then compare the ratio with and without the mask.</p>
+          <p class="tags">Python · NoData · ESA WorldCover</p>
+          <span class="soon-tag">Coming soon</span>
+        </section>
+        <section class="example soon" id="cubes">
+          <h3>Band cubes and planes</h3>
+          <p>Compress a Sentinel-2 band cube plane by plane and across bands, and see which one a given scene prefers.</p>
+          <p class="tags">Python · planes · Sentinel-2</p>
+          <span class="soon-tag">Coming soon</span>
+        </section>
+        <section class="example soon" id="graphs">
+          <h3>Your own OpenZL graph</h3>
+          <p>Put GeoZL nodes inside a low-level OpenZL graph, and split complex SAR samples with deinterleave before predicting them.</p>
+          <p class="tags">Python · openzl.ext · SAR</p>
+          <span class="soon-tag">Coming soon</span>
+        </section>
+      </div>
+    </article>
+
+    <nav class="toc onpage" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ol class="toc-sections">
+        <li><a href="#colab">In Colab</a></li>
+        <li><a href="#soon">Coming soon</a></li>
+      </ol>
+    </nav>
+  </main>
+
+  <footer class="colophon">
+    <span>Made with</span>
+    <span class="heart" aria-label="love" role="img"></span>
+    <span>by</span>
+    <a class="by" href="https://asterisk.coop" rel="noopener noreferrer">
+      <img src="assets/svg/asterisk-mark-black.svg" alt="" width="15" height="17">
+      <span>asterisk labs</span>
+    </a>
+  </footer>
+</div>
+<script src="assets/js/toc.js" defer></script>
+</body>
+</html>

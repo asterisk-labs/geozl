@@ -1348,3 +1348,65 @@ pre code {
 @media (max-width: 600px) {
   .diagram.wide .player-view { width: 560px; }
 }
+
+/* Example cards, one notebook each */
+
+.examples {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin: 18px 0 32px;
+}
+
+.example {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 18px 16px;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.content .example h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.content .example p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.content .example .tags {
+  font: 500 11px var(--mono);
+  color: var(--dim);
+}
+
+.content .example a.open {
+  align-self: flex-start;
+  margin-top: auto;
+  padding: 8px 14px;
+  border-radius: 16px;
+  background: var(--violet);
+  color: #ffffff;
+  font: 600 12px var(--mono);
+  text-decoration: none;
+}
+
+.content .example a.open:hover { background: #3a1fd0; }
+
+.example.soon {
+  border-style: dashed;
+  background: var(--wash);
+}
+
+.example .soon-tag {
+  align-self: flex-start;
+  margin-top: auto;
+  font: 600 11px var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
