@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 250" width="640" height="250" role="img" aria-label="The root bitmap 01010100, one bit per thread t0 to t7. Thread t5 keeps the bits before its own position, 01010, and masks off the rest. Popcount counts the 1s in what is left, two of them, so t5 reads place 2 of the b or c bitmap.">
+  <style><![CDATA[
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+    svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
+    .lab{fill:#5C6370;font:500 11.5px "IBM Plex Mono",monospace}
+    .idx{fill:#5C6370;font:500 10.5px "IBM Plex Mono",monospace;text-anchor:middle}
+    .note{fill:#5C6370;font:500 10.5px "IBM Plex Mono",monospace;text-anchor:middle}
+    .note2{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+    .bit{fill:#111111;font:600 14px "IBM Plex Mono",monospace;text-anchor:middle}
+    .offt{fill:#C4C8CE;font:600 14px "IBM Plex Mono",monospace;text-anchor:middle}
+    .zero{fill:#FFFFFF;stroke:#492AE8;stroke-width:1.2}
+    .one{fill:#ECE9FD;stroke:#492AE8;stroke-width:1.4}
+    .off{fill:#F3F3F1;stroke:#E6E6E3;stroke-width:1}
+    .mark{stroke:#492AE8;stroke-width:1.4}
+    .brace{fill:none;stroke:#9AA1AB;stroke-width:1}
+    .cnt{fill:#492AE8}
+    .cntt{fill:#FFFFFF;font:700 12px "IBM Plex Mono",monospace;text-anchor:middle}
+    .res{fill:#492AE8;font:700 14px "IBM Plex Mono",monospace}
+  ]]></style>
+  <text class="lab" x="20" y="51">root</text><rect class="zero" x="110" y="30" width="40" height="30" rx="4"/><text class="bit" x="130.0" y="50">0</text><text class="idx" x="130.0" y="76">t0</text><rect class="one" x="156" y="30" width="40" height="30" rx="4"/><text class="bit" x="176.0" y="50">1</text><text class="idx" x="176.0" y="76">t1</text><rect class="zero" x="202" y="30" width="40" height="30" rx="4"/><text class="bit" x="222.0" y="50">0</text><text class="idx" x="222.0" y="76">t2</text><rect class="one" x="248" y="30" width="40" height="30" rx="4"/><text class="bit" x="268.0" y="50">1</text><text class="idx" x="268.0" y="76">t3</text><rect class="zero" x="294" y="30" width="40" height="30" rx="4"/><text class="bit" x="314.0" y="50">0</text><text class="idx" x="314.0" y="76">t4</text><rect class="one" x="340" y="30" width="40" height="30" rx="4"/><text class="bit" x="360.0" y="50">1</text><text class="idx" x="360.0" y="76">t5</text><rect class="zero" x="386" y="30" width="40" height="30" rx="4"/><text class="bit" x="406.0" y="50">0</text><text class="idx" x="406.0" y="76">t6</text><rect class="zero" x="432" y="30" width="40" height="30" rx="4"/><text class="bit" x="452.0" y="50">0</text><text class="idx" x="452.0" y="76">t7</text><path class="mark" d="M360.0 82 V90"/><text class="note" x="360.0" y="102">t5 is here</text><text class="lab" x="20" y="139">mask</text><rect class="zero" x="110" y="118" width="40" height="30" rx="4"/><text class="bit" x="130.0" y="138">0</text><rect class="one" x="156" y="118" width="40" height="30" rx="4"/><text class="bit" x="176.0" y="138">1</text><rect class="zero" x="202" y="118" width="40" height="30" rx="4"/><text class="bit" x="222.0" y="138">0</text><rect class="one" x="248" y="118" width="40" height="30" rx="4"/><text class="bit" x="268.0" y="138">1</text><rect class="zero" x="294" y="118" width="40" height="30" rx="4"/><text class="bit" x="314.0" y="138">0</text><rect class="off" x="340" y="118" width="40" height="30" rx="4"/><text class="offt" x="360.0" y="138">·</text><rect class="off" x="386" y="118" width="40" height="30" rx="4"/><text class="offt" x="406.0" y="138">·</text><rect class="off" x="432" y="118" width="40" height="30" rx="4"/><text class="offt" x="452.0" y="138">·</text><path class="brace" d="M110 156 V162 H334 V156"/><text class="note" x="222.0" y="176">bits before t5, the rest masked off</text><text class="lab" x="20" y="217">count</text><circle class="cnt" cx="176.0" cy="211" r="12"/><text class="cntt" x="176.0" y="215">1</text><circle class="cnt" cx="268.0" cy="211" r="12"/><text class="cntt" x="268.0" y="215">2</text><text class="res" x="350.0" y="216">popcount = 2</text><text class="note2" x="350.0" y="236">so t5 reads place 2 of the b or c bitmap</text>
+</svg>

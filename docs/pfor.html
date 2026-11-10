@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=12">
+<link rel="stylesheet" href="assets/css/reading.css?v=14">
 </head>
 <body>
 <div class="page">
@@ -69,9 +69,7 @@
     <article class="content">
       <h1>How PFOR works</h1>
       <ul class="facts">
-        <li>Codec <code>pfor</code>, CTid <code>0x72D70D</code></li>
-        <li>Blocks of 256 values</li>
-        <li class="line">Zukowski, Héman, Nes and Boncz, <a href="https://doi.org/10.1109/ICDE.2006.150" rel="noopener noreferrer">Super-Scalar RAM-CPU Cache Compression</a>, ICDE 2006</li>
+        <li>Codec <code>pfor</code>, CTid <code>0x72D70D</code>, blocks of 256 values. Zukowski, Héman, Nes and Boncz, <a href="https://doi.org/10.1109/ICDE.2006.150" rel="noopener noreferrer">Super-Scalar RAM-CPU Cache Compression</a>, ICDE 2006.</li>
       </ul>
       <aside class="series" aria-label="Section">
         <p class="series-title">Algorithms, in two pages</p>
@@ -102,24 +100,26 @@
       <p>Every body slot holds a real value, so no sentinel bit pattern is needed. The patch step also never moves a body value, so reading slot i still means reading bits i &times; b to i &times; b + b &minus; 1.</p>
 
       <h2 class="part" id="block">What a block looks like</h2>
-      <p>Real frames use 256-value blocks. A frame starts with a nine-byte codec header that holds the element count as a 64-bit integer and the element width in bytes, which is 1, 2, 4 or 8. Blocks follow back to back. When the count is not a multiple of 256, the encoder pads the last block with zeros and the decoder drops them again.</p>
-      <p>Each block opens with two bytes, <code>b</code> and the exception count, up to 255. With no exceptions, the packed body follows. Otherwise a third byte gives the exception format. Its low seven bits give <code>eb</code>, the number of high bits per exception. Its top bit selects how positions are written.</p>
-      <p>Every exception in the block uses the same <code>eb</code>, the difference between the widest value's bit width and <code>b</code>. In the example, 7 minus 3 gives four bits, and 90 uses all four.</p>
-      <p>Exception positions use a list or a bitmap. A short ascending list uses one byte per position. When there are many, a 32-byte bitmap with one bit for each of the 256 values is smaller, since a list of 32 positions would already cost the same. After the positions, the stream packs each exception's <code>eb</code> high bits in position order.</p>
-      <p>The body comes last, 256 values of <code>b</code> bits, exactly 32 &times; <code>b</code> bytes. Its bits are dealt into 16-byte groups of lanes rather than written as one long string, a layout explained in <a href="cpu.html#pfor">Fast on one CPU core</a>.</p>
-      <p>The eight-value example fits into one block. A b byte of 3, an exception count of one, a descriptor saying four high bits and list mode, one position byte pointing at the 90, half a byte holding <code>1011</code>, and then the body. The block size and this layout are part of the wire format, so changing either would need a new CTid. The full field-by-field description lives in <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/pfor/spec.md" rel="noopener noreferrer"><code>core/src/pfor/spec.md</code></a>.</p>
+      <p>pfor cuts the values into blocks of 256. Inside an OpenZL frame the codec carries a nine-byte header, the element count and the element width, and its stream is the blocks back to back. The last block is padded with zeros, and the decoder drops them again.</p>
+      <figure class="diagram wide">
+        <img src="assets/svg/pfor-block.svg?v=4" alt="Inside an OpenZL frame, pfor carries a nine-byte codec header, a 64-bit element count and an 8-bit element width, followed by blocks of 256 values back to back. Block 0, the eight example values repeated 32 times, holds b equal to 3, an exception count of 32, a format byte saying eb is 4 bits and positions are a bitmap, a 32-byte bitmap, 16 bytes of high bits, and a 96-byte body, 147 bytes in all." loading="lazy">
+        <figcaption>The eight values repeated 32 times fill one block of 147 bytes instead of 256. Every 90 is an exception and keeps its 4 high bits 1011 apart.</figcaption>
+      </figure>
+      <p>A block opens with <code>b</code> and its exception count. Without exceptions the body follows at once. Otherwise a format byte gives <code>eb</code>, the high bits every exception carries, and how positions are stored. A short list costs one byte per position, and from 32 exceptions on a 32-byte bitmap is no larger, so the encoder switches to it there.</p>
+      <p>The body is always 32 &times; <code>b</code> bytes, laid out in 16-byte lane groups that <a href="cpu.html#pfor">Fast on one CPU core</a> explains. Block size and layout are part of the wire format, so changing either would need a new CTid. Every field is described in <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/pfor/spec.md" rel="noopener noreferrer"><code>core/src/pfor/spec.md</code></a>.</p>
 
       <h2 class="part" id="choosing">How the encoder chooses b</h2>
-      <p>Choosing <code>b</code> trades body size against exceptions. Every bit taken off b saves 32 bytes of body across the 256 values, but it also turns more values into exceptions, and each one costs a position plus its <code>eb</code> high bits. The encoder searches for the smallest block.</p>
-      <p>The encoder builds a histogram of required bit widths, then checks <code>b</code> from the widest value down to zero. The histogram gives the exception count at each width without packing any values, and that count gives the block size. The encoder picks a list below 32 exceptions and a bitmap from 32 onward. It skips widths needing more than 255 exceptions and keeps the smallest result.</p>
-      <p>Each exception also gets a four-bit penalty in the size calculation. This favours fewer exceptions when two widths give nearly the same size.</p>
-      <p>The eight-value example shows the search. At seven bits there are no exceptions but the body is fat. At three bits only the 90 is left over. At two bits the 5, 7, 4 and 6 join it as exceptions, each carrying five high bits, and that costs more than the bit it saves on the body.</p>
-      <p>The width search is not part of the format. A decoder accepts whatever b a block declares, so a different encoder could use a different strategy and every reader would still decode its frames.</p>
+      <p>Choosing <code>b</code> trades body against exceptions. Each bit taken off <code>b</code> saves 32 bytes of body, but more values become exceptions, and each one costs a position and its high bits. The encoder tries every <code>b</code> and keeps the one with the smallest estimated block, where each exception also counts a small penalty described below.</p>
+      <figure class="diagram wide">
+        <img src="assets/svg/pfor-choose-b.svg?v=2" alt="Block size in bytes for each width b, for the eight example values repeated 32 times. b 7 gives 226 bytes, 6 gives 231, 5 gives 203, 4 gives 175, 3 gives 147, the smallest, 2 gives 199 and 1 gives 235. b 0 would need 256 exceptions and is skipped." loading="lazy">
+        <figcaption>The block from above at every width. Below 3 bits the 5, 7, 4 and 6 become exceptions too, and they cost more than the body saves.</figcaption>
+      </figure>
+      <p>A histogram of bit widths gives the exception count at every <code>b</code> without packing anything. Positions go in a list below 32 exceptions and in a bitmap from 32 on, a width needing more than 255 exceptions is skipped, and each exception adds a 4-bit penalty so a near tie goes to fewer exceptions.</p>
+      <p>The search is not part of the format. A decoder reads whatever <code>b</code> a block declares, so another encoder could choose differently and every reader would still decode its frames.</p>
 
-      <h2 class="part" id="geozl">Where GeoZL uses PFOR</h2>
-      <p>GeoZL uses PFOR in three places. The <code>pfor</code> codec can be the last node of a recipe, as in <code>delta_1d&gt;pfor</code>. The fused codec <code>planar_zigzag_pfor</code>, behind the recipe <code>planar&gt;zigzag&gt;pfor</code>, uses the same block format for its residuals. Inside the <code>lanes</code> codecs, a byte lane uses PFOR whenever it comes out smaller than <a href="pivco.html">PivCo</a>.</p>
-      <p>Each value's fixed position is what makes PFOR fast to decode. <a href="cpu.html#pfor">Fast on one CPU core</a> and <a href="gpu-internals.html">From compressed bytes to a GPU tensor</a> show how that is used on a CPU and on a GPU.</p>
-      <p>PFOR was introduced by Zukowski, Héman, Nes and Boncz in <i>Super-Scalar RAM-CPU Cache Compression</i>, ICDE 2006. The GeoZL block design follows <a href="https://github.com/powturbo/TurboPFor-Integer-Compression" rel="noopener noreferrer">TurboPFor</a> by powturbo and contributors. It is an independent implementation and its frames are not bitstream compatible with TurboPFor.</p>
+      <h2 class="part" id="thanks">Thanks</h2>
+      <p>PFOR is not our idea. Marcin Zukowski, Sándor Héman, Niels Nes and Peter Boncz described patched frame of reference in <a href="https://doi.org/10.1109/ICDE.2006.150" rel="noopener noreferrer"><i>Super-Scalar RAM-CPU Cache Compression</i></a>, at ICDE 2006, and almost everything on this page follows from that paper.</p>
+      <p>Our block layout follows <a href="https://github.com/powturbo/TurboPFor-Integer-Compression" rel="noopener noreferrer">TurboPFor</a> by powturbo and its contributors, years of careful work that made fast integer coding easy to learn from. GeoZL is an independent implementation, and its frames are not bitstream compatible with TurboPFor, so any mistake in the adaptation is ours.</p>
 
       <nav class="pager" aria-label="Pages">
         <a class="prev" href="near-lossless.html"><span>Previous</span>Near-lossless</a>
@@ -134,7 +134,7 @@
         <li><a href="#width">One width, and a patch for the rest</a></li>
         <li><a href="#block">What a block looks like</a></li>
         <li><a href="#choosing">How the encoder chooses b</a></li>
-        <li><a href="#geozl">Where GeoZL uses PFOR</a></li>
+        <li><a href="#thanks">Thanks</a></li>
       </ol>
     </nav>
   </main>
