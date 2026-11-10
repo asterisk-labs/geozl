@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=16">
+<link rel="stylesheet" href="assets/css/reading.css?v=17">
 </head>
 <body>
 <div class="page">
@@ -85,7 +85,7 @@
       <p>That one requirement splits the codecs cleanly. PFOR and PivCo meet it, so every GeoZL recipe that decodes on a GPU ends in one of them. med and plain Huffman never will. Meeting it also fixed the lanes format in a way that cost ratio, and the end of this part is about that bill.</p>
 
       <h2 class="part" id="wave">A wave, 32 threads in step</h2>
-      <p>A GPU does not schedule its threads one by one. It groups them into <b>waves</b> of 32, or 64 on some chips, called warps on NVIDIA and SIMD-groups on Apple. All the threads of a wave run the same instruction at the same moment, each on its own value, much like the lanes of a SIMD register in <a href="cpu.html#simd">part one</a> but many more of them.</p>
+      <p>A GPU runs its threads in groups of 32. The 32 threads of a group execute the same instruction at the same moment, each on its own value, and we call that group a <b>wave</b> (a warp on NVIDIA, a SIMD-group on Apple). It is the SIMD register from <a href="cpu.html#simd">part one</a> again, with 32 lanes instead of 8.</p>
       <p>Threads in a wave can hand a value to a neighbour with a <b>shuffle</b>, for about the cost of an add and without going through memory. What they cannot do is wait for one another. If a thread has to wait for the one before it to find its input, the whole wave waits with it, so each thread has to work out on its own where its data starts.</p>
       <figure class="diagram wide stepper" data-steps="3" data-src="assets/svg/gpu/gwants-wave-#.svg?v=1">
         <img class="stepper-view" tabindex="0" src="assets/svg/gpu/gwants-wave-1.svg?v=1" alt="Eight threads of a wave. One instruction, x = 2 times x, turns 3 5 2 7 4 6 1 2 into 6 10 4 14 8 12 2 4 in the same moment. A shuffle hands each value to the next thread without going through memory. No thread can wait for another, so thread t computes its own start, 3 times t, and points at bits 0, 3 and so on up to 21.">
