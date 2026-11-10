@@ -6,7 +6,7 @@
   --ink: #000000;
   --ink-soft: #1d2025;
   --dim: #5c6370;
-  --faint: #8a919c;
+  --faint: #6b7280;
   --edge: rgba(0, 0, 0, 0.1);
   --hair: rgba(0, 0, 0, 0.07);
   --wash: #f6f6f4;
@@ -246,9 +246,9 @@ pre {
   margin-inline: auto;
   padding: env(safe-area-inset-top) var(--pad-inline) max(16px, env(safe-area-inset-bottom));
   --purple: #492ae8;
-  --gold: #b8900a;
-  --green: #1d9a4a;
-  --orange: #e0532a;
+  --gold: #8a6d00;
+  --green: #17803d;
+  --orange: #c2410c;
 }
 
 .doc {
@@ -597,7 +597,35 @@ pre {
   font-weight: 400;
 }
 
+
 .series[aria-label="Section"] li.here::after { content: "this page"; }
+
+/* Concept: a short side explanation a reader may need before the main text */
+
+.concept {
+  margin: 8px 0 36px;
+  padding: 18px 22px 6px;
+  border-left: 3px solid var(--violet);
+  border-radius: 0 6px 6px 0;
+  background: var(--wash);
+}
+
+.content .concept-label {
+  margin: 0 0 2px;
+  color: var(--violet);
+  font: 500 12px/1.4 var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.content .concept-title {
+  margin: 0 0 10px;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.concept figure { margin-bottom: 12px; }
 
 /* Code */
 
@@ -1185,6 +1213,17 @@ pre code {
     width: 560px;
     max-width: none;
   }
+
+  /* Say the figure is wider than the screen, and keep the note in view while it scrolls */
+  .diagram.wide::before {
+    content: "Swipe sideways to see the whole figure";
+    position: sticky;
+    left: 0;
+    display: block;
+    margin-bottom: 8px;
+    font: 500 11px var(--mono);
+    color: var(--dim);
+  }
 }
 
 /* Step-through diagrams (assets/js/stepper.js): one standalone SVG per step, swapped by the buttons. */
@@ -1249,24 +1288,40 @@ pre code {
 
 .stepper-dots {
   display: flex;
-  gap: 6px;
+  gap: 0;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
+/* A 24 px target around an 8 px dot */
 .stepper-dots button {
+  position: relative;
   display: block;
-  width: 8px;
-  height: 8px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border-radius: 50%;
-  background: var(--wash-deep) !important;
+  background: transparent !important;
+}
+
+.stepper-dots button::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: var(--wash-deep);
   transition: background 0.25s, transform 0.25s;
 }
 
-.stepper-dots button.done { background: #b9b0f6 !important; }
-.stepper-dots button[aria-current] { background: var(--violet) !important; transform: scale(1.25); }
+.stepper-dots button.done::before { background: #b9b0f6; }
+.stepper-dots button[aria-current]::before { background: var(--violet); transform: scale(1.25); }
+.stepper-dots button:focus-visible { outline: 2px solid var(--violet); outline-offset: -2px; }
+
+/* On a narrow screen the arrows and the count are enough */
+@media (max-width: 480px) {
+  .stepper-dots { display: none; }
+}
 .stepper-count { min-width: 3.2em; text-align: center; font-variant-numeric: tabular-nums; }
 
 
