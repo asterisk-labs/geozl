@@ -282,3 +282,6 @@ if (failed || synced)
   keeps two pinned staging arenas until destruction.
 - On CUDA, whole, contiguous frames can decode into the target directly. Other
   copies use `place`.
+- The GPU finds and checks the blocks of `planar>zigzag>pfor` frames, so a malformed
+  one fails the same call on Metal and, on CUDA, a later call or
+  `geozl_gpu_synchronize`.

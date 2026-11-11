@@ -93,7 +93,7 @@ The planar recipes do not build separate `planar` and `zigzag` nodes:
 
 | Recipe | Codec actually written |
 | --- | --- |
-| `planar>zigzag>pfor` | `planar_zigzag_pfor` (CTid `0x72D710`) into `store`; payload byte-identical to `planar_zigzag` then `pfor` |
+| `planar>zigzag>pfor` | `planar_zigzag_pfor` (CTid `0x72D710`) into `store`; its own layout of 16-row bands cut into strips, not `planar_zigzag` then `pfor` |
 | `planar>zigzag>lanes` | `planar_zigzag_lanes` (CTid `0x72D712`) |
 | any non-planar recipe ending in `lanes` | its predictor nodes, then `lanes` (CTid `0x72D713`) |
 | any other `planar>zigzag>...` | `planar_zigzag` (CTid `0x72D70F`) then the terminal |

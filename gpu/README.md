@@ -10,7 +10,10 @@ checksum on the CPU. The capture layer intercepts the supported codec inputs
 and stops before the raster is materialized; the host planner then validates
 the PFOR or PivCo streams and builds the GPU task lists. Planning splits a
 batch into one contiguous frame range per planning thread and merges the task
-lists in input order.
+lists in input order. A `planar>zigzag>pfor` frame keeps the three header bytes
+of every block at the front of its payload, so the host only lays out its
+bands and strips from the codec header, and the GPU finds and checks its
+blocks.
 
 ## Layout
 
@@ -21,7 +24,7 @@ lists in input order.
 | `kernels/programs/place.slang` | copies decoded rectangles into the caller's memory |
 | `../core/src/gpu/modules/` | compiled programs the library embeds, from `tools/build_gpu_modules.py` |
 | `../core/src/gpu/decode.c` | the `geozl/gpu.h` batch decoder |
-| `kernels/stages/` | PFOR, PivCo and inverse planar/Zigzag stages |
+| `kernels/stages/` | PFOR, PivCo, the `planar_zigzag_pfor` band decoder and inverse planar/Zigzag stages |
 | `kernels/common/` | shared payload access and constants |
 | `../core/src/gpu/` | frame capture, GPU task planning and the backend runtimes |
 | `../test/gpu/` | capture and planning tests, and decode tests that run the kernels on a device |
@@ -29,13 +32,23 @@ lists in input order.
 | `proto/pfor_bench.c`, `proto/pivco_bench.c` | CPU/GPU benchmarks and verification |
 | `proto/run_all.sh` | benchmark driver |
 
-PFOR assigns one wave to each 256-value block. Inverse planar uses one pass for
-planes up to 256 columns and separate row and column passes for wider planes.
+PFOR assigns one wave to each 256-value block of an `id>pfor` frame. A
+`planar>zigzag>pfor` frame runs three kernels instead. `size_chunks` and
+`plan_blocks` give one wave to each chunk of 256 blocks of a frame. The first
+adds up the block sizes from the headers, and the second starts from the
+chunks before it, finds where each block starts with a prefix sum, validates
+every header and marks a bad block, so no later kernel reads outside the
+frame. `decode_strips` gives one wave to each strip of a band, which walks
+its blocks from the left, undoes Zigzag and planar in registers, carries each
+row's prefix across block boundaries and stores every sample once. The kernels
+report a malformed frame in a small status buffer, which names the first frame
+that failed each of their checks.
 
 PivCo rebuilds each Huffman block from the leaves to the root. Each lane of a
 wave consumes one bitmap byte at a time and merges eight symbols; alternate tree levels use
 the lane and output allocations as ping-pong storage. It then decodes any PFOR
-byte lanes, joins the lanes and runs inverse planar.
+byte lanes, joins the lanes and runs inverse planar, one pass for planes up to
+256 columns and separate row and column passes for wider planes.
 
 The runtime keeps compiled kernels in a program and device allocations in a
 batch. A device-only output marked `GEOZL_GPU_RESULT` can be moved into an
@@ -63,7 +76,8 @@ fails on a 550 driver, which accepts 8.4; the runtime error carries the JIT log.
 
 `geozl_pfor_gpu_decode()` and `geozl_pivco_gpu_decode()` are complete paths over
 that runtime. They take complete GeoZL frames, check and plan them on the CPU,
-and return one contiguous `GeozlGpuMemory` in frame order. The GPU path
+except the blocks of `planar>zigzag>pfor`, which the GPU finds and checks, and
+return one contiguous `GeozlGpuMemory` in frame order. The GPU path
 recognizes `id>pfor`, `planar>zigzag>pfor`, `id>lanes` and the fused
 `planar>zigzag>lanes` codec. PivCo
 capture is keyed by the fixed GeoZL CTids `0x72D713` and `0x72D712`; it does not
@@ -90,9 +104,11 @@ copies of strided sample rectangles into a CUDA pointer or Metal buffer. The
 device path supports `id>pfor`, `planar>zigzag>pfor`, `id>lanes` and
 `planar>zigzag>lanes` for one- and
 two-byte samples. Other graphs, including quantized, NoData and zstd frames,
-decode with OpenZL into host staging. Planar frames also use host staging when
-their planes are shorter than 256 samples or, on CUDA, exceed the grid limits.
-Malformed codec metadata rejects the call. Host threads capture and decode
+decode with OpenZL into host staging. `planar>zigzag>lanes` frames also use
+host staging when their planes are shorter than 256 samples or, on CUDA, exceed
+the grid limits. Malformed codec metadata rejects the call. The GPU checks the
+blocks of a `planar>zigzag>pfor` frame, so Metal rejects a malformed one in the
+same call, and CUDA in a later call or in `geozl_gpu_synchronize`. Host threads capture and decode
 frames from a shared counter, and the thread that captures a frame plans it.
 
 The decoder is created with a nonzero limit for the sum of decoded frame bytes

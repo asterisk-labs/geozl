@@ -110,24 +110,29 @@ o = r + W + N - NW;                  // a prefix sum per row, as planar</code></
       </section>
       <section class="codec" id="planar_zigzag_pfor" data-no="12" data-ctid="0x72D710" data-fam="gold" data-page="codecs/planar-zigzag-pfor.html" style="--fam:var(--gold)">
         <h3><span class="num">12</span>planar_zigzag_pfor</h3>
-        <p><b>planar_zigzag_pfor</b> predicts, maps and <b>packs 256 values at a time</b>, so the Zigzag stream of the tile never exists. Its payload matches planar_zigzag followed by pfor.</p>
+        <p><b>planar_zigzag_pfor</b> predicts, maps and <b>packs 256 values at a time</b>, so the Zigzag stream of the tile never exists. It works in <b>bands of 16 rows</b> cut into strips of 1024 columns, so a GPU can decode every strip of every band on its own.</p>
         <figure class="diagram">
           <img src="assets/svg/codecs-light/planar-zigzag-pfor.svg" alt="Planar, Zigzag and PFOR fused into one codec" loading="lazy">
           <figcaption>planar, Zigzag and PFOR in one node, one 256-value block at a time</figcaption>
         </figure>
         <p><code>planar_zigzag_pfor</code> implements <code>planar&gt;zigzag&gt;pfor</code> for small residuals that do not repeat. <a href="pfor.html">How PFOR works</a> covers the blocks.</p>
+        <p>Each plane is cut into bands of 16 rows from the top, and the rows left over, fewer than 16, into bands of 8, 4, 2 and 1 rows, one for each bit of their count. Every band is cut again into strips of 1024 columns. The prediction restarts at the top of every band and at the left edge of every strip, as it does at the edges of the plane. A block holds 256 values of one band, 16 rows by 16 columns in a full band and one row of 256 in a band of one, and every strip but the last of a row ends on a block edge. The three header bytes of every block come first in the payload, so a decoder finds any block from those headers alone, without reading the blocks before it. The payload is therefore not planar_zigzag followed by pfor, and the <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/planar_zigzag_pfor/spec.md" rel="noopener noreferrer">specification</a> gives its exact order.</p>
         <table class="spec">
           <tr><th>ctid</th><td>0x72D710</td></tr>
           <tr><th>header</th><td>uint64 &middot; element count<br>+ uint8 &middot; element width<br>+ uint32 &middot; row width<br>+ uint32 &middot; plane count</td></tr>
           <tr><th>values</th><td>8 &middot; 16 &middot; 32 &middot; 64-bit numeric elements</td></tr>
           <tr><th>geometry</th><td>width = columns<br>planes = contiguous independent rasters</td></tr>
+          <tr><th>blocks</th><td>bands of 16 rows, then 8, 4, 2, 1<br>strips of 1024 columns<br>256 values per block, headers first</td></tr>
         </table>
-        <pre class="algo"><code class="language-pseudo">// decode, one block of 256 values at a time
+        <pre class="algo"><code class="language-pseudo">// decode, one block of h rows by 256 / h columns at a time
 pfor_unpack(block, z);               // into a 2 KiB scratch buffer
-for (i = 0; i &lt; 256; i++) {
-  r = (z[i] &gt;&gt; 1) ^ -(z[i] &amp; 1);
-  o = r + W + N - NW;                // straight into the output
-}</code></pre>
+for (i = 0; i &lt; h; i++)
+  for (j = 0; j &lt; 256 / h; j++) {
+    v = z[8 * (i + h * (j / 8)) + j % 8];
+    r = (v &gt;&gt; 1) ^ -(v &amp; 1);
+    o = r + W + N - NW;              // N, NW are 0 on a band's first row,
+                                     // W, NW on a strip's first column
+  }</code></pre>
         <pre><code class="language-python">geozl.lossless.PlanarZigzagPfor(width, planes=1)</code></pre>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag_pfor" rel="noopener noreferrer">Source in core/src/planar_zigzag_pfor</a></p>
       </section>

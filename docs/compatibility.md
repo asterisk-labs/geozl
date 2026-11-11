@@ -5,9 +5,10 @@
 GeoZL makes no compatibility promise before 1.0. A release may change a codec
 layout, and its readers may refuse frames that earlier releases wrote.
 
-Released CTids are never reassigned. An incompatible codec layout receives a
-new CTid. Encoders may produce different bytes without breaking compatibility,
-and older readers may not understand codecs introduced later.
+Released CTids are never reassigned to another codec. An incompatible codec
+layout receives a new CTid, unless it replaces the old layout in place before
+1.0, as recorded below. Encoders may produce different bytes without breaking
+compatibility, and older readers may not understand codecs introduced later.
 
 CTids `0x72D708` through `0x72D70B`, `0x72D70E` and `0x72D780` are retired and
 reserved. Current readers reject frames using them.
@@ -34,6 +35,33 @@ that already ships needs these steps:
 5. Count what redundancy the frame loses. A flag that was implied by another
    field used to make a bit flip detectable; once both values are legal it is
    not, and the only thing left is the frame checksum.
+
+### Layouts changed in place
+
+`planar_zigzag_pfor`, CTid `0x72D710`, changed its payload layout in place. It
+keeps its CTid, its name, the `planar>zigzag>pfor` recipe and its 17-byte codec
+header. Each plane is now cut into bands of 16 rows and each band into strips
+of 1024 columns, the prediction restarts at every band and strip, each
+PFOR block is a two-dimensional tile of a band, and the three header bytes of
+every block come first, as `core/src/planar_zigzag_pfor/spec.md` describes.
+The earlier layout was `planar_zigzag` followed by `pfor`, Zigzag planar
+residuals in raster order cut into 256-sample blocks. Frames written with it no
+longer decode, apart from the small case below, and no reader keeps a decoder
+for them.
+
+It kept its CTid because GeoZL is still in development and no frames of the
+old layout need to survive, so a second CTid, a legacy decoder and a second
+codec name would cost more than they protect. The golden corpus holds only the
+new layout.
+
+Neither direction of compatibility survives, and both readers find a decoder
+under the same CTid, so only their payload checks and the frame checksums tell
+the layouts apart. Readers on either side refuse nearly every frame of the
+other layout, because the block headers at the front throw off the walk
+through the payload. A frame that fits in one block and has exceptions parses
+as valid in both layouts. It still decodes correctly when it is a single row,
+but a frame of several rows decodes to wrong samples. The content checksum
+catches that on a CPU, and a GPU, which never checks it, does not.
 
 ## APIs
 

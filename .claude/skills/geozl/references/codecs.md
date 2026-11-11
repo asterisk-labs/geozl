@@ -38,7 +38,7 @@ destroys data. Released CTids are never reassigned.
 | `nodata` | `0x72D70C` | split | numeric -> values + mask | `Nodata(width, value, dtype)` | holes into a validity mask, filled values onward |
 | `pfor` | `0x72D70D` | terminal | numeric -> serial | `Pfor()` | 256-value blocks bit packed with patched exceptions |
 | `planar_zigzag` | `0x72D70F` | fused | numeric -> numeric | `PlanarZigzag(width, planes)` | planar then Zigzag in one pass |
-| `planar_zigzag_pfor` | `0x72D710` | fused | numeric -> serial | `PlanarZigzagPfor(width, planes)` | planar, Zigzag and PFOR, one 256-value block at a time |
+| `planar_zigzag_pfor` | `0x72D710` | fused | numeric -> serial | `PlanarZigzagPfor(width, planes)` | planar, Zigzag and PFOR in 16-row bands cut into strips, 256-value 2D blocks with their headers first |
 | `med_zigzag` | `0x72D711` | fused | numeric -> numeric | `MedZigzag(width, planes)` | MED then Zigzag in one pass |
 | `planar_zigzag_lanes` | `0x72D712` | fused | numeric -> weights + serial | none, C only | planar and Zigzag, then PivCo Huffman or byte PFOR per residual byte lane |
 | `lanes` | `0x72D713` | terminal | numeric -> weights + serial | none, C only | byte lanes, each encoded with PivCo Huffman or byte PFOR |

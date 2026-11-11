@@ -41,11 +41,17 @@
         <p class="kicker"><span class="k-sq"></span> codec <span class="sep">/</span> numeric to serial &middot; 2D <span class="sep">/</span> lossless</p>
         <h1 class="name">planar_zigzag_pfor</h1>
         <p class="subtitle">The fused version of Planar + Zigzag + PFOR.</p>
+        <p class="desc"><b>planar_zigzag_pfor</b> cuts each plane into bands of 16 rows and each band into
+        strips of 1024 columns, and restarts the prediction at the edges of every strip as at the
+        edges of the plane. Each PFOR block holds 256 values of one band, 16 by 16 in a full band, and the
+        header bytes of every block come first, so a GPU decodes every strip on its own. The payload is not
+        planar_zigzag followed by pfor.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D710</dd>
           <dt>header</dt><dd>uint64 &middot; element count<br>+ uint8 &middot; element width<br>+ uint32 &middot; row width<br>+ uint32 &middot; plane count</dd>
           <dt>values</dt><dd>8 &middot; 16 &middot; 32 &middot; 64-bit numeric elements</dd>
           <dt>geometry</dt><dd>width = columns<br>planes = contiguous independent rasters</dd>
+          <dt>blocks</dt><dd>bands of 16 rows, then 8, 4, 2, 1<br>strips of 1024 columns<br>256 values per block, headers first</dd>
         </dl>
 
         <div class="actions">

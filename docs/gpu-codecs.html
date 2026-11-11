@@ -153,16 +153,16 @@
       <p>A node writes over the range its children used, so even levels write the lane buffer and odd levels write scratch, with a barrier between levels so a parent merges only once its children are done. The <a href="https://github.com/asterisk-labs/geozl/blob/main/gpu/kernels/stages/pivco.slang#L156-L163" rel="noopener noreferrer">level loop</a> is short, and <a href="gpu-internals.html#pivco">Bytes to tensors</a> shows how four waves share one block.</p>
 
       <h2 class="part" id="together">One idea, two shapes</h2>
-      <p>Both codecs let every thread compute its own offset, PFOR by multiplying and PivCo by counting 1s. Both also work in independent blocks, 256 values for PFOR and 32&nbsp;768 symbols of one byte lane for PivCo, so a batch splits into thousands of blocks that all decode at once.</p>
-      <figure class="diagram wide stepper" data-steps="3" data-src="assets/svg/gpu/gwants-blocks-#.svg?v=1">
-        <img class="stepper-view" tabindex="0" src="assets/svg/gpu/gwants-blocks-1.svg?v=1" alt="A batch of three frames, two ending in pfor and one in lanes. Each splits into independent blocks, 256-value PFOR blocks, and for the lanes frame a low byte lane of 32 768-symbol PivCo blocks and a high byte lane of byte PFOR blocks. Every PFOR block gets one wave and every PivCo block a group of four waves, and all of them decode at once.">
+      <p>Both codecs let every thread compute its own offset, PFOR by multiplying and PivCo by counting 1s. Both also work in independent blocks, 256 values for PFOR and 32&nbsp;768 symbols of one byte lane for PivCo, so a batch splits into thousands of blocks that all decode at once. In <code>planar&gt;zigzag&gt;pfor</code> the independent piece is a strip of a band of rows, since its prediction restarts at the edges of every strip, and one wave walks the blocks of each strip.</p>
+      <figure class="diagram wide stepper" data-steps="3" data-src="assets/svg/gpu/gwants-blocks-#.svg?v=3">
+        <img class="stepper-view" tabindex="0" src="assets/svg/gpu/gwants-blocks-1.svg?v=3" alt="A batch of three frames, two ending in pfor and one in lanes. The planar&gt;zigzag&gt;pfor frame splits into strips, each up to 16 rows by 1024 columns of blocks, the id&gt;pfor frame into 256-value PFOR blocks, and the lanes frame into a low byte lane of 32 768-symbol PivCo blocks and a high byte lane of byte PFOR blocks. Every strip and every PFOR block gets one wave and every PivCo block a group of four waves, and all of them decode at once.">
         <div class="stepper-bar">
           <button type="button" class="stepper-prev" aria-label="Previous step"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg></button>
-          <ol class="stepper-dots"><li><button type="button" data-go="1" aria-label="Step 1, a batch of three frames"></button></li><li><button type="button" data-go="2" aria-label="Step 2, every frame splits into blocks"></button></li><li><button type="button" data-go="3" aria-label="Step 3, every block gets its waves"></button></li></ol>
+          <ol class="stepper-dots"><li><button type="button" data-go="1" aria-label="Step 1, a batch of three frames"></button></li><li><button type="button" data-go="2" aria-label="Step 2, every frame splits into blocks or strips"></button></li><li><button type="button" data-go="3" aria-label="Step 3, every block or strip gets its waves"></button></li></ol>
           <span class="stepper-count" aria-live="polite">1 / 3</span>
           <button type="button" class="stepper-next">Next<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg></button>
         </div>
-        <figcaption>A batch becomes blocks, and every block gets its own waves.</figcaption>
+        <figcaption>A batch becomes blocks and strips, and each one gets its own waves.</figcaption>
       </figure>
       <table class="spec">
         <tr><th></th><td><b>PFOR</b></td><td><b>PivCo</b></td></tr>
@@ -176,7 +176,7 @@
 
       <h2 class="part" id="cost">What the fixed format cost</h2>
       <p><b>Before.</b> In 0.19 the PivCo terminals did not send every stream to PivCo. A stream where one value held more than half of it went to <a href="https://github.com/facebook/openzl" rel="noopener noreferrer">OpenZL</a>'s FSE entropy coder instead, because Huffman cannot spend less than one bit per symbol and FSE can.</p>
-      <p><b>After.</b> A GPU kernel has to know a frame's layout from its CTid alone, not from whatever OpenZL chose for each stream. So in 0.20 the lane format became fixed. Every byte lane is PivCo Huffman or byte PFOR, and the FSE fallback is gone. 0.20 is also where frame compatibility starts, so this is the format we keep.</p>
+      <p><b>After.</b> A GPU kernel has to know a frame's layout from its CTid alone, not from whatever OpenZL chose for each stream. So in 0.20 the lane format became fixed. Every byte lane is PivCo Huffman or byte PFOR, and the FSE fallback is gone. This is the lanes format we keep.</p>
       <figure class="diagram wide">
         <img src="assets/svg/gpu/lanes-format-before-after.svg?v=1" alt="Before, in 0.19, each byte lane went through a check. If one value held over half of the lane, OpenZL coded it with the FSE entropy coder, otherwise with PivCo or byte PFOR, so the layout depended on the data and a GPU could not plan it. After, in 0.20, every byte lane is PivCo Huffman or byte PFOR, whichever is smaller, fixed by the CTid, so a GPU can read any frame." loading="lazy">
         <figcaption>A fixed layout is what lets a GPU plan a frame from its CTid. Skewed lanes paid for it.</figcaption>

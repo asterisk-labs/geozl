@@ -45,8 +45,9 @@
         same small number of bits. If a value needs more, only its extra bits go into a short exception
         list. Use it as the last codec in a recipe when the remaining values are small but do not repeat,
         and fast decoding matters more than squeezing out the smallest possible file. In
-        <b>planar&gt;zigzag&gt;pfor</b>, the preceding planar and Zigzag stages are fused; PFOR's block
-        format itself is unchanged.</p>
+        <b>planar&gt;zigzag&gt;pfor</b>, the preceding planar and Zigzag stages are fused with it. That codec
+        packs its blocks in the same format, but moves the header bytes of every block to the front of its
+        payload.</p>
         <dl class="spec">
           <dt>ctid</dt><dd>0x72D70D</dd>
           <dt>header</dt><dd>uint64 count &middot; uint8 element width</dd>

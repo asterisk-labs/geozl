@@ -14,9 +14,15 @@ Sources: `docs/compatibility.md`, `docs/c-api.md`, `bindings/python/test/golden/
 - **Nothing is stable before 1.0.** A release may change a codec layout, and its readers
   may refuse frames earlier releases wrote. Superseded layouts, names and aliases are
   deleted, not kept behind a shim.
-- **Released CTids are never reassigned.** An incompatible layout gets a new CTid, so an
-  old reader fails to find a decoder instead of decoding garbage. Retired CTids
-  (`0x72D708` to `0x72D70B`, `0x72D70E`, `0x72D780`) stay reserved in `ctids.h`.
+- **Released CTids are never reassigned** to another codec. An incompatible layout gets a
+  new CTid, so an old reader fails to find a decoder instead of decoding garbage, unless
+  it replaces the old layout in place before 1.0. `planar_zigzag_pfor` (`0x72D710`) did
+  that when it moved to bands and strips, and its earlier frames no longer decode. A
+  frame of one block with exceptions parses in both layouts and decodes to wrong samples
+  when it spans several rows, which only the content checksum on a CPU catches
+  (`docs/compatibility.md`).
+  Retired CTids (`0x72D708` to `0x72D70B`, `0x72D70E`, `0x72D780`) stay reserved in
+  `ctids.h`.
 - **Encoders may produce different bytes** in later releases. Do not compare frame bytes or
   hashes across versions; compare decoded data.
 - **Older readers may not understand newer codecs.**

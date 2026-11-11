@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+- `planar_zigzag_pfor` changes its payload layout under CTid `0x72D710`.
+  The previous layout is no longer supported. Regenerate existing frames before
+  upgrading.
+- `geozl.lossless.planar_zigzag_pfor_bound` now takes
+  `(nb_elts, elt_width, width, planes=1)`. The C function
+  `planar_zigzag_pfor_bound` now takes
+  `(nbElts, eltWidth, width, planes)`. Pass the raster geometry when computing
+  the bound.
 - Rename the codec `transpose_pivco` to `lanes` and the fused codec
   `planar_zigzag_transpose_pivco` to `planar_zigzag_lanes`. Recipes end in
   `lanes` at every element width, as in `id>lanes` and `planar>zigzag>lanes`,
@@ -56,6 +64,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with it in place of a 1024 plus 1.5 times guess.
 - Docstrings for every codec node and decoder in `geozl.lossless` and
   `geozl.lossy`.
+
+### Changed
+
+- GPU decoding of `planar>zigzag>pfor` now processes complete frames on the
+  device and is faster. These frames no longer fall back to the host for small
+  planes or CUDA grid limits. Malformed frames fail immediately on Metal and
+  report on a later call or `geozl_gpu_synchronize` on CUDA.
 
 ### Removed
 

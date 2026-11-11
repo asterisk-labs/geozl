@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 250" width="640" height="250" role="img" aria-label="Each frame in a call is routed on its own. Single-chunk PFOR and PivCo frames of 1 or 2 byte samples are parsed and planned on the CPU and expanded on the GPU, every other frame decodes with OpenZL on the CPU and its samples are uploaded, and both kinds land in the same target through the same copies">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 250" width="640" height="250" role="img" aria-label="Each frame in a call is routed on its own. Single-chunk PFOR and PivCo frames of 1 or 2 byte samples are parsed and laid out on the CPU and expanded on the GPU, every other frame decodes with OpenZL on the CPU and its samples are uploaded, and both kinds land in the same target through the same copies">
   <style><![CDATA[
     @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
     svg{ background:transparent; font-family:"IBM Plex Mono",ui-monospace,monospace; }
@@ -75,7 +75,7 @@
     }
   ]]></style>
   <text id="c1" class="cap" x="40" y="24"><tspan class="n">1</tspan><tspan dx="10">each frame is routed on its own</tspan></text>
-  <text id="c2" class="cap" x="40" y="24"><tspan class="n">2</tspan><tspan dx="10">pfor and pivco frames, where cpu plans and gpu expands</tspan></text>
+  <text id="c2" class="cap" x="40" y="24"><tspan class="n">2</tspan><tspan dx="10">pfor and pivco frames, where cpu lays out and gpu expands</tspan></text>
   <text id="c3" class="cap" x="40" y="24"><tspan class="n">3</tspan><tspan dx="10">everything else decodes on the cpu, then uploads</tspan></text>
   <text id="c4" class="cap" x="40" y="24"><tspan class="n">4</tspan><tspan dx="10">both paths end in the same target, same copies</tspan></text>
   <text id="cs" class="cap" x="40" y="24">per frame, pfor or pivco expand on the gpu, the rest on the cpu</text>
@@ -90,7 +90,7 @@
   </g>
   <rect id="bdc" class="box " x="240" y="76" width="120" height="56" rx="4"/>
   <text class="sm" x="250" y="90">cpu</text>
-  <text class="ink" x="250" y="103">parse and plan</text>
+  <text class="ink" x="250" y="103">parse, lay out</text>
   <rect id="bdg" class="box gbox" x="380" y="76" width="120" height="56" rx="4"/>
   <text class="sm" x="390" y="90">gpu</text>
   <text class="ink" x="390" y="103">expand payload</text>

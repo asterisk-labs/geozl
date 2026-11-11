@@ -174,9 +174,15 @@ packed = lossless.pfor_encode(values)                 # 1-D numeric array
 same = lossless.pfor_decode(packed, values.size, values.dtype)
 lossless.pfor_bound(n, itemsize)                      # worst-case size, 0 for invalid geometry
 
+lossless.planar_zigzag_pfor_bound(raster.size, raster.itemsize, width, planes=1)  # needs the geometry
 payload = lossless.planar_zigzag_pfor_encode(raster, width, planes=1)
 back = lossless.planar_zigzag_pfor_decode(payload, raster.size, raster.dtype, width, planes=1)
 ```
 
-`planar_zigzag_pfor_encode` produces the same bytes as `planar_zigzag` followed by
-`pfor`. This is the payload the GPU decoder expands.
+`planar_zigzag_pfor_encode` writes the codec's own layout from
+`core/src/planar_zigzag_pfor/spec.md`. Prediction restarts at the top of every 16-row
+band and at the left edge of every strip of a band, each PFOR block is a
+two-dimensional tile of a band, and the three header bytes of every block come first,
+so the payload is not `planar_zigzag` followed by `pfor`. This is the payload the GPU
+decoder expands. Its bound needs the row width and plane count, since the block count
+follows from the geometry.
