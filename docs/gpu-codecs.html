@@ -174,15 +174,14 @@
       <p>A single frame can use both, as frame 2 in the figure does. PivCo works on bytes, so the <code>lanes</code> codec first splits a 16-bit raster into a low-byte lane and a high-byte lane, and codes each lane as PivCo Huffman or byte PFOR, whichever comes out smaller, and nothing else. That is why it is called lanes and not PivCo.</p>
       <p>The recipe selects the codec. Frames that end in pfor or lanes, with one- or two-byte samples, decode on a GPU through the <a href="api-gpu.html">GPU API</a>. Frames that end in zstd or the generic entropy coder still decode, but on the CPU, and their samples are uploaded afterwards.</p>
 
-      <h2 class="part" id="cost">What the fixed format cost</h2>
-      <p><b>Before.</b> In 0.19 the PivCo terminals did not send every stream to PivCo. A stream where one value held more than half of it went to <a href="https://github.com/facebook/openzl" rel="noopener noreferrer">OpenZL</a>'s FSE entropy coder instead, because Huffman cannot spend less than one bit per symbol and FSE can.</p>
-      <p><b>After.</b> A GPU kernel has to know a frame's layout from its CTid alone, not from whatever OpenZL chose for each stream. So in 0.20 the lane format became fixed. Every byte lane is PivCo Huffman or byte PFOR, and the FSE fallback is gone. This is the lanes format we keep.</p>
+      <h2 class="part" id="cost">Why the lane format is fixed</h2>
+      <p>A GPU kernel must know a frame's layout from its CTid alone. The <code>lanes</code> codec therefore writes each byte lane as PivCo Huffman or byte PFOR, whichever is smaller. It never delegates a lane to FSE or another generic entropy codec based on the data. That closed choice lets the GPU plan every <code>lanes</code> frame without first running a data-dependent OpenZL selector.</p>
       <figure class="diagram wide">
-        <img src="assets/svg/gpu/lanes-format-before-after.svg?v=1" alt="Before, in 0.19, each byte lane went through a check. If one value held over half of the lane, OpenZL coded it with the FSE entropy coder, otherwise with PivCo or byte PFOR, so the layout depended on the data and a GPU could not plan it. After, in 0.20, every byte lane is PivCo Huffman or byte PFOR, whichever is smaller, fixed by the CTid, so a GPU can read any frame." loading="lazy">
+        <img src="assets/svg/gpu/lanes-format-before-after.svg?v=2" alt="A data-dependent selector may choose FSE, PivCo or byte PFOR for a lane, so its CTid does not reveal the layout. The fixed lanes format chooses only PivCo Huffman or byte PFOR, whichever is smaller, so the GPU can plan the frame from its CTid." loading="lazy">
         <figcaption>A fixed layout is what lets a GPU plan a frame from its CTid. Skewed lanes paid for it.</figcaption>
       </figure>
-      <p>We saw the price when we re-measured the <a href="https://earth-compress.github.io/benchmark/" rel="noopener noreferrer">Earth Compress benchmark</a>. Over the whole corpus the planar lanes recipe lost about 3% of its ratio. On skewed data the loss was large, and <code>med&gt;zigzag&gt;lanes</code> on the ESA WorldCover land cover corpus fell to about half its ratio. A class map is flat over large areas, so after prediction most residuals are zero, and a stream dominated by one value is exactly where a floor of one bit per symbol hurts.</p>
-      <p>We kept the format. <code>lanes</code> stays PivCo or byte PFOR per lane. Data that is only ever read on a CPU gets that ratio back with <code>planar&gt;zigzag&gt;transpose&gt;entropy</code>, and if skewed data needs its own GPU path, it will be a codec of its own rather than a change to lanes.</p>
+      <p>The trade-off appears on skewed lanes. Huffman cannot use less than one bit per symbol, while FSE can, so a lane dominated by one value may compress worse. A class map is flat over large areas, and after prediction most residuals may be zero, which is exactly that case.</p>
+      <p>Data read only on a CPU can use <code>planar&gt;zigzag&gt;transpose&gt;entropy</code> instead. A different GPU encoding needs its own CTid rather than a data-dependent branch inside <code>lanes</code>.</p>
       <p>Knowing which formats a GPU can read is half the job. The other half is getting compressed bytes onto the device, planning the work on the CPU and landing the samples where the caller wants them. <a href="gpu-internals.html">Bytes to tensors</a>, the third part, follows a batch through all of it.</p>
       <nav class="pager" aria-label="Pages">
         <a class="prev" href="cpu.html"><span>Previous</span>Fast on one core</a>
@@ -199,7 +198,7 @@
         <li><a href="#pivco">PivCo, where every thread counts 1s</a></li>
         <li><a href="#leaves">PivCo, decoding from the leaves up</a></li>
         <li><a href="#together">One idea, two shapes</a></li>
-        <li><a href="#cost">What the fixed format cost</a></li>
+        <li><a href="#cost">Why the lane format is fixed</a></li>
       </ol>
     </nav>
   </main>

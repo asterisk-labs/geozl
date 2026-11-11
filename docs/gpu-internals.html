@@ -105,6 +105,11 @@
       <p>A frame <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/gpu/decode.c#L415-L449" rel="noopener noreferrer">goes to the device</a> when it is a single chunk, its last codec is pfor, lanes or one of their fused planar forms, and its samples are one or two bytes wide. So the device recipes are <code>id&gt;pfor</code>, <code>planar&gt;zigzag&gt;pfor</code>, <code>id&gt;lanes</code> and <code>planar&gt;zigzag&gt;lanes</code>.</p>
       <p>Everything else, <a href="https://github.com/facebook/zstd" rel="noopener noreferrer">zstd</a>, the entropy recipes, NoData, quantized and multi-chunk frames, decodes with <a href="https://github.com/facebook/openzl" rel="noopener noreferrer">OpenZL</a> on the CPU and is uploaded as samples. Both kinds can share one call, so a batch with a few odd frames still lands in one tensor, and a data loader does not have to sort its frames by codec first.</p>
 
+      <h2 class="part" id="pfor-layout">The PFOR trick: independent strips, headers first</h2>
+      <p>PFOR blocks have different byte lengths because their exceptions differ. If each block header sat beside its body, the CPU would have to walk the payload to tell the GPU where every block begins. Planar prediction has a similar dependency. If it continued across a whole plane, one region could not start until the regions above and to its left had been reconstructed.</p>
+      <p><code>planar&gt;zigzag&gt;pfor</code> removes both dependencies. It cuts each plane into bands of at most 16 rows and strips of at most 1024 columns, and restarts prediction at every band and strip. It also stores the three-byte headers of all PFOR blocks before their bodies. Two small GPU passes validate those headers and use prefix sums to locate the variable-size bodies. The CPU only describes frames, bands and strips. It does not build a task for every block.</p>
+      <p>One wave then owns one strip. Its threads unpack a two-dimensional PFOR block, undo Zigzag and reconstruct planar values in registers before storing them. There is no residual plane to write and read again, and no separate planar scan. Removing the per-block host plan and those intermediate device passes is the speedup. Restarting prediction at strip boundaries is the small compression trade-off that makes the strips independent.</p>
+
       <h2 class="part" id="waves">Waves, and why a PFOR block is 256 values</h2>
       <p>Threads in a <a href="gpu-codecs.html#wave">wave</a> share values without touching memory. One thread can broadcast a value to the other 31, the wave can OR a value across all its threads, and it can give each thread the sum of the values held by the threads before it, a prefix sum. Work that crosses waves needs shared memory and a barrier, where every thread waits for the slowest.</p>
       <p>That is why a PFOR block is 256 values. A thread handles eight values, and 32 threads times 8 is 256, exactly one wave. A larger block would span two waves, and its exception mask and ranks would have to go through shared memory with a barrier. At 256 all of it stays in registers.</p>
@@ -205,6 +210,7 @@
       <p class="toc-title">On this page</p>
       <ol class="toc-sections">
         <li><a href="#bus">Move the compressed bytes, not the raster</a></li>
+        <li><a href="#pfor-layout">The PFOR trick</a></li>
         <li><a href="#waves">Waves, and why a PFOR block is 256 values</a></li>
         <li><a href="#host">The CPU captures, plans and stages</a></li>
         <li><a href="#pivco">PivCo, one block per group of four waves</a></li>
