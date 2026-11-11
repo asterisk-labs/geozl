@@ -1,0 +1,189 @@
+"""Render docs/notebooks/*.ipynb as pages of the docs site.
+
+Each notebook becomes docs/notebooks/<name>.html under the masthead of
+docs/examples.html, with a link back to the examples. Run it after changing a
+notebook or its outputs.
+"""
+
+import html
+import json
+import re
+from pathlib import Path
+
+DOCS = Path(__file__).resolve().parent.parent / "docs"
+REPO = "https://github.com/asterisk-labs/geozl/blob/main/docs/notebooks"
+COLAB = "https://colab.research.google.com/github/asterisk-labs/geozl/blob/main/docs/notebooks"
+
+NOTEBOOKS = [
+    ("high-level-api", "High-level API", "Python · CPU"),
+    ("rumi-gpu", "GPU decoding with Rumi", "Python · GPU"),
+    ("zarr", "GeoZL in Zarr", "Python · CPU"),
+    ("sentinel2-cuda-benchmark", "Sentinel-2: JPEG2000, GeoTIFF and Rumi", "Python · GPU"),
+]
+RAW = "https://raw.githubusercontent.com/asterisk-labs/geozl/main/docs/notebooks/"
+
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def math(tex):
+    tex = re.sub(r"\\frac\{([^}]*)\}\{([^}]*)\}", r"\1/\2", tex)
+    tex = re.sub(r"\\sqrt\{([^}]*)\}", r"√(\1)", tex)
+    tex = re.sub(r"\\hat\{(\w)\}", "\\1\u0302", tex)
+    for a, b in (("\\le", "≤"), ("\\ge", "≥"), ("\\,", "\u2009"), ("\\|", "|")):
+        tex = tex.replace(a, b)
+    return tex
+
+
+def inline(text):
+    text = re.sub(r"\$([^$]+)\$", lambda m: math(m.group(1)), text)
+    text = html.escape(text, quote=False)
+    text = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)",
+                  lambda m: f'<img class="nb-figure" src="{m.group(2).replace(RAW, "")}" '
+                            f'alt="{m.group(1)}">', text)
+    text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
+    text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
+    return re.sub(r"\[([^\]]+)\]\(([^)]+)\)",
+                  r'<a href="\2" rel="noopener noreferrer">\1</a>', text)
+
+
+def back(text, extra=""):
+    return (f'<a class="nb-back{extra}" href="../examples.html#colab">'
+            f'<span aria-hidden="true">&larr;</span> {text}</a>')
+
+
+def link(href, text):
+    return f'<a href="{href}" rel="noopener noreferrer">{text}</a>'
+
+
+def markdown(source):
+    """The subset the notebooks use: headings, paragraphs, lists, tables, $math$."""
+    out, para, items, rows = [], [], [], []
+
+    def flush():
+        if para:
+            out.append(f"<p>{inline(' '.join(para))}</p>")
+            para.clear()
+        if items:
+            out.append("<ul>" + "".join(f"<li>{inline(i)}</li>" for i in items) + "</ul>")
+            items.clear()
+        if rows:
+            cells = [[c.strip() for c in re.split(r"(?<!\\)\|", r.strip("|"))]
+                     for r in rows if not re.fullmatch(r"[|\s:-]+", r)]
+            head = "".join(f"<th>{inline(c)}</th>" for c in cells[0])
+            body = "".join("<tr>" + "".join(f"<td>{inline(c)}</td>" for c in r) + "</tr>"
+                           for r in cells[1:])
+            out.append(f'<table class="nb-md"><thead><tr>{head}</tr></thead>'
+                       f"<tbody>{body}</tbody></table>")
+            rows.clear()
+
+    for line in source.splitlines():
+        line = line.strip()
+        heading = re.match(r"(#{2,4})\s+(.*)", line)
+        if not line or line.startswith("[![") or heading:
+            flush()
+            if heading and len(heading.group(1)) > 2:
+                text = heading.group(2).replace("**", "")
+                if len(heading.group(1)) == 3:
+                    out.append(f'<h2 class="part">{inline(text)}</h2>')
+                else:
+                    out.append(f"<h3>{inline(text)}</h3>")
+        elif line.startswith("|"):
+            rows.append(line)
+        elif line.startswith("- "):
+            items.append(line[2:])
+        elif items:
+            items[-1] += " " + line
+        else:
+            para.append(line)
+    flush()
+    return "\n".join(out)
+
+
+def code(source):
+    lines = source.splitlines()
+    title = ""
+    if lines and re.match(r"#\s*@title", lines[0]):
+        title = re.sub(r"[*`]", "", lines.pop(0).split("@title", 1)[1]).strip()
+    body = html.escape("\n".join(lines).strip("\n"), quote=False)
+    caption = f'<p class="nb-title">{html.escape(title)}</p>' if title else ""
+    return f'<div class="nb-cell">{caption}<pre><code class="language-python">{body}</code></pre>'
+
+
+def outputs(cell):
+    if "".join(cell["source"]).lstrip().startswith(("%pip", "!pip")):
+        return "</div>"
+    out = []
+    for o in cell.get("outputs", []):
+        data = o.get("data", {})
+        if "image/png" in data:
+            png = data["image/png"].replace("\n", "")
+            out.append(f'<img class="nb-figure" src="data:image/png;base64,{png}" alt="">')
+        elif "dataframe" in "".join(data.get("text/html", "")):
+            table = re.sub(r"<style.*?</style>", "", "".join(data["text/html"]), flags=re.S)
+            table = table.replace(' border="1"', "")
+            out.append(f'<div class="nb-table">{table}</div>')
+        elif o.get("output_type") == "stream" or "text/plain" in data:
+            text = ANSI.sub("", "".join(o.get("text") or data["text/plain"])).rstrip()
+            if text and not text.startswith("<Figure"):
+                out.append(f'<pre class="nb-text">{html.escape(text, quote=False)}</pre>')
+        elif o.get("output_type") == "error":
+            out.append(f'<pre class="nb-text">{html.escape(o["ename"] + ": " + o["evalue"])}</pre>')
+    if not out:
+        return "</div>"
+    return '<div class="nb-out">' + "\n".join(out) + "</div></div>"
+
+
+def page(name, title, tags, masthead, footer):
+    nb = json.loads((DOCS / "notebooks" / f"{name}.ipynb").read_text())
+    lead, body = "", []
+    for cell in nb["cells"]:
+        source = "".join(cell["source"])
+        if cell["cell_type"] == "markdown":
+            if not lead and source.lstrip().startswith("## "):
+                lead = markdown(source)
+            else:
+                body.append(markdown(source))
+        else:
+            body.append(code(source) + outputs(cell))
+    facts = (f"<li>{tags}</li><li>{link(f'{COLAB}/{name}.ipynb', 'Open in Colab')}</li>"
+             f"<li>{link(f'{REPO}/{name}.ipynb', 'Notebook on GitHub')}</li>")
+    head = (masthead
+            .replace("<title>GeoZL · Examples</title>", f"<title>GeoZL · {title}</title>")
+            .replace('content="GeoZL examples you can run in Colab, and the ones on the way."',
+                     f'content="{title}, a GeoZL example notebook."'))
+    body_html = "\n".join(body)
+    return f"""{head}
+  <main class="nb">
+    <article class="content">
+      {back("Examples")}
+      <h1>{title}</h1>
+      <ul class="facts">{facts}</ul>
+{lead}
+{body_html}
+      {back("Back to the examples", " nb-back-end")}
+    </article>
+  </main>
+{footer}"""
+
+
+def relative(fragment):
+    """Point the site-root links of examples.html one directory up."""
+    return re.sub(r'(href|src)="(?!https?:|#|\.\./|data:)([^"]+)"', r'\1="../\2"', fragment)
+
+
+def main():
+    examples = (DOCS / "examples.html").read_text()
+    masthead = relative(examples[:examples.index('  <main class="doc">')].rstrip("\n"))
+    masthead = masthead.replace(
+        '</head>', '<link rel="stylesheet" href="../assets/css/notebook.css?v=2">\n</head>')
+    footer = relative(examples[examples.index("  </main>") + len("  </main>\n"):])
+    footer = footer.replace('<script src="../assets/js/toc.js" defer></script>',
+                            '<script src="../assets/js/code.js?v=3" defer></script>')
+    for name, title, tags in NOTEBOOKS:
+        out = DOCS / "notebooks" / f"{name}.html"
+        out.write_text(page(name, title, tags, masthead, footer))
+        print("wrote", out.relative_to(DOCS.parent))
+
+
+if __name__ == "__main__":
+    main()
