@@ -105,8 +105,8 @@ static int staging_valid(const GeozlGpuProgram *program,
   const uintptr_t host = (uintptr_t)buffer->host;
   return staging->program->ops == program->ops &&
          staging->program->device == program->device &&
-         buffer->flags == GEOZL_GPU_COPY_IN && host >= start &&
-         host - start <= staging->bytes &&
+         (buffer->flags & ~GEOZL_GPU_COPY_OUT) == GEOZL_GPU_COPY_IN &&
+         host >= start && host - start <= staging->bytes &&
          (host - start) % GEOZL_GPU_STAGING_ALIGNMENT == 0 &&
          buffer->bytes <= staging->bytes - (host - start);
 }

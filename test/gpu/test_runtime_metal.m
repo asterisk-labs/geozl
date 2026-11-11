@@ -10,8 +10,6 @@ static int fail(const char *message) {
   return 1;
 }
 
-// Inputs in staging are bound in place at their offset, and a buffer that
-// does not lie aligned inside its staging is refused.
 static int check_staging(void) {
   static const char source[] =
       "#include <metal_stdlib>\n"
@@ -62,24 +60,38 @@ static int check_staging(void) {
     }
   }
 
-  GeozlGpuBatch *batch =
-      geozl_gpu_batch_create(program, buffers, 2, error, sizeof(error));
+  uint32_t *inout = (uint32_t *)(data + 2 * GEOZL_GPU_STAGING_ALIGNMENT);
+  memset(inout, 0xFF, sizeof(output));
+  const GeozlGpuBuffer inPlace[] = {
+      buffers[0],
+      {inout, sizeof(output), sizeof(uint32_t),
+       GEOZL_GPU_COPY_IN | GEOZL_GPU_COPY_OUT, -1, staging},
+  };
   const GeozlGpuDispatch dispatch = {0, 1, 1, COUNT};
   GeozlGpuRunTimes times;
-  const int failed =
-      batch == NULL ||
-      geozl_gpu_batch_run(batch, &dispatch, 1, &times, error, sizeof(error)) ||
-      geozl_gpu_batch_download(batch, error, sizeof(error));
-  geozl_gpu_batch_destroy(batch);
+  int failed = 0;
+  for (int round = 0; round < 2 && !failed; ++round) {
+    GeozlGpuBatch *batch = geozl_gpu_batch_create(
+        program, round == 0 ? buffers : inPlace, 2, error, sizeof(error));
+    failed = batch == NULL ||
+             geozl_gpu_batch_run(batch, &dispatch, 1, &times, error,
+                                 sizeof(error)) ||
+             geozl_gpu_batch_download(batch, error, sizeof(error));
+    geozl_gpu_batch_destroy(batch);
+  }
+  if (!failed) {
+    for (uint32_t i = 0; i < COUNT; ++i) {
+      if (output[i] != (i + 7) * 2 || inout[i] != (i + 7) * 2) {
+        snprintf(error, sizeof(error),
+                 "a staged buffer was not used in place");
+        failed = 1;
+        break;
+      }
+    }
+  }
   geozl_gpu_staging_destroy(staging);
   geozl_gpu_program_destroy(program);
-  if (failed)
-    return fail(error);
-  for (uint32_t i = 0; i < COUNT; ++i) {
-    if (output[i] != (i + 7) * 2)
-      return fail("a staged input was not read in place");
-  }
-  return 0;
+  return failed ? fail(error) : 0;
 }
 
 // Allocations that overflow a chunk open another, and reset merges them into

@@ -465,12 +465,15 @@ static int metal_batch_download(GeozlGpuBatch *batch, char *errorBuffer,
   (void)errorCapacity;
   @autoreleasepool {
     GeozlMetalBatch *metal = metal_batch(batch);
+    const size_t *offsets = ((const MetalBatch *)batch)->offsets;
     for (size_t i = 0; i < batch->bufferCount; ++i) {
       const GeozlGpuBuffer *buffer = &batch->buffers[i];
-      id<MTLBuffer> metalBuffer = metal.buffers[i];
-      if (buffer->alias < 0 && (buffer->flags & GEOZL_GPU_COPY_OUT) != 0 &&
-          metalBuffer.contents != buffer->host)
-        memcpy(buffer->host, metalBuffer.contents, buffer->bytes);
+      if (buffer->alias >= 0 || (buffer->flags & GEOZL_GPU_COPY_OUT) == 0)
+        continue;
+      const uint8_t *contents =
+          (const uint8_t *)metal.buffers[i].contents + offsets[i];
+      if (contents != buffer->host)
+        memcpy(buffer->host, contents, buffer->bytes);
     }
     return 0;
   }

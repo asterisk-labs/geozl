@@ -29,10 +29,8 @@ typedef struct GeozlGpuMemory GeozlGpuMemory;
 typedef struct GeozlGpuStaging GeozlGpuStaging;
 
 typedef struct {
-  // host is required by COPY_IN/COPY_OUT and otherwise must be NULL. RESULT
-  // marks a device allocation that can be moved out with batch_take. A COPY_IN
-  // buffer whose host lies in staging uploads without a host copy. EXTERNAL
-  // binds bytes of memory at memoryOffset instead of allocating them.
+  // A staged COPY_IN binds in place. COPY_OUT returns it to the same staging
+  // before the batch completes. EXTERNAL binds memory at memoryOffset.
   void *host;
   size_t bytes;
   size_t elementBytes;
@@ -106,8 +104,7 @@ int geozl_gpu_batch_enqueue(GeozlGpuBatch *batch,
 int geozl_gpu_batch_wait(GeozlGpuBatch *batch, char *error,
                          size_t errorCapacity);
 
-// Copies buffers marked GEOZL_GPU_COPY_OUT to their host pointers. A caller
-// that wants to keep the result on the device simply does not call this.
+// Copy non-staged COPY_OUT buffers to host.
 int geozl_gpu_batch_download(GeozlGpuBatch *batch, char *error,
                              size_t errorCapacity);
 
