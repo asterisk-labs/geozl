@@ -1,4 +1,4 @@
-# Preparing GeoZL 0.31.0
+# Preparing GeoZL 0.32.0
 
 This checklist prepares a local release candidate. Pushing a `v*` tag starts
 publication, so review the candidate and its CI artifacts first.
@@ -13,9 +13,8 @@ publication, so review the candidate and its CI artifacts first.
   rebuild after an update.
 - Prebuilt Python wheels target Linux x86-64 with CUDA and macOS arm64 with
   Metal. The platform matrix also checks source builds elsewhere.
-- The OpenZL pin is the integrated `dev` commit `b7f498b`. Review the upstream
-  bitSplit and decompression changes since the 0.30.0 pin, and check frame
-  compatibility with the Python OpenZL 0.3.x dependency.
+- The OpenZL pin is the integrated `dev` commit `b7f498b`. Check frame
+  compatibility with the Python OpenZL 0.3.x dependency before changing it.
 
 ## Validate the candidate
 
@@ -43,12 +42,12 @@ artifacts in clean environments.
 
 ## Version and publication
 
-1. Move the candidate notes into the dated 0.31.0 changelog entry. State the
+1. Move the candidate notes into the dated 0.32.0 changelog entry. State the
    compatibility direction of any wire change.
 2. Set `VERSION` and run `python tools/sync_r_vendor.py` to synchronize R,
    Julia and npm. `test_release.py` checks their versions.
 3. Re-run the validation gates on that exact tree. Review the release
    workflow's dry-run artifacts.
-4. Push a `v0.31.0` tag only when publication is intended. The tag workflow
+4. Push a `v0.32.0` tag only when publication is intended. The tag workflow
    publishes PyPI wheels and a GitHub release, then npm. R and Julia use their
    own package channels.

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-11-10
+
 ### Breaking
 
 - `planar_zigzag_pfor` changes its payload layout under CTid `0x72D710`.
@@ -764,7 +766,8 @@ First release.
   `register_decoders` for reading frames back.
 - A libFuzzer harness over the decode path.
 
-[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.31.0...HEAD
+[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.32.0...HEAD
+[0.32.0]: https://github.com/asterisk-labs/geozl/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/asterisk-labs/geozl/compare/v0.30.0...v0.31.0
 [0.30.0]: https://github.com/asterisk-labs/geozl/compare/v0.21.1...v0.30.0
 [0.21.1]: https://github.com/asterisk-labs/geozl/compare/v0.21.0...v0.21.1
