@@ -78,7 +78,7 @@ names = ["B04", "B03", "B02"]
 jp2 = [f"{band}.jp2" for band in names]
 
 bands = []
-for band, path in zip(names, jp2):
+for band, path in zip(names, jp2, strict=True):
     urllib.request.urlretrieve(URL.format(band), path)
     with rasterio.open(path) as src:
         bands.append(src.read(1))
@@ -95,9 +95,22 @@ plt.axis("off");</code></pre></div>
 <p>Rumi also cuts each band into 512x512 chunks, and GeoZL compresses each chunk. We write the scene twice, with two codecs that decode on the GPU:</p>
 <ul><li><strong>PFOR</strong> packs the values into blocks of bits.</li><li><strong>PivCo</strong> adds entropy coding, so the file is smaller. Its recipe, <code>planar&gt;zigzag&gt;lanes</code>, codes each byte lane with PivCo.</li></ul>
 <div class="nb-cell"><pre><code class="language-python">with rasterio.open(
-    "rgb.tif", "w", driver="GTiff", height=rgb.shape[1], width=rgb.shape[2], count=3, dtype="uint16",
-    crs=crs, transform=transform, tiled=True, blockxsize=512, blockysize=512, interleave="band",
-    compress="zstd", predictor=2, zstd_level=9,
+    "rgb.tif",
+    "w",
+    driver="GTiff",
+    height=rgb.shape[1],
+    width=rgb.shape[2],
+    count=3,
+    dtype="uint16",
+    crs=crs,
+    transform=transform,
+    tiled=True,
+    blockxsize=512,
+    blockysize=512,
+    interleave="band",
+    compress="zstd",
+    predictor=2,
+    zstd_level=9,
 ) as dst:
     dst.write(rgb)
 
@@ -109,7 +122,14 @@ for name, recipe in (("pfor", "planar&gt;zigzag&gt;pfor"), ("pivco", "planar&gt;
         if frame.shape not in graphs:
             graphs[frame.shape] = geozl.graph(frame.data, recipe)
         frame.compressed = geozl.compress(frame.data, graph=graphs[frame.shape])
-    _, headers[name] = rumi.write(f"{name}.rumi", frames, bands=names, time=["2023-09-28T10:27:44Z"], crs=crs, transform=transform)
+    _, headers[name] = rumi.write(
+        f"{name}.rumi",
+        frames,
+        bands=names,
+        time=["2023-09-28T10:27:44Z"],
+        crs=crs,
+        transform=transform,
+    )
 os.sync()</code></pre></div>
 <h2 class="part">Compare</h2>
 <p>Each read ends when the tensor is ready on the GPU.</p>
@@ -138,7 +158,7 @@ def timed(read, paths, cold):
             os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
             os.close(fd)
     start = time.perf_counter()
-    out = read()
+    _ = read()
     torch.cuda.synchronize()
     return round((time.perf_counter() - start) * 1000)
 
