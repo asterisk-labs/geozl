@@ -17,13 +17,52 @@ typedef struct {
   } transform;
 } PforGpuFrame;
 
-// Mirrors block_task in gpu/kernels/programs/pfor.slang.
+// Must match block_task in pfor.slang.
 typedef struct {
   uint32_t payloadOffset;
   uint32_t outputBase;
   uint32_t count;
-  uint32_t transform;
+  uint32_t pad;
 } GpuPforBlock;
+
+// These structs must match pfor_bands.slang.
+typedef struct {
+  uint32_t payloadOffset, payloadSize, blockCount, firstBlock, frame, pad[3];
+} GpuPforBandFrame;
+
+typedef struct {
+  uint32_t header, rest;
+} GpuPforBlockRef;
+
+typedef struct {
+  uint32_t frame, first, count, firstChunk;
+} GpuPforBlockChunk;
+
+typedef struct {
+  uint32_t firstBlock, blockCount, outputBase, width, height, frame, columns,
+      pad;
+} GpuPforStrip;
+
+typedef struct {
+  GpuPforBandFrame *frames; // padded to whole groups of four with empty frames
+  size_t frameCount;
+  GpuPforStrip *strips; // padded the same way with empty strips
+  size_t stripCount;
+  GpuPforBlockChunk *chunks; // padded the same way with empty chunks
+  size_t chunkCount;
+  size_t blockCount; // GpuPforBlockRef entries the GPU writes
+  int borrowed; // the arrays belong to the allocator the plan was built with
+  const char *error;
+  size_t errorFrame;
+} PforGpuBandPlan;
+
+int pfor_gpu_band_plan_build(PforGpuBandPlan *plan, const PforGpuFrame *frames,
+                             size_t frameCount, const size_t frameIds[],
+                             const GeozlGpuHostAlloc *alloc);
+void pfor_gpu_band_plan_free(PforGpuBandPlan *plan);
+int pfor_gpu_band_frame_fits(const PforGpuFrame *frame);
+
+enum { PFOR_GPU_STATUS_HEADER = 0, PFOR_GPU_STATUS_POSITIONS = 1 };
 
 typedef struct {
   GpuPforBlock *blocks;
@@ -52,20 +91,16 @@ typedef struct {
   size_t errorBlock;
 } PforGpuFrameTally;
 
-// Plans one frame into blocks, which has room for all of its blocks.
 int pfor_gpu_plan_frame(GpuPforBlock blocks[], const PforGpuFrame *frame,
                         const uint8_t *payload, size_t elementBytes,
                         PforGpuFrameTally *tally);
-// A plan over frames planned by the caller, which still owns blocks. blocks has
-// room for realBlocks rounded up to a multiple of four.
+// Wrap caller-owned blocks. Capacity must be realBlocks rounded up to four.
 void pfor_gpu_plan_wrap(PforGpuPlan *plan, GpuPforBlock blocks[],
                         size_t realBlocks);
 
 int pfor_gpu_plan_build(PforGpuPlan *plan, const PforGpuFrame *frames,
                         size_t frameCount, const uint8_t *payload,
                         size_t payloadSize, size_t elementBytes);
-// Plans contiguous frame ranges on up to threadCount threads, then merges them
-// in input order into blocks from alloc.
 int pfor_gpu_plan_build_parallel(PforGpuPlan *plan, const PforGpuFrame *frames,
                                  size_t frameCount, const uint8_t *payload,
                                  size_t payloadSize, size_t elementBytes,

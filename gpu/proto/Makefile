@@ -16,7 +16,7 @@ PFOR_PROGRAM := $(KERNELS)/programs/pfor.slang
 PIVCO_PROGRAM := $(KERNELS)/programs/pivco.slang
 SLANG_LAYOUT := ../../tools/check_slang_layout.py
 entries = $(foreach e,$(1),-entry $(e) -stage compute)
-PFOR_ENTRIES := $(call entries,unpack_blocks scan_planes scan_rows scan_columns copy_raw)
+PFOR_ENTRIES := $(call entries,unpack_blocks size_chunks plan_blocks decode_strips copy_raw)
 PIVCO_ENTRIES := $(call entries,decode_symbols unpack_lane_blocks join_lanes scan_planes scan_rows scan_columns copy_raw)
 
 # planar_zigzag_pfor needs only GeoZL's kernels.
@@ -88,13 +88,13 @@ check: $(CHECKS)
 	./build/test_c_api
 check-pfor-metal: build/test_pfor_decode_metal build/test_pfor_list_metal build/pzp1.metal build/pzp2.metal
 	./build/test_pfor_decode_metal build/pzp1.metal build/pzp2.metal
-	./build/test_pfor_list_metal build/pzp1.metal
+	./build/test_pfor_list_metal build/pzp1.metal build/pzp2.metal
 check-pivco-metal: build/test_pivco_decode_metal build/test_pivco_e2e_metal build/pzv1.metal build/pzv2.metal
 	./build/test_pivco_decode_metal build/pzv1.metal
 	./build/test_pivco_e2e_metal build/pzv1.metal build/pzv2.metal
 check-pfor-cuda: build/test_pfor_decode_cuda build/test_pfor_list_cuda build/pzp1.ptx build/pzp2.ptx
 	./build/test_pfor_decode_cuda build/pzp1.ptx build/pzp2.ptx
-	./build/test_pfor_list_cuda build/pzp1.ptx
+	./build/test_pfor_list_cuda build/pzp1.ptx build/pzp2.ptx
 check-pivco-cuda: build/test_pivco_decode_cuda build/test_pivco_e2e_cuda build/pzv1.ptx build/pzv2.ptx
 	./build/test_pivco_decode_cuda build/pzv1.ptx
 	./build/test_pivco_e2e_cuda build/pzv1.ptx build/pzv2.ptx

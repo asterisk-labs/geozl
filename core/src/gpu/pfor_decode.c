@@ -17,14 +17,18 @@ struct GeozlPforGpuDecoder {
 
 enum {
   K_UNPACK_BLOCKS,
-  K_SCAN_PLANES,
-  K_SCAN_ROWS,
-  K_SCAN_COLUMNS,
+  K_SIZE_CHUNKS,
+  K_PLAN_BLOCKS,
+  K_DECODE_STRIPS,
   K_COPY_RAW,
 };
 
 static const char *const kernels[] = {
-    "unpack_blocks", "scan_planes", "scan_rows", "scan_columns", "copy_raw",
+    "unpack_blocks",
+    "size_chunks",
+    "plan_blocks",
+    "decode_strips",
+    "copy_raw",
 };
 
 GeozlPforGpuDecoder *
@@ -108,7 +112,7 @@ static int append_dispatch(GeozlGpuDispatch dispatches[], size_t *count,
 static int build_dispatches(PforGpuWork *work, size_t rawCount, char *error,
                             size_t errorCapacity) {
   const PforGpuPlan *plan = &work->plan;
-  const GeozlGpuPlanePlan *planes = &work->planes;
+  const PforGpuBandPlan *bands = &work->bands;
   GeozlGpuDispatch *dispatches = work->dispatches;
   size_t *count = &work->dispatchCount;
   *count = 0;
@@ -116,15 +120,13 @@ static int build_dispatches(PforGpuWork *work, size_t rawCount, char *error,
       append_dispatch(dispatches, count, K_UNPACK_BLOCKS, plan->blockCount / 4,
                       1, error, errorCapacity))
     return 1;
-  if (planes->count != 0 &&
-      append_dispatch(dispatches, count, K_SCAN_PLANES, planes->count / 4, 1,
-                      error, errorCapacity))
-    return 1;
-  if (planes->maxWidth > GEOZL_GPU_SCAN_SEGMENT &&
-      (append_dispatch(dispatches, count, K_SCAN_ROWS, planes->count,
-                       (planes->maxRows + 3) / 4, error, errorCapacity) ||
-       append_dispatch(dispatches, count, K_SCAN_COLUMNS, planes->count,
-                       (planes->maxWidth + 127) / 128, error, errorCapacity)))
+  if (bands->frameCount != 0 &&
+      (append_dispatch(dispatches, count, K_SIZE_CHUNKS, bands->chunkCount / 4,
+                       1, error, errorCapacity) ||
+       append_dispatch(dispatches, count, K_PLAN_BLOCKS, bands->chunkCount / 4,
+                       1, error, errorCapacity) ||
+       append_dispatch(dispatches, count, K_DECODE_STRIPS,
+                       bands->stripCount / 4, 1, error, errorCapacity)))
     return 1;
   if (rawCount != 0 && append_dispatch(dispatches, count, K_COPY_RAW, rawCount,
                                        1, error, errorCapacity))
@@ -134,6 +136,20 @@ static int build_dispatches(PforGpuWork *work, size_t rawCount, char *error,
 
 static size_t frame_id(const size_t frameIds[], size_t frame) {
   return frameIds == NULL ? frame : frameIds[frame];
+}
+
+int pfor_gpu_status_check(const uint32_t *status, char *error,
+                          size_t errorCapacity) {
+  if (status == NULL || (status[PFOR_GPU_STATUS_HEADER] == UINT32_MAX &&
+                         status[PFOR_GPU_STATUS_POSITIONS] == UINT32_MAX))
+    return 0;
+  const int header =
+      status[PFOR_GPU_STATUS_HEADER] <= status[PFOR_GPU_STATUS_POSITIONS];
+  return geozl_gpu_error(error, errorCapacity, "frame %u: %s",
+                         header ? status[PFOR_GPU_STATUS_HEADER]
+                                : status[PFOR_GPU_STATUS_POSITIONS],
+                         header ? "invalid PFOR block header or payload size"
+                                : "invalid PFOR exception positions");
 }
 
 int pfor_gpu_work_build(PforGpuWork *work, GeozlGpuArena *staging,
@@ -153,15 +169,42 @@ int pfor_gpu_work_build(PforGpuWork *work, GeozlGpuArena *staging,
     return geozl_gpu_error(error, errorCapacity, "GPU output is too large");
   const GeozlGpuHostAlloc alloc = geozl_gpu_arena_allocator(staging);
   uint64_t *dummy = geozl_gpu_host_calloc(&alloc, 4, sizeof(*dummy));
-  if (dummy == NULL)
+  work->status = geozl_gpu_host_calloc(&alloc, 4, sizeof(*work->status));
+  if (dummy == NULL || work->status == NULL)
     return geozl_gpu_error(error, errorCapacity, "%s",
                            geozl_gpu_arena_error(staging));
+  work->status[PFOR_GPU_STATUS_HEADER] = UINT32_MAX;
+  work->status[PFOR_GPU_STATUS_POSITIONS] = UINT32_MAX;
   memset(payload + payloadSize, 0, GEOZL_GPU_PAYLOAD_PADDING);
 
+  size_t idCount = 0;
+  for (size_t i = 0; i < frameCount; ++i)
+    idCount += frames[i].transform == PFOR_GPU_ID;
+  PforGpuFrame *idFrames = NULL;
+  size_t *idIds = NULL;
+  if (framePlan == NULL && idCount != 0 && idCount != frameCount) {
+    idFrames = malloc(idCount * sizeof(*idFrames));
+    idIds = malloc(idCount * sizeof(*idIds));
+    if (idFrames == NULL || idIds == NULL) {
+      free(idFrames);
+      free(idIds);
+      return geozl_gpu_error(error, errorCapacity, "out of memory");
+    }
+    size_t k = 0;
+    for (size_t i = 0; i < frameCount; ++i) {
+      if (frames[i].transform != PFOR_GPU_ID)
+        continue;
+      idFrames[k] = frames[i];
+      idIds[k++] = frame_id(frameIds, i);
+    }
+  }
+  const PforGpuFrame *planFrames = idFrames != NULL ? idFrames : frames;
+  const size_t *planIds = idFrames != NULL ? idIds : frameIds;
+  int planFailed = 0;
   if (framePlan != NULL) {
     work->plan = *framePlan;
-  } else if (frameCount != 0 &&
-             pfor_gpu_plan_build_parallel(&work->plan, frames, frameCount,
+  } else if (idCount != 0 &&
+             pfor_gpu_plan_build_parallel(&work->plan, planFrames, idCount,
                                           payload, payloadSize, elementBytes,
                                           threads, &alloc) != 0) {
     const PforGpuPlan *plan = &work->plan;
@@ -169,56 +212,70 @@ int pfor_gpu_work_build(PforGpuWork *work, GeozlGpuArena *staging,
       geozl_gpu_error(error, errorCapacity, "%s", plan->error);
     else if (plan->errorBlock == SIZE_MAX)
       geozl_gpu_error(error, errorCapacity, "%s in frame %zu", plan->error,
-                      frame_id(frameIds, plan->errorFrame));
+                      frame_id(planIds, plan->errorFrame));
     else
       geozl_gpu_error(error, errorCapacity, "%s in block %zu of frame %zu",
                       plan->error, plan->errorBlock,
-                      frame_id(frameIds, plan->errorFrame));
+                      frame_id(planIds, plan->errorFrame));
+    planFailed = 1;
+  }
+  free(idFrames);
+  free(idIds);
+  if (planFailed)
+    return 1;
+
+  if (pfor_gpu_band_plan_build(&work->bands, frames, frameCount, frameIds,
+                               &alloc) != 0) {
+    const PforGpuBandPlan *bands = &work->bands;
+    if (bands->errorFrame == SIZE_MAX)
+      geozl_gpu_error(error, errorCapacity, "%s", bands->error);
+    else
+      geozl_gpu_error(error, errorCapacity, "%s in frame %zu", bands->error,
+                      frame_id(frameIds, bands->errorFrame));
+    pfor_gpu_work_free(work);
     return 1;
   }
 
-  GeozlGpuFrameShape *scans =
-      frameCount == 0 ? NULL : malloc(frameCount * sizeof(*scans));
-  if (frameCount != 0 && scans == NULL) {
-    pfor_gpu_work_free(work);
-    return geozl_gpu_error(error, errorCapacity, "out of memory");
-  }
-  size_t scanCount = 0;
-  for (size_t i = 0; i < frameCount; ++i) {
-    if (frames[i].transform == PFOR_GPU_PLANAR_ZIGZAG)
-      scans[scanCount++] = frames[i].shape;
-  }
-  const int planned =
-      scanCount == 0 ||
-      geozl_gpu_plane_plan_build(&work->planes, scans, scanCount, &alloc) == 0;
-  free(scans);
-  if (!planned) {
-    pfor_gpu_work_free(work);
-    return geozl_gpu_error(error, errorCapacity,
-                           "invalid planar scan geometry");
-  }
-
   const PforGpuPlan *plan = &work->plan;
-  const GeozlGpuPlanePlan *planes = &work->planes;
+  const PforGpuBandPlan *bands = &work->bands;
   GeozlGpuBuffer *buffers = work->buffers;
   buffers[0] = geozl_gpu_arena_input(
       staging, payload, payloadSize + GEOZL_GPU_PAYLOAD_PADDING, 1);
   buffers[1] = geozl_gpu_arena_input(
       staging, plan->blocks != NULL ? (void *)plan->blocks : dummy,
       plan->blockCount, sizeof(*plan->blocks));
-  buffers[2] = geozl_gpu_arena_input(
-      staging, planes->tasks != NULL ? (void *)planes->tasks : dummy,
-      planes->count, sizeof(*planes->tasks));
   buffers[PFOR_GPU_OUTPUT] = (GeozlGpuBuffer){.bytes = outputBytes,
                                               .elementBytes = elementBytes,
                                               .flags = GEOZL_GPU_RESULT,
                                               .alias = -1};
-  buffers[4] = (GeozlGpuBuffer){
+  buffers[PFOR_GPU_OUTPUT_BYTES] = (GeozlGpuBuffer){
       .bytes = outputBytes, .elementBytes = 1, .alias = PFOR_GPU_OUTPUT};
+  buffers[4] = geozl_gpu_arena_input(
+      staging, bands->frames != NULL ? (void *)bands->frames : dummy,
+      bands->frameCount, sizeof(*bands->frames));
   buffers[5] = geozl_gpu_arena_input(
+      staging, bands->strips != NULL ? (void *)bands->strips : dummy,
+      bands->stripCount, sizeof(*bands->strips));
+  buffers[6] = (GeozlGpuBuffer){
+      .bytes = (bands->blockCount == 0 ? 1 : bands->blockCount) *
+               sizeof(GpuPforBlockRef),
+      .elementBytes = sizeof(GpuPforBlockRef),
+      .alias = -1};
+  buffers[PFOR_GPU_STATUS] =
+      geozl_gpu_arena_input(staging, work->status, 2, sizeof(*work->status));
+  buffers[PFOR_GPU_STATUS].flags |= GEOZL_GPU_COPY_OUT;
+  buffers[8] = geozl_gpu_arena_input(
+      staging, bands->chunks != NULL ? (void *)bands->chunks : dummy,
+      bands->chunkCount, sizeof(*bands->chunks));
+  buffers[9] = (GeozlGpuBuffer){
+      .bytes = (bands->chunkCount == 0 ? 1 : bands->chunkCount) *
+               sizeof(uint32_t),
+      .elementBytes = sizeof(uint32_t),
+      .alias = -1};
+  buffers[10] = geozl_gpu_arena_input(
       staging, rawValues != NULL ? (const void *)rawValues : dummy,
       rawBytes / elementBytes, elementBytes);
-  buffers[6] = geozl_gpu_arena_input(
+  buffers[11] = geozl_gpu_arena_input(
       staging, rawCount != 0 ? (const void *)rawCopies : dummy, rawCount,
       sizeof(*rawCopies));
   if (build_dispatches(work, rawCount, error, errorCapacity)) {
@@ -229,21 +286,18 @@ int pfor_gpu_work_build(PforGpuWork *work, GeozlGpuArena *staging,
 }
 
 void pfor_gpu_work_free(PforGpuWork *work) {
-  geozl_gpu_plane_plan_free(&work->planes);
+  pfor_gpu_band_plan_free(&work->bands);
   pfor_gpu_plan_free(&work->plan);
 }
 
-// Raw frames are rare, so their staging is taken at the first one, sized for
-// the output still to come.
-static int capture_frames(GeozlPforGpuDecoder *decoder,
-                          const void *const frames[], const size_t frameSizes[],
-                          const size_t outputSizes[], size_t frameCount,
-                          size_t totalBytes, PforGpuFrame gpuFrames[],
-                          uint8_t *payload, size_t payloadCapacity,
-                          uint8_t **rawValues, GeozlGpuRawCopy rawCopies[],
-                          void *scratch, char *error, size_t errorCapacity,
-                          size_t *payloadSize, size_t *gpuCount,
-                          size_t *rawCount, size_t *rawBytes) {
+static int
+capture_frames(GeozlPforGpuDecoder *decoder, const void *const frames[],
+               const size_t frameSizes[], const size_t outputSizes[],
+               size_t frameCount, size_t totalBytes, PforGpuFrame gpuFrames[],
+               size_t gpuIds[], uint8_t *payload, size_t payloadCapacity,
+               uint8_t **rawValues, GeozlGpuRawCopy rawCopies[], void *scratch,
+               char *error, size_t errorCapacity, size_t *payloadSize,
+               size_t *gpuCount, size_t *rawCount, size_t *rawBytes) {
   PforCapture capture;
   if (pfor_capture_init(&capture, payload, payloadCapacity) != 0)
     return geozl_gpu_error(error, errorCapacity,
@@ -293,7 +347,7 @@ static int capture_frames(GeozlPforGpuDecoder *decoder,
       return geozl_gpu_error(error, errorCapacity,
                              "frame %zu has inconsistent output metadata", i);
     }
-    ++*gpuCount;
+    gpuIds[(*gpuCount)++] = i;
     outputElements += outputSizes[i] / decoder->elementBytes;
   }
   *payloadSize = capture.payloadSize;
@@ -317,7 +371,6 @@ GeozlGpuMemory *geozl_pfor_gpu_decode(GeozlPforGpuDecoder *decoder,
     return NULL;
   }
 
-  // Kernel inputs are built in staging, which uploads without a host copy.
   GeozlGpuArena *staging = &decoder->staging;
   geozl_gpu_arena_reset(staging);
   const GeozlGpuHostAlloc alloc = geozl_gpu_arena_allocator(staging);
@@ -326,7 +379,8 @@ GeozlGpuMemory *geozl_pfor_gpu_decode(GeozlPforGpuDecoder *decoder,
   void *scratch = NULL;
   size_t *sizes = calloc(frameCount, sizeof(*sizes));
   PforGpuFrame *gpuFrames = calloc(frameCount, sizeof(*gpuFrames));
-  if (sizes == NULL || gpuFrames == NULL) {
+  size_t *gpuIds = calloc(frameCount, sizeof(*gpuIds));
+  if (sizes == NULL || gpuFrames == NULL || gpuIds == NULL) {
     geozl_gpu_error(error, errorCapacity, "out of memory");
     goto done;
   }
@@ -355,12 +409,12 @@ GeozlGpuMemory *geozl_pfor_gpu_decode(GeozlPforGpuDecoder *decoder,
   size_t rawCount = 0;
   size_t rawBytes = 0;
   if (capture_frames(decoder, frames, frameSizes, sizes, frameCount,
-                     batchInfo.totalBytes, gpuFrames, payload,
+                     batchInfo.totalBytes, gpuFrames, gpuIds, payload,
                      batchInfo.payloadCapacity, &rawValues, rawCopies, scratch,
                      error, errorCapacity, &payloadSize, &gpuCount, &rawCount,
                      &rawBytes) ||
       pfor_gpu_work_build(&work, staging, decoder->elementBytes, gpuFrames,
-                          gpuCount, NULL, payload, payloadSize, rawValues,
+                          gpuCount, gpuIds, payload, payloadSize, rawValues,
                           rawBytes, rawCopies, rawCount, batchInfo.totalBytes,
                           NULL, 4, error, errorCapacity))
     goto done;
@@ -371,7 +425,8 @@ GeozlGpuMemory *geozl_pfor_gpu_decode(GeozlPforGpuDecoder *decoder,
     goto done;
   GeozlGpuRunTimes times;
   if (geozl_gpu_batch_run(batch, work.dispatches, work.dispatchCount, &times,
-                          error, errorCapacity) == 0)
+                          error, errorCapacity) == 0 &&
+      pfor_gpu_status_check(work.status, error, errorCapacity) == 0)
     memory = geozl_gpu_batch_take(batch, PFOR_GPU_OUTPUT, error, errorCapacity);
   geozl_gpu_batch_destroy(batch);
   if (memory != NULL && outputBytes != NULL)
@@ -380,6 +435,7 @@ GeozlGpuMemory *geozl_pfor_gpu_decode(GeozlPforGpuDecoder *decoder,
 done:
   pfor_gpu_work_free(&work);
   free(scratch);
+  free(gpuIds);
   free(gpuFrames);
   free(sizes);
   return memory;

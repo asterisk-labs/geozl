@@ -144,7 +144,9 @@ check_raw_fallback(GeozlPforGpuDecoder *decoder, const void *compressedFrame,
   return failed;
 }
 
-static int check_id_pfor(GeozlPforGpuDecoder *decoder, size_t elementBytes) {
+static int check_id_pfor(GeozlPforGpuDecoder *decoder, size_t elementBytes,
+                         const void *planarFrame, size_t planarFrameSize,
+                         const void *planarOutput, size_t planarOutputSize) {
   enum { count = 4096 };
   const size_t bytes = count * elementBytes;
   uint8_t *input = malloc(bytes);
@@ -181,17 +183,21 @@ static int check_id_pfor(GeozlPforGpuDecoder *decoder, size_t elementBytes) {
     return 1;
   }
 
-  const void *frames[] = {frame};
-  const size_t frameSizes[] = {frameSize};
+  const void *frames[] = {frame, planarFrame, frame};
+  const size_t frameSizes[] = {frameSize, planarFrameSize, frameSize};
+  const size_t total = 2 * bytes + planarOutputSize;
   size_t outputBytes = 0;
   GeozlGpuMemory *memory =
-      geozl_pfor_gpu_decode(decoder, frames, frameSizes, 1, bytes, &outputBytes,
+      geozl_pfor_gpu_decode(decoder, frames, frameSizes, 3, total, &outputBytes,
                             error, sizeof(error));
-  uint8_t *output = malloc(bytes);
-  const int failed = memory == NULL || output == NULL || outputBytes != bytes ||
-                     geozl_gpu_memory_download(memory, output, bytes, error,
-                                               sizeof(error)) != 0 ||
-                     memcmp(output, input, bytes) != 0;
+  uint8_t *output = malloc(total);
+  const int failed =
+      memory == NULL || output == NULL || outputBytes != total ||
+      geozl_gpu_memory_download(memory, output, total, error, sizeof(error)) !=
+          0 ||
+      memcmp(output, input, bytes) != 0 ||
+      memcmp(output + bytes, planarOutput, planarOutputSize) != 0 ||
+      memcmp(output + bytes + planarOutputSize, input, bytes) != 0;
   if (failed)
     fprintf(stderr, "test_pfor_decode: id>pfor: %s\n",
             error[0] ? error : "GPU output mismatch");
@@ -202,8 +208,9 @@ static int check_id_pfor(GeozlPforGpuDecoder *decoder, size_t elementBytes) {
   return failed;
 }
 
-static int run_case(const char *modulePath, size_t elementBytes) {
-  enum { frameCount = 3, width = 300, rows = 3, planes = 2 };
+static int run_case(const char *modulePath, size_t elementBytes, size_t width,
+                    size_t rows, uint32_t planes, int wrapped) {
+  enum { frameCount = 3 };
   const size_t elements = width * rows * planes;
   const size_t frameBytes = elements * elementBytes;
   uint8_t *input = malloc(frameCount * frameBytes);
@@ -211,7 +218,10 @@ static int run_case(const char *modulePath, size_t elementBytes) {
     return 1;
   for (size_t frame = 0; frame < frameCount; ++frame) {
     for (size_t i = 0; i < elements; ++i) {
-      const uint16_t value = (uint16_t)(frame * 113 + i * 7 + i / width);
+      const unsigned hash = (unsigned)(i * 2654435761u);
+      const unsigned outlier = hash >> 27 == 0 ? 9000u : 0u;
+      const uint16_t value = (uint16_t)(frame * 113 + i * 7 + i / width +
+                                        outlier + ((hash >> 9) & 63));
       if (elementBytes == 1)
         input[frame * frameBytes + i] = (uint8_t)value;
       else
@@ -291,14 +301,17 @@ static int run_case(const char *modulePath, size_t elementBytes) {
     return 1;
   }
   error[0] = '\0';
-  const int acceptedWrapped = check_wrapped_frame(decoder, input, elements,
-                                                  elementBytes, width, planes);
+  const int acceptedWrapped =
+      wrapped && check_wrapped_frame(decoder, input, elements, elementBytes,
+                                     width, planes);
   const int rawFailed = check_raw_fallback(decoder, frames[0], frameSizes[0],
                                            input, frameBytes, elementBytes);
-  const int idFailed = check_id_pfor(decoder, elementBytes);
+  const int idFailed =
+      check_id_pfor(decoder, elementBytes, frames[1], frameSizes[1],
+                    input + frameBytes, frameBytes);
   geozl_pfor_gpu_decoder_destroy(decoder);
   if (memory == NULL || acceptedWrapped || rawFailed || idFailed) {
-    fprintf(stderr, "test_pfor_decode: %s\n",
+    fprintf(stderr, "test_pfor_decode: %zux%zux%u: %s\n", width, rows, planes,
             acceptedWrapped ? "accepted a wrapped PFOR frame"
             : rawFailed     ? "raw frame fallback failed"
             : idFailed      ? "id>pfor failed"
@@ -316,7 +329,7 @@ static int run_case(const char *modulePath, size_t elementBytes) {
                                 sizeof(error)) != 0 ||
       memcmp(output, input, frameCount * frameBytes) != 0;
   if (failed)
-    fprintf(stderr, "test_pfor_decode: %s\n",
+    fprintf(stderr, "test_pfor_decode: %zux%zux%u: %s\n", width, rows, planes,
             error[0] ? error : "GPU output mismatch");
 
   geozl_gpu_memory_destroy(memory);
@@ -331,8 +344,21 @@ int main(int argc, char **argv) {
     fprintf(stderr, "usage: test_pfor_decode pzp1.metal pzp2.metal\n");
     return 2;
   }
-  if (run_case(argv[1], 1) || run_case(argv[2], 2))
-    return 1;
+  static const struct {
+    size_t width, rows;
+    uint32_t planes;
+  } shapes[] = {
+      {300, 3, 2},   {300, 37, 2}, {17, 16, 3},   {256, 31, 1},
+      {5, 40, 1},    {1, 50, 1},   {1000, 1, 1},  {64, 64, 1},
+      {2100, 19, 1}, {4500, 2, 2}, {1024, 17, 1}, {3073, 1, 1},
+      {640, 160, 1}, {300, 200, 2},
+  };
+  for (size_t i = 0; i < sizeof(shapes) / sizeof(shapes[0]); ++i)
+    if (run_case(argv[1], 1, shapes[i].width, shapes[i].rows, shapes[i].planes,
+                 i == 0) ||
+        run_case(argv[2], 2, shapes[i].width, shapes[i].rows, shapes[i].planes,
+                 i == 0))
+      return 1;
   puts("test_pfor_decode: ok");
   return 0;
 }

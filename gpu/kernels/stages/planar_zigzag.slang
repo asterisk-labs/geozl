@@ -1,5 +1,4 @@
-// Inverse planar reconstruction. Wide planes use separate row and column
-// passes; scan_planes handles widths up to SEGMENT in one pass.
+// Zigzag and the row loads and stores shared by the planar decoders.
 
 uint unzigzag(uint v) {
   return ((v >> 1) ^ (0u - (v & 1u))) & low_mask(8u * ELT_BYTES);
@@ -65,92 +64,4 @@ void store_row(uint o0, uint x0, uint width, uint r[CPT]) {
     for (uint c = 0; c < CPT; ++c)
       if (x0 + c < width)
         output[o0 + x0 + c] = Elt(r[c]);
-}
-
-[shader("compute")]
-[numthreads(WAVES_PER_GROUP * WAVE, 1, 1)]
-void scan_planes(uint3 group : SV_GroupID, uint3 thread : SV_GroupThreadID) {
-  uint t = thread.x % WAVE;
-  plane_task task = planes[group.x * WAVES_PER_GROUP + thread.x / WAVE];
-  if (task.width > SEGMENT || task.rows == 0)
-    return;
-  uint x0 = t * CPT;
-
-  uint column[CPT];
-  uint next[CPT];
-  [ForceUnroll]
-  for (uint c = 0; c < CPT; ++c)
-    column[c] = 0;
-  load_row(task.outBase, x0, task.width, next);
-  for (uint y = 0; y < task.rows; ++y) {
-    uint o0 = task.outBase + y * task.width;
-    uint r[CPT];
-    [ForceUnroll]
-    for (uint c = 0; c < CPT; ++c)
-      r[c] = next[c];
-    if (y + 1 < task.rows)
-      load_row(o0 + task.width, x0, task.width, next);
-    uint local = 0;
-    [ForceUnroll]
-    for (uint c = 0; c < CPT; ++c) {
-      local += r[c];
-      r[c] = local;
-    }
-    uint before = WavePrefixSum(local);
-    [ForceUnroll]
-    for (uint c = 0; c < CPT; ++c) {
-      column[c] += r[c] + before;
-      r[c] = column[c];
-    }
-    store_row(o0, x0, task.width, r);
-  }
-}
-
-// Group (p, y) holds rows y * WAVES_PER_GROUP.. of plane p, one wave per row.
-[shader("compute")]
-[numthreads(WAVES_PER_GROUP * WAVE, 1, 1)]
-void scan_rows(uint3 group : SV_GroupID, uint3 thread : SV_GroupThreadID) {
-  uint t = thread.x % WAVE;
-  plane_task task = planes[group.x];
-  uint y = group.y * WAVES_PER_GROUP + thread.x / WAVE;
-  if (task.width <= SEGMENT || y >= task.rows)
-    return;
-  uint o0 = task.outBase + y * task.width;
-  uint rowCarry = 0;
-  uint segments = (task.width + SEGMENT - 1u) / SEGMENT;
-  for (uint segment = 0; segment < segments; ++segment) {
-    uint xs = segment * SEGMENT + t * CPT;
-    uint r[CPT];
-    load_row(o0, xs, task.width, r);
-    uint local = 0;
-    [ForceUnroll]
-    for (uint c = 0; c < CPT; ++c) {
-      local += r[c];
-      r[c] = local;
-    }
-    uint before = WavePrefixSum(local) + rowCarry;
-    rowCarry += WaveActiveSum(local);
-    [ForceUnroll]
-    for (uint c = 0; c < CPT; ++c)
-      r[c] += before;
-    store_row(o0, xs, task.width, r);
-  }
-}
-
-// Group (p, g) covers columns g * COLUMNS_PER_GROUP.. of plane p, one per thread.
-static const uint COLUMNS_PER_GROUP = WAVES_PER_GROUP * WAVE;
-
-[shader("compute")]
-[numthreads(COLUMNS_PER_GROUP, 1, 1)]
-void scan_columns(uint3 group : SV_GroupID, uint3 thread : SV_GroupThreadID) {
-  plane_task task = planes[group.x];
-  uint x = group.y * COLUMNS_PER_GROUP + thread.x;
-  if (task.width <= SEGMENT || x >= task.width)
-    return;
-  uint carry = 0;
-  for (uint y = 0; y < task.rows; ++y) {
-    uint o = task.outBase + y * task.width + x;
-    carry += uint(output[o]);
-    output[o] = Elt(carry);
-  }
 }

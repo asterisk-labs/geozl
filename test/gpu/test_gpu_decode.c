@@ -13,6 +13,7 @@
 #include "pfor/graph_pfor.h"
 #include "pivco_lanes/pivco_lanes.h"
 #include "planar_zigzag_lanes/graph_planar_zigzag_lanes.h"
+#include "planar_zigzag_pfor/encode_planar_zigzag_pfor_kernel.h"
 #include "planar_zigzag_pfor/graph_planar_zigzag_pfor.h"
 
 #include "openzl/zl_compress.h"
@@ -347,6 +348,84 @@ static int check_refusals(GeozlGpu *gpu) {
   batch.data[0][batch.frames[0].size / 2] ^= 0x5a;
   failed |= refuses(gpu, &batch, &copy, bytes, "a corrupted frame");
   clear(&batch);
+  return failed;
+}
+
+// Kernel errors name the frame and do not poison the next batch.
+static int check_kernel_refusals(void) {
+  char error[512];
+  GeozlGpu *gpu =
+      geozl_gpu_create(DEVICE, 0, 2, 1 << 20, 0, error, sizeof(error));
+  if (gpu == NULL) {
+    fprintf(stderr, "kernel refusals: %s\n", error);
+    return 1;
+  }
+  Batch batch = {0};
+  const Shape shape = {1, 40, 300};
+  const size_t count = (size_t)shape.rows * shape.width;
+  int failed = add_frame(&batch, "id>pfor", &shape, 2) ||
+               add_frame(&batch, "planar>zigzag>pfor", &shape, 2);
+  size_t at = SIZE_MAX;
+  if (!failed) {
+    add_whole_copy(&batch, 0, 2);
+    add_whole_copy(&batch, 1, 2);
+    const size_t bound =
+        planar_zigzag_pfor_bound(count, 2, shape.width, shape.planes);
+    uint8_t *payload = malloc(bound);
+    size_t size = 0;
+    if (payload != NULL &&
+        planar_zigzag_pfor_encode(payload, bound, &size, batch.decoded[1],
+                                  shape.width, count, 2, shape.planes) == 0) {
+      const uint8_t *frame = batch.data[1];
+      for (size_t i = 0; i + size <= batch.frames[1].size && at == SIZE_MAX;
+           ++i)
+        if (memcmp(frame + i, payload, size) == 0)
+          at = i;
+    }
+    free(payload);
+    failed = at == SIZE_MAX;
+    if (failed)
+      fprintf(stderr, "kernel refusals: payload not found in the frame\n");
+  }
+  GeozlGpuMemory *memory =
+      failed ? NULL
+             : geozl_gpu_alloc(gpu, batch.targetBytes, error, sizeof(error));
+  if (!failed && memory == NULL) {
+    fprintf(stderr, "kernel refusals: %s\n", error);
+    failed = 1;
+  }
+  // Each rejected CUDA batch reports exactly once.
+  if (!failed) {
+    const uint8_t b = batch.data[1][at];
+    batch.data[1][at] = 0x7F;
+    const GeozlGpuTarget target = {geozl_gpu_pointer(memory), 0,
+                                   batch.targetBytes, NULL};
+    int refusals = 0;
+    for (int step = 0; step < 5; ++step) {
+      error[0] = '\0';
+      const int status =
+          step < 2 ? geozl_gpu_decode(gpu, batch.frames, batch.count,
+                                      batch.copies, batch.copyCount, 2, 2,
+                                      &target, NULL, error, sizeof(error))
+                   : geozl_gpu_synchronize(gpu, error, sizeof(error));
+      if (status != 0 &&
+          strstr(error, "frame 1: invalid PFOR block header") == NULL) {
+        fprintf(stderr, "kernel refusals: %s\n", error);
+        failed = 1;
+      }
+      refusals += status != 0;
+    }
+    if (!failed && refusals != 2) {
+      fprintf(stderr, "%d of two refused calls were reported\n", refusals);
+      failed = 1;
+    }
+    batch.data[1][at] = b;
+  }
+  geozl_gpu_free(memory);
+  if (!failed)
+    failed = run(gpu, &batch, 2, 2, "after a refused frame");
+  clear(&batch);
+  geozl_gpu_destroy(gpu);
   return failed;
 }
 
@@ -809,16 +888,13 @@ int main(void) {
     fprintf(stderr, "test_gpu_decode: %s\n", error);
     return 1;
   }
-  const int failed = check_mixed(gpu, 2) || check_mixed(gpu, 1) ||
-                     check_host_widths(gpu) || check_refusals(gpu) ||
-                     check_capture_errors(gpu) ||
-                     check_segmented_frames(gpu, 1) ||
-                     check_segmented_frames(gpu, 2) ||
-                     check_forced_host(gpu) || check_direct(gpu, 1) ||
-                     check_direct(gpu, 2) || check_waves(gpu, 1) ||
-                     check_waves(gpu, 2) ||
-                     check_plane_limits() ||
-                     check_batch_limit(gpu);
+  const int failed =
+      check_mixed(gpu, 2) || check_mixed(gpu, 1) || check_host_widths(gpu) ||
+      check_refusals(gpu) || check_capture_errors(gpu) ||
+      check_segmented_frames(gpu, 1) || check_segmented_frames(gpu, 2) ||
+      check_forced_host(gpu) || check_direct(gpu, 1) || check_direct(gpu, 2) ||
+      check_waves(gpu, 1) || check_waves(gpu, 2) || check_plane_limits() ||
+      check_kernel_refusals() || check_batch_limit(gpu);
   geozl_gpu_destroy(gpu);
   if (failed) {
     fprintf(stderr, "test_gpu_decode: failed\n");

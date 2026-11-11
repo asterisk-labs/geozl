@@ -91,7 +91,7 @@ static void test_parallel_plan(void) {
         {i * GEOZL_PFOR_BLOCK, GEOZL_PFOR_BLOCK, GEOZL_PFOR_BLOCK, 1},
         0,
         sizeof(payload),
-        PFOR_GPU_PLANAR_ZIGZAG};
+        PFOR_GPU_ID};
   }
 
   PforGpuPlan sequential = {0}, parallel = {0};
@@ -128,9 +128,66 @@ static void test_parallel_plan(void) {
   pfor_gpu_plan_free(&sequential);
 }
 
+static void test_band_plan(void) {
+  const PforGpuFrame frames[] = {
+      {{0, GEOZL_PFOR_BLOCK, GEOZL_PFOR_BLOCK, 1}, 0, 2, PFOR_GPU_ID},
+      {{5, 2 * 19 * 2100, 2100, 2}, 64, 4096, PFOR_GPU_PLANAR_ZIGZAG},
+  };
+  const size_t ids[] = {7, 9};
+  PforGpuBandPlan plan;
+  CHECK(pfor_gpu_band_plan_build(&plan, frames, 2, ids, NULL) == 0);
+  CHECK(plan.frameCount == 4 && plan.stripCount == 20);
+  CHECK(plan.blockCount == 2 * (132 + 17 + 9));
+  const GpuPforBandFrame *frame = &plan.frames[0];
+  CHECK(frame->payloadOffset == 64 && frame->payloadSize == 4096 &&
+        frame->blockCount == plan.blockCount && frame->firstBlock == 0 &&
+        frame->frame == 9);
+  CHECK(plan.frames[1].blockCount == 0 && plan.frames[3].blockCount == 0);
+  static const unsigned heights[] = {16, 2, 1};
+  static const unsigned blocks[3][3] = {{64, 64, 4}, {8, 8, 1}, {4, 4, 1}};
+  static const unsigned rows[] = {0, 16, 18};
+  size_t s = 0, next = 0;
+  for (unsigned p = 0; p < 2; ++p)
+    for (unsigned b = 0; b < 3; ++b)
+      for (unsigned x = 0; x < 3; ++x, ++s) {
+        const GpuPforStrip *strip = &plan.strips[s];
+        CHECK(strip->firstBlock == next && strip->blockCount == blocks[b][x]);
+        CHECK(strip->outputBase ==
+              5 + p * 19 * 2100 + rows[b] * 2100 + x * 1024);
+        CHECK(strip->width == 2100 && strip->height == heights[b] &&
+              strip->frame == 9 && strip->columns == (x < 2 ? 1024 : 52));
+        next += strip->blockCount;
+      }
+  CHECK(plan.strips[18].blockCount == 0 && plan.strips[19].blockCount == 0);
+  CHECK(plan.chunkCount == 4 && plan.chunks[0].frame == 0 &&
+        plan.chunks[0].first == 0 && plan.chunks[0].count == 256 &&
+        plan.chunks[1].first == 256 && plan.chunks[1].count == 60 &&
+        plan.chunks[1].firstChunk == 0 && plan.chunks[2].count == 0);
+  pfor_gpu_band_plan_free(&plan);
+
+  PforGpuPlan blockPlan;
+  const uint8_t payload[4096 + 64] = {0};
+  CHECK(pfor_gpu_plan_build(&blockPlan, &frames[1], 1, payload, 4096 + 64, 2) !=
+        0);
+  PforGpuFrame bad = frames[1];
+  bad.shape.width = 0;
+  CHECK(pfor_gpu_band_plan_build(&plan, &bad, 1, NULL, NULL) != 0 &&
+        plan.errorFrame == 0 && plan.strips == NULL);
+  bad = frames[1];
+  bad.shape.width = 2099;
+  CHECK(pfor_gpu_band_plan_build(&plan, &bad, 1, NULL, NULL) != 0);
+  bad = frames[1];
+  bad.payloadSize = 3 * 2 * (132 + 17 + 9);
+  CHECK(pfor_gpu_band_plan_build(&plan, &bad, 1, NULL, NULL) == 0);
+  pfor_gpu_band_plan_free(&plan);
+  bad.payloadSize -= 1;
+  CHECK(pfor_gpu_band_plan_build(&plan, &bad, 1, NULL, NULL) != 0);
+}
+
 int main(void) {
   test_pfor_block_info();
   test_parallel_plan();
+  test_band_plan();
   if (failures != 0)
     return 1;
   printf("test_bench: ok\n");

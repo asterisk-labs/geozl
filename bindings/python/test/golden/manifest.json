@@ -295,7 +295,7 @@
       ],
       "written_by": "geozl 0.31.0",
       "sha256_decoded": "8f69a22d42a8058402ddc8c59d46cbf460384cfcfdb10e974e2b288daf52b38b",
-      "sha256_frame": "4331d3347e7c1cebbca56d946195c9877d1c722b4310fe824d6feb4ee3f8b03c"
+      "sha256_frame": "6749faca104175df68fb94ea47d0a1c7a6bc20994265624347bb0ab5ebde0660"
     },
     {
       "name": "planar-zigzag-pfor-uint16-3p",
@@ -313,7 +313,7 @@
       ],
       "written_by": "geozl 0.31.0",
       "sha256_decoded": "88998ed79375fa17eea3d40c3c19f6bee0a94dfca9e436b826574f95a24dcbcb",
-      "sha256_frame": "0eaadda04ac9b50e4ca367000beacb16608062812379738c791c8c7eafbbb5b2"
+      "sha256_frame": "13d46346ecbaeecc6d0029eb647ed51f5cc97a719475f2461e286907fbb1b074"
     },
     {
       "name": "pfor-uint8",
@@ -568,7 +568,7 @@
       ],
       "written_by": "geozl 0.31.0",
       "sha256_decoded": "3bd5d71a5a0bd1ed4c2c21ae3d816ccc21287930ed44a3cfecb885f357c85a06",
-      "sha256_frame": "0ed9fe29a2e8d26ab70706b344105eecf8d3123953485ebc0b0bbcae46935edb"
+      "sha256_frame": "a2cb54fbc941d1b48e57f82ac81e63ae7bb49e2c02b15da8f9db0cbf323f6e97"
     },
     {
       "name": "quant-linear-int16",
@@ -585,7 +585,7 @@
       ],
       "written_by": "geozl 0.31.0",
       "sha256_decoded": "20f476b7563253e65f79a1d7962cc076e8f0e611331f3b1a7a48b6329ac44e9d",
-      "sha256_frame": "9ee7ba6a93e72c103d4809a2ddf2ab77afdbf106a62e0329701f5b1afa77711f"
+      "sha256_frame": "eb1d2a7055e871416cc82d6c8b7c6608d6cb43267efeceefe770dcd4d7307878"
     },
     {
       "name": "quant-linear-float16",
@@ -653,7 +653,7 @@
       ],
       "written_by": "geozl 0.31.0",
       "sha256_decoded": "14f9115b87bbab0dea7c43690b4e3fe64015397555f876694d1eb2cb02e10abf",
-      "sha256_frame": "fb5defc89849e42d88f63d61eacadd4a63428b9cd9eba1cfe3f479a119187f7e"
+      "sha256_frame": "97b9cbe491ca79027151bb382bd2b39dc821c7eddaf34cf3ca6503c8c00bd84b"
     },
     {
       "name": "quant-log-float16",
@@ -721,7 +721,7 @@
       ],
       "written_by": "geozl 0.31.0",
       "sha256_decoded": "4c3743491d524047f8395b87673fa2a08e2815392b9de21e9530859931017b21",
-      "sha256_frame": "ea3f867a3778227bff3aae3e1b365f6d488dec858e779cffbb6f742d166b6c82"
+      "sha256_frame": "c624f16dfadca0a7df227414b37201948c17f8feaa031d2ca660b2f0ae20a7da"
     },
     {
       "name": "quant-sqrt-values-uint8",

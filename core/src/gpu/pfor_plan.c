@@ -1,12 +1,17 @@
 #include "pfor_plan.h"
 
 #include "pfor/pfor_check.h"
+#include "planar_zigzag_pfor/planar_zigzag_pfor_layout.h"
 
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
 _Static_assert(sizeof(GpuPforBlock) == 16, "GpuPforBlock must match Slang");
+_Static_assert(sizeof(GpuPforBandFrame) == 32, "must match band_frame");
+_Static_assert(sizeof(GpuPforBlockRef) == 8, "must match block_ref");
+_Static_assert(sizeof(GpuPforBlockChunk) == 16, "must match block_chunk");
+_Static_assert(sizeof(GpuPforStrip) == 32, "must match strip_task");
 
 static unsigned popcount64(uint64_t value) {
   value -= (value >> 1) & 0x5555555555555555u;
@@ -80,6 +85,10 @@ int pfor_gpu_plan_frame(GpuPforBlock blocks[], const PforGpuFrame *frame,
                         const uint8_t *payload, size_t elementBytes,
                         PforGpuFrameTally *tally) {
   *tally = (PforGpuFrameTally){.errorBlock = SIZE_MAX};
+  if (frame->transform != PFOR_GPU_ID) {
+    tally->error = "invalid PFOR frame";
+    return 1;
+  }
   size_t at = 0;
   size_t output = frame->shape.outOff;
   for (size_t block = 0; block * GEOZL_PFOR_BLOCK < frame->shape.nbElts;
@@ -100,8 +109,7 @@ int pfor_gpu_plan_frame(GpuPforBlock blocks[], const PforGpuFrame *frame,
       return 1;
     }
     blocks[block] = (GpuPforBlock){(uint32_t)(frame->payloadOffset + at),
-                                   (uint32_t)output, (uint32_t)count,
-                                   (uint32_t)frame->transform};
+                                   (uint32_t)output, (uint32_t)count, 0};
     if (info.exceptions != 0) {
       ++tally->blocksWithExceptions;
       tally->exceptionCount += info.exceptions;
@@ -116,8 +124,7 @@ int pfor_gpu_plan_frame(GpuPforBlock blocks[], const PforGpuFrame *frame,
   return 0;
 }
 
-// Four waves share a group and a padding task still reads its block. It repeats
-// a checked one, since the payload may start with a frame the host decodes.
+// Padding tasks repeat a validated block because kernels still read them.
 static void pad_blocks(GpuPforBlock blocks[], size_t realBlocks,
                        size_t paddedBlocks) {
   for (size_t i = realBlocks; i < paddedBlocks; ++i)
@@ -161,9 +168,7 @@ int pfor_gpu_plan_build(PforGpuPlan *plan, const PforGpuFrame *frames,
   for (size_t i = 0; i < frameCount; ++i) {
     const PforGpuFrame *frame = &frames[i];
     if (frame->shape.nbElts == 0 || frame->payloadSize == 0 ||
-        (frame->transform != PFOR_GPU_ID &&
-         frame->transform != PFOR_GPU_PLANAR_ZIGZAG) ||
-        frame->payloadOffset > payloadSize ||
+        frame->transform != PFOR_GPU_ID || frame->payloadOffset > payloadSize ||
         frame->payloadSize > payloadSize - frame->payloadOffset ||
         frame->shape.nbElts > SIZE_MAX - (GEOZL_PFOR_BLOCK - 1))
       return fail(plan, "invalid PFOR frame", i, SIZE_MAX);
@@ -199,5 +204,163 @@ int pfor_gpu_plan_build(PforGpuPlan *plan, const PforGpuFrame *frames,
   pad_blocks(plan->blocks, realBlocks, paddedBlocks);
   plan->realBlockCount = realBlocks;
   plan->blockCount = paddedBlocks;
+  return 0;
+}
+
+void pfor_gpu_band_plan_free(PforGpuBandPlan *plan) {
+  if (plan == NULL)
+    return;
+  if (!plan->borrowed) {
+    free(plan->frames);
+    free(plan->strips);
+    free(plan->chunks);
+  }
+  *plan = (PforGpuBandPlan){0};
+}
+
+static int band_fail(PforGpuBandPlan *plan, const char *message, size_t frame) {
+  *plan = (PforGpuBandPlan){0};
+  plan->error = message;
+  plan->errorFrame = frame;
+  return 1;
+}
+
+// One wave may scan past the logical rest before status is observed.
+#define PFOR_BAND_SLACK ((size_t)1 << 16)
+
+int pfor_gpu_band_frame_fits(const PforGpuFrame *frame) {
+  const GeozlGpuFrameShape *shape = &frame->shape;
+  if (shape->width == 0 || shape->planes == 0 || shape->nbElts == 0 ||
+      shape->nbElts % shape->planes != 0 ||
+      (shape->nbElts / shape->planes) % shape->width != 0 ||
+      frame->payloadSize > UINT32_MAX - PFOR_BAND_SLACK ||
+      frame->payloadOffset > UINT32_MAX - frame->payloadSize ||
+      shape->outOff > UINT32_MAX || shape->nbElts > UINT32_MAX - shape->outOff)
+    return 0;
+  const size_t rows = shape->nbElts / shape->planes / shape->width;
+  return geozl_pzp_plane_blocks(shape->width, rows) <=
+         frame->payloadSize / GEOZL_PZP_HEADER_BYTES / shape->planes;
+}
+
+static size_t strips_per_band(size_t width) {
+  return width / GEOZL_PZP_STRIP + (width % GEOZL_PZP_STRIP != 0);
+}
+
+// Limit each frame to at most 1024 chunks.
+static size_t chunk_blocks(size_t blocks) {
+  const size_t longer = (blocks + 1023) / 1024;
+  return longer > 256 ? longer : 256;
+}
+
+int pfor_gpu_band_plan_build(PforGpuBandPlan *plan, const PforGpuFrame *frames,
+                             size_t frameCount, const size_t frameIds[],
+                             const GeozlGpuHostAlloc *alloc) {
+  if (plan == NULL)
+    return 1;
+  *plan = (PforGpuBandPlan){0};
+  if (frames == NULL && frameCount != 0)
+    return band_fail(plan, "invalid PFOR GPU plan input", SIZE_MAX);
+
+  size_t planar = 0, blocks = 0, strips = 0, chunks = 0;
+  for (size_t i = 0; i < frameCount; ++i) {
+    const PforGpuFrame *frame = &frames[i];
+    if (frame->transform != PFOR_GPU_PLANAR_ZIGZAG)
+      continue;
+    const GeozlGpuFrameShape *shape = &frame->shape;
+    if (!pfor_gpu_band_frame_fits(frame))
+      return band_fail(plan,
+                       "PFOR frame is malformed or exceeds 32-bit kernel "
+                       "offsets",
+                       i);
+    const size_t rows = shape->nbElts / shape->planes / shape->width;
+    const size_t frameBlocks =
+        geozl_pzp_plane_blocks(shape->width, rows) * shape->planes;
+    const size_t rest = rows % GEOZL_PZP_BAND;
+    const size_t frameStrips =
+        (rows / GEOZL_PZP_BAND + (rest >> 3) + ((rest >> 2) & 1) +
+         ((rest >> 1) & 1) + (rest & 1)) *
+        shape->planes * strips_per_band(shape->width);
+    if (frameBlocks > UINT32_MAX - blocks || frameStrips > SIZE_MAX - strips)
+      return band_fail(plan, "PFOR task exceeds 32-bit kernel offsets", i);
+    const size_t chunk = chunk_blocks(frameBlocks);
+    blocks += frameBlocks;
+    strips += frameStrips;
+    chunks += (frameBlocks + chunk - 1) / chunk;
+    ++planar;
+  }
+  if (planar == 0)
+    return 0;
+
+  const size_t paddedFrames = (planar + 3) / 4 * 4;
+  const size_t paddedStrips = (strips + 3) / 4 * 4;
+  const size_t paddedChunks = (chunks + 3) / 4 * 4;
+  plan->frames =
+      geozl_gpu_host_calloc(alloc, paddedFrames, sizeof(*plan->frames));
+  plan->strips =
+      geozl_gpu_host_calloc(alloc, paddedStrips, sizeof(*plan->strips));
+  plan->chunks =
+      geozl_gpu_host_calloc(alloc, paddedChunks, sizeof(*plan->chunks));
+  if (plan->frames == NULL || plan->strips == NULL || plan->chunks == NULL) {
+    if (alloc == NULL) {
+      free(plan->frames);
+      free(plan->strips);
+      free(plan->chunks);
+    }
+    return band_fail(plan, "out of memory", SIZE_MAX);
+  }
+
+  size_t f = 0, s = 0, c = 0, firstBlock = 0;
+  for (size_t i = 0; i < frameCount; ++i) {
+    const PforGpuFrame *frame = &frames[i];
+    if (frame->transform != PFOR_GPU_PLANAR_ZIGZAG)
+      continue;
+    const GeozlGpuFrameShape *shape = &frame->shape;
+    const uint32_t id = (uint32_t)(frameIds == NULL ? i : frameIds[i]);
+    const size_t width = shape->width;
+    const size_t planeElts = shape->nbElts / shape->planes;
+    const size_t rows = planeElts / width;
+    const size_t frameFirst = firstBlock;
+    for (size_t p = 0; p < shape->planes; ++p) {
+      for (size_t y0 = 0; y0 < rows;) {
+        const unsigned h = geozl_pzp_band_height(rows - y0);
+        const size_t bw = geozl_pzp_block_width(h);
+        for (size_t x0 = 0; x0 < width; x0 += GEOZL_PZP_STRIP) {
+          const size_t columns =
+              width - x0 < GEOZL_PZP_STRIP ? width - x0 : GEOZL_PZP_STRIP;
+          const size_t count = columns / bw + (columns % bw != 0);
+          plan->strips[s++] = (GpuPforStrip){
+              (uint32_t)firstBlock,
+              (uint32_t)count,
+              (uint32_t)(shape->outOff + p * planeElts + y0 * width + x0),
+              (uint32_t)width,
+              h,
+              id,
+              (uint32_t)columns,
+              0};
+          firstBlock += count;
+        }
+        y0 += h;
+      }
+    }
+    const size_t frameBlocks = firstBlock - frameFirst;
+    const size_t chunk = chunk_blocks(frameBlocks);
+    const size_t firstChunk = c;
+    for (size_t first = 0; first < frameBlocks; first += chunk)
+      plan->chunks[c++] = (GpuPforBlockChunk){
+          (uint32_t)f, (uint32_t)first,
+          (uint32_t)(frameBlocks - first < chunk ? frameBlocks - first : chunk),
+          (uint32_t)firstChunk};
+    plan->frames[f++] = (GpuPforBandFrame){(uint32_t)frame->payloadOffset,
+                                           (uint32_t)frame->payloadSize,
+                                           (uint32_t)frameBlocks,
+                                           (uint32_t)frameFirst,
+                                           id,
+                                           {0, 0, 0}};
+  }
+  plan->frameCount = paddedFrames;
+  plan->stripCount = paddedStrips;
+  plan->chunkCount = paddedChunks;
+  plan->blockCount = firstBlock;
+  plan->borrowed = alloc != NULL;
   return 0;
 }

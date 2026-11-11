@@ -1,5 +1,4 @@
-// Generate and mutate PFOR or PivCo frames from the input. Check per-frame and
-// batch plans against each other, CPU decoding, and payload and lane bounds.
+// Cross-check PFOR and PivCo planners against CPU decoding and buffer bounds.
 
 #include "pfor_plan.h"
 #include "pivco_plan.h"
@@ -11,6 +10,7 @@
 #include "pfor/encode_pfor_kernel.h"
 #include "pfor/pfor_check.h"
 #include "pivco_lanes/pivco_lanes.h"
+#include "planar_zigzag_pfor/planar_zigzag_pfor_layout.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -119,7 +119,7 @@ static void check_pfor_plan(const PforGpuPlan *plan, const PforGpuFrame *frames,
       const GpuPforBlock *block = &plan->blocks[task++];
       const size_t count = left < GEOZL_PFOR_BLOCK ? left : GEOZL_PFOR_BLOCK;
       check(block->payloadOffset == at && block->outputBase == output &&
-            block->count == count && block->transform == frames[i].transform);
+            block->count == count && block->pad == 0);
       PforGpuBlockInfo info;
       check(pfor_gpu_block_info(payload->data + at, payload->size - at,
                                 elementBytes, &info) == 0);
@@ -180,7 +180,7 @@ static void fuzz_pfor(Input *in, unsigned flags, size_t elementBytes) {
         .shape = {output, count, count, 1},
         .payloadOffset = base,
         .payloadSize = written,
-        .transform = (mode & 2u) ? PFOR_GPU_PLANAR_ZIGZAG : PFOR_GPU_ID,
+        .transform = PFOR_GPU_ID,
     };
     output += count;
   }
@@ -280,6 +280,134 @@ static void fuzz_pfor(Input *in, unsigned flags, size_t elementBytes) {
   pfor_gpu_plan_free(&whole);
   free(blocks);
   free(payload.data);
+}
+
+// Independent band decomposition for the oracle.
+static unsigned ref_band(size_t rowsLeft) {
+  unsigned h = 16;
+  while (h > rowsLeft)
+    h >>= 1;
+  return h;
+}
+
+// Compare the band planner with an independent geometry walk.
+static void fuzz_bands(Input *in, unsigned flags) {
+  const size_t frameCount = ((flags >> 3) & 3u) + 1;
+  PforGpuFrame frames[MAX_FRAMES];
+  size_t ids[MAX_FRAMES];
+  size_t output = next_u16(in);
+  int fits = 1;
+  for (size_t i = 0; i < frameCount; ++i) {
+    const unsigned mode = next_u8(in);
+    size_t width = next_u16(in) % 5000 + 1;
+    size_t rows = next_u8(in) % 48 + 1;
+    const uint32_t planes = next_u8(in) % 3 + 1;
+    if ((mode & 8u) != 0) {
+      width = 1;
+      rows = next_u16(in) % 4096 + 1;
+    }
+    size_t payloadOffset = next_u16(in);
+    const size_t headers = 3 * geozl_pzp_plane_blocks(width, rows) * planes;
+    size_t payloadSize = (mode & 128u) ? headers - 1 : headers + next_u16(in);
+    if ((mode & 16u) != 0)
+      payloadSize = UINT32_MAX - (next_u16(in) << 8);
+    if ((mode & 32u) != 0)
+      payloadOffset = UINT32_MAX - payloadSize + 1 - next_u8(in) % 2;
+    if ((mode & 64u) != 0)
+      output = UINT32_MAX - (size_t)next_u16(in) * 16;
+    frames[i] = (PforGpuFrame){
+        .shape = {output, width * rows * planes, width, planes},
+        .payloadOffset = payloadOffset,
+        .payloadSize = payloadSize,
+        .transform = (mode & 1u) ? PFOR_GPU_ID : PFOR_GPU_PLANAR_ZIGZAG,
+    };
+    if ((mode & 2u) != 0)
+      frames[i].shape.nbElts -= next_u8(in) % 3;
+    if ((mode & 4u) != 0)
+      frames[i].shape.width = width + next_u8(in) % 3;
+    ids[i] = next_u16(in);
+    if (frames[i].transform == PFOR_GPU_PLANAR_ZIGZAG)
+      fits &= pfor_gpu_band_frame_fits(&frames[i]);
+    output += frames[i].shape.nbElts;
+  }
+
+  Tracker tracker = {.failAt = next_u8(in) % 3};
+  const GeozlGpuHostAlloc alloc = {tracker_alloc, &tracker};
+  const size_t *frameIds = (flags & 0x20u) ? ids : NULL;
+  PforGpuBandPlan plan;
+  const int failed = pfor_gpu_band_plan_build(
+      &plan, frames, frameCount, frameIds, (flags & 0x80u) ? &alloc : NULL);
+  if (failed) {
+    check(plan.error != NULL && plan.frames == NULL && plan.strips == NULL &&
+          plan.chunks == NULL);
+    check(!fits || tracker.failed);
+    tracker_free(&tracker);
+    return;
+  }
+  check(fits);
+
+  size_t f = 0, s = 0, block = 0;
+  for (size_t i = 0; i < frameCount; ++i) {
+    const PforGpuFrame *frame = &frames[i];
+    if (frame->transform != PFOR_GPU_PLANAR_ZIGZAG)
+      continue;
+    const uint32_t id = (uint32_t)(frameIds == NULL ? i : frameIds[i]);
+    const size_t width = frame->shape.width;
+    const size_t planeElts = frame->shape.nbElts / frame->shape.planes;
+    const size_t rows = planeElts / width;
+    const size_t first = block;
+    for (size_t p = 0; p < frame->shape.planes; ++p) {
+      for (size_t y0 = 0; y0 < rows;) {
+        const unsigned h = ref_band(rows - y0);
+        for (size_t x0 = 0; x0 < width; x0 += 1024) {
+          const size_t columns = width - x0 < 1024 ? width - x0 : 1024;
+          check(s < plan.stripCount);
+          const GpuPforStrip *strip = &plan.strips[s++];
+          check(strip->firstBlock == block && strip->height == h &&
+                strip->blockCount == (columns * h + 255) / 256 &&
+                strip->outputBase ==
+                    frame->shape.outOff + p * planeElts + y0 * width + x0 &&
+                strip->width == width && strip->columns == columns &&
+                strip->frame == id && strip->pad == 0);
+          block += strip->blockCount;
+        }
+        y0 += h;
+      }
+    }
+    check(f < plan.frameCount);
+    const GpuPforBandFrame *planned = &plan.frames[f++];
+    check(planned->payloadOffset == frame->payloadOffset &&
+          planned->payloadSize == frame->payloadSize &&
+          planned->firstBlock == first &&
+          planned->blockCount == block - first && planned->frame == id &&
+          block - first ==
+              geozl_pzp_plane_blocks(width, rows) * frame->shape.planes);
+  }
+  check(plan.blockCount == block);
+  // Chunks must cover each frame exactly once.
+  size_t chunk = 0;
+  for (size_t i = 0; i < f; ++i) {
+    const size_t blocks = plan.frames[i].blockCount;
+    const size_t size = blocks > 256 * 1024 ? (blocks + 1023) / 1024 : 256;
+    const size_t firstChunk = chunk;
+    for (size_t first = 0; first < blocks; first += size) {
+      check(chunk < plan.chunkCount);
+      const GpuPforBlockChunk *c = &plan.chunks[chunk++];
+      check(c->frame == i && c->first == first && c->firstChunk == firstChunk &&
+            c->count == (blocks - first < size ? blocks - first : size));
+    }
+  }
+  check(plan.chunkCount == (chunk + 3) / 4 * 4);
+  for (; chunk < plan.chunkCount; ++chunk)
+    check(plan.chunks[chunk].count == 0);
+  check(plan.frameCount == (f + 3) / 4 * 4 &&
+        plan.stripCount == (s + 3) / 4 * 4);
+  for (; f < plan.frameCount; ++f)
+    check(plan.frames[f].blockCount == 0);
+  for (; s < plan.stripCount; ++s)
+    check(plan.strips[s].blockCount == 0);
+  pfor_gpu_band_plan_free(&plan);
+  tracker_free(&tracker);
 }
 
 // Split leaves to build a complete prefix code with input-selected depths.
@@ -624,6 +752,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   const size_t elementBytes = (data[0] & 2u) ? 2 : 1;
   if (data[0] & 1u)
     fuzz_pivco(&in, data[0], elementBytes);
+  else if (data[0] & 4u)
+    fuzz_bands(&in, data[0]);
   else
     fuzz_pfor(&in, data[0], elementBytes);
   return 0;

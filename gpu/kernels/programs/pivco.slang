@@ -54,6 +54,7 @@ StructuredBuffer<Elt> rawValues;
 StructuredBuffer<raw_copy> rawCopies;
 
 #include "../stages/planar_zigzag.slang"
+#include "../stages/planar_scan.slang"
 
 [shader("compute")]
 [numthreads(WAVES_PER_GROUP * WAVE, 1, 1)]

@@ -42,6 +42,7 @@ typedef struct {
   GeozlGpuBatch *batches[MAX_WAVE_BATCHES];
   size_t batchCount;
   GeozlGpuMemory *target;
+  uint32_t *pforStatus;
 } Wave;
 
 typedef struct {
@@ -67,6 +68,7 @@ struct GeozlGpu {
   Wave waves[2];
   size_t wave;
   void *stream;
+  char refused[256];
 };
 
 // Mirrors place_copy in gpu/kernels/programs/place.slang. Counts are samples.
@@ -257,38 +259,65 @@ GeozlGpu *geozl_gpu_create(int deviceType, int device, size_t threads,
   return gpu;
 }
 
-static int finish_wave(Wave *wave, char *error, size_t errorCapacity) {
+// Finish a wave and retain a kernel error if this call already has one.
+static int finish_wave(GeozlGpu *gpu, Wave *wave, int earlier, int reported,
+                       char *error, size_t errorCapacity) {
   int failed = 0;
   for (size_t i = 0; i < wave->batchCount; ++i) {
     if (!failed &&
         geozl_gpu_batch_wait(wave->batches[i], error, errorCapacity) != 0)
       failed = 1;
-    geozl_gpu_batch_destroy(wave->batches[i]);
   }
+  char refused[192];
+  if (!failed && wave->pforStatus != NULL &&
+      pfor_gpu_status_check(wave->pforStatus, refused, sizeof(refused)) != 0) {
+    const int keep = !reported && gpu->refused[0] == '\0';
+    if (reported || keep)
+      geozl_gpu_error(keep ? gpu->refused : error,
+                      keep ? sizeof(gpu->refused) : errorCapacity, "%s%s",
+                      earlier ? "in an earlier call, " : "", refused);
+    failed = 1;
+  }
+  for (size_t i = 0; i < wave->batchCount; ++i)
+    geozl_gpu_batch_destroy(wave->batches[i]);
   wave->batchCount = 0;
+  wave->pforStatus = NULL;
   geozl_gpu_memory_destroy(wave->target);
   wave->target = NULL;
   return failed;
 }
 
-static int finish_pending(GeozlGpu *gpu, char *error, size_t errorCapacity) {
-  const int failed = finish_wave(&gpu->waves[!gpu->wave], error, errorCapacity);
-  return finish_wave(&gpu->waves[gpu->wave], failed ? NULL : error,
-                     failed ? 0 : errorCapacity) ||
+static int finish_pending(GeozlGpu *gpu, int reported, char *error,
+                          size_t errorCapacity) {
+  const int failed = finish_wave(gpu, &gpu->waves[!gpu->wave], 1, reported,
+                                 error, errorCapacity);
+  return finish_wave(gpu, &gpu->waves[gpu->wave], 1, reported && !failed,
+                     failed ? NULL : error, failed ? 0 : errorCapacity) ||
          failed;
+}
+
+static int take_refused(GeozlGpu *gpu, char *error, size_t errorCapacity) {
+  if (gpu->refused[0] == '\0')
+    return 0;
+  geozl_gpu_error(error, errorCapacity, "%s", gpu->refused);
+  gpu->refused[0] = '\0';
+  return 1;
 }
 
 // Waves overlap only on one stream, the order CUDA guarantees across them.
 static int begin_wave(GeozlGpu *gpu, void *stream, char *error,
                       size_t errorCapacity) {
+  if (take_refused(gpu, error, errorCapacity))
+    return 1;
   const int overlap =
       gpu->backend == GEOZL_GPU_BACKEND_CUDA &&
       (gpu->waves[gpu->wave].batchCount == 0 || stream == gpu->stream);
   gpu->stream = stream;
   if (!overlap)
-    return finish_pending(gpu, error, errorCapacity);
-  if (finish_wave(&gpu->waves[!gpu->wave], error, errorCapacity) != 0) {
-    finish_pending(gpu, NULL, 0);
+    return finish_pending(gpu, 1, error, errorCapacity);
+  if (finish_wave(gpu, &gpu->waves[!gpu->wave], 1, 1, error, errorCapacity) !=
+      0) {
+    finish_pending(gpu, 0, NULL, 0);
     return 1;
   }
   gpu->wave = !gpu->wave;
@@ -298,7 +327,7 @@ static int begin_wave(GeozlGpu *gpu, void *stream, char *error,
 void geozl_gpu_destroy(GeozlGpu *gpu) {
   if (gpu == NULL)
     return;
-  finish_pending(gpu, NULL, 0);
+  finish_pending(gpu, 0, NULL, 0);
   geozl_gpu_memory_destroy(gpu->scratch);
   if (gpu->place[0] != NULL) {
     geozl_gpu_arena_destroy(&gpu->waves[0].staging);
@@ -323,7 +352,11 @@ int geozl_gpu_synchronize(GeozlGpu *gpu, char *error, size_t errorCapacity) {
     error[0] = '\0';
   if (gpu == NULL)
     return geozl_gpu_error(error, errorCapacity, "invalid GPU decoder");
-  return finish_pending(gpu, error, errorCapacity);
+  if (take_refused(gpu, error, errorCapacity)) {
+    finish_pending(gpu, 0, NULL, 0);
+    return 1;
+  }
+  return finish_pending(gpu, 1, error, errorCapacity);
 }
 
 GeozlGpuMemory *geozl_gpu_alloc(GeozlGpu *gpu, size_t bytes, char *error,
@@ -373,7 +406,8 @@ static int first_chunk_is_last(const GeozlGpuFrame *frame,
   return end < frame->size && ((const uint8_t *)frame->data)[end] == 0;
 }
 
-static int route_of(const GeozlGpuFrame *frame) {
+// planar marks the banded PFOR layout planned on the GPU.
+static int route_of(const GeozlGpuFrame *frame, uint8_t *planar) {
   DFH_Struct header = {0};
   DFH_init(&header);
   int route = ROUTE_HOST;
@@ -394,13 +428,13 @@ static int route_of(const GeozlGpuFrame *frame) {
     goto done;
   // OpenZL lists the last codec applied on decode at the end.
   const PublicTransformInfo last = VECTOR_AT(header.nodes, count - 1).trpid;
-  if (last.trt == trt_custom &&
-      (last.trid == GEOZL_CTID_PFOR ||
-       last.trid == GEOZL_CTID_PLANAR_ZIGZAG_PFOR))
+  if (last.trt == trt_custom && (last.trid == GEOZL_CTID_PFOR ||
+                                 last.trid == GEOZL_CTID_PLANAR_ZIGZAG_PFOR)) {
     route = ROUTE_PFOR;
-  else if (last.trt == trt_custom &&
-           (last.trid == GEOZL_CTID_PLANAR_ZIGZAG_LANES ||
-            last.trid == GEOZL_CTID_LANES))
+    *planar = last.trid == GEOZL_CTID_PLANAR_ZIGZAG_PFOR;
+  } else if (last.trt == trt_custom &&
+             (last.trid == GEOZL_CTID_PLANAR_ZIGZAG_LANES ||
+              last.trid == GEOZL_CTID_LANES))
     route = ROUTE_PIVCO;
 done:
   DFH_destroy(&header);
@@ -518,9 +552,15 @@ static void fail_frame(Pass *pass, size_t frame, const char *message) {
   pthread_mutex_unlock(&pass->lock);
 }
 
-// Plan on the capture thread while the payload is still in cache. A failed
-// per-frame plan forces batch planning after capture.
+// Plan plain PFOR during capture. Any mismatch falls back to batch planning.
 static void plan_pfor(Pass *pass, size_t i) {
+  if ((pass->pforCaptured[i].kind == PFOR_CAPTURE_KIND_ID) !=
+      (pass->blockBases[i] != SIZE_MAX)) {
+    atomic_store(&pass->planFailed, 1);
+    return;
+  }
+  if (pass->blockBases[i] == SIZE_MAX || pass->pforBlocks == NULL)
+    return;
   PforGpuFrame frame;
   PforGpuFrameTally tally;
   if (pfor_gpu_frame_init(&frame, &pass->pforCaptured[i], pass->slots[i],
@@ -571,7 +611,7 @@ static void capture_frame(Pass *pass, Worker *worker, size_t i) {
       pass->routes[i] = ROUTE_FALLBACK;
     else if (result != PFOR_CAPTURE_CODEC)
       fail_frame(pass, i, "invalid compressed frame");
-    else if (pass->pforBlocks != NULL)
+    else
       plan_pfor(pass, i);
   } else {
     worker->pivco.payload = pass->pivcoPayload + pass->slots[i];
@@ -678,7 +718,7 @@ static int ensure_scratch(GeozlGpu *gpu, size_t bytes, char *error,
                           size_t errorCapacity) {
   if (gpu->scratch != NULL && gpu->scratch->bytes >= bytes)
     return 0;
-  if (finish_pending(gpu, error, errorCapacity) != 0)
+  if (finish_pending(gpu, 1, error, errorCapacity) != 0)
     return 1;
   geozl_gpu_memory_destroy(gpu->scratch);
   const size_t grown =
@@ -836,6 +876,7 @@ int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
   PivcoGpuWork pivcoWork = {0};
   PlaceSource sources[SOURCES] = {0};
   uint8_t *routes = calloc(frameCount, sizeof(*routes));
+  uint8_t *planar = calloc(frameCount, sizeof(*planar));
   size_t *slots = calloc(frameCount, sizeof(*slots));
   size_t *bases = calloc(frameCount, sizeof(*bases));
   size_t *ids = calloc(frameCount, sizeof(*ids));
@@ -848,7 +889,8 @@ int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
   PivcoGpuPlan *pivcoParts = NULL;
   Pass pass = {0};
   int locked = 0;
-  if (routes == NULL || slots == NULL || bases == NULL || ids == NULL) {
+  if (routes == NULL || planar == NULL || slots == NULL || bases == NULL ||
+      ids == NULL) {
     geozl_gpu_error(error, errorCapacity, "out of memory");
     goto done;
   }
@@ -861,7 +903,7 @@ int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
   size_t pforCount = 0, pivcoCount = 0, deviceOutput = 0;
   for (size_t i = 0; i < frameCount; ++i) {
     routes[i] = device && (forceHost == NULL || forceHost[i] == 0)
-                    ? (uint8_t)route_of(&frames[i])
+                    ? (uint8_t)route_of(&frames[i], &planar[i])
                     : ROUTE_HOST;
     if (routes[i] != ROUTE_HOST) {
       const size_t payload = routes[i] == ROUTE_PFOR ? pforBytes : pivcoBytes;
@@ -929,8 +971,9 @@ int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
     if (routes[i] == ROUTE_PFOR) {
       outputBases[i] =
           direct ? outputBases[i] / sampleBytes : pforPlannedOutput;
-      blockBases[i] = pforPlanned;
-      pforPlanned += (samples + GEOZL_PFOR_BLOCK - 1) / GEOZL_PFOR_BLOCK;
+      blockBases[i] = planar[i] ? SIZE_MAX : pforPlanned;
+      if (!planar[i])
+        pforPlanned += (samples + GEOZL_PFOR_BLOCK - 1) / GEOZL_PFOR_BLOCK;
       pforPlannedOutput += samples;
     } else if (routes[i] == ROUTE_PIVCO) {
       outputBases[i] =
@@ -939,10 +982,10 @@ int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
     }
   }
   GpuPforBlock *pforBlocks =
-      pforCount == 0
+      pforPlanned == 0
           ? NULL
-          : geozl_gpu_arena_alloc(
-                staging, (pforPlanned + 3) / 4 * 4 * sizeof(*pforBlocks));
+          : geozl_gpu_arena_alloc(staging, (pforPlanned + 3) / 4 * 4 *
+                                               sizeof(*pforBlocks));
   pivcoParts = pivcoCount == 0 ? NULL : calloc(frameCount, sizeof(*pivcoParts));
 
   pass = (Pass){
@@ -994,8 +1037,7 @@ int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
                               direct ? outputBases[i]
                                      : pforOutput / sampleBytes) == 0 &&
           (pforFrames[pforUsed].transform != PFOR_GPU_PLANAR_ZIGZAG ||
-           geozl_gpu_plane_shape_fits(&pforFrames[pforUsed].shape,
-                                      gridLimited))) {
+           pfor_gpu_band_frame_fits(&pforFrames[pforUsed]))) {
         bases[i] = pforOutput;
         pforIds[pforUsed++] = i;
         pforOutput += frames[i].decodedBytes;
@@ -1051,9 +1093,10 @@ int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
     goto done;
   const int planned = !atomic_load(&pass.planFailed);
   PforGpuPlan pforPlan = {0};
-  const int pforPlanReady =
-      planned && pforBlocks != NULL && pforUsed == pforCount;
-  if (pforPlanReady)
+  const int pforPlanReady = planned &&
+                            (pforPlanned == 0 || pforBlocks != NULL) &&
+                            pforUsed == pforCount;
+  if (pforPlanReady && pforBlocks != NULL)
     pfor_gpu_plan_wrap(&pforPlan, pforBlocks, pforPlanned);
   if (pforUsed != 0 &&
       pfor_gpu_work_build(&pforWork, staging, sampleBytes, pforFrames, pforUsed,
@@ -1165,6 +1208,7 @@ int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
               pforWork.dispatches, pforWork.dispatchCount, target->stream,
               error, errorCapacity) != 0)
       goto done;
+    wave->pforStatus = pforWork.status;
   }
   if (pivcoUsed != 0) {
     pivcoWork.buffers[PIVCO_GPU_OUTPUT] =
@@ -1225,12 +1269,16 @@ int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
               &dispatch, 1, target->stream, error, errorCapacity) != 0)
       goto done;
   }
+  // Metal completes inline. CUDA reports through a later wait.
+  if (gpu->backend != GEOZL_GPU_BACKEND_CUDA &&
+      finish_wave(gpu, wave, 0, 1, error, errorCapacity) != 0)
+    goto done;
   failed = 0;
 
 done:
   // A failed call still waits for the work it queued before returning.
   if (failed)
-    finish_pending(gpu, NULL, 0);
+    finish_pending(gpu, 0, NULL, 0);
   if (locked)
     pthread_mutex_destroy(&pass.lock);
   pivco_gpu_work_free(&pivcoWork);
@@ -1249,6 +1297,7 @@ done:
   free(ids);
   free(bases);
   free(slots);
+  free(planar);
   free(routes);
   return failed;
 }

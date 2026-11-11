@@ -27,7 +27,11 @@ FIXED_FLAGS = ("-line-directive-mode", "none")
 CHECK = ROOT / "tools" / "check_slang_layout.py"
 SCAN = ["scan_planes", "scan_rows", "scan_columns"]
 MODULES = {
-    "pfor": (["unpack_blocks", *SCAN, "copy_raw"], [1, 2]),
+    "pfor": (
+        ["unpack_blocks", "size_chunks", "plan_blocks", "decode_strips",
+         "copy_raw"],
+        [1, 2],
+    ),
     "pivco": (
         ["decode_symbols", "unpack_lane_blocks", "join_lanes", *SCAN,
          "copy_raw"],

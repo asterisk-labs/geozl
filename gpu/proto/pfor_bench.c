@@ -1,6 +1,4 @@
-// Benchmark of the planar_zigzag_pfor GPU decoder: encodes frames with GeoZL's
-// kernel, decodes them on the CPU as the reference, and hands the GPU the
-// payload, one task per PFOR block and one per plane.
+// CPU/GPU benchmark for planar_zigzag_pfor.
 
 #include "bench.h"
 #include "gpu.h"
@@ -64,7 +62,8 @@ int main(int argc, char **argv) {
 
   size_t bound = 0;
   for (size_t f = 0; f < nFrames; ++f)
-    bound += planar_zigzag_pfor_bound(shapes[f].nbElts, W);
+    bound += planar_zigzag_pfor_bound(shapes[f].nbElts, W, shapes[f].width,
+                                      shapes[f].planes);
   // Zeroed padding past the end for the kernels' unaligned loads.
   size_t payloadAlloc;
   uint8_t *payload = page_alloc(bound + 64, &payloadAlloc);
@@ -105,8 +104,6 @@ int main(int argc, char **argv) {
   printf("cpu       geozl, %2d threads  %8.2f ms  %7.1f GB/s\n", cores,
          cpuN * 1e3, rawMB / 1e3 / cpuN);
 
-  // A block's size is known only from its header, so the host walks every
-  // frame's blocks once.
   const double tp = now_seconds();
   PforGpuFrame *gpuFrames = calloc(nFrames, sizeof(*gpuFrames));
   if (gpuFrames == NULL)
@@ -118,50 +115,64 @@ int main(int argc, char **argv) {
                                   paySize[f],
                                   PFOR_GPU_PLANAR_ZIGZAG};
   }
-  PforGpuPlan plan;
-  if (pfor_gpu_plan_build_parallel(&plan, gpuFrames, nFrames, payload, pos, W,
-                                   4, NULL) != 0) {
+  PforGpuBandPlan plan;
+  if (pfor_gpu_band_plan_build(&plan, gpuFrames, nFrames, NULL, NULL) != 0) {
     if (plan.errorFrame == SIZE_MAX)
       fprintf(stderr, "%s\n", plan.error);
-    else if (plan.errorBlock == SIZE_MAX)
-      fprintf(stderr, "%s in frame %zu\n", plan.error, plan.errorFrame);
     else
-      fprintf(stderr, "%s in block %zu of frame %zu\n", plan.error,
-              plan.errorBlock, plan.errorFrame);
+      fprintf(stderr, "%s in frame %zu\n", plan.error, plan.errorFrame);
     free(gpuFrames);
     return 1;
   }
   free(gpuFrames);
-  const Planes planes = plane_tasks(shapes, nFrames);
   const double planS = now_seconds() - tp;
-  printf("plan      %zu block tasks, %zu plane tasks, host walk %.2f ms\n",
-         plan.blockCount, planes.n, planS * 1e3);
+  size_t withExceptions = 0, exceptions = 0;
+  for (size_t f = 0; f < plan.frameCount; ++f) {
+    const GpuPforBandFrame *frame = &plan.frames[f];
+    for (size_t k = 0; k < frame->blockCount; ++k) {
+      const unsigned nexc = payload[frame->payloadOffset + 3 * k + 1];
+      withExceptions += nexc != 0;
+      exceptions += nexc;
+    }
+  }
+  printf("plan      %zu strip tasks, %zu blocks, host layout %.2f ms\n",
+         plan.stripCount, plan.blockCount, planS * 1e3);
   printf("blocks    %.1f%% with exceptions, %.2f%% of values are exceptions\n",
-         100.0 * (double)plan.blocksWithExceptions /
-             (double)plan.realBlockCount,
-         100.0 * (double)plan.exceptionCount / (double)outElts);
+         100.0 * (double)withExceptions / (double)plan.blockCount,
+         100.0 * (double)exceptions / (double)outElts);
 
   size_t outAlloc;
   uint8_t *out = page_alloc(outElts * W, &outAlloc);
-  uint32_t dummy[3] = {0};
+  uint32_t dummy[4] = {0};
+  uint32_t status[2] = {UINT32_MAX, UINT32_MAX};
   // In declaration order in kernels/programs/pfor.slang.
   GpuBuffer buffers[] = {
       {payload, page_round(pos + 64), 1, 0, -1},
-      {plan.blocks, plan.blockCount * sizeof(GpuPforBlock),
-       sizeof(GpuPforBlock), 0, -1},
-      {planes.tasks, planes.n * sizeof(PlaneTask), sizeof(PlaneTask), 0, -1},
+      {dummy, sizeof(dummy), sizeof(GpuPforBlock), 0, -1},
       {out, outAlloc, W, 1, -1},
-      {NULL, outAlloc, 1, 1, 3}, // the output again, as bytes
+      {NULL, outAlloc, 1, 1, 2}, // the output again, as bytes
+      {plan.frames, plan.frameCount * sizeof(GpuPforBandFrame),
+       sizeof(GpuPforBandFrame), 0, -1},
+      {plan.strips, plan.stripCount * sizeof(GpuPforStrip),
+       sizeof(GpuPforStrip), 0, -1},
+      {NULL, plan.blockCount * sizeof(GpuPforBlockRef), sizeof(GpuPforBlockRef),
+       0, -1},
+      {status, sizeof(status), sizeof(uint32_t), 0, -1},
+      {plan.chunks, plan.chunkCount * sizeof(GpuPforBlockChunk),
+       sizeof(GpuPforBlockChunk), 0, -1},
+      {NULL, plan.chunkCount * sizeof(uint32_t), sizeof(uint32_t), 0, -1},
       {dummy, 1, 1, 0, -1},
-      {dummy, sizeof(dummy), sizeof(dummy), 0, -1},
+      {dummy, 12, 12, 0, -1},
   };
-  GpuDispatch dispatches[4] = {
-      {"unpack_blocks", (unsigned)(plan.blockCount / 4), 1, 128}};
-  const int nd = 1 + scan_dispatches(&planes, dispatches + 1);
+  const GpuDispatch dispatches[] = {
+      {"size_chunks", (unsigned)(plan.chunkCount / 4), 1, 128},
+      {"plan_blocks", (unsigned)(plan.chunkCount / 4), 1, 128},
+      {"decode_strips", (unsigned)(plan.stripCount / 4), 1, 128},
+  };
   GpuTimes gt = {0};
-  if (gpu_run(module, buffers, 7, dispatches, nd, reps, &gt) != 0) {
+  if (gpu_run(module, buffers, 12, dispatches, 3, reps, &gt) != 0) {
     fprintf(stderr, "GPU run failed\n");
     return 1;
   }
-  return report_gpu(&gt, dispatches, nd, rawMB, planS, out, orig, outElts * W);
+  return report_gpu(&gt, dispatches, 3, rawMB, planS, out, orig, outElts * W);
 }

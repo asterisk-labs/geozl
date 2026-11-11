@@ -4,7 +4,6 @@
 #include "frame_batch.h"
 #include "pfor_capture.h"
 #include "pfor_plan.h"
-#include "planar_scan.h"
 #include "runtime.h"
 #include "staging_arena.h"
 
@@ -38,23 +37,27 @@ int pfor_gpu_frame_init(PforGpuFrame *frame, const CapturedPforFrame *captured,
                         size_t payloadBase, size_t elementBytes,
                         size_t outputBytes, size_t outputBase);
 
-enum { PFOR_GPU_OUTPUT = 3, PFOR_GPU_OUTPUT_BYTES = 4, PFOR_GPU_BUFFERS = 7 };
+// Buffer indices, in declaration order in gpu/kernels/programs/pfor.slang.
+enum {
+  PFOR_GPU_OUTPUT = 2,
+  PFOR_GPU_OUTPUT_BYTES = 3,
+  PFOR_GPU_STATUS = 7,
+  PFOR_GPU_BUFFERS = 12
+};
 
-// Kernel inputs of one batch, built in staging. buffers[PFOR_GPU_OUTPUT] holds
-// the decoded frames and is a result the batch allocates unless the caller
-// binds other memory there.
 typedef struct {
   PforGpuPlan plan;
-  GeozlGpuPlanePlan planes;
+  PforGpuBandPlan bands;
+  uint32_t *status;
   GeozlGpuBuffer buffers[PFOR_GPU_BUFFERS];
   GeozlGpuDispatch dispatches[GEOZL_GPU_MAX_KERNELS];
   size_t dispatchCount;
 } PforGpuWork;
 
-// payload and rawCopies lie in staging, and payload has
-// GEOZL_GPU_PAYLOAD_PADDING writable bytes after payloadSize. frameIds, when
-// not NULL, names frames in errors. framePlan, when not NULL, replaces planning
-// the frames and stays owned by the caller.
+int pfor_gpu_status_check(const uint32_t *status, char *error,
+                          size_t errorCapacity);
+
+// payload includes GEOZL_GPU_PAYLOAD_PADDING writable bytes.
 int pfor_gpu_work_build(PforGpuWork *work, GeozlGpuArena *staging,
                         size_t elementBytes, const PforGpuFrame frames[],
                         size_t frameCount, const size_t frameIds[],

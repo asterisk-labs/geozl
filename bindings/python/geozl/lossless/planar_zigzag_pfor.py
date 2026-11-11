@@ -11,7 +11,6 @@ _CTID = 0x72D710
 _NAME = "geozl.lossless.planar_zigzag_pfor"
 _WIDTHS = (1, 2, 4, 8)
 _HEADER = struct.Struct("<QBII")
-_MAX_ELTS_PER_BYTE = 256 // 2
 
 _desc = _ext.MultiInputCodecDescription(
     id=_CTID,
@@ -44,7 +43,7 @@ class _Encoder(_ext.CustomEncoder):
             out.commit(0)
             return
 
-        bound = lib.planar_zigzag_pfor_bound(n, elt)
+        bound = lib.planar_zigzag_pfor_bound(n, elt, width, planes)
         if bound == 0:
             raise ValueError(f"{_NAME}: geometry refused, {n} x {elt}")
         out = state.create_output(0, bound, 1)
@@ -63,6 +62,15 @@ class _Encoder(_ext.CustomEncoder):
                 f"{_NAME}: width {width} over {planes} planes refused"
             )
         out.commit(int(written[0]))
+
+
+def _plane_blocks(width, rows):
+    """Return the block count for one plane."""
+    blocks = (rows // 16) * -(-width // 16)
+    for h in (8, 4, 2, 1):
+        if rows & h:
+            blocks += -(-width // (256 // h))
+    return blocks
 
 
 class PlanarZigzagPforDecoder(_ext.CustomDecoder):
@@ -94,7 +102,8 @@ class PlanarZigzagPforDecoder(_ext.CustomDecoder):
             or (n // planes) % width
         ):
             raise ValueError(f"{_NAME}: bad row width or plane layout")
-        if size == 0 or n > size * _MAX_ELTS_PER_BYTE:
+        # The block headers bound the output before allocation.
+        if 3 * planes * _plane_blocks(width, n // planes // width) > size:
             raise ValueError(f"{_NAME}: {n} elements do not fit {size} bytes")
 
         out = state.create_output(0, n, elt)
@@ -115,9 +124,8 @@ class PlanarZigzagPfor:
     """Build the fused Planar, Zigzag and PFOR codec.
 
     The node emits a serial stream and must therefore lead to a serial sink.
-    Its raw payload matches ``PlanarZigzag`` followed by ``Pfor``, while its
-    CTID and codec header are distinct. Decoding uses a fixed 256-value scratch
-    block instead of materialising full transformed arrays.
+    Planes are split into independently decodable bands and strips. See the
+    codec specification for the wire layout.
 
     Args:
         width: Row width in samples.
@@ -136,9 +144,10 @@ class PlanarZigzagPfor:
         return compressor.build_static_graph(node, [succ], name=_NAME)
 
 
-def planar_zigzag_pfor_bound(nb_elts, elt_width):
+def planar_zigzag_pfor_bound(nb_elts, elt_width, width, planes=1):
     """Return the worst-case payload size, or 0 for empty or invalid geometry."""
-    return int(lib.planar_zigzag_pfor_bound(int(nb_elts), int(elt_width)))
+    return int(lib.planar_zigzag_pfor_bound(int(nb_elts), int(elt_width),
+                                            int(width), int(planes)))
 
 
 def planar_zigzag_pfor_encode(values, width, planes=1):
@@ -148,7 +157,7 @@ def planar_zigzag_pfor_encode(values, width, planes=1):
     n, elt = flat.size, flat.dtype.itemsize
     row_width = row_width_declared(int(width), n)
     plane_count = planes_declared(int(planes), row_width, n)
-    cap = planar_zigzag_pfor_bound(n, elt)
+    cap = planar_zigzag_pfor_bound(n, elt, row_width, plane_count)
     if cap == 0:
         raise ValueError(f"{_NAME}: geometry refused, {n} x {elt}")
     dst = np.empty(cap, dtype=np.uint8)
