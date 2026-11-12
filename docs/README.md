@@ -55,6 +55,7 @@ docs/
         ├── cpu/*.svg         figures of cpu.html
         ├── gpu/*.svg         figures of the PFOR, PivCo, GPU and API GPU pages
         ├── asterisk_banner.svg
+        ├── partners/*.svg    Asterisk, Earth Compress, NOC and ARIA logos for the footer and README
         ├── huggingface.svg, source-coop.svg
         └── favicon.svg, heart.svg
 ```
