@@ -95,7 +95,7 @@ frame = geozl.compress(tile, graph=g)       # bytes
 back = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)
 assert np.array_equal(back, tile)</code></pre>
       <p>A frame stores no dtype or shape. Keep them beside it, as <a href="https://asterisk.coop/rumi/" rel="noopener noreferrer">Rumi</a> does.</p>
-      <p>Frames can also decode straight into device memory on a GPU. That call is in C, and <a href="api-gpu.html">GPU decoding</a> walks through it. Python, R, Julia and JavaScript have no GPU call today.</p>
+      <p>Frames can also decode straight into device memory on a GPU. That call is in C, and <a href="api-gpu.html">GPU decoding</a> walks through it. The language bindings decode on the CPU only.</p>
 
       <h2 class="part" id="languages">Languages</h2>
       <table class="spec">
