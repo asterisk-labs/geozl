@@ -86,10 +86,10 @@
 
       <h2 class="part" id="simd">One instruction, many values</h2>
       <p>A CPU core can process several numbers with one instruction. A <b>vector register</b> has <b>lanes</b> that add, shift or compare values together. This is called <b>SIMD</b>, single instruction, multiple data. ARM chips, including Apple chips, use <b>NEON</b> with 128-bit registers. x86 uses <b>SSE2</b>, 128 bits on every 64-bit chip, and <b>AVX2</b>, 256 bits on most recent chips.</p>
-      <p><b>Before.</b> The straightforward decoder handles one value per instruction. The simplest predictor shows it best. delta_n predicts each sample from the one above it, so decoding a row is the row above plus the residuals, one add per sample.</p>
+      <p><b>Scalar loop.</b> The straightforward decoder handles one value per instruction. The simplest predictor shows it best. delta_n predicts each sample from the one above it, so decoding a row is the row above plus the residuals, one add per sample.</p>
       <pre><code class="language-c">for (size_t c = 0; c &lt; w; ++c)
   row[c] = res[c] + up[c];   // one sample per add</code></pre>
-      <p><b>After.</b> A vector register is one wide register cut into lanes. A 128-bit NEON or SSE2 register holds eight 16-bit samples side by side, and one add instruction adds two such registers lane by lane, eight sums for the price of one. So the decoder loads eight residuals into one register, the eight samples above them into another, adds once, and stores eight finished samples.</p>
+      <p><b>SIMD loop.</b> A vector register is one wide register cut into lanes. A 128-bit NEON or SSE2 register holds eight 16-bit samples side by side, and one add instruction adds two such registers lane by lane, eight sums for the price of one. So the decoder loads eight residuals into one register, the eight samples above them into another, adds once, and stores eight finished samples.</p>
       <pre><code class="language-c">uint16x8_t r = vld1q_u16(res + c);    // 8 residuals in one register
 uint16x8_t u = vld1q_u16(up + c);     // the 8 samples above them
 vst1q_u16(row + c, vaddq_u16(r, u));  // one add, 8 finished samples</code></pre>
@@ -119,7 +119,7 @@ vst1q_u16(row + c, vaddq_u16(r, u));  // one add, 8 finished samples</code></pre
 
       <h2 class="part" id="planar">Planar, a row at a time</h2>
       <p>Planar predicts every sample as <code>W + N − NW</code>, the left neighbour plus the one above minus the one above left.</p>
-      <p><b>Before.</b> Written as it reads, the decoder is a loop in which every sample needs the sample just decoded on its left.</p>
+      <p><b>Direct recurrence.</b> Written as it reads, the decoder is a loop in which every sample needs the sample just decoded on its left.</p>
       <pre><code class="language-c">for (size_t c = 1; c &lt; w; ++c)
   x[c] = x[c - 1] + N[c] - NW[c] + r[c];   // waits for x[c - 1]</code></pre>
       <p>Lanes cannot help here, because lane <code>i</code> would need the result of lane <code><i>i &minus; 1</i></code> from the same instruction.</p>
@@ -127,20 +127,20 @@ vst1q_u16(row + c, vaddq_u16(r, u));  // one add, 8 finished samples</code></pre
         <img src="assets/svg/cpu/planar-before-after.svg?v=1" alt="Before, planar decoded as written, x equals W plus N minus NW plus r, so each of eight pixels waits for the one on its left, eight steps one after another. After, the row step c equals r plus N minus NW is computed for all eight lanes with one instruction, because N and NW come from the finished row above, and a prefix sum of c in three steps gives the row." loading="lazy">
         <figcaption>The part that needs W shrinks to a running total, and everything else moves into lanes.</figcaption>
       </figure>
-      <p><b>After.</b> Move W to the other side and the decoder becomes <code>x[i] − x[i−1] = r[i] + N[i] − N[i−1]</code>. The right side uses only the residual and the row above, which is already decoded. That is a row step like delta_n, one vector instruction for eight samples. What is left of the chain is a running total of the row step, a <b>prefix sum</b>, and the next section shows how that runs inside a register.</p>
+      <p><b>Prefix-sum form.</b> Move W to the other side and the decoder becomes <code>x[i] − x[i−1] = r[i] + N[i] − N[i−1]</code>. The right side uses only the residual and the row above, which is already decoded. That is a row step like delta_n, one vector instruction for eight samples. What is left of the chain is a running total of the row step, a <b>prefix sum</b>, and the next section shows how that runs inside a register.</p>
       <figure class="diagram wide">
         <img src="assets/svg/codecs-light/planar-row.svg" alt="Decoding one row of planar. Row above 10 12 15 15, residuals 1 0 -1 2. Step 1 computes r plus N minus the N on its left for every column at once, 11 2 2 2. Step 2 takes a running sum, 11 13 15 17, which is the decoded row." loading="lazy">
         <figcaption>One row with numbers. At the left edge W and NW count as zero.</figcaption>
       </figure>
       <p>Without lanes the rearrangement buys nothing. Run one value at a time it is as slow as the loop above, because each sample still puts one add on the chain. It pays off only because it moves everything except the running total into lanes.</p>
-      <p>Our first release already decoded planar this way, but in two passes over each row. One pass wrote the row step into the output row, and a second pass ran the prefix sum over it.</p>
+      <p>A two-pass implementation writes the row step first, then reads the row again for the prefix sum.</p>
       <pre><code class="language-c">pre16(d + off, s + off, d + off - w, w);   // row step, written to the row
 scan16(d + off, d + off, w);               // prefix sum, reads the row back</code></pre>
-      <p>Then <a href="https://github.com/asterisk-labs/geozl/commits/main/?since=2026-07-04&amp;until=2026-07-04" rel="noopener noreferrer">we fused the two</a>. The row step is now computed in a register and handed straight to the prefix sum, so each row is read and written once. On the test tile that made planar about 1.6 times faster.</p>
+      <p>GeoZL fuses the two. The row step is computed in a register and handed straight to the prefix sum, so each row is read and written once.</p>
       <p>The other linear predictors are variations on it. delta_w is the same prefix sum without the row above. wp_static reads only finished rows, so it folds its weighted sum of the row above into the residual and closes the row with the same prefix sum as planar.</p>
 
       <h2 class="part" id="scan">A prefix sum inside a register</h2>
-      <p><b>Before.</b> A prefix sum written plainly is a running total, one add per sample, and every add waits for the one before it. Eight samples take eight adds in a row, whatever the register width.</p>
+      <p><b>Serial prefix.</b> A prefix sum written plainly is a running total, one add per sample, and every add waits for the one before it. Eight samples take eight adds in a row, whatever the register width.</p>
       <pre><code class="language-c">for (size_t i = 0; i &lt; n; ++i) {
   acc += c[i];   // waits for the previous add
   x[i] = acc;
@@ -149,7 +149,7 @@ scan16(d + off, d + off, w);               // prefix sum, reads the row back</co
         <img src="assets/svg/cpu/scan-before-after.svg?v=2" alt="Before, the running total of 11 2 2 2 1 3 -1 -1 is eight adds one after another, 11, then 11 + 2 = 13, 13 + 2 = 15, up to 20 - 1 = 19, eight waits. After, the eight values sit in one register and three instructions each add all eight lanes at once, shifted by one, two and four lanes, giving 11 13 4 4 3 4 2 -2, then 11 13 15 17 7 8 5 2, then 11 13 15 17 18 21 20 19. Three waits for the same eight samples." loading="lazy">
         <figcaption>The same eight sums. Before, each add waits for the one before it. After, each instruction adds all eight lanes, and only three instructions wait.</figcaption>
       </figure>
-      <p><b>After.</b> Inside a register the same sum takes three steps instead of eight, because each step doubles how far back every lane reaches. Shift the register by one lane and add, and every lane holds itself plus its left neighbour, a window of two. Shift by two and add, and two windows of two make a window of four. Shift by four and add, and the window is eight, the whole register, so every lane holds the sum of all the lanes up to it. Each step is one instruction over all eight lanes. The figure below follows lane 5 through the three steps.</p>
+      <p><b>Vector prefix.</b> Inside a register the same sum takes three steps instead of eight, because each step doubles how far back every lane reaches. Shift the register by one lane and add, and every lane holds itself plus its left neighbour, a window of two. Shift by two and add, and two windows of two make a window of four. Shift by four and add, and the window is eight, the whole register, so every lane holds the sum of all the lanes up to it. Each step is one instruction over all eight lanes. The figure below follows lane 5 through the three steps.</p>
       <figure class="diagram wide stepper" data-steps="4" data-src="assets/svg/cpu/scan-#.svg?v=4">
         <img class="stepper-view" tabindex="0" src="assets/svg/cpu/scan-1.svg?v=4" alt="A prefix sum of eight uint16 lanes in one register. C is 11 2 2 2 1 3 -1 -1. Shifting by one lane and adding gives 11 13 4 4 3 4 2 -2, by two lanes 11 13 15 17 7 8 5 2, by four lanes 11 13 15 17 18 21 20 19.">
         <div class="stepper-bar">
@@ -174,16 +174,16 @@ x = vaddq_u16(x, vextq_u16(zero, x, 4));  // 11 13 15 17 18 21 20 19 (8)</code><
       <p>Think of a bank account with one statement per month. You can add up each month's movements on their own, but the balance on any day of February also needs everything that happened in January. The amount carried over from one month to the next is the <b>carry</b>.</p>
       <p>A row works the same way, with registers for months. A row of 16 samples fills two registers of eight lanes, and the three shifts and adds above sum each register on its own, as if the row started there. The first register ends at 19. The second sums to 2 3 5 5 6 7 7 10, short by those 19, so the decoder adds 19 to every lane and gets the row, 21 to 29.</p>
       <figure class="diagram wide">
-        <img src="assets/svg/cpu/carry-numbers.svg?v=2" alt="A row of sixteen samples spans two registers. Register 1 sums its own lanes to 11 13 15 17 18 21 20 19, and nothing came before it, so that is the row. Register 2 sums its own lanes to 2 3 5 5 6 7 7 10, as if the row started there. The carry, 19, is added to every lane and gives 21 22 24 24 25 26 26 29. The carry for register 3 is 29. Before, it was copied from the last lane of the row, which has to wait for the add of 19. After, it is 19 plus the last of the register's own sums, 10, which is ready early, so only one add waits." loading="lazy">
+        <img src="assets/svg/cpu/carry-numbers.svg?v=2" alt="Two registers hold one row. The first ends at 19, which is added to every local prefix sum in the second; the next carry is 19 plus the second register's local total, 10." loading="lazy">
         <figcaption>The first register ends at 19, so 19 is added to every lane of the second. Both ways give 29 for the third, only the order of the work differs.</figcaption>
       </figure>
-      <p>The own sums of a register depend on nothing outside it, so the CPU can work out those of registers 2, 3 and 4 ahead of time, side by side. Only the carry has to go in order. The carry of register 3 needs the one of register 2, which needs the one of register 1. So the speed of the whole row is set by how long it takes to pass the carry from one register to the next. <a href="https://github.com/asterisk-labs/geozl/commit/850b1d06" rel="noopener noreferrer">We made that step shorter</a>.</p>
-      <p><b>Before.</b> The next carry was the last lane of the finished row. The CPU first had to add the old carry, 19, to all eight lanes, which gives 21 to 29, and only then could it copy the last lane, 29, out as the next carry. Two steps one after the other, for every register. This is the NEON loop as it was, from <a href="https://github.com/asterisk-labs/geozl/blob/4a87b561/core/src/common/scan.h#L120-L130" rel="noopener noreferrer"><code>core/src/common/scan.h</code></a>.</p>
+      <p>Each register's local prefix sums depend on nothing outside that register, so the CPU can compute several of them side by side. Only the carry has to go in order. The speed of the row is therefore set by the chain that passes one carry to the next register.</p>
+      <p><b>Output-derived carry.</b> The next carry can be copied from the last lane of the finished row, but only after the old carry has been added to all eight lanes. That makes the dependency chain two steps per register.</p>
       <pre><code class="language-c">uint16x8_t x = geozl_vprefix16_neon(vld1q_u16(src + i));
 x = vaddq_u16(x, carry);         // add the carry to every lane
 vst1q_u16(dst + i, x);
 carry = geozl_vlast16_neon(x);   // copy the last lane of the output</code></pre>
-      <p><b>After.</b> The next carry is the old carry plus the last of the register's own sums, 19 + 10 = 29. The 10 was ready before the 19 arrived, so when the 19 comes a single add gives the next carry. Adding 19 to the eight lanes to write the row still happens, but off to the side, and nothing waits for it. Back to the bank account, February's closing balance is January's plus February's net, and the statement line by line can be written afterwards. This is the 16-bit NEON version from <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/common/vprefix.h" rel="noopener noreferrer"><code>core/src/common/vprefix.h</code></a>, with comments added. <code>geozl_vprefix16_neon</code> is the three shifts and adds shown above.</p>
+      <p><b>Local-total carry.</b> The next carry is the old carry plus the last local sum, 19 + 10 = 29. The 10 is ready before the 19 arrives, so one add advances the chain. Adding 19 to all eight output lanes still happens, but nothing waits for it. In the bank-account example, February's closing balance is January's plus February's net; the individual statement lines can be written alongside it. The 16-bit NEON implementation is <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/common/vprefix.h" rel="noopener noreferrer"><code>geozl_vscan16_neon</code></a>.</p>
       <pre><code class="language-c">static inline uint16x8_t geozl_vscan16_neon(uint16x8_t x, uint16x8_t *carry) {
   const uint16x8_t p = geozl_vprefix16_neon(x);
   const uint16x8_t out = vaddq_u16(p, *carry);
@@ -202,11 +202,11 @@ carry = geozl_vlast16_neon(x);   // copy the last lane of the output</code></pre
 
       <h3 id="serial-edges">Edges, in both</h3>
       <p>Both predictors read three neighbours, W on the left, N above and NW above left. On the first row and the first column some of them fall outside the tile and count as zero.</p>
-      <p><b>Before.</b> The first decoders tested for the edges of the tile on every sample.</p>
+      <p><b>Per-sample checks.</b> A direct decoder tests for tile edges on every sample.</p>
       <pre><code class="language-c">W  = (c &gt; 0)          ? d[i - 1]     : 0;
 N  = (r &gt; 0)          ? d[i - w]     : 0;
 NW = (r &gt; 0 &amp;&amp; c &gt; 0) ? d[i - w - 1] : 0;</code></pre>
-      <p><b>After.</b> The current kernels decode <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/average/decode_average_kernel.c#L25-L39" rel="noopener noreferrer">the first row and the first column in loops of their own</a>, so the interior loop reads its three neighbours with no test at all.</p>
+      <p><b>Separate edge loops.</b> The current kernels decode <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/average/decode_average_kernel.c#L25-L39" rel="noopener noreferrer">the first row and the first column in loops of their own</a>, so the interior loop reads its three neighbours with no test at all.</p>
       <figure class="diagram wide">
         <img src="assets/svg/cpu/edges-before-after.svg?v=1" alt="Before, every sample of the tile runs the edge tests c greater than 0 and r greater than 0, even far from any edge. After, the first row and the first column are decoded by their own loops with the tests, and the interior loop reads W, N and NW with no tests at all." loading="lazy">
         <figcaption>Only the first row and column still test where they are.</figcaption>
@@ -215,8 +215,8 @@ NW = (r &gt; 0 &amp;&amp; c &gt; 0) ? d[i - w - 1] : 0;</code></pre>
 
       <h3 id="serial-average">average</h3>
       <p>average guesses each sample as the mean of W and N. In integers that is <code>(W &gt;&gt; 1) + (N &gt;&gt; 1) + (W &amp; N &amp; 1)</code>, half of each plus the low bit they share, so the mean never overflows.</p>
-      <p><b>Before.</b> The serial loop computed the whole mean for each sample, one sample at a time, including the half of N, which does not need W at all.</p>
-      <p><b>After.</b> The N half is known before the row starts. It now moves into a <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/average/decode_average_kernel.c#L57-L66" rel="noopener noreferrer">pass ahead of the row</a>, which the compiler vectorizes, and the serial loop keeps only what depends on W.</p>
+      <p><b>One serial expression.</b> Computing the whole mean per sample keeps half of N in the serial loop, even though it does not depend on W.</p>
+      <p><b>Split expression.</b> The N half is known before the row starts. A <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/average/decode_average_kernel.c#L57-L66" rel="noopener noreferrer">vectorized pass</a> computes it ahead of the row, and the serial loop keeps only what depends on W.</p>
       <figure class="diagram wide">
         <img src="assets/svg/cpu/average-before-after.svg?v=1" alt="Before, the serial loop of average computes the whole mean for each sample, half of N, half of W, the shared low bit W and N and 1, and the residual, one sample at a time, although half of N does not need W. After, half of N plus the residual, B, and the low bit of N, L, are computed for every column at once in lanes before the row starts, and the serial loop keeps only the three steps that need W, half of W, W and L, and plus B." loading="lazy">
         <figcaption>Everything that needs only N runs for the whole row at once. The loop keeps what needs W.</figcaption>
@@ -231,12 +231,12 @@ for (c = 1; c &lt; w; ++c)          // the chain through W
 
       <h3 id="serial-med">med</h3>
       <p>med guesses each sample as the median of W, N and the planar guess <code>W + N − NW</code>. Picking the middle one of the three lets it follow an edge in the image, where planar would overshoot.</p>
-      <p><b>Before.</b> At first med <a href="https://github.com/asterisk-labs/geozl/blob/6c0798b1/core/src/med/decode_med_kernel.c#L11-L33" rel="noopener noreferrer">decoded one row at a time</a> with the median written as a three-way choice.</p>
+      <p><b>One row.</b> A direct med decoder runs one serial chain through the west neighbour, with the median written as a three-way choice.</p>
       <pre><code class="language-c">P = (NW &gt;= max(W, N)) ? min(W, N)
   : (NW &lt;= min(W, N)) ? max(W, N)
   : W + N - NW;</code></pre>
       <p>Each sample waits for the previous one, and the core has nothing else to work on while it waits.</p>
-      <p><b>After.</b> It now keeps <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/med/decode_med_wavefront.h#L62-L93" rel="noopener noreferrer"><b>four rows in flight</b></a>, each one column behind the row above. Each row is still serial, but four independent chains keep the core busy, and the rows below read their N and NW from registers just written by the row above. The median is computed <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/med/decode_med_wavefront.h#L18-L26" rel="noopener noreferrer">with masks instead of branches</a>, so the core never has to guess which of the three cases holds.</p>
+      <p><b>Four-row wavefront.</b> The current kernel keeps <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/med/decode_med_wavefront.h#L62-L93" rel="noopener noreferrer"><b>four rows in flight</b></a>, each one column behind the row above. Each row is still serial, but four independent chains keep the core busy, and the rows below read N and NW from registers just written by the row above. The median uses <a href="https://github.com/asterisk-labs/geozl/blob/main/core/src/med/decode_med_wavefront.h#L18-L26" rel="noopener noreferrer">masks instead of branches</a>.</p>
       <figure class="diagram wide">
         <img src="assets/svg/cpu/med-wavefront.svg?v=2" alt="Before, med decodes one row at a time, a single serial chain through the west neighbour, and the next row starts only when this one ends. After, med decodes four rows at once, row 2 one column behind row 1, row 3 behind row 2 and row 4 behind row 3, so the four chains are independent and the lower rows read N and NW from registers." loading="lazy">
         <figcaption>Four chains a column apart. The pixel above each <b>?</b> is already done.</figcaption>
@@ -245,13 +245,13 @@ for (c = 1; c &lt; w; ++c)          // the chain through W
       <p>That staggered wavefront is the best we found for med on a CPU, and on a GPU the chain does not go at all. <code>med</code> still decodes about seven times more slowly than <code>planar</code> on the same tile, so start with <code>planar</code> when decode speed matters.</p>
 
       <h2 class="part" id="pfor">PFOR in 16-byte lanes</h2>
-      <p>PFOR <a href="https://github.com/asterisk-labs/geozl/commits/main/?since=2026-08-17&amp;until=2026-08-17" rel="noopener noreferrer">arrived in 0.14.0</a> as a lossless codec and <a href="https://github.com/asterisk-labs/geozl/commit/e5bd9694" rel="noopener noreferrer">replaced the older <code>store_lo</code> terminal</a> in our recipes. It packs each block of 256 values at the bit width b that most of them need. <a href="pfor.html">How PFOR works</a> covers the format. Here the only question is how to unpack it fast.</p>
-      <p><b>Before.</b> The textbook layout puts the values one after another in one long bit string. With b = 3, value <code>i</code> starts at bit <code>3i</code>, somewhere inside a byte, so every value needs its own position and its own shift, and no two lanes can share one.</p>
+      <p>PFOR packs each block of 256 values at the bit width b that most of them need. <a href="pfor.html">How PFOR works</a> covers the format. Here the question is how to unpack it fast.</p>
+      <p><b>Contiguous bitstream.</b> The textbook layout puts the values one after another in one long bit string. With b = 3, value <code>i</code> starts at bit <code>3i</code>, somewhere inside a byte, so every value needs its own position and shift.</p>
       <pre><code class="language-c">for (size_t i = 0; i &lt; 256; ++i) {
   size_t pos = i * b;                                  // where value i starts
   v[i] = (load64(p + pos / 8) &gt;&gt; (pos % 8)) &amp; mask;  // a different shift each time
 }</code></pre>
-      <p><b>After.</b> GeoZL takes its layout from <a href="https://github.com/powturbo/TurboPFor-Integer-Compression" rel="noopener noreferrer">TurboPFor</a>. Instead of one long string, the block is cut into eight lanes for two-byte values, sixteen for one-byte values, and the values are dealt out to them like cards. Value 0 goes to lane 0, value 1 to lane 1, up to value 7 in lane 7. Value 8 goes back to lane 0, behind value 0, value 9 behind value 1, and so on. So a value's lane is the remainder of its index divided by 8, <code>i mod 8</code>, and its place inside the lane, its <b>slot</b>, is how many times 8 fits in the index, <code>i div 8</code>.</p>
+      <p><b>SIMD lanes.</b> GeoZL takes its layout from <a href="https://github.com/powturbo/TurboPFor-Integer-Compression" rel="noopener noreferrer">TurboPFor</a>. Instead of one long string, the block is cut into eight lanes for two-byte values and sixteen for one-byte values. Values are dealt to them like cards. A value's lane is <code>i mod 8</code>, and its <b>slot</b> inside that lane is <code>i div 8</code>.</p>
       <p>Each lane packs its own values one after another at b bits, so with b = 3 slot 0 sits at bits 0 to 2 of every lane, slot 1 at bits 3 to 5, and so on. Every lane keeps its slots at the same bits, so one 16-byte load, one shift and one mask take out the same slot of all eight lanes at once.</p>
       <p>The figure walks through it with a block of 16 values at b = 3. A real block has 256, and the steps are the same.</p>
       <figure class="diagram wide stepper" data-steps="7" data-src="assets/svg/cpu/pfor-lanes-#.svg?v=1">
@@ -268,18 +268,18 @@ for (c = 1; c &lt; w; ++c)          // the chain through W
 
       <h2 class="part" id="fused">Fewer trips through memory</h2>
       <p>Fast kernels expose a cost that slow ones hide, the memory traffic between them.</p>
-      <p><b>Before.</b> A graph of separate nodes runs each codec over the whole tile before the next one starts. For a 2 MiB uint16 tile through planar, zigzag and pfor, pfor writes 2 MiB of codes, zigzag reads them and writes 2 MiB of residuals, and planar reads those and writes the tile. That is about 10 MiB through memory besides the frame.</p>
+      <p><b>Separate nodes.</b> A graph of separate nodes runs each codec over the whole tile before the next one starts. For a 2 MiB uint16 tile through planar, zigzag and pfor, pfor writes 2 MiB of codes, zigzag reads them and writes 2 MiB of residuals, and planar reads those and writes the tile. That is about 10 MiB through memory besides the frame.</p>
       <figure class="diagram wide">
         <img src="assets/svg/cpu/fused-traffic.svg?v=1" alt="Before, a 2 MiB uint16 tile decoded by three separate nodes. pfor writes 2 MiB of codes, zigzag reads them and writes 2 MiB of residuals, planar reads those and writes the 2 MiB tile, about 10 MiB through memory besides the frame. After, the fused planar_zigzag_pfor codec unpacks, unzigzags and reconstructs 256 values at a time in registers and a small buffer that stays in cache, so only the frame is read and only the tile is written." loading="lazy">
         <figcaption>Same tile, same output. The fused codec never writes the two streams in between.</figcaption>
       </figure>
-      <p><b>After.</b> The fused codec unpacks one PFOR block of 256 values into a small buffer that stays in cache, undoes zigzag in registers on the way into the row step, and writes the finished samples once. It moves about 2 MiB plus the frame. The fused planar Zigzag codecs <a href="https://github.com/asterisk-labs/geozl/commits/main/?since=2026-09-01&amp;until=2026-09-01" rel="noopener noreferrer">arrived together with the SIMD unpackers</a>, and they are why a recipe can say <code>planar&gt;zigzag&gt;pfor</code> and run <code>planar_zigzag_pfor</code>. <code>med_zigzag</code> followed with the med wavefront. <a href="fused.html">Fused</a> follows one tile through both versions.</p>
+      <p><b>Fused codec.</b> The fused codec unpacks one PFOR block into a small buffer that stays in cache, undoes Zigzag in registers and writes the finished samples once. It moves about 2 MiB plus the frame. That is why <code>planar&gt;zigzag&gt;pfor</code> runs as <code>planar_zigzag_pfor</code>. <a href="fused.html">Fused</a> follows one tile through both forms.</p>
       <p>We built both graphs for the test tile with the <a href="api-python.html#lossless">low-level Python nodes</a>, <code>Planar</code>, OpenZL's <code>Zigzag</code> and <code>Pfor</code> against <code>PlanarZigzagPfor</code>, and timed <code>decompress</code> on one thread of the M5, best of 1,500 runs. The frames then differed by 6 bytes. The fused codec decoded the tile about a third faster than the separate nodes, and <code>geozl.graph(tile, "planar&gt;zigzag&gt;pfor")</code> ran at the same speed as the fused codec. The separate graph also makes one more call into Python, which is a small part of the difference.</p>
       <p>Timed as bare kernels with buffers that stay warm in cache, the three passes cost only about 7% more than the fused one. So on the M5, where a 2 MiB tile fits in cache, most of what fusion saves is the two whole streams the graph has to create, fill and pass from node to node. On a tile that does not fit in cache the passes themselves would cost more, but we have not measured that here.</p>
-      <p>The fused codec later took a layout of its own, so that a GPU could decode it. It restarts the prediction every 16 rows and every 1024 columns, and packs each band in blocks of 256 samples, 16 by 16 in a full band, as <a href="fused.html#planar_zigzag_pfor">Fused</a> describes. Its payload is no longer what the separate nodes write. On the same M5 it decodes 176-pixel tiles as fast as before, and whole 1056-pixel cells on one thread up to 5% slower in uint16 and 15% slower in uint8.</p>
+      <p>The fused codec uses a layout that also suits GPU decoding. Prediction restarts at independent band and strip boundaries, and each band is packed in 256-value blocks. <a href="fused.html#planar_zigzag_pfor">Fused</a> describes the exact geometry.</p>
 
       <h2 class="part" id="gpu">From a register to a GPU</h2>
-      <p>Then came the reason for the rest of this series. <a href="https://asterisk.coop/rumi/" rel="noopener noreferrer">Rumi</a>, the raster format we build on GeoZL, feeds training batches to models, and a model wants a tensor in GPU memory, not a raster in host memory. Could the frames decode on the GPU itself?</p>
+      <p><a href="https://asterisk.coop/rumi/" rel="noopener noreferrer">Rumi</a> uses GeoZL to feed training batches to models. Those models want tensors in GPU memory, which motivates decoding the frames on the device itself.</p>
       <p>Some of what we built for SIMD carries over and some does not. Planar, PFOR and the PivCo lanes also decode on a GPU. med, average and plain Huffman do not. <a href="gpu-codecs.html">What a GPU wants</a> explains why, and <a href="gpu-internals.html">Bytes to tensors</a> follows a batch through the GPU decoder.</p>
 
       <nav class="pager" aria-label="Pages">
