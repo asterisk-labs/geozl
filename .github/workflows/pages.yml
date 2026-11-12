@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
+      - 'tools/render_notebooks.py'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -29,6 +30,11 @@ jobs:
       - uses: actions/checkout@v7
         with:
           submodules: false
+
+      - name: Check generated pages and scripts
+        run: |
+          python3 tools/render_notebooks.py --check
+          find docs -name '*.js' -print0 | xargs -0 -n1 node --check
 
       # docs/ is the site root. No Jekyll: nothing under docs/ carries front
       # matter or liquid, so the files are uploaded as they are.

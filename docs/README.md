@@ -1,14 +1,16 @@
 # The GeoZL site
 
-The site is maintained directly as static HTML, CSS and JavaScript in `docs/`.
-There is no build step or framework. The pages open from disk; cross-document
-view transitions need HTTP and a browser that supports them. JavaScript adds
-interactions such as the section highlight and the figure steppers.
+The site is maintained as static HTML, CSS and JavaScript in `docs/`. There is
+no framework or deployment build. The notebook pages are generated from their
+`.ipynb` sources with `tools/render_notebooks.py` and committed with them. Most
+pages open from disk; cross-document view transitions need HTTP and a browser
+that supports them. JavaScript adds the section highlight, copy buttons and
+figure steppers.
 
-The current design uses a dark background, light text and colour accents for
-codec families. The landing page keeps its styles and scripts in `index.html`.
-The reading pages share `reading.css`, and the codec pages share `style.css` and
-`dark.css`.
+The landing page and codec catalog use a dark background. The reading, API and
+notebook pages use a light background. The landing page keeps its styles and
+scripts in `index.html`; the other pages share `style.css`, `dark.css` and
+`reading.css` as needed.
 
 ## Structure
 
@@ -34,12 +36,13 @@ docs/
 ├── c-api.md            C source compatibility policy
 ├── releasing.md        release gates and version procedure
 ├── adding-a-codec.md   how to write one, for contributors
-├── notebooks/          high-level-api.ipynb, the four calls on a DEM tile
+├── notebooks/          four notebook sources and their generated HTML pages
 ├── slides/cng-2026/    conference presentation, with its own assets
 └── assets/
     ├── css/style.css       base styles for pages other than the landing page
     ├── css/dark.css        dark theme for those pages
     ├── css/reading.css     shared layout of the reading pages and the API pages
+    ├── css/notebook.css    notebook cells, outputs and figures
     ├── js/main.js           codec list read by test_catalog.py; no page loads it
     ├── js/toc.js            highlights the current section in the docs sidebar
     ├── js/stepper.js        steps through the figures marked .stepper

@@ -5,6 +5,7 @@ docs/examples.html, with a link back to the examples. Run it after changing a
 notebook or its outputs.
 """
 
+import argparse
 import html
 import json
 import re
@@ -113,11 +114,24 @@ def outputs(cell):
     if "".join(cell["source"]).lstrip().startswith(("%pip", "!pip")):
         return "</div>"
     out = []
+    image_alts = cell.get("metadata", {}).get("image_alt", [])
+    if isinstance(image_alts, str):
+        image_alts = [image_alts]
+    image_index = 0
+    seen_png = set()
     for o in cell.get("outputs", []):
         data = o.get("data", {})
         if "image/png" in data:
             png = data["image/png"].replace("\n", "")
-            out.append(f'<img class="nb-figure" src="data:image/png;base64,{png}" alt="">')
+            if png in seen_png:
+                continue
+            seen_png.add(png)
+            if image_index >= len(image_alts) or not image_alts[image_index].strip():
+                cell_id = cell.get("id") or cell.get("metadata", {}).get("id", "unknown")
+                raise ValueError(f"PNG output in cell {cell_id} needs metadata.image_alt")
+            alt = html.escape(image_alts[image_index], quote=True)
+            out.append(f'<img class="nb-figure" src="data:image/png;base64,{png}" alt="{alt}">')
+            image_index += 1
         elif "dataframe" in "".join(data.get("text/html", "")):
             table = re.sub(r"<style.*?</style>", "", "".join(data["text/html"]), flags=re.S)
             table = table.replace(' border="1"', "")
@@ -171,7 +185,7 @@ def relative(fragment):
     return re.sub(r'(href|src)="(?!https?:|#|\.\./|data:)([^"]+)"', r'\1="../\2"', fragment)
 
 
-def main():
+def main(*, check=False):
     examples = (DOCS / "examples.html").read_text()
     masthead = relative(examples[:examples.index('  <main class="doc">')].rstrip("\n"))
     masthead = masthead.replace(
@@ -179,11 +193,22 @@ def main():
     footer = relative(examples[examples.index("  </main>") + len("  </main>\n"):])
     footer = footer.replace('<script src="../assets/js/toc.js" defer></script>',
                             '<script src="../assets/js/code.js?v=3" defer></script>')
+    stale = []
     for name, title, tags in NOTEBOOKS:
         out = DOCS / "notebooks" / f"{name}.html"
-        out.write_text(page(name, title, tags, masthead, footer))
-        print("wrote", out.relative_to(DOCS.parent))
+        rendered = page(name, title, tags, masthead, footer)
+        if check:
+            if not out.is_file() or out.read_text() != rendered:
+                stale.append(out.relative_to(DOCS.parent))
+        else:
+            out.write_text(rendered)
+            print("wrote", out.relative_to(DOCS.parent))
+    if stale:
+        raise SystemExit("stale notebook pages: " + ", ".join(map(str, stale)))
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--check", action="store_true",
+                        help="fail when generated pages differ from the notebooks")
+    main(check=parser.parse_args().check)

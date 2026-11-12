@@ -54,7 +54,7 @@
 <p>Sentinel-2 ships its bands as JPEG2000. The files are small, but decoding them is slow and it all happens on the CPU. In training you pay that cost on every read of every epoch, while the GPU waits for data.</p>
 <p>Rumi stores the same pixels, also lossless, in small chunks that the GPU can decode by itself. The CPU only reads the file and sends the compressed bytes.</p>
 <p>This notebook reads one whole scene into a GPU tensor with a single CPU thread, from JPEG2000, GeoTIFF and Rumi, and compares the time and the file size. Select a GPU runtime before you start. JPEG2000 takes a few minutes to finish.</p>
-<div class="nb-cell"><p class="nb-title">Install</p><pre><code class="language-python">%pip install -q "rumi-eo==0.28.1" "geozl==0.21.1" rasterio</code></pre></div>
+<div class="nb-cell"><p class="nb-title">Install</p><pre><code class="language-python">%pip install -q "rumi-eo==0.30.0" "geozl==0.32.0" rasterio</code></pre></div>
 <h2 class="part">The scene</h2>
 <p>Tile 32TPT over the Alps, 28 September 2023, with almost no clouds. We use the red, green and blue bands at 10 m, 10980x10980 pixels in <code>uint16</code>, about 723 MB uncompressed.</p>
 <div class="nb-cell"><pre><code class="language-python">import os

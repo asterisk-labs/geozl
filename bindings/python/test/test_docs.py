@@ -220,7 +220,7 @@ def _parse_html(path: Path) -> _HTMLRefs:
 
 
 def test_html_local_links_assets_and_fragments_resolve():
-    pages = sorted(DOCS.glob("*.html")) + sorted((DOCS / "codecs").glob("*.html"))
+    pages = sorted(DOCS.rglob("*.html"))
     parsed = {page.resolve(): _parse_html(page) for page in pages}
     failures = []
 
@@ -255,6 +255,22 @@ def test_html_local_links_assets_and_fragments_resolve():
                     )
 
     assert not failures, "broken local documentation references:\n" + "\n".join(failures)
+
+
+def test_notebooks_pin_the_current_geozl_release():
+    version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    failures = []
+    for path in sorted((DOCS / "notebooks").glob("*.ipynb")):
+        notebook = json.loads(path.read_text(encoding="utf-8"))
+        source = "\n".join(
+            "".join(cell["source"])
+            for cell in notebook["cells"]
+            if cell["cell_type"] == "code"
+        )
+        pins = re.findall(r'geozl==([^"\s]+)', source)
+        if pins != [version]:
+            failures.append(f"{path.name}: expected geozl=={version}, found {pins}")
+    assert not failures, "stale notebook pins:\n" + "\n".join(failures)
 
 
 def _sidebar(page: Path) -> tuple[list[tuple[str, str]], list[str], dict[str, str]]:
