@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 300" width="680" height="300" role="img" aria-label="Step 1 of 3. every thread starts at the root and reads its own bit."><style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&amp;display=swap');svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
+.cap{fill:#111111;font:500 13px "IBM Plex Mono",monospace}.num{fill:#492AE8;font-weight:700}
+.lab{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.labs{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace;text-anchor:middle}
+.sm{fill:#5C6370;font:500 9.5px "IBM Plex Mono",monospace;text-anchor:middle;paint-order:stroke;stroke:#FFFFFF;stroke-width:3px;stroke-linejoin:round}
+.v{fill:#111111;font:600 12.5px "IBM Plex Mono",monospace;text-anchor:middle}
+.vb{fill:#111111;font:600 11px "IBM Plex Mono",monospace;text-anchor:middle}
+.note{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.eq{fill:#7A5D00;font:600 12px "IBM Plex Mono",monospace}
+.op{fill:#492AE8;font:700 12px "IBM Plex Mono",monospace}
+.opm{fill:#492AE8;font:700 12px "IBM Plex Mono",monospace;text-anchor:middle}
+.bad{fill:#C0392B;font:600 11px "IBM Plex Mono",monospace}
+.good{fill:#1D7A3E;font:600 11px "IBM Plex Mono",monospace}
+.in{fill:#ECE9FD;stroke:#492AE8;stroke-width:1.1}
+.in2{fill:#E3F2FF;stroke:#2B6CB0;stroke-width:1.1}
+.dim{fill:#F3F3F1;stroke:#D3D6DB;stroke-width:1}
+.cell{fill:#FFFFFF;stroke:#D3D6DB;stroke-width:.8}
+.hot{fill:#FEF6D3;stroke:#E0A800;stroke-width:1.6}
+.out{fill:#C4FFC2;stroke:#1D7A3E;stroke-width:1.2}
+.red{fill:#FDE8E8;stroke:#C0392B;stroke-width:1.2}
+.ring{fill:none;stroke:#E0A800;stroke-width:2.4}
+.ln{fill:none;stroke:#B9BEC6;stroke-width:1}
+.lnh{fill:none;stroke:#E0A800;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.arr{fill:none;stroke:#492AE8;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.arrg{fill:none;stroke:#9AA1AB;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}
+.arrr{fill:none;stroke:#C0392B;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.rule{stroke:#E3E5E8;stroke-width:1}
+.brk{fill:none;stroke:#9AA1AB;stroke-width:1.1}]]></style><text class="cap" x="20" y="20"><tspan class="num">1</tspan>  every thread starts at the root and reads its own bit</text><line class="ln" x1="176" y1="96" x2="80" y2="150"/><text class="sm" x="120" y="127">0</text><line class="ln" x1="176" y1="96" x2="216" y2="150"/><text class="sm" x="204" y="127">1</text><line class="ln" x1="216" y1="176" x2="175" y2="230"/><text class="sm" x="187.5" y="207">0</text><line class="ln" x1="216" y1="176" x2="257" y2="230"/><text class="sm" x="244.5" y="207">1</text><rect class="hot" x="116" y="70" width="120" height="26" rx="3"/><text class="vb" x="176" y="87.5">01010100</text><rect class="in2" x="40" y="150" width="80" height="26" rx="3"/><text class="vb" x="80" y="167.5">a &#215; 5</text><rect class="in" x="176" y="150" width="80" height="26" rx="3"/><text class="vb" x="216" y="167.5">010</text><rect class="in2" x="140" y="230" width="70" height="26" rx="3"/><text class="vb" x="175" y="247.5">b &#215; 2</text><rect class="in2" x="222" y="230" width="70" height="26" rx="3"/><text class="vb" x="257" y="247.5">c &#215; 1</text><text class="lab" x="20" y="64">depth 0</text><text class="lab" x="20" y="144">depth 1</text><text class="lab" x="20" y="224">depth 2</text><text class="lab" x="300" y="80">steps per thread</text><text class="lab" x="300" y="110">t0 a</text><rect class="in" x="360" y="96" width="60" height="18" rx="2"/><text class="vb" x="390" y="109">walk</text><text class="lab" x="300" y="132">t1 b</text><rect class="in" x="360" y="118" width="60" height="18" rx="2"/><text class="vb" x="390" y="131">walk</text><text class="lab" x="300" y="154">t2 a</text><rect class="in" x="360" y="140" width="60" height="18" rx="2"/><text class="vb" x="390" y="153">walk</text><text class="lab" x="300" y="176">t3 c</text><rect class="in" x="360" y="162" width="60" height="18" rx="2"/><text class="vb" x="390" y="175">walk</text><text class="lab" x="300" y="198">t4 a</text><rect class="in" x="360" y="184" width="60" height="18" rx="2"/><text class="vb" x="390" y="197">walk</text><text class="lab" x="300" y="220">t5 b</text><rect class="in" x="360" y="206" width="60" height="18" rx="2"/><text class="vb" x="390" y="219">walk</text><text class="lab" x="300" y="242">t6 a</text><rect class="in" x="360" y="228" width="60" height="18" rx="2"/><text class="vb" x="390" y="241">walk</text><text class="lab" x="300" y="264">t7 a</text><rect class="in" x="360" y="250" width="60" height="18" rx="2"/><text class="vb" x="390" y="263">walk</text><text class="note" x="440" y="110">a 0 means a, a 1 sends</text><text class="note" x="440" y="126">the thread on to 010</text></svg>

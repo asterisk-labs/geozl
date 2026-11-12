@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 286" width="680" height="286" role="img" aria-label="Four 16-bit tiles, 2 MiB compressed and 8 MiB decoded. Decoded on the CPU, all eight cores expand the frames and 8 MiB of samples cross the bus to the tensor. Decoded on the GPU, the cores only find the blocks, 2 MiB of frames cross the bus, and the GPU waves expand them into the 8 MiB tensor."><style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&amp;display=swap');svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
+.cap{fill:#111111;font:500 13px "IBM Plex Mono",monospace}.num{fill:#492AE8;font-weight:700}
+.ttl{fill:#111111;font:600 12px "IBM Plex Mono",monospace}
+.lab{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.sm{fill:#5C6370;font:500 9.5px "IBM Plex Mono",monospace;text-anchor:middle;paint-order:stroke;stroke:#FFFFFF;stroke-width:3px;stroke-linejoin:round}
+.smL{fill:#5C6370;font:500 9.5px "IBM Plex Mono",monospace}
+.v{fill:#111111;font:600 11.5px "IBM Plex Mono",monospace;text-anchor:middle}
+.vs{fill:#111111;font:600 10px "IBM Plex Mono",monospace;text-anchor:middle}
+.note{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.eq{fill:#7A5D00;font:600 11.5px "IBM Plex Mono",monospace}
+.op{fill:#492AE8;font:700 11.5px "IBM Plex Mono",monospace}
+.good{fill:#1D7A3E;font:600 11px "IBM Plex Mono",monospace}
+.bad{fill:#B42318;font:600 11px "IBM Plex Mono",monospace}
+.panel{fill:#FAFAF8;stroke:#D3D6DB;stroke-width:1}
+.val{fill:#ECE9FD;stroke:#492AE8;stroke-width:1.1}
+.val2{fill:#E3F2FF;stroke:#2B6CB0;stroke-width:1.1}
+.dim{fill:#F3F3F1;stroke:#D3D6DB;stroke-width:1}
+.cell{fill:#FFFFFF;stroke:#D3D6DB;stroke-width:.8}
+.hot{fill:#FEF6D3;stroke:#E0A800;stroke-width:1.6}
+.out{fill:#C4FFC2;stroke:#1D7A3E;stroke-width:1.2}
+.busy{fill:#492AE8;stroke:#492AE8;stroke-width:1}
+.idle{fill:#FFFFFF;stroke:#9AA1AB;stroke-width:1}
+.red{fill:#FDE8E8;stroke:#B42318;stroke-width:1.1}
+.ln{stroke:#B9BEC6;stroke-width:1;fill:none}
+.lnh{stroke:#E0A800;stroke-width:2;fill:none}
+.bar{stroke:#B42318;stroke-width:1.6;stroke-dasharray:4 3}
+.rule{stroke:#E3E5E8;stroke-width:1}
+.arr{fill:none;stroke:#492AE8;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.arrg{fill:none;stroke:#9AA1AB;stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round}
+.arry{fill:none;stroke:#E0A800;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}]]></style><text class="lab" x="385" y="26" text-anchor="middle">bus</text><text class="lab" x="516" y="26" text-anchor="middle">GPU</text><text class="ttl" x="20" y="44">decoded on the CPU</text><rect class="val" x="20" y="56" width="100" height="66" rx="4"/><text class="v" x="70.0" y="86.0">4 frames</text><text class="v" x="70.0" y="100.0">2 MiB</text><path class="arr" d="M122 89 H148 M142 84 L148 89 L142 94"/><rect class="panel" x="150" y="56" width="150" height="66" rx="4"/><text class="lab" x="162" y="74">CPU cores</text><rect class="busy" x="162" y="82" width="12" height="12" rx="2"/><rect class="busy" x="178" y="82" width="12" height="12" rx="2"/><rect class="busy" x="194" y="82" width="12" height="12" rx="2"/><rect class="busy" x="210" y="82" width="12" height="12" rx="2"/><rect class="busy" x="226" y="82" width="12" height="12" rx="2"/><rect class="busy" x="242" y="82" width="12" height="12" rx="2"/><rect class="busy" x="258" y="82" width="12" height="12" rx="2"/><rect class="busy" x="274" y="82" width="12" height="12" rx="2"/><text class="note" x="162" y="110">all 8 decode</text><path class="arr" d="M302 89 H328 M322 84 L328 89 L322 94"/><rect class="red" x="330" y="80.0" width="110" height="18" rx="9.0"/><text class="sm" x="385" y="74.0">8 MiB of samples</text><path class="arr" d="M440 89 H464 M458 84 L464 89 L458 94"/><rect class="dim" x="466" y="56" width="100" height="66" rx="4"/><text class="v" x="516.0" y="93.0">copy</text><path class="arr" d="M568 89 H590 M584 84 L590 89 L584 94"/><rect class="out" x="592" y="56" width="72" height="66" rx="4"/><text class="v" x="628.0" y="86.0">tensor</text><text class="v" x="628.0" y="100.0">8 MiB</text><text class="bad" x="20" y="144">the cores expand every frame, and the whole raster crosses the bus</text><text class="ttl" x="20" y="174">decoded on the GPU</text><rect class="val" x="20" y="186" width="100" height="66" rx="4"/><text class="v" x="70.0" y="216.0">4 frames</text><text class="v" x="70.0" y="230.0">2 MiB</text><path class="arr" d="M122 219 H148 M142 214 L148 219 L142 224"/><rect class="panel" x="150" y="186" width="150" height="66" rx="4"/><text class="lab" x="162" y="204">CPU cores</text><rect class="busy" x="162" y="212" width="12" height="12" rx="2"/><rect class="idle" x="178" y="212" width="12" height="12" rx="2"/><rect class="idle" x="194" y="212" width="12" height="12" rx="2"/><rect class="idle" x="210" y="212" width="12" height="12" rx="2"/><rect class="idle" x="226" y="212" width="12" height="12" rx="2"/><rect class="idle" x="242" y="212" width="12" height="12" rx="2"/><rect class="idle" x="258" y="212" width="12" height="12" rx="2"/><rect class="idle" x="274" y="212" width="12" height="12" rx="2"/><text class="note" x="162" y="240">only find blocks</text><path class="arr" d="M302 219 H328 M322 214 L328 219 L322 224"/><rect class="hot" x="330" y="216.75" width="110" height="4.5" rx="2.25"/><text class="sm" x="385" y="208.5">2 MiB of frames</text><path class="arr" d="M440 219 H464 M458 214 L464 219 L458 224"/><rect class="val2" x="466" y="186" width="100" height="66" rx="4"/><text class="v" x="516.0" y="216.0">waves</text><text class="v" x="516.0" y="230.0">decode</text><path class="arr" d="M568 219 H590 M584 214 L590 219 L584 224"/><rect class="out" x="592" y="186" width="72" height="66" rx="4"/><text class="v" x="628.0" y="216.0">tensor</text><text class="v" x="628.0" y="230.0">8 MiB</text><text class="good" x="20" y="274">only the compressed bytes cross, the waves expand them, and the cores stay free</text></svg>

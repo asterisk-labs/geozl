@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 320" width="700" height="320" role="img" aria-label="Step 2 of 5. after, all headers first, a prefix sum gives every start."><style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&amp;display=swap');svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
+.cap{fill:#111111;font:500 13px "IBM Plex Mono",monospace}.num{fill:#492AE8;font-weight:700}
+.ttl{fill:#111111;font:600 12px "IBM Plex Mono",monospace}
+.lab{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.sm{fill:#5C6370;font:500 9.5px "IBM Plex Mono",monospace;text-anchor:middle;paint-order:stroke;stroke:#FFFFFF;stroke-width:3px;stroke-linejoin:round}
+.smL{fill:#5C6370;font:500 9.5px "IBM Plex Mono",monospace}
+.v{fill:#111111;font:600 11.5px "IBM Plex Mono",monospace;text-anchor:middle}
+.vs{fill:#111111;font:600 10px "IBM Plex Mono",monospace;text-anchor:middle}
+.note{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.eq{fill:#7A5D00;font:600 11.5px "IBM Plex Mono",monospace}
+.op{fill:#492AE8;font:700 11.5px "IBM Plex Mono",monospace}
+.good{fill:#1D7A3E;font:600 11px "IBM Plex Mono",monospace}
+.bad{fill:#B42318;font:600 11px "IBM Plex Mono",monospace}
+.panel{fill:#FAFAF8;stroke:#D3D6DB;stroke-width:1}
+.val{fill:#ECE9FD;stroke:#492AE8;stroke-width:1.1}
+.val2{fill:#E3F2FF;stroke:#2B6CB0;stroke-width:1.1}
+.dim{fill:#F3F3F1;stroke:#D3D6DB;stroke-width:1}
+.cell{fill:#FFFFFF;stroke:#D3D6DB;stroke-width:.8}
+.hot{fill:#FEF6D3;stroke:#E0A800;stroke-width:1.6}
+.out{fill:#C4FFC2;stroke:#1D7A3E;stroke-width:1.2}
+.busy{fill:#492AE8;stroke:#492AE8;stroke-width:1}
+.idle{fill:#FFFFFF;stroke:#9AA1AB;stroke-width:1}
+.red{fill:#FDE8E8;stroke:#B42318;stroke-width:1.1}
+.ln{stroke:#B9BEC6;stroke-width:1;fill:none}
+.lnh{stroke:#E0A800;stroke-width:2;fill:none}
+.bar{stroke:#B42318;stroke-width:1.6;stroke-dasharray:4 3}
+.rule{stroke:#E3E5E8;stroke-width:1}
+.arr{fill:none;stroke:#492AE8;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.arrg{fill:none;stroke:#9AA1AB;stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round}
+.arry{fill:none;stroke:#E0A800;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}]]></style><text class="cap" x="20" y="20"><tspan class="num">2</tspan>  <tspan class="good" style="font-size:13px">after</tspan>  all headers first, a prefix sum gives every start</text><text class="smL" x="20" y="44">the payload, all headers before all bodies</text><rect class="val" x="20" y="52" width="30" height="30" rx="3"/><text class="vs" x="35.0" y="71.0">h0</text><rect class="val" x="50" y="52" width="30" height="30" rx="3"/><text class="vs" x="65.0" y="71.0">h1</text><rect class="val" x="80" y="52" width="30" height="30" rx="3"/><text class="vs" x="95.0" y="71.0">h2</text><rect class="val" x="110" y="52" width="30" height="30" rx="3"/><text class="vs" x="125.0" y="71.0">h3</text><rect class="hot" x="140" y="52" width="64.48" height="30" rx="3"/><text class="vs" x="172.24" y="71.0">body 0</text><rect class="hot" x="204.48000000000002" y="52" width="99.2" height="30" rx="3"/><text class="vs" x="254.08" y="71.0">body 1</text><rect class="hot" x="303.68" y="52" width="59.519999999999996" height="30" rx="3"/><text class="vs" x="333.44" y="71.0">body 2</text><rect class="hot" x="363.2" y="52" width="86.8" height="30" rx="3"/><text class="vs" x="406.59999999999997" y="71.0">body 3</text><text class="lab" x="20" y="124">thread</text><text class="lab" x="20" y="160">size</text><text class="lab" x="20" y="196">start</text><path class="arrg" d="M35 84 L140 108"/><rect class="dim" x="110" y="110" width="60" height="22" rx="3"/><text class="vs" x="140.0" y="125.0">t0</text><rect class="val2" x="110" y="146" width="60" height="22" rx="3"/><text class="vs" x="140.0" y="161.0">104 B</text><rect class="out" x="110" y="182" width="60" height="22" rx="3"/><text class="vs" x="140.0" y="197.0">0</text><path class="arrg" d="M65 84 L232 108"/><rect class="dim" x="202" y="110" width="60" height="22" rx="3"/><text class="vs" x="232.0" y="125.0">t1</text><rect class="val2" x="202" y="146" width="60" height="22" rx="3"/><text class="vs" x="232.0" y="161.0">160 B</text><rect class="out" x="202" y="182" width="60" height="22" rx="3"/><text class="vs" x="232.0" y="197.0">104</text><path class="arrg" d="M95 84 L324 108"/><rect class="dim" x="294" y="110" width="60" height="22" rx="3"/><text class="vs" x="324.0" y="125.0">t2</text><rect class="val2" x="294" y="146" width="60" height="22" rx="3"/><text class="vs" x="324.0" y="161.0">96 B</text><rect class="out" x="294" y="182" width="60" height="22" rx="3"/><text class="vs" x="324.0" y="197.0">264</text><path class="arrg" d="M125 84 L416 108"/><rect class="dim" x="386" y="110" width="60" height="22" rx="3"/><text class="vs" x="416.0" y="125.0">t3</text><rect class="val2" x="386" y="146" width="60" height="22" rx="3"/><text class="vs" x="416.0" y="161.0">140 B</text><rect class="out" x="386" y="182" width="60" height="22" rx="3"/><text class="vs" x="416.0" y="197.0">360</text><path class="arr" d="M462 157 V191"/><path class="arr" d="M457 186 L462 191 L467 186"/><text class="op" x="474" y="172">prefix sum</text><text class="note" x="474" y="188">0, 104, 104+160, ...</text><text class="good" x="20" y="238">every thread reads its own header at once, and one prefix sum</text><text class="good" x="20" y="254">gives each body its start, with no walk through the payload</text><text class="note" x="20" y="282">size_chunks and plan_blocks do this on the GPU. The CPU only</text><text class="note" x="20" y="298">describes frames, bands and strips, never single blocks.</text></svg>

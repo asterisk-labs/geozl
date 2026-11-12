@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 320" width="700" height="320" role="img" aria-label="Step 1 of 5. before, each header beside its body, block 3 waits for 0, 1 and 2."><style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&amp;display=swap');svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
+.cap{fill:#111111;font:500 13px "IBM Plex Mono",monospace}.num{fill:#492AE8;font-weight:700}
+.ttl{fill:#111111;font:600 12px "IBM Plex Mono",monospace}
+.lab{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.sm{fill:#5C6370;font:500 9.5px "IBM Plex Mono",monospace;text-anchor:middle;paint-order:stroke;stroke:#FFFFFF;stroke-width:3px;stroke-linejoin:round}
+.smL{fill:#5C6370;font:500 9.5px "IBM Plex Mono",monospace}
+.v{fill:#111111;font:600 11.5px "IBM Plex Mono",monospace;text-anchor:middle}
+.vs{fill:#111111;font:600 10px "IBM Plex Mono",monospace;text-anchor:middle}
+.note{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.eq{fill:#7A5D00;font:600 11.5px "IBM Plex Mono",monospace}
+.op{fill:#492AE8;font:700 11.5px "IBM Plex Mono",monospace}
+.good{fill:#1D7A3E;font:600 11px "IBM Plex Mono",monospace}
+.bad{fill:#B42318;font:600 11px "IBM Plex Mono",monospace}
+.panel{fill:#FAFAF8;stroke:#D3D6DB;stroke-width:1}
+.val{fill:#ECE9FD;stroke:#492AE8;stroke-width:1.1}
+.val2{fill:#E3F2FF;stroke:#2B6CB0;stroke-width:1.1}
+.dim{fill:#F3F3F1;stroke:#D3D6DB;stroke-width:1}
+.cell{fill:#FFFFFF;stroke:#D3D6DB;stroke-width:.8}
+.hot{fill:#FEF6D3;stroke:#E0A800;stroke-width:1.6}
+.out{fill:#C4FFC2;stroke:#1D7A3E;stroke-width:1.2}
+.busy{fill:#492AE8;stroke:#492AE8;stroke-width:1}
+.idle{fill:#FFFFFF;stroke:#9AA1AB;stroke-width:1}
+.red{fill:#FDE8E8;stroke:#B42318;stroke-width:1.1}
+.ln{stroke:#B9BEC6;stroke-width:1;fill:none}
+.lnh{stroke:#E0A800;stroke-width:2;fill:none}
+.bar{stroke:#B42318;stroke-width:1.6;stroke-dasharray:4 3}
+.rule{stroke:#E3E5E8;stroke-width:1}
+.arr{fill:none;stroke:#492AE8;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.arrg{fill:none;stroke:#9AA1AB;stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round}
+.arry{fill:none;stroke:#E0A800;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}]]></style><text class="cap" x="20" y="20"><tspan class="num">1</tspan>  <tspan class="bad" style="font-size:13px">before</tspan>  each header beside its body, block 3 waits for 0, 1 and 2</text><text class="smL" x="20" y="44">the payload, each header next to its body</text><rect class="val" x="20" y="52" width="30" height="30" rx="3"/><text class="vs" x="35.0" y="71.0">h0</text><rect class="hot" x="50" y="52" width="64.48" height="30" rx="3"/><text class="vs" x="82.24000000000001" y="64.5">body 0</text><text class="vs" x="82.24000000000001" y="77.5">104 B</text><rect class="val" x="114.48" y="52" width="30" height="30" rx="3"/><text class="vs" x="129.48000000000002" y="71.0">h1</text><rect class="hot" x="144.48000000000002" y="52" width="99.2" height="30" rx="3"/><text class="vs" x="194.08" y="64.5">body 1</text><text class="vs" x="194.08" y="77.5">160 B</text><rect class="val" x="243.68" y="52" width="30" height="30" rx="3"/><text class="vs" x="258.68" y="71.0">h2</text><rect class="hot" x="273.68" y="52" width="59.519999999999996" height="30" rx="3"/><text class="vs" x="303.44" y="64.5">body 2</text><text class="vs" x="303.44" y="77.5">96 B</text><rect class="val" x="333.2" y="52" width="30" height="30" rx="3"/><text class="vs" x="348.2" y="71.0">h3</text><rect class="hot" x="363.2" y="52" width="86.8" height="30" rx="3"/><text class="vs" x="406.59999999999997" y="64.5">body 3</text><text class="vs" x="406.59999999999997" y="77.5">140 B</text><path class="arr" d="M35 88 Q82.24000000000001 126 126.48000000000002 89"/><path class="arr" d="M126.48000000000002 97 L126.48000000000002 89 L118.48000000000002 89"/><path class="arr" d="M129.48000000000002 88 Q194.08 126 255.68 89"/><path class="arr" d="M255.68 97 L255.68 89 L247.68 89"/><path class="arr" d="M258.68 88 Q303.44 126 345.2 89"/><path class="arr" d="M345.2 97 L345.2 89 L337.2 89"/><text class="lab" x="20" y="156">h0 holds the size of body 0, so h1 is found only after h0 is read,</text><text class="lab" x="20" y="172">h2 only after h1, and so on through the whole payload.</text><text class="bad" x="20" y="206">the CPU walks every block in order before the GPU can start,</text><text class="bad" x="20" y="222">and hands it one task per block</text></svg>
