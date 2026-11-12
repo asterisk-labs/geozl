@@ -90,15 +90,24 @@ make test       # C tests and pytest
 make help       # R, Julia, wasm, sanitizers and fuzzing
 ```
 
+## Acknowledgements
+
+GeoZL is developed by [Asterisk Labs](https://asterisk.coop) as part of
+[Earth Compress](https://asterisk.coop/project-pages/earth-compress.html), a
+project led by Asterisk Labs and the
+[National Oceanography Centre](https://noc.ac.uk/) and funded by
+[ARIA](https://www.aria.org.uk/).
+
+<p align="center">
+  <a href="https://asterisk.coop"><img src="docs/assets/svg/partners/asterisk.svg" alt="Asterisk Labs" height="26"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://asterisk.coop/project-pages/earth-compress.html"><img src="docs/assets/svg/partners/earth-compress.svg" alt="Earth Compress" height="28"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://noc.ac.uk/"><img src="docs/assets/svg/partners/noc.svg" alt="National Oceanography Centre" height="40"></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://www.aria.org.uk/"><img src="docs/assets/svg/partners/aria.svg" alt="ARIA" height="38"></a>
+</p>
+
 ## License
 
 BSD-3-Clause.
-
-<div align="center">
-  <br>
-  Made with &#9829; by
-  <br><br>
-  <a href="https://asterisk.coop">
-    <img src="docs/assets/svg/asterisk_banner.svg" alt="Asterisk Labs" width="400"/>
-  </a>
-</div>
