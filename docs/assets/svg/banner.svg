@@ -1,37 +1,56 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="472" height="104" viewBox="64 48 472 104" role="img" aria-label="GeoZL: geospatial codec extensions for OpenZL">
+<svg xmlns="http://www.w3.org/2000/svg" width="472" height="104" viewBox="64 48 472 104" role="img" aria-label="GeoZL, geospatial codec extensions for OpenZL">
 <style>
-.sq{animation:source 6s ease-in-out infinite}
-.sq-purple,.signal-nw{--mark-color:#7457FF}
-.sq-green,.signal-n{--mark-color:#91F2BC}
-.sq-yellow,.signal-w{--mark-color:#FFD54A}
-.tgt{fill:#222B38;animation:target 6s ease-in-out infinite}
-.arr{stroke:#E6EDF3;animation:af 6s ease-in-out infinite}
-.signal{fill:var(--mark-color);opacity:0;transform-box:fill-box;transform-origin:center}
-.signal-nw{animation:flow-nw 6s ease-in-out infinite}
-.signal-n{animation:flow-n 6s ease-in-out infinite}
-.signal-w{animation:flow-w 6s ease-in-out infinite}
-@keyframes source{0%,14%,86%,100%{fill:#222B38}22%,78%{fill:var(--mark-color)}}
-@keyframes target{0%,57%,86%,100%{fill:#222B38}63%,78%{fill:#FF7A4F}}
-@keyframes af{0%,18%,72%,100%{opacity:.1}27%,60%{opacity:.95}}
-@keyframes flow-nw{0%,25%{opacity:0;transform:translate(0,0)}29%{opacity:1}58%{opacity:1;transform:translate(100px,100px)}61%,100%{opacity:0;transform:translate(100px,100px)}}
-@keyframes flow-n{0%,25%{opacity:0;transform:translate(0,0)}29%{opacity:1}58%{opacity:1;transform:translate(0,100px)}61%,100%{opacity:0;transform:translate(0,100px)}}
-@keyframes flow-w{0%,25%{opacity:0;transform:translate(0,0)}29%{opacity:1}58%{opacity:1;transform:translate(100px,0)}61%,100%{opacity:0;transform:translate(100px,0)}}
+  .m-edge{fill:none;stroke:#E6EDF3;stroke-width:2.4}
+  .m-purple{fill:#7457FF}.m-green{fill:#91F2BC}.m-yellow{fill:#FFD54A}.m-target{fill:#FF7A4F}
+  .m-fill{fill-opacity:0}
+  .m-arrow{stroke:#E6EDF3;opacity:.12}
+  .m-signal{opacity:0}
+  .m-s-nw{animation:m-s-nw 10s cubic-bezier(.45,0,.25,1) infinite}
+  .m-o-nw{animation:m-o-nw 10s cubic-bezier(.45,0,.25,1) infinite}
+  .m-a-nw{animation:m-a-nw 10s cubic-bezier(.45,0,.25,1) infinite}
+  .m-f-nw{animation:m-f-nw 10s cubic-bezier(.45,0,.25,1) infinite}
+  .m-s-n{animation:m-s-n 10s cubic-bezier(.45,0,.25,1) infinite}
+  .m-o-n{animation:m-o-n 10s cubic-bezier(.45,0,.25,1) infinite}
+  .m-a-n{animation:m-a-n 10s cubic-bezier(.45,0,.25,1) infinite}
+  .m-f-n{animation:m-f-n 10s cubic-bezier(.45,0,.25,1) infinite}
+  .m-s-w{animation:m-s-w 10s cubic-bezier(.45,0,.25,1) infinite}
+  .m-o-w{animation:m-o-w 10s cubic-bezier(.45,0,.25,1) infinite}
+  .m-a-w{animation:m-a-w 10s cubic-bezier(.45,0,.25,1) infinite}
+  .m-f-w{animation:m-f-w 10s cubic-bezier(.45,0,.25,1) infinite}
+  .m-t{animation:m-t 10s cubic-bezier(.45,0,.25,1) infinite}
+  @keyframes m-s-nw{0%{fill-opacity:1}2.5%{fill-opacity:0}25.0%{fill-opacity:0}27.5%{fill-opacity:0}50.0%{fill-opacity:0}52.5%{fill-opacity:0}75.0%{fill-opacity:0}77.5%{fill-opacity:1}100%{fill-opacity:1}}
+  @keyframes m-o-nw{0%{stroke-opacity:1}2.5%{stroke-opacity:0.28}25.0%{stroke-opacity:0.28}27.5%{stroke-opacity:0.28}50.0%{stroke-opacity:0.28}52.5%{stroke-opacity:0.28}75.0%{stroke-opacity:0.28}77.5%{stroke-opacity:1}100%{stroke-opacity:1}}
+  @keyframes m-a-nw{0%{opacity:0.12}12.5%{opacity:0.12}37.5%{opacity:0.12}62.5%{opacity:0.12}77.5%{opacity:0.12}79.0%{opacity:0.85}87.5%{opacity:0.85}90.0%{opacity:0.12}100%{opacity:0.12}}
+  @keyframes m-f-nw{0%{opacity:0;transform:translate(0px,0px)}12.5%{opacity:0;transform:translate(0px,0px)}37.5%{opacity:0;transform:translate(0px,0px)}62.5%{opacity:0;transform:translate(0px,0px)}77.5%{opacity:0;transform:translate(0px,0px)}79.0%{opacity:1;transform:translate(0px,0px)}86.0%{opacity:1;transform:translate(46px,46px)}87.5%{opacity:0;transform:translate(46px,46px)}88.0%{opacity:0;transform:translate(0px,0px)}100%{opacity:0;transform:translate(0px,0px)}}
+  @keyframes m-s-n{0%{fill-opacity:1}2.5%{fill-opacity:0}25.0%{fill-opacity:0}27.5%{fill-opacity:1}50.0%{fill-opacity:1}52.5%{fill-opacity:1}75.0%{fill-opacity:1}77.5%{fill-opacity:1}100%{fill-opacity:1}}
+  @keyframes m-o-n{0%{stroke-opacity:1}2.5%{stroke-opacity:0.28}25.0%{stroke-opacity:0.28}27.5%{stroke-opacity:1}50.0%{stroke-opacity:1}52.5%{stroke-opacity:1}75.0%{stroke-opacity:1}77.5%{stroke-opacity:1}100%{stroke-opacity:1}}
+  @keyframes m-a-n{0%{opacity:0.12}12.5%{opacity:0.12}27.5%{opacity:0.12}29.0%{opacity:0.85}37.5%{opacity:0.85}40.0%{opacity:0.12}52.5%{opacity:0.12}54.0%{opacity:0.85}62.5%{opacity:0.85}65.0%{opacity:0.12}77.5%{opacity:0.12}79.0%{opacity:0.85}87.5%{opacity:0.85}90.0%{opacity:0.12}100%{opacity:0.12}}
+  @keyframes m-f-n{0%{opacity:0;transform:translate(0px,0px)}12.5%{opacity:0;transform:translate(0px,0px)}27.5%{opacity:0;transform:translate(0px,0px)}29.0%{opacity:1;transform:translate(0px,0px)}36.0%{opacity:1;transform:translate(0px,46px)}37.5%{opacity:0;transform:translate(0px,46px)}38.0%{opacity:0;transform:translate(0px,0px)}52.5%{opacity:0;transform:translate(0px,0px)}54.0%{opacity:1;transform:translate(0px,0px)}61.0%{opacity:1;transform:translate(0px,46px)}62.5%{opacity:0;transform:translate(0px,46px)}63.0%{opacity:0;transform:translate(0px,0px)}77.5%{opacity:0;transform:translate(0px,0px)}79.0%{opacity:1;transform:translate(0px,0px)}86.0%{opacity:1;transform:translate(0px,46px)}87.5%{opacity:0;transform:translate(0px,46px)}88.0%{opacity:0;transform:translate(0px,0px)}100%{opacity:0;transform:translate(0px,0px)}}
+  @keyframes m-s-w{0%{fill-opacity:1}2.5%{fill-opacity:1}25.0%{fill-opacity:1}27.5%{fill-opacity:0}50.0%{fill-opacity:0}52.5%{fill-opacity:1}75.0%{fill-opacity:1}77.5%{fill-opacity:1}100%{fill-opacity:1}}
+  @keyframes m-o-w{0%{stroke-opacity:1}2.5%{stroke-opacity:1}25.0%{stroke-opacity:1}27.5%{stroke-opacity:0.28}50.0%{stroke-opacity:0.28}52.5%{stroke-opacity:1}75.0%{stroke-opacity:1}77.5%{stroke-opacity:1}100%{stroke-opacity:1}}
+  @keyframes m-a-w{0%{opacity:0.12}2.5%{opacity:0.12}4.0%{opacity:0.85}12.5%{opacity:0.85}15.0%{opacity:0.12}37.5%{opacity:0.12}52.5%{opacity:0.12}54.0%{opacity:0.85}62.5%{opacity:0.85}65.0%{opacity:0.12}77.5%{opacity:0.12}79.0%{opacity:0.85}87.5%{opacity:0.85}90.0%{opacity:0.12}100%{opacity:0.12}}
+  @keyframes m-f-w{0%{opacity:0;transform:translate(0px,0px)}2.5%{opacity:0;transform:translate(0px,0px)}4.0%{opacity:1;transform:translate(0px,0px)}11.0%{opacity:1;transform:translate(46px,0px)}12.5%{opacity:0;transform:translate(46px,0px)}13.0%{opacity:0;transform:translate(0px,0px)}37.5%{opacity:0;transform:translate(0px,0px)}52.5%{opacity:0;transform:translate(0px,0px)}54.0%{opacity:1;transform:translate(0px,0px)}61.0%{opacity:1;transform:translate(46px,0px)}62.5%{opacity:0;transform:translate(46px,0px)}63.0%{opacity:0;transform:translate(0px,0px)}77.5%{opacity:0;transform:translate(0px,0px)}79.0%{opacity:1;transform:translate(0px,0px)}86.0%{opacity:1;transform:translate(46px,0px)}87.5%{opacity:0;transform:translate(46px,0px)}88.0%{opacity:0;transform:translate(0px,0px)}100%{opacity:0;transform:translate(0px,0px)}}
+  @keyframes m-t{0%{fill-opacity:0}10.5%{fill-opacity:0}13.0%{fill-opacity:1}21.5%{fill-opacity:1}24.0%{fill-opacity:0}35.5%{fill-opacity:0}38.0%{fill-opacity:1}46.5%{fill-opacity:1}49.0%{fill-opacity:0}60.5%{fill-opacity:0}63.0%{fill-opacity:1}71.5%{fill-opacity:1}74.0%{fill-opacity:0}85.5%{fill-opacity:0}88.0%{fill-opacity:1}96.5%{fill-opacity:1}99.0%{fill-opacity:0}100%{fill-opacity:0}}
+  @media (prefers-reduced-motion:reduce){.m-fill,.m-edge,.m-arrow,.m-signal{animation:none}.m-fill{fill-opacity:1}.m-edge{stroke-opacity:1}.m-arrow{opacity:.85}}
 .wm{font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-weight:500;fill:#E6EDF3}
 .tag{font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-weight:400;fill:#8B949E}
-@media (prefers-reduced-motion:reduce){.sq,.tgt,.arr,.signal{animation:none}.sq{fill:var(--mark-color)}.tgt{fill:#FF7A4F}.arr{opacity:.95}.signal{display:none}}
 </style>
-<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<defs><marker id="mah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
 <g transform="translate(58,42) scale(0.58)">
-  <rect class="sq sq-purple" x="18" y="18" width="44" height="44" rx="6" fill="#222B38"/>
-  <rect class="sq sq-green" x="118" y="18" width="44" height="44" rx="6" fill="#222B38"/>
-  <rect class="sq sq-yellow" x="18" y="118" width="44" height="44" rx="6" fill="#222B38"/>
-  <rect class="tgt" x="118" y="118" width="44" height="44" rx="6" stroke="#30363D" stroke-width="3.5"/>
-  <line class="arr" x1="140" y1="66" x2="140" y2="113" stroke-width="2.6" marker-end="url(#ah)"/>
-  <line class="arr" x1="66" y1="140" x2="113" y2="140" stroke-width="2.6" marker-end="url(#ah)"/>
-  <line class="arr" x1="64" y1="64" x2="112" y2="112" stroke-width="2.6" marker-end="url(#ah)"/>
-  <circle class="signal signal-nw" cx="40" cy="40" r="5"/>
-  <circle class="signal signal-n" cx="140" cy="40" r="5"/>
-  <circle class="signal signal-w" cx="40" cy="140" r="5"/>
+<rect class="m-fill m-purple m-s-nw" x="18" y="18" width="44" height="44"/>
+<rect class="m-fill m-green m-s-n" x="118" y="18" width="44" height="44"/>
+<rect class="m-fill m-yellow m-s-w" x="18" y="118" width="44" height="44"/>
+<rect class="m-fill m-target m-t" x="118" y="118" width="44" height="44"/>
+<rect class="m-edge m-o-nw" x="18" y="18" width="44" height="44"/>
+<rect class="m-edge m-o-n" x="118" y="18" width="44" height="44"/>
+<rect class="m-edge m-o-w" x="18" y="118" width="44" height="44"/>
+<rect class="m-edge" x="118" y="118" width="44" height="44"/>
+<line class="m-arrow m-a-n" x1="140" y1="66" x2="140" y2="113" stroke-width="2.6" marker-end="url(#mah)"/>
+<line class="m-arrow m-a-w" x1="66" y1="140" x2="113" y2="140" stroke-width="2.6" marker-end="url(#mah)"/>
+<line class="m-arrow m-a-nw" x1="64" y1="64" x2="112" y2="112" stroke-width="2.6" marker-end="url(#mah)"/>
+<circle class="m-signal m-f-nw" cx="64" cy="64" r="5.5" fill="#7457FF" stroke="#E6EDF3" stroke-width="1.6"/>
+<circle class="m-signal m-f-n" cx="140" cy="66" r="5.5" fill="#91F2BC" stroke="#E6EDF3" stroke-width="1.6"/>
+<circle class="m-signal m-f-w" cx="66" cy="140" r="5.5" fill="#FFD54A" stroke="#E6EDF3" stroke-width="1.6"/>
 </g>
 <text class="wm" x="205" y="112" font-size="78" letter-spacing="-3">GeoZL</text>
 <text class="tag" x="208" y="144" font-size="16">Geospatial codec extensions for OpenZL</text>
