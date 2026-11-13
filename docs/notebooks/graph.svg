@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 392" width="720" height="392" role="img" aria-label="A fixed codec such as zstd, DEFLATE or Blosc runs the same steps on a DEM, a cloud mask and a reflectance tile. GeoZL, built on OpenZL, gives each tile its own chain of small codecs, called a graph. For example planar, zigzag and lanes for the DEM, id and categorical for the cloud mask, and wp_static, zigzag and entropy for reflectance. profile tries the chains on your data and keeps the one that compresses it best."><style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
+.ttl{fill:#111111;font:600 14px "IBM Plex Mono",monospace}
+.sub{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace}
+.nm{fill:#111111;font:500 11px "IBM Plex Mono",monospace}
+.pick{fill:#111111;font:600 15px "IBM Plex Mono",monospace;text-anchor:middle}
+.step{fill:#111111;font:600 11.5px "IBM Plex Mono",monospace;text-anchor:middle}
+.alt{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace;text-anchor:middle}
+.cap{fill:#111111;font:500 12px "IBM Plex Mono",monospace}
+.box{fill:#FFFFFF;stroke:#111111;stroke-width:1.3}
+.fixed{fill:#F2F3F5;stroke:#111111;stroke-width:1.4}
+.on{fill:color-mix(in srgb,#492AE8 12%,#FFFFFF);stroke:#492AE8;stroke-width:1.5}
+.on2{fill:color-mix(in srgb,#E0532A 14%,#FFFFFF);stroke:#E0532A;stroke-width:1.5}
+.ar{stroke:#111111;stroke-width:1.3;fill:none}
+.sep{stroke:#D5D9DF;stroke-width:1}
+.cell{stroke:#111111;stroke-width:1}
+]]></style>
+<defs><marker id="g-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M2 1L8 5L2 9" fill="none" stroke="#111111" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<text class="ttl" x="20" y="26">A fixed codec</text>
+<text class="sub" x="20" y="44">every tile goes through the same steps</text>
+<rect class="cell" x="20.0" y="62.0" width="11.0" height="11.0" style="fill:#B9E3C6"/><rect class="cell" x="31.0" y="62.0" width="11.0" height="11.0" style="fill:#8FCFA3"/><rect class="cell" x="20.0" y="73.0" width="11.0" height="11.0" style="fill:#D9EFC2"/><rect class="cell" x="31.0" y="73.0" width="11.0" height="11.0" style="fill:#B9E3C6"/>
+<text class="nm" x="52" y="77">DEM</text>
+<line class="ar" x1="150" y1="73" x2="246" y2="73" marker-end="url(#g-ah)"/>
+<line class="ar" x1="474" y1="73" x2="590" y2="73" marker-end="url(#g-ah)"/>
+<rect class="box" x="598" y="62" width="20" height="22" rx="2"/><line class="ar" x1="602" y1="69" x2="614" y2="69"/><line class="ar" x1="602" y1="73" x2="614" y2="73"/><line class="ar" x1="602" y1="77" x2="610" y2="77"/>
+<rect class="cell" x="20.0" y="96.0" width="11.0" height="11.0" style="fill:#FFFFFF"/><rect class="cell" x="31.0" y="96.0" width="11.0" height="11.0" style="fill:#C9CED6"/><rect class="cell" x="20.0" y="107.0" width="11.0" height="11.0" style="fill:#FFFFFF"/><rect class="cell" x="31.0" y="107.0" width="11.0" height="11.0" style="fill:#FFFFFF"/>
+<text class="nm" x="52" y="111">cloud mask</text>
+<line class="ar" x1="150" y1="107" x2="246" y2="107" marker-end="url(#g-ah)"/>
+<line class="ar" x1="474" y1="107" x2="590" y2="107" marker-end="url(#g-ah)"/>
+<rect class="box" x="598" y="96" width="20" height="22" rx="2"/><line class="ar" x1="602" y1="103" x2="614" y2="103"/><line class="ar" x1="602" y1="107" x2="614" y2="107"/><line class="ar" x1="602" y1="111" x2="610" y2="111"/>
+<rect class="cell" x="20.0" y="130.0" width="11.0" height="11.0" style="fill:#E9C9A8"/><rect class="cell" x="31.0" y="130.0" width="11.0" height="11.0" style="fill:#D7A97E"/><rect class="cell" x="20.0" y="141.0" width="11.0" height="11.0" style="fill:#C99A6E"/><rect class="cell" x="31.0" y="141.0" width="11.0" height="11.0" style="fill:#E2BB92"/>
+<text class="nm" x="52" y="145">reflectance</text>
+<line class="ar" x1="150" y1="141" x2="246" y2="141" marker-end="url(#g-ah)"/>
+<line class="ar" x1="474" y1="141" x2="590" y2="141" marker-end="url(#g-ah)"/>
+<rect class="box" x="598" y="130" width="20" height="22" rx="2"/><line class="ar" x1="602" y1="137" x2="614" y2="137"/><line class="ar" x1="602" y1="141" x2="614" y2="141"/><line class="ar" x1="602" y1="145" x2="610" y2="145"/>
+<rect class="fixed" x="252" y="56" width="216" height="104" rx="4"/>
+<text class="pick" x="360" y="104">zstd</text><text class="alt" x="360" y="122">or DEFLATE, or Blosc</text>
+<line class="sep" x1="20" y1="186" x2="700" y2="186"/>
+<text class="ttl" x="20" y="218">GeoZL, built on OpenZL</text>
+<text class="sub" x="20" y="236">each tile gets its own chain of small codecs, a graph</text>
+<rect class="cell" x="20.0" y="254.0" width="11.0" height="11.0" style="fill:#B9E3C6"/><rect class="cell" x="31.0" y="254.0" width="11.0" height="11.0" style="fill:#8FCFA3"/><rect class="cell" x="20.0" y="265.0" width="11.0" height="11.0" style="fill:#D9EFC2"/><rect class="cell" x="31.0" y="265.0" width="11.0" height="11.0" style="fill:#B9E3C6"/>
+<text class="nm" x="52" y="269">DEM</text>
+<line class="ar" x1="150" y1="265" x2="172" y2="265" marker-end="url(#g-ah)"/>
+<rect class="on" x="178" y="253" width="100" height="24" rx="3"/><text class="step" x="228.0" y="269">planar</text>
+<line class="ar" x1="284" y1="265" x2="306" y2="265" marker-end="url(#g-ah)"/>
+<rect class="box" x="312" y="253" width="100" height="24" rx="3"/><text class="step" x="362.0" y="269">zigzag</text>
+<line class="ar" x1="418" y1="265" x2="440" y2="265" marker-end="url(#g-ah)"/>
+<rect class="on2" x="446" y="253" width="100" height="24" rx="3"/><text class="step" x="496.0" y="269">lanes</text>
+<line class="ar" x1="552" y1="265" x2="590" y2="265" marker-end="url(#g-ah)"/>
+<rect class="box" x="598" y="254" width="20" height="22" rx="2"/><line class="ar" x1="602" y1="261" x2="614" y2="261"/><line class="ar" x1="602" y1="265" x2="614" y2="265"/><line class="ar" x1="602" y1="269" x2="610" y2="269"/>
+<rect class="cell" x="20.0" y="288.0" width="11.0" height="11.0" style="fill:#FFFFFF"/><rect class="cell" x="31.0" y="288.0" width="11.0" height="11.0" style="fill:#C9CED6"/><rect class="cell" x="20.0" y="299.0" width="11.0" height="11.0" style="fill:#FFFFFF"/><rect class="cell" x="31.0" y="299.0" width="11.0" height="11.0" style="fill:#FFFFFF"/>
+<text class="nm" x="52" y="303">cloud mask</text>
+<line class="ar" x1="150" y1="299" x2="172" y2="299" marker-end="url(#g-ah)"/>
+<rect class="on" x="178" y="287" width="100" height="24" rx="3"/><text class="step" x="228.0" y="303">id</text>
+<line class="ar" x1="284" y1="299" x2="306" y2="299" marker-end="url(#g-ah)"/>
+<rect class="on2" x="312" y="287" width="100" height="24" rx="3"/><text class="step" x="362.0" y="303">categorical</text>
+<line class="ar" x1="418" y1="299" x2="590" y2="299" marker-end="url(#g-ah)"/>
+<rect class="box" x="598" y="288" width="20" height="22" rx="2"/><line class="ar" x1="602" y1="295" x2="614" y2="295"/><line class="ar" x1="602" y1="299" x2="614" y2="299"/><line class="ar" x1="602" y1="303" x2="610" y2="303"/>
+<rect class="cell" x="20.0" y="322.0" width="11.0" height="11.0" style="fill:#E9C9A8"/><rect class="cell" x="31.0" y="322.0" width="11.0" height="11.0" style="fill:#D7A97E"/><rect class="cell" x="20.0" y="333.0" width="11.0" height="11.0" style="fill:#C99A6E"/><rect class="cell" x="31.0" y="333.0" width="11.0" height="11.0" style="fill:#E2BB92"/>
+<text class="nm" x="52" y="337">reflectance</text>
+<line class="ar" x1="150" y1="333" x2="172" y2="333" marker-end="url(#g-ah)"/>
+<rect class="on" x="178" y="321" width="100" height="24" rx="3"/><text class="step" x="228.0" y="337">wp_static</text>
+<line class="ar" x1="284" y1="333" x2="306" y2="333" marker-end="url(#g-ah)"/>
+<rect class="box" x="312" y="321" width="100" height="24" rx="3"/><text class="step" x="362.0" y="337">zigzag</text>
+<line class="ar" x1="418" y1="333" x2="440" y2="333" marker-end="url(#g-ah)"/>
+<rect class="on2" x="446" y="321" width="100" height="24" rx="3"/><text class="step" x="496.0" y="337">entropy</text>
+<line class="ar" x1="552" y1="333" x2="590" y2="333" marker-end="url(#g-ah)"/>
+<rect class="box" x="598" y="322" width="20" height="22" rx="2"/><line class="ar" x1="602" y1="329" x2="614" y2="329"/><line class="ar" x1="602" y1="333" x2="614" y2="333"/><line class="ar" x1="602" y1="337" x2="610" y2="337"/>
+<text class="cap" x="20" y="378">profile tries the chains on your data and keeps the one that compresses it best.</text>
+</svg>
