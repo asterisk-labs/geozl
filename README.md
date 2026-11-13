@@ -30,10 +30,18 @@ Julia and JavaScript.
 | Julia | `Pkg.Registry.add(url="https://github.com/asterisk-labs/AsteriskRegistry"); Pkg.add("GeoZL")` | graph, compress, decompress, profile | [README](bindings/julia/README.md) |
 | JavaScript | `npm install @asterisk-labs/geozl` | compress, decompress | [README](tools/wasm/README.md) |
 
-Prebuilt Python wheels are published for Linux x86-64 (CUDA runtime) and macOS
-arm64 (Metal runtime). Device decode still needs a compatible GPU. The
-[platform matrix](https://github.com/asterisk-labs/geozl/actions/workflows/platforms.yml)
-also tests source builds on Linux arm64, macOS x86-64 and Windows.
+| Platform | Python package | GPU decode |
+|----------|----------------|------------|
+| Linux x86-64 | wheel on PyPI | NVIDIA, through CUDA |
+| macOS arm64 | wheel on PyPI | Apple GPUs, through Metal |
+| Linux arm64, macOS x86-64, Windows x64 and arm64 | build from this repository | no |
+
+Every platform decodes on the CPU, with SIMD where the CPU has it. GPU decode is
+part of the C API in [`geozl/gpu.h`](core/include/geozl/gpu.h) and needs only the
+NVIDIA driver or macOS, not the CUDA toolkit.
+[Rumi](https://asterisk.coop/rumi/) uses it to read straight into PyTorch tensors.
+The [platform matrix](https://github.com/asterisk-labs/geozl/actions/workflows/platforms.yml)
+builds and tests the source builds.
 
 ## Quick start
 
