@@ -17,6 +17,7 @@ COLAB = "https://colab.research.google.com/github/asterisk-labs/geozl/blob/main/
 
 NOTEBOOKS = [
     ("high-level-api", "High-level API", "Python · CPU"),
+    ("low-level-api", "Low-level API", "Python · CPU"),
     ("rumi-gpu", "GPU decoding with Rumi", "Python · GPU"),
     ("zarr", "GeoZL in Zarr", "Python · CPU"),
     ("sentinel2-cuda-benchmark", "Sentinel-2: JPEG2000, GeoTIFF and Rumi", "Python · GPU"),

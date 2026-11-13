@@ -36,7 +36,7 @@ docs/
 ├── c-api.md            C source compatibility policy
 ├── releasing.md        release gates and version procedure
 ├── adding-a-codec.md   how to write one, for contributors
-├── notebooks/          four notebook sources and their generated HTML pages
+├── notebooks/          five notebook sources, their generated HTML pages and figures
 ├── slides/cng-2026/    conference presentation, with its own assets
 └── assets/
     ├── css/style.css       base styles for pages other than the landing page

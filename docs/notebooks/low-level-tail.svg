@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 250" width="720" height="250" role="img" aria-label="The data flows from the head, through Planar, Zigzag and Entropy into a frame. The code is written from the tail, as Planar(W)(c, Zigzag()(c, Entropy()(c))), so Entropy is built first, Zigzag second and Planar last."><style><![CDATA[@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');svg{background:transparent;font-family:"IBM Plex Mono",ui-monospace,monospace}
+.lab{fill:#5C6370;font:500 10.5px "IBM Plex Mono",monospace;letter-spacing:.05em}
+.step{fill:#111111;font:600 13px "IBM Plex Mono",monospace;text-anchor:middle}
+.code{fill:#111111;font:500 15px "IBM Plex Mono",monospace}
+.p{fill:#492AE8;font-weight:700}.z{fill:#111111;font-weight:700}.e{fill:#E0532A;font-weight:700}
+.ord{fill:#5C6370;font:500 11px "IBM Plex Mono",monospace;text-anchor:middle}
+.box{fill:#FFFFFF;stroke:#111111;stroke-width:1.3}
+.on{fill:color-mix(in srgb,#492AE8 12%,#FFFFFF);stroke:#492AE8;stroke-width:1.5}
+.on2{fill:color-mix(in srgb,#E0532A 14%,#FFFFFF);stroke:#E0532A;stroke-width:1.5}
+.ar{stroke:#111111;stroke-width:1.3;fill:none}
+.tick{stroke:#5C6370;stroke-width:1;fill:none}
+.sep{stroke:#D5D9DF;stroke-width:1}
+.cell{stroke:#111111;stroke-width:1}
+]]></style>
+<defs><marker id="t-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M2 1L8 5L2 9" fill="none" stroke="#111111" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+
+<text class="lab" x="20" y="24">WHAT THE DATA DOES, HEAD TO TAIL</text>
+<g transform="translate(40 50)"><rect class="cell" x="0" y="0" width="12" height="12" style="fill:#B9E3C6"/><rect class="cell" x="12" y="0" width="12" height="12" style="fill:#8FCFA3"/><rect class="cell" x="0" y="12" width="12" height="12" style="fill:#D9EFC2"/><rect class="cell" x="12" y="12" width="12" height="12" style="fill:#B9E3C6"/></g>
+<line class="ar" x1="74" y1="62" x2="124" y2="62" marker-end="url(#t-ah)"/>
+<rect class="on" x="130" y="46" width="130" height="32" rx="4"/><text class="step" x="195" y="66">Planar</text>
+<line class="ar" x1="266" y1="62" x2="316" y2="62" marker-end="url(#t-ah)"/>
+<rect class="box" x="322" y="46" width="130" height="32" rx="4"/><text class="step" x="387" y="66">Zigzag</text>
+<line class="ar" x1="458" y1="62" x2="508" y2="62" marker-end="url(#t-ah)"/>
+<rect class="on2" x="514" y="46" width="130" height="32" rx="4"/><text class="step" x="579" y="66">Entropy</text>
+<line class="ar" x1="650" y1="62" x2="672" y2="62" marker-end="url(#t-ah)"/>
+<rect class="box" x="678" y="51" width="20" height="22" rx="2"/><line class="ar" x1="682" y1="58" x2="694" y2="58"/><line class="ar" x1="682" y1="62" x2="694" y2="62"/><line class="ar" x1="682" y1="66" x2="690" y2="66"/>
+
+<line class="sep" x1="20" y1="112" x2="700" y2="112"/>
+
+<text class="lab" x="20" y="142">HOW THE CODE BUILDS IT, TAIL TO HEAD</text>
+<text class="code" x="180" y="186"><tspan class="p">Planar</tspan>(W)(c, <tspan class="z">Zigzag</tspan>()(c, <tspan class="e">Entropy</tspan>()(c)))</text>
+<path class="tick" d="M180 196v6h54v-6"/><text class="ord" x="207" y="218">built 3rd</text>
+<path class="tick" d="M297 196v6h54v-6"/><text class="ord" x="324" y="218">built 2nd</text>
+<path class="tick" d="M405 196v6h63v-6"/><text class="ord" x="436" y="218">built 1st</text>
+</svg>
