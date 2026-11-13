@@ -19,8 +19,8 @@ NOTEBOOKS = [
     ("high-level-api", "High-level API", "Python · CPU"),
     ("low-level-api", "Low-level API", "Python · CPU"),
     ("rumi-gpu", "GPU decoding with Rumi", "Python · GPU"),
+    ("sentinel2-cuda-benchmark", "Sentinel-2 benchmark with Rumi", "Python · GPU"),
     ("zarr", "GeoZL in Zarr", "Python · CPU"),
-    ("sentinel2-cuda-benchmark", "Sentinel-2: JPEG2000, GeoTIFF and Rumi", "Python · GPU"),
 ]
 RAW = "https://raw.githubusercontent.com/asterisk-labs/geozl/main/docs/notebooks/"
 # raw.githubusercontent serves SVG as text, so notebook SVGs load from the site.
