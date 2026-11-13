@@ -818,6 +818,15 @@ pre code {
 .spec.results td:first-child { width: 62%; }
 .spec.results td:not(:first-child) { white-space: nowrap; }
 
+/* A comparison table: each cell is tinted by whether it is a strength, a partial one or a gap */
+.spec.compare td { padding: 10px 12px; }
+.spec.compare td.c-good { background: color-mix(in srgb, #128a6e 24%, transparent); }
+.spec.compare td.c-part { background: color-mix(in srgb, #d4a017 28%, transparent); }
+.spec.compare td.c-bad { background: color-mix(in srgb, #d62f2f 30%, transparent); }
+.spec.compare .repo { display: inline-flex; margin-left: 6px; vertical-align: -2px; color: var(--dim); }
+.spec.compare .repo:hover { color: var(--violet); }
+.spec.compare .repo svg { width: 16px; height: 16px; fill: currentColor; }
+
 /* Figures: drawn on the page, not boxed */
 
 .figure {

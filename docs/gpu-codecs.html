@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=23">
+<link rel="stylesheet" href="assets/css/reading.css?v=27">
 </head>
 <body>
 <div class="page">
@@ -176,7 +176,24 @@
       </figure>
       <p>The trade-off appears on skewed lanes. Huffman cannot use less than one bit per symbol, while FSE can, so a lane dominated by one value may compress worse. A class map is flat over large areas, and after prediction most residuals may be zero, which is exactly that case.</p>
       <p>Data read only on a CPU can use <code>planar&gt;zigzag&gt;transpose&gt;entropy</code> instead. A different GPU encoding needs its own CTid rather than a data-dependent branch inside <code>lanes</code>.</p>
-      <p>Knowing which formats a GPU can read is half the job. The other half is getting compressed bytes onto the device, planning the work on the CPU and landing the samples where the caller wants them. <a href="gpu-internals.html">Bytes to tensors</a>, the third part, follows a batch through all of it.</p>
+
+      <h2 class="part" id="others">Other ways to decode on the GPU</h2>
+      <p>The format of the files you already have often decides where to start. nvImageCodec reads TIFF and JPEG 2000, a proposed Zarr integration uses nvCOMP to decode zstd, and cuSZp reads its own format. The table compares those paths with GeoZL and Rumi.</p>
+      <p>With GeoZL and cuSZp, you can inspect and change the GPU codecs themselves. nvImageCodec and the Zarr proposal have open libraries around closed NVIDIA decoders.</p>
+      <div class="figure">
+      <table class="spec compare">
+        <tr><th></th><td><b>GeoZL</b><a class="repo" href="https://github.com/asterisk-labs/geozl" aria-label="GeoZL on GitHub" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg></a><br>with <b>Rumi</b><a class="repo" href="https://github.com/asterisk-labs/rumi" aria-label="Rumi on GitHub" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg></a></td><td><b>nvImageCodec</b><a class="repo" href="https://github.com/NVIDIA/nvImageCodec" aria-label="nvImageCodec on GitHub" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg></a></td><td><b>Zarr</b><a class="repo" href="https://github.com/zarr-developers/zarr-python/pull/2863" aria-label="The Zarr pull request on GitHub" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg></a><br>with nvCOMP</td><td><b>cuSZp</b><a class="repo" href="https://github.com/szcompressor/cuSZp" aria-label="cuSZp on GitHub" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg></a></td></tr>
+        <tr><th>source code</th><td class="c-good">open</td><td class="c-bad">open library; closed nvTIFF and nvJPEG2000 decoders</td><td class="c-bad">open zarr-python; closed nvCOMP</td><td class="c-good">open</td></tr>
+        <tr><th>GPUs</th><td class="c-good">CUDA and Metal from one <a href="slang.html">Slang</a> source</td><td class="c-part">NVIDIA; TIFF needs Volta or newer</td><td class="c-part">NVIDIA</td><td class="c-part">NVIDIA</td></tr>
+        <tr><th>GPU codecs</th><td class="c-good">PFOR and PivCo</td><td class="c-bad">none</td><td class="c-bad">none</td><td class="c-good">its own codec, decoded in one kernel</td></tr>
+        <tr><th>bounded error</th><td class="c-bad">not supported on the GPU</td><td class="c-bad">no</td><td class="c-bad">no</td><td class="c-part">float32 and float64 only</td></tr>
+        <tr><th>Python output</th><td class="c-good">DLPack for PyTorch, JAX or TensorFlow</td><td class="c-good">DLPack and the CUDA array interface</td><td class="c-part">CuPy arrays</td><td class="c-part">a PyTorch tensor you allocate</td></tr>
+        <tr><th>existing files</th><td class="c-bad">none</td><td class="c-part">COGs with Deflate, LZW or JPEG, plus Sentinel-2 JPEG 2000. No ZSTD or LERC</td><td class="c-part">Zarr arrays compressed with zstd</td><td class="c-bad">none</td></tr>
+        <tr><th>status</th><td class="c-part">released; format may still change</td><td class="c-good">released</td><td class="c-part">open pull request</td><td class="c-good">released</td></tr>
+      </table>
+      </div>
+      <p>Green marks a strength, yellow a partial fit and red a gap.</p>
+      <p>A GPU read also has to fetch compressed bytes, plan the work on the CPU and put the result where the caller needs it. The next part, <a href="gpu-internals.html">Bytes to tensors</a>, follows one batch from file to tensor.</p>
       <nav class="pager" aria-label="Pages">
         <a class="prev" href="cpu.html"><span>Previous</span>Fast on one core</a>
         <a class="next" href="gpu-internals.html"><span>Next</span>Bytes to tensors</a>
@@ -191,6 +208,7 @@
         <li><a href="#leaves">PivCo, decoding from the leaves up</a></li>
         <li><a href="#together">One idea, two shapes</a></li>
         <li><a href="#cost">Why the lane format is fixed</a></li>
+        <li><a href="#others">Other ways to decode on the GPU</a></li>
       </ol>
     </nav>
   </main>
