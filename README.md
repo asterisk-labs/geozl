@@ -30,18 +30,23 @@ Julia and JavaScript.
 | Julia | `Pkg.Registry.add(url="https://github.com/asterisk-labs/AsteriskRegistry"); Pkg.add("GeoZL")` | graph, compress, decompress, profile | [README](bindings/julia/README.md) |
 | JavaScript | `npm install @asterisk-labs/geozl` | compress, decompress | [README](tools/wasm/README.md) |
 
+GeoZL can also decode on the GPU, on NVIDIA cards through CUDA and on Apple
+silicon through Metal. The C API for it is [`geozl/gpu.h`](core/include/geozl/gpu.h),
+described in the [GPU decoding guide](https://asterisk.coop/geozl/api-gpu.html).
+The kernels ship inside the library, as PTX for NVIDIA and Metal source for Apple,
+so it needs no CUDA toolkit. On NVIDIA it needs a Volta or newer GPU and a driver
+for CUDA 12.2 or newer, since the PTX is built with CUDA 12.2 and a driver only
+loads PTX up to its own version.
+[Loading the embedded modules](https://asterisk.coop/geozl/slang.html#loading)
+explains how the library loads them, and the
+[platform matrix](https://github.com/asterisk-labs/geozl/actions/workflows/platforms.yml)
+builds and tests the source builds.
+
 | Platform | Python package | GPU decode |
 |----------|----------------|------------|
 | Linux x86-64 | wheel on PyPI | NVIDIA, through CUDA |
 | macOS arm64 | wheel on PyPI | Apple GPUs, through Metal |
 | Linux arm64, macOS x86-64, Windows x64 and arm64 | build from this repository | no |
-
-Every platform decodes on the CPU, with SIMD where the CPU has it. GPU decode is
-part of the C API in [`geozl/gpu.h`](core/include/geozl/gpu.h) and needs only the
-NVIDIA driver or macOS, not the CUDA toolkit.
-[Rumi](https://asterisk.coop/rumi/) uses it to read straight into PyTorch tensors.
-The [platform matrix](https://github.com/asterisk-labs/geozl/actions/workflows/platforms.yml)
-builds and tests the source builds.
 
 ## Quick start
 
@@ -57,16 +62,6 @@ g = geozl.graph(tile, best)                   # build once, reuse per tile
 frame = geozl.compress(tile, graph=g)
 back = geozl.decompress(frame).view(np.uint16).reshape(tile.shape)
 ```
-
-## Codecs
-
-GeoZL adds seventeen codecs to OpenZL, in four families.
-[Predictors](https://asterisk.coop/geozl/predictors.html) turn samples into small
-residuals, [stream codecs](https://asterisk.coop/geozl/streams.html) split and pack,
-[fused codecs](https://asterisk.coop/geozl/fused.html) run a common chain in one pass,
-and [quantizers](https://asterisk.coop/geozl/near-lossless.html) trade a bounded error
-for smaller numbers. The [codec overview](https://asterisk.coop/geozl/docs.html#ctids)
-lists every codec with its CTid, and each one's section gives its header and wire format.
 
 ## AI agent skill
 
