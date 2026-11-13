@@ -228,11 +228,34 @@ jobs:
           path: npm-dist/*.tgz
           if-no-files-found: error
 
-  # Only on a tag. Every package must have built, so a failed platform blocks
-  # the release. Trusted publishing over OIDC, no stored token.
+  # The CPU example notebooks against the wheel about to be published, since
+  # they install the latest geozl. The GPU ones need CUDA and run with
+  # make test-notebooks-gpu before the tag.
+  notebooks:
+    name: Example notebooks
+    needs: linux
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v8
+        with:
+          name: wheel-linux
+          path: dist
+      - name: Run the notebooks
+        run: |
+          set -euxo pipefail
+          pip install -q dist/*.whl -r tools/notebook-requirements.txt
+          python tools/run_notebooks.py
+
+  # Only on a tag. Every package must have built and the notebooks must have
+  # run, so either failing blocks the release. Trusted publishing over OIDC, no
+  # stored token.
   publish:
     name: Publish
-    needs: [validate, linux, macos, wasm]
+    needs: [validate, linux, macos, wasm, notebooks]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     environment: pypi

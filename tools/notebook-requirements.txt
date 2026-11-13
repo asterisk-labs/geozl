@@ -1,0 +1,13 @@
+# What tools/run_notebooks.py needs besides geozl. The notebooks import most of
+# this without installing it, since Colab ships it. The GPU notebooks also need
+# torch with CUDA and rumi-eo.
+nbclient
+ipykernel
+matplotlib
+pandas
+seaborn
+rasterio
+xarray
+dask
+zarr==3.4.2
+numcodecs

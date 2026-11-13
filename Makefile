@@ -136,7 +136,8 @@ else
   CTEST_LIBS := -lm -lpthread
 endif
 
-.PHONY: all build configure lib python test test-c test-san wasm wasm-test fuzz fuzz-build \
+.PHONY: all build configure lib python test test-c test-san test-notebooks test-notebooks-gpu \
+        wasm wasm-test fuzz fuzz-build \
         fuzz-seed fuzz-report fuzz-check fuzz-replay clean-fuzz \
         exhaustive r r-vendor r-check julia \
         install submodules clean help
@@ -214,6 +215,15 @@ test: test-c python
 
 test-san:
 	$(MAKE) test SAN=ON
+
+# The example notebooks against this checkout, without their install cell. They
+# download data and take minutes, so they are not part of test. A release runs
+# the CPU ones before it publishes; run the GPU ones on a CUDA machine first.
+test-notebooks: python
+	$(PYTHON) tools/run_notebooks.py
+
+test-notebooks-gpu: python
+	$(PYTHON) tools/run_notebooks.py --gpu
 
 wasm: $(OPENZL)/CMakeLists.txt
 	$(EMCMAKE) $(CMAKE) -S $(CORE) -B $(WASM_BUILD_DIR) -G $(GEN) \
@@ -393,6 +403,8 @@ help:
 	@echo "make test-c     run the C tests only, builds straight from source"
 	@echo "make exhaustive the C tests over every value of a type, minutes"
 	@echo "make test-san   run both suites against an ASan and UBSan build"
+	@echo "make test-notebooks     run the CPU example notebooks, minutes"
+	@echo "make test-notebooks-gpu run the GPU example notebooks on a CUDA machine"
 	@echo "make wasm       build the wasm64 JavaScript module"
 	@echo "make wasm-test  build wasm64 and run its Node tests"
 	@echo "make r          test the R package from the checkout"

@@ -104,7 +104,7 @@ otherwise Python keeps loading the previously staged libraries.
 | `test_golden.py` | every golden frame decodes to the recorded hashes |
 | `test_malformed.py`, `test_headers.py` | decoders refuse forged headers and streams |
 | `test_catalog.py` | the codec catalog agrees across `ctids.h`, README, `docs/docs.html`, `docs/assets/js/main.js`, `docs/codecs/*.html` |
-| `test_docs.py` | every Python signature in a `<code class="sig">` block of `docs/api-python.html` equals `inspect.signature` of the live object, and every public name in `geozl`, `geozl.lossless` and `geozl.lossy` (decoders aside) has one; the `<code class="proto">` blocks of `docs/api-c.html` hold exactly the `GEOZL_API` prototypes of `geozl.h`, `coeffs.h` and `gpu.h`; `api-r.html`, `api-julia.html` and `api-js.html` show every function exported by `NAMESPACE`, the Julia sources and `geozl_api.d.ts`; notebook mentions `profile`, `graph`, `compress`, `decompress`; local links resolve; `SKILL.md` names `VERSION` and its links resolve |
+| `test_docs.py` | every Python signature in a `<code class="sig">` block of `docs/api-python.html` equals `inspect.signature` of the live object, and every public name in `geozl`, `geozl.lossless` and `geozl.lossy` (decoders aside) has one; the `<code class="proto">` blocks of `docs/api-c.html` hold exactly the `GEOZL_API` prototypes of `geozl.h`, `coeffs.h` and `gpu.h`; `api-r.html`, `api-julia.html` and `api-js.html` show every function exported by `NAMESPACE`, the Julia sources and `geozl_api.d.ts`; notebook mentions `profile`, `graph`, `compress`, `decompress`; every notebook installs geozl unpinned with `-U`; local links resolve; `SKILL.md` names `VERSION` and its links resolve |
 | `test_release.py` | `VERSION` has a `## [X.Y.Z] - date` entry and compare links in `CHANGELOG.md` |
 | `test_licenses.py` | `licenses/` copies equal the vendored upstream texts and `NOTICE` lists them |
 | `test_simd.py`, `test_ffi.py` | SIMD capping via `GEOZL_SIMD` in fresh processes; library lookup errors |
@@ -262,9 +262,18 @@ Fuzzing (`fuzz.yml`): replay of `fuzz/replay` on relevant pushes and pull reques
 
 Releases (`release.yml`) on tags `v*`: the tag must equal `VERSION`; wheels for
 manylinux 2.28 x86-64 and macOS 11 arm64 are built, repaired, smoke tested (import, SIMD
-report, profile, graph, compress, decompress round trip) and published to PyPI with
+report, profile, graph, compress, decompress round trip), the CPU example notebooks run
+against the Linux wheel, and the wheels are published to PyPI with
 trusted publishing, plus a GitHub release with the wheels and native `libgeozl` archives;
 the wasm package then goes to npm. Record the release in `CHANGELOG.md` and `VERSION` first.
+
+Example notebooks: they install the latest geozl and Rumi, so a release must not break
+them. `tools/run_notebooks.py` runs them without their install cell, against the geozl
+of the environment, each in a temporary directory, and fails on any error.
+`make test-notebooks` runs the CPU ones and is the release job's check. Before tagging,
+run `make test-notebooks-gpu` on a CUDA machine for the GPU ones (Rumi and the Sentinel-2
+benchmark), with a Rumi that accepts the new geozl. `--write` stores the outputs and
+renders the pages. `tools/notebook-requirements.txt` lists what they import.
 
 Security: malformed frames that crash, hang or exhaust resources are vulnerabilities.
 Report privately to `hello@asterisk.coop` with `[geozl security]` in the subject.
