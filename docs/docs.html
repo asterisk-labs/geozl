@@ -107,6 +107,29 @@ out = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)</code></pre>
         <figcaption>The first two slots are optional. Codecs marked <b>gpu</b> also decode on the GPU.</figcaption>
       </figure>
       <p>The four codec families are on separate pages. <a href="predictors.html"><b>Predictors</b></a> turn samples into small residuals. <a href="streams.html"><b>Stream</b></a> codecs split and pack. <a href="fused.html"><b>Fused</b></a> codecs run a common chain in one pass, and <code>planar&gt;zigzag</code> in the picture above is really one of them. <a href="near-lossless.html"><b>Quantizers</b></a> trade a bounded error for smaller numbers. Each codec ends with its CTid, its header and the call that builds it.</p>
+      <p id="ctids">Every codec, with its CTid and a link to its section. The numbers live in <a href="https://github.com/asterisk-labs/geozl/blob/main/core/include/geozl/ctids.h" rel="noopener noreferrer"><code>geozl/ctids.h</code></a>, which also records the retired ones.</p>
+      <table class="spec">
+        <thead><tr><th>codec</th><th>CTid</th><th>what it does</th></tr></thead>
+        <tbody>
+          <tr><td><a href="predictors.html#delta_w"><code>delta_w</code></a></td><td><code>0x72D701</code></td><td>residual against the west neighbour</td></tr>
+          <tr><td><a href="predictors.html#delta_n"><code>delta_n</code></a></td><td><code>0x72D702</code></td><td>residual against the north neighbour</td></tr>
+          <tr><td><a href="predictors.html#planar"><code>planar</code></a></td><td><code>0x72D703</code></td><td>predicts each pixel from <code>W + N - NW</code></td></tr>
+          <tr><td><a href="streams.html#deinterleave"><code>deinterleave</code></a></td><td><code>0x72D704</code></td><td>separates a two-lane interleaved stream</td></tr>
+          <tr><td><a href="predictors.html#med"><code>med</code></a></td><td><code>0x72D705</code></td><td>median edge detector predictor</td></tr>
+          <tr><td><a href="predictors.html#average"><code>average</code></a></td><td><code>0x72D706</code></td><td>floor average of the west and north neighbours</td></tr>
+          <tr><td><a href="predictors.html#wp_static"><code>wp_static</code></a></td><td><code>0x72D707</code></td><td>weighted predictor with its weights in the frame</td></tr>
+          <tr><td><a href="streams.html#nodata"><code>nodata</code></a></td><td><code>0x72D70C</code></td><td>missing samples to a validity mask, holes filled</td></tr>
+          <tr><td><a href="streams.html#pfor"><code>pfor</code></a></td><td><code>0x72D70D</code></td><td>bit packs blocks of 256 and patches overflows</td></tr>
+          <tr><td><a href="fused.html#planar_zigzag"><code>planar_zigzag</code></a></td><td><code>0x72D70F</code></td><td>planar residuals and Zigzag in one pass</td></tr>
+          <tr><td><a href="fused.html#planar_zigzag_pfor"><code>planar_zigzag_pfor</code></a></td><td><code>0x72D710</code></td><td>planar, Zigzag and PFOR as one codec</td></tr>
+          <tr><td><a href="fused.html#med_zigzag"><code>med_zigzag</code></a></td><td><code>0x72D711</code></td><td>MED residuals and Zigzag in one pass</td></tr>
+          <tr><td><a href="fused.html#planar_zigzag_lanes"><code>planar_zigzag_lanes</code></a></td><td><code>0x72D712</code></td><td>planar and Zigzag, then PivCo or PFOR per byte lane</td></tr>
+          <tr><td><a href="streams.html#lanes"><code>lanes</code></a></td><td><code>0x72D713</code></td><td>byte lanes encoded independently with PivCo or PFOR</td></tr>
+          <tr><td><a href="near-lossless.html#quant_linear"><code>quant_linear</code></a></td><td><code>0x72D781</code></td><td>absolute bound, <code>LINEAR:MAX_ERROR=V</code></td></tr>
+          <tr><td><a href="near-lossless.html#quant_log"><code>quant_log</code></a></td><td><code>0x72D782</code></td><td>relative bound, <code>LOG:MAX_ERROR=P%</code></td></tr>
+          <tr><td><a href="near-lossless.html#quant_sqrt"><code>quant_sqrt</code></a></td><td><code>0x72D783</code></td><td>noise-scaled bound, <code>SQRT:MAX_ERROR=VN</code></td></tr>
+        </tbody>
+      </table>
       <p>Two algorithm pages follow the families. <a href="pfor.html"><b>PFOR</b></a> and <a href="pivco.html"><b>PivCo</b></a> are the coders behind the GPU recipes, explained from the block format up.</p>
       <p>The optimization pages come last, as a series in four parts that tells how the decoders got fast. <a href="cpu.html"><b>Fast on one core</b></a> covers SIMD on a CPU. <a href="gpu-codecs.html"><b>What a GPU wants</b></a> explains which formats a GPU can decode and what that cost, <a href="gpu-internals.html"><b>Bytes to tensors</b></a> follows a batch into GPU memory, and <a href="slang.html"><b>One source, many GPUs</b></a> shows how one <a href="https://shader-slang.org/" rel="noopener noreferrer">Slang</a> source becomes the kernels for each backend.</p>
       <p>The <a href="api.html"><b>API</b></a> section documents the calls in every language.</p>

@@ -60,27 +60,13 @@ back = geozl.decompress(frame).view(np.uint16).reshape(tile.shape)
 
 ## Codecs
 
-| codec | CTid | what it does |
-|-------|-----:|--------------|
-| `delta_w` | `0x72D701` | residual against the west neighbour |
-| `delta_n` | `0x72D702` | residual against the north neighbour |
-| `planar` | `0x72D703` | predicts each pixel from `W + N - NW` |
-| `deinterleave` | `0x72D704` | separates a two-lane interleaved stream |
-| `med` | `0x72D705` | median edge detector predictor |
-| `average` | `0x72D706` | floor average of the west and north neighbours |
-| `wp_static` | `0x72D707` | weighted predictor with its weights in the frame |
-| `nodata` | `0x72D70C` | missing samples to a validity mask, holes filled |
-| `pfor` | `0x72D70D` | bit packs blocks of 256 and patches overflows |
-| `planar_zigzag` | `0x72D70F` | planar residuals and Zigzag in one pass |
-| `planar_zigzag_pfor` | `0x72D710` | planar, Zigzag and PFOR as one codec |
-| `med_zigzag` | `0x72D711` | MED residuals and Zigzag in one pass |
-| `planar_zigzag_lanes` | `0x72D712` | planar and Zigzag, then PivCo or PFOR per byte lane |
-| `lanes` | `0x72D713` | byte lanes encoded independently with PivCo or PFOR |
-| `quant_linear` | `0x72D781` | absolute bound: `LINEAR:MAX_ERROR=V` |
-| `quant_log` | `0x72D782` | relative bound: `LOG:MAX_ERROR=P%` |
-| `quant_sqrt` | `0x72D783` | noise-scaled bound: `SQRT:MAX_ERROR=VN` |
-
-The [codec catalog](https://asterisk.coop/geozl/docs.html) documents each wire format.
+GeoZL adds seventeen codecs to OpenZL, in four families.
+[Predictors](https://asterisk.coop/geozl/predictors.html) turn samples into small
+residuals, [stream codecs](https://asterisk.coop/geozl/streams.html) split and pack,
+[fused codecs](https://asterisk.coop/geozl/fused.html) run a common chain in one pass,
+and [quantizers](https://asterisk.coop/geozl/near-lossless.html) trade a bounded error
+for smaller numbers. The [codec overview](https://asterisk.coop/geozl/docs.html#ctids)
+lists every codec with its CTid, and each one's section gives its header and wire format.
 
 ## AI agent skill
 
