@@ -2,7 +2,7 @@
 agree, since a static site with no build step has nothing else that would
 notice when they stop.
 
-The codec catalog lives in five places: the CTid in ctids.h, the README table,
+The codec catalog lives in five places: the CTid in ctids.h, the overview table,
 the sections of the four family pages, the CODECS array in docs/assets/js/main.js and the
 individual codec pages. The four public copies have to match. ctids.h is checked
 one way only, since a codec can exist in C before it is documented.
@@ -17,7 +17,6 @@ import pytest
 ROOT = Path(__file__).resolve().parents[3]
 
 CTIDS = ROOT / "core" / "include" / "geozl" / "ctids.h"
-README = ROOT / "README.md"
 DOCS = ROOT / "docs"
 OVERVIEW = DOCS / "docs.html"
 FAMILIES = [DOCS / f"{name}.html" for name in ("predictors", "streams", "fused", "near-lossless")]
@@ -44,10 +43,15 @@ def ctids() -> dict[str, int]:
     return out
 
 
-def readme_rows() -> list[tuple[str, int]]:
-    """The codec table, as (name, ctid) in the order it is written."""
-    body = _read(README)
-    rows = re.findall(r"^\|\s*`(\w+)`\s*\|\s*`(0x[0-9A-Fa-f]+)`\s*\|", body, re.M)
+def overview_rows() -> list[tuple[str, int]]:
+    """The overview table, as (name, ctid) in the order it is written."""
+    body = _read(OVERVIEW)
+    table = re.search(r'<p id="ctids">.*?</p>\s*<table class="spec">(.*?)</table>', body, re.S)
+    assert table is not None, "docs overview has no CTid table"
+    rows = re.findall(
+        r'<tr><td><a href="[^"]+"><code>(\w+)</code></a></td>'
+        r'<td><code>(0x[0-9A-Fa-f]+)</code></td>', table.group(1)
+    )
     return [(n, int(v, 16)) for n, v in rows]
 
 
@@ -99,7 +103,7 @@ def test_each_source_parses():
     """A rename that breaks the shape above would otherwise pass everything
     below on an empty list."""
     assert len(ctids()) >= 11
-    assert len(readme_rows()) >= 11
+    assert len(overview_rows()) >= 11
     assert len(catalog_cards()) >= 11
     assert len(pager_entries()) >= 11
 
@@ -113,16 +117,18 @@ def test_catalog_and_pager_agree():
     assert [c["file"] for c in cards] == [e["file"] for e in entries]
 
 
-def test_readme_table_matches_the_catalog():
-    """Same codecs and same ids. Not the same order: the README table reads by
+def test_overview_table_matches_the_catalog():
+    """Same codecs and same ids. Not the same order: the overview table reads by
     CTid and the catalog groups by family, and both are right for what they
     are."""
     cards = {c["name"]: int(c["ctid"], 16) for c in catalog_cards()}
-    assert dict(readme_rows()) == cards
+    rows = overview_rows()
+    assert len(rows) == len(cards)
+    assert dict(rows) == cards
 
 
-def test_readme_table_is_sorted_by_ctid():
-    ctid_column = [ctid for _, ctid in readme_rows()]
+def test_overview_table_is_sorted_by_ctid():
+    ctid_column = [ctid for _, ctid in overview_rows()]
     assert ctid_column == sorted(ctid_column)
 
 
@@ -130,10 +136,10 @@ def test_documented_ctids_exist_in_the_header():
     """One way. A codec in ctids.h that is not documented yet is allowed, a
     documented codec whose id does not match the header is not."""
     known = ctids()
-    for name, ctid in readme_rows():
-        assert name in known, f"{name} is in the README with no CTid in ctids.h"
+    for name, ctid in overview_rows():
+        assert name in known, f"{name} is in the overview with no CTid in ctids.h"
         assert known[name] == ctid, (
-            f"{name} is 0x{ctid:X} in the README and 0x{known[name]:X} in ctids.h"
+            f"{name} is 0x{ctid:X} in the overview and 0x{known[name]:X} in ctids.h"
         )
 
 
