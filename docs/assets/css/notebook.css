@@ -11,19 +11,15 @@
   align-items: center;
   gap: 8px;
   margin-bottom: 28px;
-  padding: 7px 14px 6px;
-  border: 1px solid var(--edge);
-  border-radius: 999px;
-  color: var(--ink);
+  color: var(--dim);
   font: 500 13px var(--mono);
   text-decoration: none;
   line-height: 1.4;
-  transition: background 160ms ease, border-color 160ms ease;
+  transition: color 160ms ease;
 }
 
 .content a.nb-back:hover {
-  border-color: var(--violet);
-  background: var(--wash);
+  color: var(--violet);
 }
 
 .content a.nb-back-end {
@@ -38,10 +34,36 @@
   margin: 0;
 }
 
-.content .nb-title {
-  margin: 0 0 8px;
+.nb-form summary {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 20px;
+  border: 1px solid var(--wash-deep);
+  border-radius: 6px 6px 0 0;
   color: var(--dim);
   font: 500 12px var(--mono);
+  list-style: none;
+  cursor: pointer;
+}
+
+.nb-form summary::-webkit-details-marker {
+  display: none;
+}
+
+.nb-form .nb-show::before {
+  content: "\25B8  ";
+}
+
+.nb-form details[open] .nb-show::before {
+  content: "\25BE  ";
+}
+
+.nb-form details pre {
+  border-radius: 0;
+}
+
+.nb-form:not(:has(.nb-out)) summary {
+  border-radius: 6px;
 }
 
 .nb-out {

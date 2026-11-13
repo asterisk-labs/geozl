@@ -22,6 +22,8 @@ NOTEBOOKS = [
     ("sentinel2-cuda-benchmark", "Sentinel-2: JPEG2000, GeoTIFF and Rumi", "Python · GPU"),
 ]
 RAW = "https://raw.githubusercontent.com/asterisk-labs/geozl/main/docs/notebooks/"
+# raw.githubusercontent serves SVG as text, so notebook SVGs load from the site.
+SITE = "https://asterisk.coop/geozl/notebooks/"
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -35,11 +37,15 @@ def math(tex):
     return tex
 
 
+def local(src):
+    return src.replace(RAW, "").replace(SITE, "")
+
+
 def inline(text):
     text = re.sub(r"\$([^$]+)\$", lambda m: math(m.group(1)), text)
     text = html.escape(text, quote=False)
     text = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)",
-                  lambda m: f'<img class="nb-figure" src="{m.group(2).replace(RAW, "")}" '
+                  lambda m: f'<img class="nb-figure" src="{local(m.group(2))}" '
                             f'alt="{m.group(1)}">', text)
     text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
     text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
@@ -106,8 +112,13 @@ def code(source):
     if lines and re.match(r"#\s*@title", lines[0]):
         title = re.sub(r"[*`]", "", lines.pop(0).split("@title", 1)[1]).strip()
     body = html.escape("\n".join(lines).strip("\n"), quote=False)
-    caption = f'<p class="nb-title">{html.escape(title)}</p>' if title else ""
-    return f'<div class="nb-cell">{caption}<pre><code class="language-python">{body}</code></pre>'
+    block = f'<pre><code class="language-python">{body}</code></pre>'
+    if not title:
+        return f'<div class="nb-cell">{block}'
+    # Colab hides the code of a titled form cell, so the page folds it too.
+    return (f'<div class="nb-cell nb-form"><details><summary>'
+            f'<span>{html.escape(title)}</span><span class="nb-show">code</span>'
+            f'</summary>{block}</details>')
 
 
 def outputs(cell):
@@ -152,6 +163,8 @@ def page(name, title, tags, masthead, footer):
     lead, body = "", []
     for cell in nb["cells"]:
         source = "".join(cell["source"])
+        if "colab-footer" in cell.get("metadata", {}).get("tags", []):
+            continue  # the page has the site footer instead
         if cell["cell_type"] == "markdown":
             if not lead and source.lstrip().startswith("## "):
                 lead = markdown(source)
@@ -189,7 +202,7 @@ def main(*, check=False):
     examples = (DOCS / "examples.html").read_text()
     masthead = relative(examples[:examples.index('  <main class="doc">')].rstrip("\n"))
     masthead = masthead.replace(
-        '</head>', '<link rel="stylesheet" href="../assets/css/notebook.css?v=2">\n</head>')
+        '</head>', '<link rel="stylesheet" href="../assets/css/notebook.css?v=4">\n</head>')
     footer = relative(examples[examples.index("  </main>") + len("  </main>\n"):])
     footer = footer.replace('<script src="../assets/js/toc.js" defer></script>',
                             '<script src="../assets/js/code.js?v=3" defer></script>')
