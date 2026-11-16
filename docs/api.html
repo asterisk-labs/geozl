@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=27">
+<link rel="stylesheet" href="assets/css/reading.css?v=28">
 </head>
 <body>
 <div class="page">
@@ -83,7 +83,8 @@
       <p>Four calls cover most use. <code>profile</code> measures candidate recipes on a tile, <code>graph</code> builds one, <code>compress</code> runs tiles through it and <code>decompress</code> reads a frame back. The <a href="https://colab.research.google.com/github/asterisk-labs/geozl/blob/main/docs/notebooks/high-level-api.ipynb" rel="noopener noreferrer">notebook</a> runs them on a DEM tile.</p>
 
       <h2 class="part" id="loop">The four calls</h2>
-<pre><code class="language-python">import numpy as np
+<div class="code-tabs">
+<pre data-lang="Python"><code class="language-python">import numpy as np
 import geozl
 
 y, x = np.mgrid[0:256, 0:256]
@@ -94,7 +95,26 @@ g = geozl.graph(tile, rows[0]["graph"])     # build the chosen recipe once
 frame = geozl.compress(tile, graph=g)       # bytes
 back = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)
 assert np.array_equal(back, tile)</code></pre>
-      <p>A frame stores no dtype or shape. Keep them beside it, as <a href="https://asterisk.coop/rumi/" rel="noopener noreferrer">Rumi</a> does.</p>
+<pre data-lang="R"><code class="language-r">library(geozl)
+
+tile &lt;- outer(0:255, 0:255, function(x, y) 1000 + 3 * x + 2 * y)
+
+rows &lt;- geozl_profile(tile, dtype = "int16")              # best ratio first
+g &lt;- geozl_graph(tile, rows$graph[[1]], dtype = "int16")  # build it once
+frame &lt;- geozl_compress(tile, g)                          # a raw vector
+back &lt;- geozl_decompress(frame, "int16", dim = dim(tile))
+stopifnot(all(back == tile))</code></pre>
+<pre data-lang="Julia"><code class="language-julia">using GeoZL
+
+tile = [Int16(1000 + 3x + 2y) for x in 0:255, y in 0:255]
+
+rows = GeoZL.profile(tile)                  # candidates, best ratio first
+g = GeoZL.graph(tile, rows[1].graph)        # build the chosen recipe once
+frame = GeoZL.compress(tile, g)             # a Vector{UInt8}
+back = GeoZL.decompress(Int16, frame, size(tile))
+@assert back == tile</code></pre>
+</div>
+      <p>A frame stores no dtype or shape. The same tile gives the same frame in all three languages. Keep the dtype and shape beside it, as <a href="https://asterisk.coop/rumi/" rel="noopener noreferrer">Rumi</a> does.</p>
       <p>Frames can also decode straight into device memory on a GPU. That call is in C, and <a href="api-gpu.html">GPU decoding</a> walks through it. The language bindings decode on the CPU only.</p>
 
       <h2 class="part" id="languages">Languages</h2>
@@ -131,6 +151,6 @@ assert np.array_equal(back, tile)</code></pre>
   </footer>
 </div>
 <script src="assets/js/toc.js" defer></script>
-<script src="assets/js/code.js?v=3" defer></script>
+<script src="assets/js/code.js?v=4" defer></script>
 </body>
 </html>

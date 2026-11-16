@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=27">
+<link rel="stylesheet" href="assets/css/reading.css?v=28">
 </head>
 <body>
 <div class="page">
@@ -83,7 +83,7 @@
       <p>The Julia package has the graph, compress, decompress and profile calls of the Python package and writes the same frames. It works on Julia's own integer and float arrays without conversion.</p>
 
       <h2 class="part" id="install">Install</h2>
-<pre><code class="language-julia">using Pkg
+<pre data-run="skip"><code class="language-julia">using Pkg
 Pkg.Registry.add(url = "https://github.com/asterisk-labs/AsteriskRegistry")
 Pkg.add("GeoZL")</code></pre>
       <p>The package calls <code>libgeozl</code> directly. It loads the library named by <code>GEOZL_LIB_PATH</code>, then the one <code>make lib</code> builds in a checkout, then the artifact a release publishes for Linux x86-64 and macOS arm64, downloaded on first use.</p>
@@ -136,7 +136,7 @@ g.dtype, eltype(g)                           # ("uint16", UInt16)</code></pre>
 GeoZL.compress(x; graph::Graph, coeffs=nothing) -&gt; Vector{UInt8}</code></pre>
       <p>Compresses one tile with a graph, given by position or by name, and returns the frame. The element type must be the graph's, and the geometry is not checked. A lossy tile outside the domain the graph was built from throws <code>ArgumentError</code>. <code>coeffs</code>, a vector or tuple of integer vectors, is stored in the frame header and read back with <a href="#coeffs"><code>coeffs</code></a>.</p>
 <pre><code class="language-julia">frame = GeoZL.compress(tile, g; coeffs = ([1, 2, 3], [4]))
-frame = GeoZL.compress(tile; graph = g)</code></pre>
+plain = GeoZL.compress(tile; graph = g)</code></pre>
 
       <h3 id="decompress">decompress</h3>
 <pre><code class="sig language-julia">GeoZL.decompress(frame; verify=true, max_output_size=nothing) -&gt; Vector{UInt8}
@@ -153,11 +153,11 @@ GeoZL.decompress(T, frame, dims...; nodata=nothing, verify=true,
       <h3 id="coeffs">coeffs</h3>
 <pre><code class="sig language-julia">GeoZL.coeffs(frame) -&gt; Union{Nothing,Vector{Vector{Int32}}}</code></pre>
       <p>Returns the coefficient vectors stored by <code>compress</code>, or <code>nothing</code> when the frame has none. Only the frame header is read.</p>
-<pre><code class="language-julia">GeoZL.coeffs(frame)                          # [[1, 2, 3], [4]]</code></pre>
+<pre><code class="language-julia">@assert GeoZL.coeffs(frame) == [Int32[1, 2, 3], Int32[4]]</code></pre>
 
       <h3 id="types">Types</h3>
       <table class="spec">
-        <tr><th>Graph</th><td>What <code>graph</code> returns, a <code>Graph{T}</code> for samples of type <code>T</code>, which <code>eltype(g)</code> returns. Its fields are <code>method</code>, <code>width</code>, <code>planes</code>, <code>dtype</code>, the name of <code>T</code> such as <code>"uint16"</code>, <code>itemsize</code>, its bytes per sample, <code>error</code> and <code>nodata</code>. It prints as <code>GeoZL.Graph(planar&gt;zigzag&gt;pfor, uint16, row width 48, 1 plane, lossless)</code>. It holds native state and is not thread safe, so build one per task.</td></tr>
+        <tr><th>Graph</th><td>What <code>graph</code> returns, a <code>Graph{T}</code> for samples of type <code>T</code>, which <code>eltype(g)</code> returns. Its fields are <code>method</code>, <code>width</code>, <code>planes</code>, <code>dtype</code>, the name of <code>T</code> such as <code>"uint16"</code>, <code>itemsize</code>, its bytes per sample, <code>error</code> and <code>nodata</code>. It prints as <code>GeoZL.Graph(planar&gt;zigzag&gt;pfor, uint16, row width 256, 1 plane, lossless)</code>. It holds native state and is not thread safe, so build one per task.</td></tr>
         <tr><th>Profile</th><td>What <code>profile</code> returns, a vector of named tuples with the fields <code>graph</code>, <code>bytes</code>, <code>ratio</code>, <code>encode_mbps</code>, <code>decode_mbps</code> and <code>shannon_pct</code>. It also keeps <code>dims</code>, <code>dtype</code>, the element type's name, <code>raw_bytes</code>, <code>width</code>, <code>planes</code>, <code>prior</code>, <code>reps</code> and <code>error</code>.</td></tr>
         <tr><th>Sample</th><td>The union of the eleven element types lossy graphs and sentinels take.</td></tr>
         <tr><th>GeoZLError</th><td><code>GeoZLError(code, message)</code>, thrown when the library refuses a tile or a frame other than as an invalid request. <code>code</code> is the ZL error code as an <code>Int</code>, or <code>nothing</code> when the refusal has none, and <code>message</code> carries the library's text.</td></tr>
@@ -204,6 +204,6 @@ GeoZL.decompress(T, frame, dims...; nodata=nothing, verify=true,
   </footer>
 </div>
 <script src="assets/js/toc.js" defer></script>
-<script src="assets/js/code.js?v=3" defer></script>
+<script src="assets/js/code.js?v=4" defer></script>
 </body>
 </html>

@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=27">
+<link rel="stylesheet" href="assets/css/reading.css?v=28">
 </head>
 <body>
 <div class="page">
@@ -115,7 +115,13 @@
       </table>
       <p>Returns a <a href="#graph-class"><code>Graph</code></a>.</p>
       <p>Raises <code>TypeError</code> when <code>width</code> or <code>planes</code> is not a whole number or <code>nodata</code> is not a number. Raises <code>ValueError</code> for an empty method or one holding a NUL character, a bad budget, geometry or dtype, a lossy budget on a dtype the quantizers lack, such as complex, a sentinel outside the dtype, NaN as the sentinel of an integer raster and a sentinel on <code>float16</code>. Raises <a href="#geozlerror"><code>GeoZLError</code></a> when the C library refuses the recipe, such as an unknown method, a terminal that does not take the sample width, or a bound finer than the dtype resolves. Each of these three is also a <code>ValueError</code>.</p>
-<pre><code class="language-python">g = geozl.graph(tile, "planar&gt;zigzag&gt;pfor", error=2)
+<pre><code class="language-python">import numpy as np
+import geozl
+
+y, x = np.mgrid[0:256, 0:256]
+tile = (1000 + 3 * x + 2 * y).astype(np.uint16)
+
+g = geozl.graph(tile, "planar&gt;zigzag&gt;pfor", error=2)
 g.error                                     # 'LINEAR:MAX_ERROR=2'</code></pre>
 
       <h3 id="compress">compress</h3>
@@ -158,7 +164,7 @@ geozl.coeffs(frame)                         # ((1, 2, 3), (4,))</code></pre>
       <p>The type <code>geozl.graph</code> returns. It is exported for <code>isinstance</code> checks and annotations, and calling it raises <code>TypeError</code>.</p>
       <p>Its attributes are <code>method</code>, <code>width</code>, <code>planes</code>, <code>dtype</code>, <code>itemsize</code>, <code>error</code>, the normalized recipe or <code>None</code>, and <code>nodata</code>. Its repr shows the method, the dtype, the row width, the planes and the recipe.</p>
 <pre><code class="language-python">geozl.graph(tile, "planar&gt;zigzag&gt;pfor")
-# &lt;geozl.Graph planar&gt;zigzag&gt;pfor, uint16, row width 48, 1 plane, lossless&gt;</code></pre>
+# &lt;geozl.Graph planar&gt;zigzag&gt;pfor, uint16, row width 256, 1 plane, lossless&gt;</code></pre>
 
       <h3 id="profileresults">ProfileResults</h3>
       <p>The type <code>geozl.profile</code> returns. It is exported for <code>isinstance</code> checks and annotations, and calling it raises <code>TypeError</code>.</p>
@@ -292,6 +298,6 @@ g = geozl.graph(counts, "planar&gt;zigzag&gt;pfor", error=noise.recipe(2))</code
   </footer>
 </div>
 <script src="assets/js/toc.js" defer></script>
-<script src="assets/js/code.js?v=3" defer></script>
+<script src="assets/js/code.js?v=4" defer></script>
 </body>
 </html>
