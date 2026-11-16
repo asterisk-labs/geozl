@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Python, R and Julia now agree on shared argument checks and error categories.
   Frame bytes are unchanged.
+- `lanes` and `planar>zigzag>lanes` limit decoded tiles to 256 MiB. Larger
+  tiles need splitting; the frame layout is unchanged.
 - R uses `dtype` instead of `datatype` in graph, profile, decompress and their
   results. Profile metadata uses `dims` and no longer has `itemsize`.
 - Julia graphs are `Graph{T}`; `eltype(g)` returns `T`, and graphs and profiles

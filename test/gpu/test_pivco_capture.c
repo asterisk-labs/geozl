@@ -154,14 +154,13 @@ static int check_count_limit(void) {
   const uint8_t weight = 1;
   GeozlPivcoLanes parsed;
   if (geozl_pivco_lanes_parse(&parsed, laneHeader, sizeof(laneHeader),
-                              UINT_MAX, 1, 32768, &weight, 1, 0) != 0)
-    return fail("UINT_MAX PivCo count was rejected");
-#if SIZE_MAX > UINT_MAX
+                              GEOZL_PIVCO_LANES_MAX_BYTES, 1, 32768, &weight,
+                              1, 0) != 0)
+    return fail("PivCo count at the decode limit was rejected");
   if (geozl_pivco_lanes_parse(&parsed, laneHeader, sizeof(laneHeader),
-                              (size_t)UINT_MAX + 1, 1, 32768, &weight, 1,
-                              0) == 0)
-    return fail("PivCo count above UINT_MAX was accepted");
-#endif
+                              GEOZL_PIVCO_LANES_MAX_BYTES + 1, 1, 32768,
+                              &weight, 1, 0) == 0)
+    return fail("PivCo count above the decode limit was accepted");
   return 0;
 }
 
