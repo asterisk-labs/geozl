@@ -4,16 +4,17 @@ const ProfileRow = NamedTuple{(:graph, :bytes, :ratio, :encode_mbps, :decode_mbp
                               Tuple{String,Int,Float64,Float64,Float64,Float64}}
 
 """
-    Profile
+    Profile{T}
 
 The rows [`profile`](@ref) returns, best ratio first, with the input and the
 settings that made them. It is a vector of named tuples with fields `graph`,
-`bytes`, `ratio`, `encode_mbps`, `decode_mbps` and `shannon_pct`.
+`bytes`, `ratio`, `encode_mbps`, `decode_mbps` and `shannon_pct`. `T` is the
+element type of the input, and `dtype` its name.
 """
-struct Profile <: AbstractVector{ProfileRow}
+struct Profile{T} <: AbstractVector{ProfileRow}
     rows::Vector{ProfileRow}
     dims::Tuple
-    eltype::DataType
+    dtype::String
     raw_bytes::Int
     width::Int
     planes::Int
@@ -25,17 +26,17 @@ end
 Base.size(p::Profile) = size(p.rows)
 Base.getindex(p::Profile, i::Int) = p.rows[i]
 
-function Base.show(io::IO, ::MIME"text/plain", p::Profile)
+function Base.show(io::IO, ::MIME"text/plain", p::Profile{T}) where {T}
     axes = get(Dict(1 => "samples", 2 => "columns, rows", 3 => "columns, rows, planes"),
                length(p.dims), "columns, rows, ..., planes")
     predictors = p.prior === nothing ? "all predictors" :
                  p.prior == "none" ? "no predictor" : "$(p.prior) + id"
     println(io, "input")
-    println(io, "  size     ", p.dims, "  [", axes, "]")
-    println(io, "  eltype   ", p.eltype, "  [", sizeof(p.eltype), " bytes/sample]")
+    println(io, "  dims     ", p.dims, "  [", axes, "]")
+    println(io, "  dtype    ", p.dtype, "  [", sizeof(T), " bytes/sample]")
     @printf(io, "  raw      %.2f MB\n", p.raw_bytes / 1e6)
-    println(io, "  profile  ", p.planes, p.planes == 1 ? " plane" : " planes", ", row width ",
-            p.width, ", ", predictors, ", ", p.reps, p.reps == 1 ? " rep" : " reps", ", ",
+    println(io, "  profile  ", p.planes, p.planes == 1 ? " plane" : " planes", " · row width ",
+            p.width, " · ", predictors, " · ", p.reps, p.reps == 1 ? " rep" : " reps", " · ",
             something(p.error, "lossless"))
     println(io)
     if isempty(p.rows)
@@ -82,23 +83,28 @@ Compress and decompress `x` with every recipe `prior` allows and rank them by
 ratio. `prior` is one predictor plus the identity path: `"planar"`, `"med"`,
 `"delta_w"`, `"delta_n"`, `"average"`, `"wp_static"` or `"delta_1d"`;
 `nothing` tries every predictor and `"none"` only the no-predictor path.
-Recipes that do not apply to the input are left out. Other arguments match
-[`graph`](@ref); `verify` checks checksums while timing decode.
+Recipes that do not apply to the input are left out. When every recipe fails,
+the first failure is thrown as [`graph`](@ref) would throw it. `reps` is an
+integer from 1 to 2147483647. Other arguments match [`graph`](@ref); `verify`,
+true or false, checks checksums while timing decode.
 """
-function profile(x::AbstractArray; prior::Union{Nothing,AbstractString}="planar",
-                 width=nothing, planes=nothing, error=nothing, reps::Integer=5,
-                 nodata=nothing, verify::Bool=false)
-    prior !== nothing && isempty(prior) &&
+function profile(x::AbstractArray; prior="planar", width=nothing, planes=nothing,
+                 error=nothing, reps=5, nodata=nothing, verify=false)
+    prior === nothing || prior isa AbstractString && !isempty(prior) ||
         throw(ArgumentError("`prior` must be a non-empty string or nothing"))
-    reps >= 1 || throw(ArgumentError("`reps` must be at least 1, got $reps"))
+    _isint(reps) && 1 <= reps <= typemax(Int32) ||
+        throw(ArgumentError("`reps` must be an integer from 1 to 2147483647, got $(repr(reps))"))
+    verify = _flag(verify, "verify")
     recipe = _normalize_error(error)
     a = _samples(x, nodata)
     T = eltype(a)
+    code = _dtype_code(T, recipe)
     mode, bits = _nodata(T, a, nodata)
     w, p = _geometry(x, width, planes)
     raw = sizeof(a)
     ideal = raw * _order0_bits(a) / 8
     rows = ProfileRow[]
+    failure = nothing
     for name in _grid(prior, sizeof(T))
         comp = Ref{Csize_t}(0)
         enc = Ref{Cdouble}(0)
@@ -110,16 +116,22 @@ function profile(x::AbstractArray; prior::Union{Nothing,AbstractString}="planar"
             (Cstring, UInt32, UInt32, Ptr{UInt8}, Cint, Cint, UInt64, Ptr{Cvoid}, Csize_t,
              Csize_t, Csize_t, Cint, Cint, Ref{Csize_t}, Ref{Cdouble}, Ref{Cdouble},
              Ptr{UInt8}, Csize_t),
-            name, w, p, recipe === nothing ? C_NULL : recipe, _CODES[T], mode, bits, a,
+            name, w, p, recipe === nothing ? C_NULL : recipe, code, mode, bits, a,
             length(a), sizeof(T), reps, 1, verify, comp, enc, dec, buf, length(buf))
         GC.safepoint()
-        rc == 0 || continue
+        if rc != 0
+            failure === nothing && (failure = (rc, "$(_errmsg(buf)) (ZL error code $rc)"))
+            continue
+        end
         nbytes = Int(comp[])
         push!(rows, (graph = name, bytes = nbytes, ratio = raw / nbytes,
                      encode_mbps = _mbps(raw, enc[]), decode_mbps = _mbps(raw, dec[]),
                      shannon_pct = 100 * ideal / nbytes))
     end
+    if failure !== nothing && isempty(rows)
+        throw(_refusal(failure[1], "GeoZL.profile failed: " * failure[2]))
+    end
     sort!(rows; by = r -> r.ratio, rev = true)
-    return Profile(rows, size(x), T, raw, Int(w), Int(p),
-                   prior === nothing ? nothing : String(prior), Int(reps), recipe)
+    return Profile{T}(rows, size(x), _dtype_name(T), raw, Int(w), Int(p),
+                      prior === nothing ? nothing : String(prior), Int(reps), recipe)
 end

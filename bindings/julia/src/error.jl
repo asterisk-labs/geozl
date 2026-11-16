@@ -1,13 +1,21 @@
 """
-    GeoZLError(msg)
+    GeoZLError(code, message)
 
-Raised when the GeoZL library refuses a recipe, a tile or a frame.
+Raised when the GeoZL library refuses a tile or a frame. `code` is the ZL error
+code as an `Int`, or `nothing` when the refusal has none.
 """
 struct GeoZLError <: Exception
-    msg::String
+    code::Union{Nothing,Int}
+    message::String
 end
 
-Base.showerror(io::IO, e::GeoZLError) = print(io, "GeoZLError: ", e.msg)
+Base.showerror(io::IO, e::GeoZLError) = print(io, "GeoZLError: ", e.message)
+
+# Codes 21 and 30 mean an invalid request here, not a corrupt frame.
+const _INVALID_CODES = (21, 30)
+
+_refusal(code::Integer, message::AbstractString) =
+    code in _INVALID_CODES ? ArgumentError(message) : GeoZLError(code, message)
 
 const _NUMBER = r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$"
 
@@ -23,9 +31,26 @@ function _zero_recipe(error::AbstractString)
     return false
 end
 
-# Expand short error syntax to a codec recipe, or nothing for lossless. Numeric
-# bounds use Julia's decimal formatting; equivalent spellings have the same
-# value when the recipe is parsed.
+# Match Python's shortest round-tripping float spelling in recipe strings.
+function _python_float(x::Union{Float16,Float32,Float64})
+    text = replace(string(x), r"^Float16\((.*)\)$" => s"\1")
+    m = match(r"^(\d+)(?:\.(\d+))?(?:[ef]([+-]?\d+))?$", text)
+    digits = m[1] * something(m[2], "")
+    point = length(m[1]) + (m[3] === nothing ? 0 : parse(Int, m[3]))
+    lead = findfirst(!=('0'), digits)
+    digits = rstrip(digits[lead:end], '0')
+    point -= lead - 1
+    limit = x isa Float16 ? 1e3 : x isa Float32 ? 1e6 : 1e16
+    if 1e-4 <= Float64(x) < limit
+        point <= 0 && return "0." * "0"^-point * digits
+        point >= length(digits) && return digits * "0"^(point - length(digits)) * ".0"
+        return digits[1:point] * "." * digits[point+1:end]
+    end
+    mantissa = length(digits) == 1 ? digits : digits[1:1] * "." * digits[2:end]
+    return mantissa * "e" * (point > 0 ? "+" : "-") * lpad(abs(point - 1), 2, '0')
+end
+
+# Normalize shorthand so the three bindings write the same recipe.
 function _normalize_error(error)
     error === nothing && return nothing
     error isa Bool && throw(ArgumentError("`error` must not be a Bool"))
@@ -33,12 +58,15 @@ function _normalize_error(error)
         isfinite(error) || throw(ArgumentError("`error` must be finite, got $error"))
         error < 0 && throw(ArgumentError("`error` must not be negative, got $error"))
         iszero(error) && return nothing
-        value = error isa Integer || error isa AbstractFloat ? error : Float64(error)
+        error isa Integer && return "LINEAR:MAX_ERROR=$error"
+        value = error isa Union{Float16,Float32,Float64} ? error : Float64(error)
         isfinite(value) || throw(ArgumentError("`error` cannot be represented as a finite number"))
-        return "LINEAR:MAX_ERROR=$value"
+        iszero(value) && throw(ArgumentError("`error` $error is too small for a Float64"))
+        return "LINEAR:MAX_ERROR=" * _python_float(value)
     end
     error isa AbstractString ||
         throw(ArgumentError("`error` must be a number, percentage or recipe, got $(repr(error))"))
+    '\0' in error && throw(ArgumentError("`error` must not contain a NUL character"))
     _zero_recipe(error) && return nothing
     occursin(':', error) && return String(error)
     if endswith(error, "%")
