@@ -9,9 +9,9 @@ library(geozl)
 
 tile <- outer(1:1024, 1:1024, function(x, y) 2000 + 5 * (x - 1) + 8 * (y - 1))
 
-print(geozl_profile(tile, datatype = "uint16", reps = 1))
+print(geozl_profile(tile, dtype = "uint16", reps = 1))
 
-g <- geozl_graph(tile, "planar>zigzag>pfor", datatype = "uint16")
+g <- geozl_graph(tile, "planar>zigzag>pfor", dtype = "uint16")
 frame <- geozl_compress(tile, g)
 back <- geozl_decompress(frame, "uint16", dim = dim(tile))
 identical(back, tile)
@@ -35,12 +35,13 @@ when it is out of date.
 
 ## Rasters
 
-- **Datatypes.** R holds rasters as double or integer, as terra and stars do.
-  `datatype` names the storage type, as numpy (`"uint16"`), terra (`"INT2U"`)
+- **Sample types.** R holds rasters as double or integer, as terra and stars
+  do. `dtype` names the storage type, as numpy (`"uint16"`), terra (`"INT2U"`)
   or GDAL (`"UInt16"`) spell it, for 8 to 64 bit integers and 16 to 64 bit
   floats. Integer types refuse values that are not whole or do not fit; float
   types round to nearest. `geozl_decompress` returns double by default,
   `as = "integer"` for integer types, or `as = "raw"` for the native bytes.
+  int64 and uint64 read as double warn when a value does not convert exactly.
 - **Layout.** The fastest-varying dimension is the row. An array shaped
   `(x, y)` or `(x, y, band)`, as stars holds a raster, gives the same frame as
   Python does for `(y, x)` or `(band, y, x)`. For `v <- terra::values(r)`, pass
@@ -61,8 +62,20 @@ when it is out of date.
   `torch_tensor_from_buffer(geozl_decompress(frame, as = "raw"), shape, dtype)`;
   the bytes are in C order, so `shape` is `(band, y, x)`.
 
-A frame does not record its datatype or shape. Keep them beside it, as Rumi
+A frame does not record its dtype or shape. Keep them beside it, as Rumi
 does.
+
+## Errors
+
+A bad argument stops with a plain error, and so does a request the library
+refuses as invalid, with ZL error code 21 or 30, such as an unknown recipe or
+a lossy tile outside its graph's domain. Any other refusal, such as a corrupt
+frame, signals a condition of class `geozl_error` whose `code` field holds the
+ZL error code. Every error has a `NULL` call.
+
+```r
+tryCatch(geozl_decompress(as.raw(0:63)), geozl_error = function(e) e$code)
+```
 
 ## Development
 
@@ -72,5 +85,6 @@ make r-check    # vendor, build and R CMD check the source package
 ```
 
 The tests decode every golden frame when they find
-`bindings/python/test/golden` or `GEOZL_GOLDEN_DIR`, and compare frames with
-Python's when `GEOZL_PYTHON` names a Python with geozl, which `make r` sets.
+`bindings/python/test/golden` or `GEOZL_GOLDEN_DIR`. When `GEOZL_PYTHON` names
+a Python with geozl, which `make r` sets, they compare graphs, frames, profile
+rows, errors and 64-bit reads with Python's.

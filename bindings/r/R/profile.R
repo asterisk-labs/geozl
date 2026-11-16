@@ -16,22 +16,26 @@
 #'
 #' Compresses and decompresses `x` with every recipe the prior allows and
 #' ranks them by compression ratio. Recipes that do not apply to the input are
-#' left out.
+#' left out. When every recipe fails, the first reason stops with
+#' `geozl_profile failed`, a plain error or a `geozl_error` as in
+#' [geozl_graph()].
 #'
 #' @inheritParams geozl_graph
-#' @param prior One predictor plus the identity path: `"planar"`, `"med"`,
+#' @param prior One predictor plus the identity path, `"planar"`, `"med"`,
 #'   `"delta_w"`, `"delta_n"`, `"average"`, `"wp_static"` or `"delta_1d"`.
 #'   `NULL` tries every predictor and `"none"` only the no-predictor path.
-#' @param reps Round trips per recipe; the best time is kept.
+#' @param reps Round trips per recipe, from 1 to 2147483647; the best time is kept.
 #' @param verify Whether to check checksums while timing decode. The frames
 #'   carry checksums either way.
-#' @return A data frame with one row per recipe: `graph`, `bytes`, `ratio`,
-#'   `encode_mbps`, `decode_mbps` and `shannon_pct`, the order-0 entropy bound
-#'   as a percentage of the frame size.
+#' @return A data frame with one row per recipe and the columns `graph`,
+#'   `bytes`, `ratio`, `encode_mbps`, `decode_mbps` and `shannon_pct`, the
+#'   order-0 entropy bound as a percentage of the frame size. The attributes
+#'   `dims`, `dtype`, `raw_bytes`, `width`, `planes`, `prior`, `reps` and
+#'   `error` keep the input and settings.
 #' @export
 geozl_profile <- function(x, prior = "planar", width = NULL, planes = NULL,
                           error = NULL, reps = 5L, nodata = NULL,
-                          datatype = NULL, verify = FALSE) {
+                          dtype = NULL, verify = FALSE) {
   reps <- .whole(reps, "reps")
   if (reps > .Machine$integer.max)
     stop(sprintf("`reps` must be at most %s", format(.Machine$integer.max)),
@@ -42,7 +46,7 @@ geozl_profile <- function(x, prior = "planar", width = NULL, planes = NULL,
                           is.na(prior) || !nzchar(prior)))
     stop("`prior` must be a non-empty string or NULL", call. = FALSE)
   recipe <- .normalize_error(error)
-  dt <- .datatype(datatype, x)
+  dt <- .dtype(dtype, x)
   input <- .prepare(x, dt, nodata)
   geometry <- .geometry(x, input$n, width, planes)
   names <- .Call(geozl_r_grid, if (is.null(prior)) "" else prior, dt$itemsize)
@@ -56,30 +60,35 @@ geozl_profile <- function(x, prior = "planar", width = NULL, planes = NULL,
     r <- .Call(geozl_r_bench, input$bytes, name, geometry$width,
                geometry$planes, recipe, dt$code, input$nodata$mode,
                input$nodata$value, reps, verify)
-    if (is.null(r))
-      return(NULL)
+    if (inherits(r, "condition"))
+      return(r)
     data.frame(graph = name, bytes = r[[1]], ratio = raw_bytes / r[[1]],
                encode_mbps = .mbps(raw_bytes, r[[2]]),
                decode_mbps = .mbps(raw_bytes, r[[3]]),
                shannon_pct = 100 * ideal / r[[1]])
   })
-  rows <- Filter(Negate(is.null), rows)
+  failed <- vapply(rows, inherits, NA, what = "condition")
+  if (length(rows) && all(failed)) {
+    failure <- rows[[1L]]
+    failure$message <- paste("geozl_profile failed:", conditionMessage(failure))
+    stop(failure)
+  }
+  rows <- rows[!failed]
   out <- if (length(rows)) do.call(rbind, rows) else
     data.frame(graph = character(), bytes = numeric(), ratio = numeric(),
                encode_mbps = numeric(), decode_mbps = numeric(),
                shannon_pct = numeric())
   out <- out[order(-out$ratio), , drop = FALSE]
   rownames(out) <- NULL
-  structure(out, dim_x = if (is.null(dim(x))) length(x) else dim(x),
-            datatype = dt$name, itemsize = dt$itemsize, raw_bytes = raw_bytes,
-            width = geometry$width, planes = geometry$planes, prior = prior,
-            reps = reps, error = recipe,
-            class = c("geozl_profile", "data.frame"))
+  structure(out, dims = if (is.null(dim(x))) length(x) else dim(x),
+            dtype = dt$name, raw_bytes = raw_bytes, width = geometry$width,
+            planes = geometry$planes, prior = prior, reps = reps,
+            error = recipe, class = c("geozl_profile", "data.frame"))
 }
 
 #' @export
 print.geozl_profile <- function(x, ...) {
-  d <- attr(x, "dim_x")
+  d <- attr(x, "dims")
   axes <- switch(as.character(length(d)), "1" = "samples",
                  "2" = "columns, rows", "3" = "columns, rows, planes",
                  "columns, rows, ..., planes")
@@ -89,15 +98,15 @@ print.geozl_profile <- function(x, ...) {
   predictors <- if (is.null(prior)) "all predictors" else
     if (prior == "none") "no predictor" else paste(prior, "+ id")
   mode <- if (is.null(attr(x, "error"))) "lossless" else attr(x, "error")
+  settings <- c(paste(format(planes), if (planes == 1) "plane" else "planes"),
+                paste("row width", format(attr(x, "width"))), predictors,
+                paste(format(reps), if (reps == 1) "rep" else "reps"), mode)
   cat("input\n")
   cat(sprintf("  dim      c(%s)  [%s]\n", paste(d, collapse = ", "), axes))
-  cat(sprintf("  datatype %s  [%d bytes/sample]\n", attr(x, "datatype"),
-              attr(x, "itemsize")))
+  cat(sprintf("  dtype    %s  [%d bytes/sample]\n", attr(x, "dtype"),
+              .dtype(attr(x, "dtype"))$itemsize))
   cat(sprintf("  raw      %.2f MB\n", attr(x, "raw_bytes") / 1e6))
-  cat(sprintf("  profile  %s %s, row width %s, %s, %s %s, %s\n\n",
-              format(planes), if (planes == 1) "plane" else "planes",
-              format(attr(x, "width")), predictors, format(reps),
-              if (reps == 1) "rep" else "reps", mode))
+  cat(sprintf("  profile  %s\n\n", paste(settings, collapse = " \u00b7 ")))
   if (nrow(x) == 0L) {
     cat("no compatible graphs\n")
     return(invisible(x))

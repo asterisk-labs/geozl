@@ -12,18 +12,18 @@ geozl_profile(
   error = NULL,
   reps = 5L,
   nodata = NULL,
-  datatype = NULL,
+  dtype = NULL,
   verify = FALSE
 )
 }
 \arguments{
-\item{x}{Raster samples: a double, integer or raw vector or array. For a
+\item{x}{Raster samples, a double, integer or raw vector or array. For a
 bounded-error graph it fixes the domain later tiles are checked against,
-so use data spanning the product. NaN and infinity are not checked: a later
-tile holding them may be accepted, and they then decode to finite values.
-Only a graph with NaN nodata, set or found in \code{x}, keeps NaN.}
+so use data spanning the product. NaN and infinity are not checked. A
+later tile holding them may be accepted, and they then decode to finite
+values. Only a graph with NaN nodata, set or found in \code{x}, keeps NaN.}
 
-\item{prior}{One predictor plus the identity path: \code{"planar"}, \code{"med"},
+\item{prior}{One predictor plus the identity path, \code{"planar"}, \code{"med"},
 \code{"delta_w"}, \code{"delta_n"}, \code{"average"}, \code{"wp_static"} or \code{"delta_1d"}.
 \code{NULL} tries every predictor and \code{"none"} only the no-predictor path.}
 
@@ -33,28 +33,32 @@ Only a graph with NaN nodata, set or found in \code{x}, keeps NaN.}
 bound (LINEAR), a percentage such as \code{"1\%"} (LOG), or a full \code{LINEAR},
 \code{LOG} or \code{SQRT} recipe.}
 
-\item{reps}{Round trips per recipe; the best time is kept.}
+\item{reps}{Round trips per recipe, from 1 to 2147483647; the best time is kept.}
 
 \item{nodata}{A sentinel value marking missing samples. \code{NA} and \code{NaN} in \code{x}
 are stored as this value, where Python leaves \code{NaN} in the samples. Passing
 \code{NaN} selects NaN handling, which float rasters with missing values get
 without asking.}
 
-\item{datatype}{Storage type: \code{"uint16"}, terra's \code{"INT2U"} or GDAL's
-\code{"UInt16"}, and so on for 8, 16, 32 and 64 bit integers and 16, 32 and 64
-bit floats. Defaults to \code{"int32"} for integer, \code{"float64"} for double and
+\item{dtype}{Storage type, such as \code{"uint16"}, terra's \code{"INT2U"} or GDAL's
+\code{"UInt16"}, for 8, 16, 32 and 64 bit integers and 16, 32 and 64 bit
+floats. Defaults to \code{"int32"} for integer, \code{"float64"} for double and
 \code{"uint8"} for raw input.}
 
 \item{verify}{Whether to check checksums while timing decode. The frames
 carry checksums either way.}
 }
 \value{
-A data frame with one row per recipe: \code{graph}, \code{bytes}, \code{ratio},
-\code{encode_mbps}, \code{decode_mbps} and \code{shannon_pct}, the order-0 entropy bound
-as a percentage of the frame size.
+A data frame with one row per recipe and the columns \code{graph},
+\code{bytes}, \code{ratio}, \code{encode_mbps}, \code{decode_mbps} and \code{shannon_pct}, the
+order-0 entropy bound as a percentage of the frame size. The attributes
+\code{dims}, \code{dtype}, \code{raw_bytes}, \code{width}, \code{planes}, \code{prior}, \code{reps} and
+\code{error} keep the input and settings.
 }
 \description{
 Compresses and decompresses \code{x} with every recipe the prior allows and
 ranks them by compression ratio. Recipes that do not apply to the input are
-left out.
+left out. When every recipe fails, the first reason stops with
+\verb{geozl_profile failed}, a plain error or a \code{geozl_error} as in
+\code{\link[=geozl_graph]{geozl_graph()}}.
 }

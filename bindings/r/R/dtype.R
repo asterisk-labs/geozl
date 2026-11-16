@@ -14,24 +14,24 @@
   Float16 = "float16", Float32 = "float32", Float64 = "float64"
 )
 
-# The storage type of a raster: the datatype given, or the one R's own type
+# The storage type of a raster. It is the dtype given, or the one R's own type
 # implies.
-.datatype <- function(datatype, x = NULL) {
-  if (is.null(datatype)) {
+.dtype <- function(dtype, x = NULL) {
+  if (is.null(dtype)) {
     if (is.null(x))
-      stop("`datatype` is required", call. = FALSE)
-    datatype <- switch(typeof(x),
+      stop("`dtype` is required", call. = FALSE)
+    dtype <- switch(typeof(x),
       raw = "uint8", integer = "int32", double = "float64",
       stop(sprintf("`x` must be a double, integer or raw vector, not %s",
                    typeof(x)), call. = FALSE))
   }
-  if (!is.character(datatype) || length(datatype) != 1L || is.na(datatype))
-    stop("`datatype` must be a single string", call. = FALSE)
-  name <- if (datatype %in% names(.aliases)) .aliases[[datatype]] else datatype
+  if (!is.character(dtype) || length(dtype) != 1L || is.na(dtype))
+    stop("`dtype` must be a single string", call. = FALSE)
+  name <- if (dtype %in% names(.aliases)) .aliases[[dtype]] else dtype
   if (!name %in% names(.codes))
-    stop(sprintf(paste0("unknown datatype \"%s\"; use one of %s, or terra's ",
+    stop(sprintf(paste0("unknown dtype \"%s\"; use one of %s, or terra's ",
                         "(\"INT2U\") or GDAL's (\"UInt16\") names"),
-                 datatype, paste(names(.codes), collapse = ", ")),
+                 dtype, paste(names(.codes), collapse = ", ")),
          call. = FALSE)
   code <- .codes[[name]]
   list(name = name, code = code, itemsize = .itemsizes[[code + 1L]],

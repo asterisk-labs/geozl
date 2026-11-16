@@ -7,8 +7,8 @@
 geozl_compress(x, graph, coeffs = NULL)
 }
 \arguments{
-\item{x}{Tile samples, converted to the graph's datatype. Its geometry is
-not checked against the graph.}
+\item{x}{Tile samples, converted to the graph's dtype. Its geometry is not
+checked against the graph.}
 
 \item{graph}{A graph from \code{\link[=geozl_graph]{geozl_graph()}}.}
 
@@ -19,5 +19,6 @@ them back with \code{\link[=geozl_coeffs]{geozl_coeffs()}}; geozl assigns them n
 The frame, as a raw vector.
 }
 \description{
-Compress a tile
+A tile the graph refuses, such as a lossy tile outside the graph's domain,
+stops with \verb{geozl_compress failed (method = "...")} and the reason.
 }

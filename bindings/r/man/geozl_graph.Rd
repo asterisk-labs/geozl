@@ -11,15 +11,15 @@ geozl_graph(
   planes = NULL,
   error = NULL,
   nodata = NULL,
-  datatype = NULL
+  dtype = NULL
 )
 }
 \arguments{
-\item{x}{Raster samples: a double, integer or raw vector or array. For a
+\item{x}{Raster samples, a double, integer or raw vector or array. For a
 bounded-error graph it fixes the domain later tiles are checked against,
-so use data spanning the product. NaN and infinity are not checked: a later
-tile holding them may be accepted, and they then decode to finite values.
-Only a graph with NaN nodata, set or found in \code{x}, keeps NaN.}
+so use data spanning the product. NaN and infinity are not checked. A
+later tile holding them may be accepted, and they then decode to finite
+values. Only a graph with NaN nodata, set or found in \code{x}, keeps NaN.}
 
 \item{method}{A recipe such as \code{"planar>zigzag>pfor"} or
 \code{"planar>zigzag>transpose>entropy"}; see \code{\link[=geozl_profile]{geozl_profile()}}.}
@@ -35,21 +35,22 @@ are stored as this value, where Python leaves \code{NaN} in the samples. Passing
 \code{NaN} selects NaN handling, which float rasters with missing values get
 without asking.}
 
-\item{datatype}{Storage type: \code{"uint16"}, terra's \code{"INT2U"} or GDAL's
-\code{"UInt16"}, and so on for 8, 16, 32 and 64 bit integers and 16, 32 and 64
-bit floats. Defaults to \code{"int32"} for integer, \code{"float64"} for double and
+\item{dtype}{Storage type, such as \code{"uint16"}, terra's \code{"INT2U"} or GDAL's
+\code{"UInt16"}, for 8, 16, 32 and 64 bit integers and 16, 32 and 64 bit
+floats. Defaults to \code{"int32"} for integer, \code{"float64"} for double and
 \code{"uint8"} for raw input.}
 }
 \value{
-A \code{geozl_graph}. It wraps native state, so it is not thread-safe and
-does not survive saving and reloading.
+A \code{geozl_graph} with the fields \code{method}, \code{width}, \code{planes},
+\code{dtype}, \code{itemsize}, \code{error} and \code{nodata}. It wraps native state, so it is
+not thread-safe and does not survive saving and reloading.
 }
 \description{
 A graph fixes the recipe, the storage type and the predictor geometry for
 every tile compressed with it.
 }
 \details{
-The fastest-varying dimension of \code{x} is the row: \code{width} defaults to
+The fastest-varying dimension of \code{x} is the row. \code{width} defaults to
 \code{dim(x)[1]} and \code{planes} to the last dimension of an array with three or
 more. An array shaped \verb{(x, y, band)}, as \code{stars} holds a raster, therefore
 produces the same frames as Python does for \verb{(band, y, x)}. The matrix from
@@ -58,13 +59,19 @@ produces the same frames as Python does for \verb{(band, y, x)}. The matrix from
 reset at each plane; use \verb{width = nx * ny, planes = 1} to predict across
 bands.
 
-Samples are converted to \code{datatype} before compression. Integer types refuse
+Samples are converted to \code{dtype} before compression. Integer types refuse
 values that are not whole or do not fit, and float types round to nearest.
-A raw vector is taken as native samples of \code{datatype} already.
+A raw vector is taken as native samples of \code{dtype} already.
+
+A bad argument stops with a plain error. So does a request the library
+refuses as invalid, with ZL error code 21 (invalid parameter) or 30
+(invalid graph), such as an unknown recipe. Any other refusal signals a
+condition of class \code{geozl_error} whose \code{code} field holds the ZL error code,
+or \code{NA} when there is none. Every error has a \code{NULL} call.
 }
 \examples{
 tile <- matrix(1000L + 1:(64 * 64) \%\% 97L, 64, 64)
-g <- geozl_graph(tile, "planar>zigzag>pfor", datatype = "uint16")
+g <- geozl_graph(tile, "planar>zigzag>pfor", dtype = "uint16")
 frame <- geozl_compress(tile, g)
 back <- geozl_decompress(frame, "uint16", dim = dim(tile), as = "integer")
 identical(back, tile)

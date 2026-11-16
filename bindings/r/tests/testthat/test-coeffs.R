@@ -1,5 +1,5 @@
 x <- round(smooth_raster(32, 32, 0, 4000))
-g <- geozl_graph(x, "planar>zigzag>pfor", datatype = "uint16")
+g <- geozl_graph(x, "planar>zigzag>pfor", dtype = "uint16")
 
 test_that("coefficients round trip beside the frame", {
   coeffs <- list(1:3, c(-5L, 7L), 2147483647L)

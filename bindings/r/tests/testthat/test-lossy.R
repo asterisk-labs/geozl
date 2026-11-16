@@ -23,23 +23,23 @@ x <- smooth_raster(64, 48, 200, 3000) +
 
 test_that("an absolute bound holds on every sample", {
   g <- geozl_graph(x, "planar>zigzag>transpose>entropy", error = 0.5,
-                   datatype = "float32")
+                   dtype = "float32")
   expect_identical(g$error, "LINEAR:MAX_ERROR=0.5")
   back <- geozl_decompress(geozl_compress(x, g), "float32", dim = dim(x))
   ref <- geozl_decompress(geozl_compress(x, geozl_graph(x, "id>zstd",
-                          datatype = "float32")), "float32", dim = dim(x))
+                          dtype = "float32")), "float32", dim = dim(x))
   expect_lte(max(abs(back - ref)), 0.5)
 })
 
 test_that("a relative bound holds on every sample", {
   g <- geozl_graph(x, "planar>zigzag>transpose>entropy", error = "1%",
-                   datatype = "float64")
+                   dtype = "float64")
   back <- geozl_decompress(geozl_compress(x, g), "float64", dim = dim(x))
   expect_true(all(abs(back - x) <= 0.01 * abs(x)))
 })
 
 test_that("tiles outside the graph's domain are refused", {
   g <- geozl_graph(x, "planar>zigzag>transpose>entropy", error = 0.5,
-                   datatype = "float32")
+                   dtype = "float32")
   expect_error(geozl_compress(x * 1e6, g), "geozl_compress failed")
 })

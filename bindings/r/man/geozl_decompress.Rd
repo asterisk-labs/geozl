@@ -6,7 +6,7 @@
 \usage{
 geozl_decompress(
   frame,
-  datatype = NULL,
+  dtype = NULL,
   dim = NULL,
   as = NULL,
   nodata = NULL,
@@ -17,26 +17,35 @@ geozl_decompress(
 \arguments{
 \item{frame}{A frame, as a raw vector.}
 
-\item{datatype}{The storage type the frame was written with. Without it the
+\item{dtype}{The storage type the frame was written with. Without it the
 result is the raw native bytes.}
 
-\item{dim}{Optional dimensions for the result.}
+\item{dim}{Optional dimensions for the result, whole numbers from 0 to
+2147483647 with a product of at most 2^52.}
 
-\item{as}{\code{"double"} (the default when \code{datatype} is given, as terra and
-stars hold rasters), \code{"integer"}, or \code{"raw"} for the native bytes, which
-torch reads without a copy through \code{torch_tensor_from_buffer()}.}
+\item{as}{\code{"double"} (the default when \code{dtype} is given, as terra and stars
+hold rasters), \code{"integer"}, or \code{"raw"} for the native bytes, which torch
+reads without a copy through \code{torch_tensor_from_buffer()}.}
 
-\item{nodata}{Samples equal to this value become \code{NA}.}
+\item{nodata}{Samples equal to this value become \code{NA}, and \code{NaN} or \code{NA}
+turns every NaN of a float dtype into \code{NA}. It is checked as in
+\code{\link[=geozl_graph]{geozl_graph()}}.}
 
 \item{verify}{Whether to check the frame's checksums.}
 
 \item{max_output_size}{Refuse frames that declare more output bytes than
-this; set it when reading untrusted frames.}
+this, a finite number of at least 0. Set it when reading untrusted frames.}
 }
 \value{
 A vector of samples, with \code{dim} when given.
 }
 \description{
-A frame does not record its datatype or shape; keep them beside it, as Rumi
+A frame does not record its dtype or shape; keep them beside it, as Rumi
 does.
+}
+\details{
+A frame the library cannot read signals a \code{geozl_error}, as does one that
+decodes to fewer bytes than it declares. A frame above \code{max_output_size} is
+a plain error. int64 and uint64 samples read as double warn when a value
+does not convert exactly.
 }

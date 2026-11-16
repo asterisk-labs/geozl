@@ -13,14 +13,65 @@
 #include <float.h>
 #include <limits.h>
 #include <math.h>
+#include <stdarg.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #define ERR_SIZE 256
 
+// Match stop(call. = FALSE) for invalid arguments.
+#define fail(...) Rf_errorcall(R_NilValue, __VA_ARGS__)
+
+// A corrupt frame can report any ZL code; it is never an invalid request.
+enum { FRAME = 0, REQUEST = 1 };
+
+// Invalid requests are plain errors; other refusals retain the ZL code.
+static SEXP refusal(int what, int code, const char *msg) {
+  int plain = what == REQUEST && (code == ZL_ErrorCode_parameter_invalid ||
+                                  code == ZL_ErrorCode_graph_invalid);
+  int n = plain ? 2 : 3;
+  SEXP cond = PROTECT(Rf_allocVector(VECSXP, n));
+  SEXP names = PROTECT(Rf_allocVector(STRSXP, n));
+  SET_VECTOR_ELT(cond, 0, Rf_ScalarString(Rf_mkCharCE(msg, CE_UTF8)));
+  SET_STRING_ELT(names, 0, Rf_mkChar("message"));
+  SET_STRING_ELT(names, 1, Rf_mkChar("call"));
+  if (!plain) {
+    SET_VECTOR_ELT(cond, 2, Rf_ScalarReal(code ? code : NA_REAL));
+    SET_STRING_ELT(names, 2, Rf_mkChar("code"));
+  }
+  Rf_setAttrib(cond, R_NamesSymbol, names);
+  SEXP cls = PROTECT(Rf_allocVector(STRSXP, 3));
+  SET_STRING_ELT(cls, 0, Rf_mkChar(plain ? "simpleError" : "geozl_error"));
+  SET_STRING_ELT(cls, 1, Rf_mkChar("error"));
+  SET_STRING_ELT(cls, 2, Rf_mkChar("condition"));
+  Rf_setAttrib(cond, R_ClassSymbol, cls);
+  UNPROTECT(3);
+  return cond;
+}
+
+// Size the message for method names of arbitrary length.
+static void refuse(int what, int code, const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  int n = vsnprintf(NULL, 0, fmt, ap);
+  va_end(ap);
+  size_t size = (size_t)(n > 0 ? n : 0) + 1;
+  char *msg = R_alloc(size, 1);
+  va_start(ap, fmt);
+  vsnprintf(msg, size, fmt, ap);
+  va_end(ap);
+  SEXP cond = PROTECT(refusal(what, code, msg));
+  SEXP call = PROTECT(Rf_lang2(Rf_install("stop"), cond));
+  Rf_eval(call, R_BaseEnv);
+  UNPROTECT(2);
+}
+
 // configure builds OpenZL to call this in place of abort(), so a failed
 // internal check raises an R error instead of ending the session.
-void geozl_r_abort(void) { Rf_error("OpenZL failed an internal check"); }
+void geozl_r_abort(void) {
+  refuse(FRAME, 0, "OpenZL failed an internal check");
+}
 
 static const size_t kWidth[] = {1, 2, 4, 8, 1, 2, 4, 8, 2, 4, 8};
 static const char *const kName[] = {"uint8", "uint16", "uint32", "uint64",
@@ -30,13 +81,13 @@ static const char *const kName[] = {"uint8", "uint16", "uint32", "uint64",
 static int dtype_arg(SEXP s) {
   int d = Rf_asInteger(s);
   if (!GEOZL_DT_OK(d))
-    Rf_error("unknown datatype code %d", d);
+    fail("unknown dtype code %d", d);
   return d;
 }
 
 static const char *string_arg(SEXP s, const char *name) {
   if (!Rf_isString(s) || XLENGTH(s) != 1 || STRING_ELT(s, 0) == NA_STRING)
-    Rf_error("`%s` must be a single string", name);
+    fail("`%s` must be a single string", name);
   return Rf_translateCharUTF8(STRING_ELT(s, 0));
 }
 
@@ -45,23 +96,24 @@ static const char *error_arg(SEXP s) {
   return Rf_isNull(s) ? NULL : string_arg(s, "error");
 }
 
-static uint32_t u32_arg(SEXP s, const char *name) {
+// Empty rasters may use width 0; other counts start at 1.
+static uint32_t u32_arg(SEXP s, const char *name, double lo) {
   double v = Rf_asReal(s);
-  if (!R_FINITE(v) || v < 1 || v > 4294967295.0 || v != floor(v))
-    Rf_error("`%s` must be a whole number from 1 to 4294967295", name);
+  if (!R_FINITE(v) || v < lo || v > 4294967295.0 || v != floor(v))
+    fail("`%s` must be a whole number from %.0f to 4294967295", name, lo);
   return (uint32_t)v;
 }
 
 static size_t reps_arg(SEXP s) {
   double v = Rf_asReal(s);
   if (!R_FINITE(v) || v < 1 || v > INT_MAX || v != floor(v))
-    Rf_error("`reps` must be a whole number from 1 to %d", INT_MAX);
+    fail("`reps` must be a whole number from 1 to %d", INT_MAX);
   return (size_t)v;
 }
 
 static const uint8_t *raw_arg(SEXP s, const char *name) {
   if (TYPEOF(s) != RAWSXP)
-    Rf_error("`%s` must be a raw vector", name);
+    fail("`%s` must be a raw vector", name);
   // R may return NULL for a zero-length raw vector, while OpenZL needs a
   // non-null pointer even when the numeric stream has no elements.
   static const uint64_t empty = 0;
@@ -166,6 +218,22 @@ static double load(const uint8_t *src, R_xlen_t i, int d) {
   }
 }
 
+// Compare with the stored integer; a rounded double may cross the type limit.
+static int exact(const uint8_t *src, R_xlen_t i, int d, double v) {
+  const uint8_t *p = src + (size_t)i * kWidth[d];
+  if (d == GEOZL_DT_U64) {
+    uint64_t t;
+    memcpy(&t, p, 8);
+    return v < 18446744073709551616.0 && (uint64_t)v == t;
+  }
+  if (d == GEOZL_DT_I64) {
+    int64_t t;
+    memcpy(&t, p, 8);
+    return v < 9223372036854775808.0 && (int64_t)v == t;
+  }
+  return 1;
+}
+
 // A sample's storage bits, zero-extended to the form the C API uses.
 static uint64_t sample_bits(const uint8_t *src, R_xlen_t i, int d) {
   uint64_t bits = 0;
@@ -176,9 +244,9 @@ static uint64_t sample_bits(const uint8_t *src, R_xlen_t i, int d) {
 // The sentinel's bit pattern at type d, in its low bytes.
 static uint64_t nodata_bits(int d, double v) {
   if (d == GEOZL_DT_F16)
-    Rf_error("a float16 raster carries no nodata sentinel; NaN still works");
+    fail("a half float carries no sentinel, NaN still works on one");
   if (is_int_type(d) ? !int_fits(d, v) : (R_FINITE(v) && fabs(v) > FLT_MAX && d == GEOZL_DT_F32))
-    Rf_error("nodata %.17g does not fit %s", v, kName[d]);
+    fail("nodata %.17g does not fit %s", v, kName[d]);
   uint8_t buf[8] = {0};
   store(buf, 0, d, v);
   return sample_bits(buf, 0, d);
@@ -188,18 +256,18 @@ static uint64_t nodata_bits(int d, double v) {
 static void check_value(int d, double v, R_xlen_t i, const char *what) {
   if (is_int_type(d)) {
     if (!int_fits(d, v))
-      Rf_error("%s %.17g at position %.0f does not fit %s", what, v,
-               (double)i + 1, kName[d]);
+      fail("%s %.17g at position %.0f does not fit %s", what, v,
+           (double)i + 1, kName[d]);
   } else if (d == GEOZL_DT_F32) {
     if (R_FINITE(v) && fabs(v) > FLT_MAX)
-      Rf_error("%s %.17g at position %.0f is outside the float32 range", what,
-               v, (double)i + 1);
+      fail("%s %.17g at position %.0f is outside the float32 range", what,
+           v, (double)i + 1);
   } else if (d == GEOZL_DT_F16) {
     int overflow;
     f64_to_f16(v, &overflow);
     if (overflow)
-      Rf_error("%s %.17g at position %.0f is outside the float16 range", what,
-               v, (double)i + 1);
+      fail("%s %.17g at position %.0f is outside the float16 range", what,
+           v, (double)i + 1);
   }
 }
 
@@ -212,13 +280,13 @@ SEXP geozl_r_pack(SEXP x, SEXP dtype_s, SEXP nodata_s) {
   size_t w = kWidth[d];
   if (TYPEOF(x) == RAWSXP) {
     if ((size_t)XLENGTH(x) % w != 0)
-      Rf_error("a raw vector of %s samples needs a length divisible by %d",
-               kName[d], (int)w);
+      fail("a raw vector of %s samples needs a length divisible by %d",
+           kName[d], (int)w);
     return x;
   }
   if (TYPEOF(x) != INTSXP && TYPEOF(x) != REALSXP)
-    Rf_error("`x` must be a double, integer or raw vector, not %s",
-             Rf_type2char(TYPEOF(x)));
+    fail("`x` must be a double, integer or raw vector, not %s",
+         Rf_type2char(TYPEOF(x)));
   int hasNodata = !Rf_isNull(nodata_s);
   double nodata = hasNodata ? Rf_asReal(nodata_s) : 0.0;
   R_xlen_t n = XLENGTH(x);
@@ -240,9 +308,9 @@ SEXP geozl_r_pack(SEXP x, SEXP dtype_s, SEXP nodata_s) {
       if (hasNodata)
         v = nodata;
       else if (is_int_type(d))
-        Rf_error("`x` has NA at position %.0f; an integer datatype needs "
-                 "`nodata` to mark it",
-                 (double)i + 1);
+        fail("`x` has NA at position %.0f; an integer dtype needs `nodata` "
+             "to mark it",
+             (double)i + 1);
     }
     check_value(d, v, i, "value");
     store(dst, i, d, v);
@@ -251,39 +319,43 @@ SEXP geozl_r_pack(SEXP x, SEXP dtype_s, SEXP nodata_s) {
   return out;
 }
 
-// as: 0 raw, 1 double, 2 integer. Samples equal to nodata become NA.
+// A NaN sentinel marks every NaN as NA.
 SEXP geozl_r_unpack(SEXP bytes, SEXP dtype_s, SEXP as_s, SEXP nodata_s) {
   int d = dtype_arg(dtype_s);
   int as = Rf_asInteger(as_s);
   const uint8_t *src = raw_arg(bytes, "frame");
   size_t w = kWidth[d];
   if ((size_t)XLENGTH(bytes) % w != 0)
-    Rf_error("%.0f bytes do not hold whole %s samples",
-             (double)XLENGTH(bytes), kName[d]);
+    fail("%.0f bytes do not hold whole %s samples",
+         (double)XLENGTH(bytes), kName[d]);
   if (as == 0)
     return bytes;
   R_xlen_t n = XLENGTH(bytes) / (R_xlen_t)w;
   int hasNodata = !Rf_isNull(nodata_s);
   double nodata = hasNodata ? Rf_asReal(nodata_s) : 0.0;
-  uint64_t sentinel = hasNodata ? nodata_bits(d, nodata) : 0;
+  int nanMode = hasNodata && ISNAN(nodata);
+  uint64_t sentinel = hasNodata && !nanMode ? nodata_bits(d, nodata) : 0;
   if (as == 1) {
     SEXP out = PROTECT(Rf_allocVector(REALSXP, n));
     double *o = REAL(out);
     R_xlen_t inexact = 0;
     for (R_xlen_t i = 0; i < n; ++i) {
       double v = load(src, i, d);
-      if ((d == GEOZL_DT_U64 || d == GEOZL_DT_I64) && fabs(v) > 9007199254740992.0)
-        ++inexact;
-      o[i] = hasNodata && sample_bits(src, i, d) == sentinel ? NA_REAL : v;
+      if (nanMode ? ISNAN(v) : hasNodata && sample_bits(src, i, d) == sentinel) {
+        o[i] = NA_REAL;
+        continue;
+      }
+      inexact += !exact(src, i, d, v);
+      o[i] = v;
     }
     if (inexact)
-      Rf_warning("%.0f %s values are above 2^53 and lost precision as double",
-                 (double)inexact, kName[d]);
+      Rf_warningcall(R_NilValue, "%.0f %s values lost precision as double",
+                     (double)inexact, kName[d]);
     UNPROTECT(1);
     return out;
   }
   if (!is_int_type(d))
-    Rf_error("%s samples need as = \"double\"", kName[d]);
+    fail("%s samples need as = \"double\"", kName[d]);
   SEXP out = PROTECT(Rf_allocVector(INTSXP, n));
   int *o = INTEGER(out);
   for (R_xlen_t i = 0; i < n; ++i) {
@@ -294,9 +366,9 @@ SEXP geozl_r_unpack(SEXP bytes, SEXP dtype_s, SEXP as_s, SEXP nodata_s) {
     }
     // INT_MIN is R's integer NA.
     if (v < -2147483647.0 || v > 2147483647.0)
-      Rf_error("%s value %.17g at position %.0f does not fit an R integer; "
-               "use as = \"double\"",
-               kName[d], v, (double)i + 1);
+      fail("%s value %.17g at position %.0f does not fit an R integer; "
+           "use as = \"double\"",
+           kName[d], v, (double)i + 1);
     o[i] = (int)v;
   }
   UNPROTECT(1);
@@ -326,11 +398,11 @@ static void graph_finalizer(SEXP ptr) {
 
 static geozl_2d_graph *graph_of(SEXP ptr) {
   if (TYPEOF(ptr) != EXTPTRSXP || R_ExternalPtrTag(ptr) != Rf_install("geozl_graph"))
-    Rf_error("`graph` must come from geozl_graph()");
+    fail("`graph` must come from geozl_graph()");
   geozl_2d_graph *g = R_ExternalPtrAddr(ptr);
   if (g == NULL)
-    Rf_error("this graph is no longer open; a saved graph does not survive a "
-             "new session, build it again with geozl_graph()");
+    fail("this graph is no longer open; a saved graph does not survive a "
+         "new session, build it again with geozl_graph()");
   return g;
 }
 
@@ -340,11 +412,11 @@ SEXP geozl_r_graph_open(SEXP bytes, SEXP method_s, SEXP width_s, SEXP planes_s,
   int d = dtype_arg(dtype_s);
   const char *method = string_arg(method_s, "method");
   const char *recipe = error_arg(error_s);
-  uint32_t width = u32_arg(width_s, "width");
-  uint32_t planes = u32_arg(planes_s, "planes");
+  const uint8_t *src = raw_arg(bytes, "x");
+  uint32_t width = u32_arg(width_s, "width", XLENGTH(bytes) ? 1 : 0);
+  uint32_t planes = u32_arg(planes_s, "planes", 1);
   int mode = Rf_asInteger(mode_s);
   uint64_t bits = mode == GEOZL_NODATA_VALUE ? nodata_bits(d, Rf_asReal(nodata_s)) : 0;
-  const uint8_t *src = raw_arg(bytes, "x");
   size_t w = kWidth[d];
   char err[ERR_SIZE] = {0};
   geozl_2d_graph *g = NULL;
@@ -352,8 +424,9 @@ SEXP geozl_r_graph_open(SEXP bytes, SEXP method_s, SEXP width_s, SEXP planes_s,
                                  bits, src, (size_t)XLENGTH(bytes) / w, w, err,
                                  sizeof err);
   if (rc != 0)
-    Rf_error("geozl_graph failed (method = \"%s\"): %s (ZL error code %d)",
-             method, err, rc);
+    refuse(REQUEST, rc,
+           "geozl_graph failed (method = \"%s\"): %s (ZL error code %d)",
+           method, err, rc);
   SEXP ptr = PROTECT(R_MakeExternalPtr(g, Rf_install("geozl_graph"), R_NilValue));
   R_RegisterCFinalizerEx(ptr, graph_finalizer, TRUE);
   UNPROTECT(1);
@@ -364,34 +437,34 @@ SEXP geozl_r_graph_open(SEXP bytes, SEXP method_s, SEXP width_s, SEXP planes_s,
 // from R_alloc, so an error anywhere leaks nothing.
 static uint8_t *pack_coeffs(SEXP list, size_t *size) {
   if (TYPEOF(list) != VECSXP)
-    Rf_error("`coeffs` must be a list of integer vectors");
+    fail("`coeffs` must be a list of integer vectors");
   R_xlen_t k = XLENGTH(list);
   if (k == 0)
-    Rf_error("`coeffs` must contain at least one vector");
+    fail("`coeffs` must contain at least one vector");
   if (k > GEOZL_COEFFS_MAX_VECS)
-    Rf_error("`coeffs` supports at most %d vectors", GEOZL_COEFFS_MAX_VECS);
+    fail("`coeffs` supports at most %d vectors", GEOZL_COEFFS_MAX_VECS);
   uint32_t *counts = (uint32_t *)R_alloc((size_t)k, sizeof(uint32_t));
   const int32_t **vecs = (const int32_t **)R_alloc((size_t)k, sizeof(int32_t *));
   size_t used = 6;
   for (R_xlen_t j = 0; j < k; ++j) {
     SEXP v = VECTOR_ELT(list, j);
     if (TYPEOF(v) != INTSXP && TYPEOF(v) != REALSXP)
-      Rf_error("coeffs vector %.0f must be integer or double", (double)j + 1);
+      fail("coeffs vector %.0f must be integer or double", (double)j + 1);
     R_xlen_t n = XLENGTH(v);
     if (n == 0)
-      Rf_error("coeffs vector %.0f is empty", (double)j + 1);
+      fail("coeffs vector %.0f is empty", (double)j + 1);
     used += 4 + 4 * (size_t)n;
     if (used > GEOZL_COEFFS_MAX_BYTES)
-      Rf_error("coeffs exceeds the %d-byte limit", GEOZL_COEFFS_MAX_BYTES);
+      fail("coeffs exceeds the %d-byte limit", GEOZL_COEFFS_MAX_BYTES);
     int32_t *vals = (int32_t *)R_alloc((size_t)n, sizeof(int32_t));
     for (R_xlen_t i = 0; i < n; ++i) {
       double x = TYPEOF(v) == INTSXP
                      ? (INTEGER(v)[i] == NA_INTEGER ? NA_REAL : INTEGER(v)[i])
                      : REAL(v)[i];
       if (!int_fits(GEOZL_DT_I32, x))
-        Rf_error("coefficient %.0f of vector %.0f is not a whole number in "
-                 "int32 range",
-                 (double)i + 1, (double)j + 1);
+        fail("coefficient %.0f of vector %.0f is not a whole number in "
+             "int32 range",
+             (double)i + 1, (double)j + 1);
       vals[i] = (int32_t)x;
     }
     counts[j] = (uint32_t)n;
@@ -399,12 +472,12 @@ static uint8_t *pack_coeffs(SEXP list, size_t *size) {
   }
   size_t need = geozl_coeffs_size(counts, (size_t)k);
   if (need == 0)
-    Rf_error("coeffs has an invalid shape");
+    fail("coeffs has an invalid shape");
   uint8_t *blob = (uint8_t *)R_alloc(need, 1);
   char err[ERR_SIZE] = {0};
   *size = geozl_coeffs_pack(blob, need, vecs, counts, (size_t)k, err, sizeof err);
   if (*size == 0)
-    Rf_error("%s", err[0] ? err : "coeffs could not be packed");
+    fail("%s", err[0] ? err : "coeffs could not be packed");
   return blob;
 }
 
@@ -418,8 +491,10 @@ static SEXP shrink(SEXP raw, size_t size) {
   return out;
 }
 
-SEXP geozl_r_compress(SEXP ptr, SEXP bytes, SEXP coeffs_s, SEXP itemsize_s) {
+SEXP geozl_r_compress(SEXP ptr, SEXP bytes, SEXP coeffs_s, SEXP itemsize_s,
+                      SEXP method_s) {
   geozl_2d_graph *g = graph_of(ptr);
+  const char *method = string_arg(method_s, "method");
   const uint8_t *src = raw_arg(bytes, "x");
   size_t w = (size_t)Rf_asInteger(itemsize_s);
   size_t len = (size_t)XLENGTH(bytes), n = len / w;
@@ -427,8 +502,8 @@ SEXP geozl_r_compress(SEXP ptr, SEXP bytes, SEXP coeffs_s, SEXP itemsize_s) {
   const uint8_t *blob = Rf_isNull(coeffs_s) ? NULL : pack_coeffs(coeffs_s, &blobSize);
   size_t cap = geozl_2d_compress_bound_c(len, blobSize);
   if (cap == 0 || cap > (size_t)R_XLEN_T_MAX)
-    Rf_error("geozl_compress: a tile of %.0f bytes has no frame size bound",
-             (double)len);
+    fail("geozl_compress: a tile of %.0f bytes has no frame size bound",
+         (double)len);
   SEXP dst = PROTECT(Rf_allocVector(RAWSXP, (R_xlen_t)cap));
   char err[ERR_SIZE] = {0};
   size_t outSize = 0;
@@ -438,7 +513,9 @@ SEXP geozl_r_compress(SEXP ptr, SEXP bytes, SEXP coeffs_s, SEXP itemsize_s) {
                : geozl_2d_compress_coeffs_c(g, src, n, blob, blobSize, RAW(dst),
                                             cap, &outSize, err, sizeof err);
   if (rc != 0)
-    Rf_error("geozl_compress failed: %s (ZL error code %d)", err, rc);
+    refuse(REQUEST, rc,
+           "geozl_compress failed (method = \"%s\"): %s (ZL error code %d)",
+           method, err, rc);
   SEXP out = shrink(dst, outSize);
   UNPROTECT(1);
   return out;
@@ -450,11 +527,12 @@ SEXP geozl_r_decompress(SEXP frame, SEXP verify_s, SEXP max_s) {
   size_t dsize = 0;
   int rc = geozl_2d_frame_dsize_c(src, len, &dsize);
   if (rc != 0)
-    Rf_error("geozl_decompress: unreadable frame (ZL error code %d)", rc);
+    refuse(FRAME, rc, "geozl_decompress: unreadable frame (ZL error code %d)",
+           rc);
   if (!Rf_isNull(max_s) && (double)dsize > Rf_asReal(max_s))
-    Rf_error("geozl_decompress: the frame declares %.0f bytes of output, above "
-             "the %.0f allowed",
-             (double)dsize, Rf_asReal(max_s));
+    fail("geozl_decompress: the frame declares %.0f bytes of output, above "
+         "the %.15g allowed",
+         (double)dsize, Rf_asReal(max_s));
   // An empty frame still gets a writable byte, so the pointer is never NULL.
   size_t capacity = dsize ? dsize : 1;
   SEXP out = PROTECT(Rf_allocVector(RAWSXP, (R_xlen_t)capacity));
@@ -464,10 +542,11 @@ SEXP geozl_r_decompress(SEXP frame, SEXP verify_s, SEXP max_s) {
   rc = geozl_2d_decompress_c(src, len, RAW(out), capacity, &outSize,
                              Rf_asLogical(verify_s), err, sizeof err);
   if (rc != 0)
-    Rf_error("geozl_decompress failed: %s (ZL error code %d)", err, rc);
+    refuse(FRAME, rc, "geozl_decompress failed: %s (ZL error code %d)", err,
+           rc);
   if (outSize != dsize)
-    Rf_error("geozl_decompress: the frame held %zu bytes, not %zu", outSize,
-             dsize);
+    refuse(FRAME, 0, "geozl_decompress: the frame held %.0f bytes, not %.0f",
+           (double)outSize, (double)dsize);
   SEXP result = shrink(out, outSize);
   UNPROTECT(1);
   return result;
@@ -491,19 +570,18 @@ SEXP geozl_r_grid(SEXP prior_s, SEXP width_s) {
   return out;
 }
 
-// One recipe: c(frame bytes, encode seconds, decode seconds), or NULL when the
-// recipe does not apply to this input.
+// Return a refusal for the caller to report if every recipe fails.
 SEXP geozl_r_bench(SEXP bytes, SEXP method_s, SEXP width_s, SEXP planes_s,
                    SEXP error_s, SEXP dtype_s, SEXP mode_s, SEXP nodata_s,
                    SEXP reps_s, SEXP verify_s) {
   int d = dtype_arg(dtype_s);
   const char *method = string_arg(method_s, "method");
   const char *recipe = error_arg(error_s);
-  uint32_t width = u32_arg(width_s, "width");
-  uint32_t planes = u32_arg(planes_s, "planes");
+  const uint8_t *src = raw_arg(bytes, "x");
+  uint32_t width = u32_arg(width_s, "width", XLENGTH(bytes) ? 1 : 0);
+  uint32_t planes = u32_arg(planes_s, "planes", 1);
   int mode = Rf_asInteger(mode_s);
   uint64_t bits = mode == GEOZL_NODATA_VALUE ? nodata_bits(d, Rf_asReal(nodata_s)) : 0;
-  const uint8_t *src = raw_arg(bytes, "x");
   size_t w = kWidth[d];
   size_t reps = reps_arg(reps_s);
   size_t comp = 0;
@@ -516,8 +594,11 @@ SEXP geozl_r_bench(SEXP bytes, SEXP method_s, SEXP width_s, SEXP planes_s,
                             Rf_asLogical(verify_s), &comp, &enc, &dec, err,
                             sizeof err);
   R_CheckUserInterrupt();
-  if (rc != 0)
-    return R_NilValue;
+  if (rc != 0) {
+    char msg[ERR_SIZE + 32];
+    snprintf(msg, sizeof msg, "%s (ZL error code %d)", err, rc);
+    return refusal(REQUEST, rc, msg);
+  }
   SEXP out = PROTECT(Rf_allocVector(REALSXP, 3));
   REAL(out)[0] = (double)comp;
   REAL(out)[1] = enc;
@@ -533,25 +614,25 @@ SEXP geozl_r_coeffs(SEXP frame) {
   if (rc < 0)
     return R_NilValue;
   if (rc == (int)ZL_ErrorCode_formatVersion_unsupported)
-    Rf_error("geozl_coeffs: the frame predates OpenZL format %d, which GeoZL "
-             "does not read", GEOZL_COEFFS_FORMAT_MIN);
+    refuse(FRAME, rc, "geozl_coeffs: the frame predates OpenZL format %d, "
+                      "which GeoZL does not read", GEOZL_COEFFS_FORMAT_MIN);
   if (rc != 0)
-    Rf_error("geozl_coeffs: unreadable frame (ZL error code %d)", rc);
+    refuse(FRAME, rc, "geozl_coeffs: unreadable frame (ZL error code %d)", rc);
   uint8_t *blob = (uint8_t *)R_alloc(size > 0 ? size : 1, 1);
   rc = geozl_2d_frame_coeffs_c(src, len, blob, size, &size);
   if (rc != 0)
-    Rf_error("geozl_coeffs: unreadable frame (ZL error code %d)", rc);
+    refuse(FRAME, rc, "geozl_coeffs: unreadable frame (ZL error code %d)", rc);
   size_t nv = 0, nvals = 0;
   rc = geozl_coeffs_parse(blob, size, NULL, 0, NULL, 0, &nv, &nvals);
   if (rc == 1)
     return R_NilValue;
   if (rc != 0)
-    Rf_error("invalid geozl coefficient blob (code %d)", rc);
+    fail("invalid geozl coefficient blob (code %d)", rc);
   uint32_t *counts = (uint32_t *)R_alloc(nv > 0 ? nv : 1, sizeof(uint32_t));
   int32_t *vals = (int32_t *)R_alloc(nvals > 0 ? nvals : 1, sizeof(int32_t));
   rc = geozl_coeffs_parse(blob, size, vals, nvals, counts, nv, NULL, NULL);
   if (rc != 0)
-    Rf_error("invalid geozl coefficient blob (code %d)", rc);
+    fail("invalid geozl coefficient blob (code %d)", rc);
   SEXP out = PROTECT(Rf_allocVector(VECSXP, (R_xlen_t)nv));
   size_t off = 0;
   for (size_t j = 0; j < nv; ++j) {
@@ -570,7 +651,7 @@ static const R_CallMethodDef methods[] = {
     {"geozl_r_unpack", (DL_FUNC)&geozl_r_unpack, 4},
     {"geozl_r_has_nan", (DL_FUNC)&geozl_r_has_nan, 2},
     {"geozl_r_graph_open", (DL_FUNC)&geozl_r_graph_open, 8},
-    {"geozl_r_compress", (DL_FUNC)&geozl_r_compress, 4},
+    {"geozl_r_compress", (DL_FUNC)&geozl_r_compress, 5},
     {"geozl_r_decompress", (DL_FUNC)&geozl_r_decompress, 3},
     {"geozl_r_grid", (DL_FUNC)&geozl_r_grid, 2},
     {"geozl_r_bench", (DL_FUNC)&geozl_r_bench, 10},
