@@ -92,51 +92,54 @@ remotes::install_github("asterisk-labs/geozl", subdir = "bindings/r")</code></pr
 
 tile &lt;- outer(1:256, 1:256, function(x, y) 1000 + 3 * (x - 1) + 2 * (y - 1))
 
-rows &lt;- geozl_profile(tile, datatype = "uint16")
-g &lt;- geozl_graph(tile, rows$graph[[1]], datatype = "uint16")
+rows &lt;- geozl_profile(tile, dtype = "uint16")
+g &lt;- geozl_graph(tile, rows$graph[[1]], dtype = "uint16")
 frame &lt;- geozl_compress(tile, g)
 back &lt;- geozl_decompress(frame, "uint16", dim = dim(tile))
 identical(back, tile)                        # TRUE</code></pre>
 
       <h2 class="part" id="functions">Functions</h2>
-      <p>Every exported function is below. Bad arguments and a frame or recipe the library refuses stop with an R error.</p>
+      <p>Every exported function is below. A bad argument stops with a plain R error, and so does a request the library refuses as invalid, with ZL error code 21 or 30, such as an unknown recipe or a lossy tile outside its graph's domain. Any other refusal, such as a corrupt frame, signals a condition of class <code>geozl_error</code> whose <code>code</code> field holds the ZL error code, or <code>NA</code> when there is none. Every error has a <code>NULL</code> call.</p>
+<pre><code class="language-r">e &lt;- tryCatch(geozl_decompress(as.raw(0:63)), geozl_error = identity)
+e$code                                       # 10</code></pre>
 
       <h3 id="geozl_profile">geozl_profile</h3>
 <pre><code class="sig language-r">geozl_profile(x, prior = "planar", width = NULL, planes = NULL,
-    error = NULL, reps = 5L, nodata = NULL, datatype = NULL,
+    error = NULL, reps = 5L, nodata = NULL, dtype = NULL,
     verify = FALSE)</code></pre>
       <p>Compresses and decompresses <code>x</code> with every recipe the prior allows and ranks them by compression ratio. Recipes that do not apply to the input are left out.</p>
       <table class="spec">
         <tr><th>prior</th><td>One predictor plus the <code>id</code> path, <code>"planar"</code>, <code>"med"</code>, <code>"delta_w"</code>, <code>"delta_n"</code>, <code>"average"</code>, <code>"wp_static"</code> or <code>"delta_1d"</code>. <code>NULL</code> tries every predictor and <code>"none"</code> only <code>id</code>.</td></tr>
-        <tr><th>reps</th><td>Round trips per recipe, at least 1. The fastest is kept.</td></tr>
+        <tr><th>reps</th><td>Round trips per recipe, from 1 to 2147483647. The fastest is kept.</td></tr>
         <tr><th>verify</th><td>Check checksums while timing decode. The frames carry them either way.</td></tr>
         <tr><th>others</th><td>As in <a href="#geozl_graph"><code>geozl_graph</code></a>.</td></tr>
       </table>
-      <p>Returns a <code>geozl_profile</code> data frame, best ratio first, with the columns <code>graph</code>, <code>bytes</code>, <code>ratio</code>, <code>encode_mbps</code>, <code>decode_mbps</code> and <code>shannon_pct</code>. <code>print</code> shows the input and settings above the table.</p>
-<pre><code class="language-r">rows &lt;- geozl_profile(tile, prior = NULL, datatype = "uint16", reps = 1)
+      <p>Returns a <code>geozl_profile</code> data frame, best ratio first, with the columns <code>graph</code>, <code>bytes</code>, <code>ratio</code>, <code>encode_mbps</code>, <code>decode_mbps</code> and <code>shannon_pct</code>. The attributes <code>dims</code>, <code>dtype</code>, <code>raw_bytes</code>, <code>width</code>, <code>planes</code>, <code>prior</code>, <code>reps</code> and <code>error</code> keep the input and settings, and <code>print</code> shows them above the table as Python does. When every recipe fails, it stops with <code>geozl_profile failed</code> and the first reason.</p>
+<pre><code class="language-r">rows &lt;- geozl_profile(tile, prior = NULL, dtype = "uint16", reps = 1)
 rows$graph[[1]]                              # "med&gt;zigzag&gt;zstd"</code></pre>
 
       <h3 id="geozl_graph">geozl_graph</h3>
 <pre><code class="sig language-r">geozl_graph(x, method, width = NULL, planes = NULL, error = NULL,
-    nodata = NULL, datatype = NULL)</code></pre>
+    nodata = NULL, dtype = NULL)</code></pre>
       <p>Builds a reusable graph for one recipe. The graph fixes the recipe, the storage type and the geometry of every tile compressed with it.</p>
       <table class="spec">
         <tr><th>x</th><td>A double, integer or raw vector or array. For a bounded-error graph it fixes the domain later tiles are checked against, so use data spanning the product.</td></tr>
         <tr><th>method</th><td>A recipe as <code>geozl_profile</code> spells it, such as <code>"planar&gt;zigzag&gt;pfor"</code>. <a href="api-python.html#graph">Python's <code>graph</code></a> lists them all.</td></tr>
-        <tr><th>width</th><td>Row length in samples. Defaults to <code>dim(x)[1]</code> and is required for a vector without <code>dim</code>.</td></tr>
+        <tr><th>width</th><td>Row length in samples, at least 1. Defaults to <code>dim(x)[1]</code>, which is 0 for an empty raster as in Python, and is required for a vector without <code>dim</code>.</td></tr>
         <tr><th>planes</th><td>Stacked images predicted independently. Defaults to the last dimension of an array with three or more, otherwise 1.</td></tr>
         <tr><th>error</th><td><code>NULL</code> or <code>0</code> for lossless, a number for an absolute bound, <code>"1%"</code> for a relative bound, or a full <code>LINEAR</code>, <code>LOG</code> or <code>SQRT</code> recipe, as in <a href="api-python.html#error">Python</a>.</td></tr>
-        <tr><th>nodata</th><td>A sentinel for missing samples. <code>NA</code> and <code>NaN</code> in <code>x</code> are stored as it. <code>NaN</code> selects NaN handling, which a float raster with missing values gets without asking.</td></tr>
-        <tr><th>datatype</th><td>The storage type, as numpy (<code>"uint16"</code>), terra (<code>"INT2U"</code>) or GDAL (<code>"UInt16"</code>) names it, for 8 to 64 bit integers and 16 to 64 bit floats. Defaults to <code>"int32"</code> for integer, <code>"float64"</code> for double and <code>"uint8"</code> for raw input.</td></tr>
+        <tr><th>nodata</th><td>A sentinel for missing samples. <code>NA</code> and <code>NaN</code> in <code>x</code> are stored as it. <code>NaN</code> selects NaN handling, which a float raster with missing values gets without asking, and an integer dtype refuses it.</td></tr>
+        <tr><th>dtype</th><td>The storage type, as numpy (<code>"uint16"</code>), terra (<code>"INT2U"</code>) or GDAL (<code>"UInt16"</code>) names it, for 8 to 64 bit integers and 16 to 64 bit floats. Defaults to <code>"int32"</code> for integer, <code>"float64"</code> for double and <code>"uint8"</code> for raw input.</td></tr>
       </table>
-      <p>Returns a <code>geozl_graph</code> with the fields <code>method</code>, <code>width</code>, <code>planes</code>, <code>datatype</code>, <code>error</code> and <code>nodata</code>. It wraps native state, so it is not thread safe and does not survive saving and reloading.</p>
-      <p>Samples are converted to <code>datatype</code> first. Integer types refuse values that are not whole or do not fit, and float types round to nearest. A raw vector is taken as native samples of <code>datatype</code> already.</p>
-<pre><code class="language-r">g &lt;- geozl_graph(tile, "planar&gt;zigzag&gt;pfor", error = 2, datatype = "uint16")
-g$error                                      # "LINEAR:MAX_ERROR=2"</code></pre>
+      <p>Returns a <code>geozl_graph</code> with the fields <code>method</code>, <code>width</code>, <code>planes</code>, <code>dtype</code>, <code>itemsize</code>, <code>error</code> and <code>nodata</code>. It prints them in that order and wraps native state, so it is not thread safe and does not survive saving and reloading.</p>
+      <p>Samples are converted to <code>dtype</code> first. Integer types refuse values that are not whole or do not fit, and float types round to nearest. A raw vector is taken as native samples of <code>dtype</code> already.</p>
+<pre><code class="language-r">g &lt;- geozl_graph(tile, "planar&gt;zigzag&gt;pfor", error = 2, dtype = "uint16")
+g$error                                      # "LINEAR:MAX_ERROR=2"
+g$itemsize                                   # 2</code></pre>
 
       <h3 id="geozl_compress">geozl_compress</h3>
 <pre><code class="sig language-r">geozl_compress(x, graph, coeffs = NULL)</code></pre>
-      <p>Compresses one tile with a graph and returns the frame as a raw vector. <code>x</code> is converted to the graph's datatype, and its geometry is not checked against the graph.</p>
+      <p>Compresses one tile with a graph and returns the frame as a raw vector. <code>x</code> is converted to the graph's dtype, and its geometry is not checked against the graph. A tile the graph refuses, such as a lossy tile outside its domain, stops with <code>geozl_compress failed (method = "...")</code> and the reason.</p>
       <table class="spec">
         <tr><th>graph</th><td>A graph from <code>geozl_graph</code>.</td></tr>
         <tr><th>coeffs</th><td>A list of integer vectors stored in the frame header, read back with <a href="#geozl_coeffs"><code>geozl_coeffs</code></a>. GeoZL gives them no meaning.</td></tr>
@@ -144,17 +147,18 @@ g$error                                      # "LINEAR:MAX_ERROR=2"</code></pre>
 <pre><code class="language-r">frame &lt;- geozl_compress(tile, g, coeffs = list(c(1L, 2L, 3L), 4L))</code></pre>
 
       <h3 id="geozl_decompress">geozl_decompress</h3>
-<pre><code class="sig language-r">geozl_decompress(frame, datatype = NULL, dim = NULL, as = NULL,
+<pre><code class="sig language-r">geozl_decompress(frame, dtype = NULL, dim = NULL, as = NULL,
     nodata = NULL, verify = TRUE, max_output_size = NULL)</code></pre>
-      <p>Decodes a frame. The frame stores no datatype or shape, so pass the ones it was written with.</p>
+      <p>Decodes a frame. The frame stores no dtype or shape, so pass the ones it was written with.</p>
       <table class="spec">
-        <tr><th>datatype</th><td>The storage type of the frame. Without it the result is the raw native bytes.</td></tr>
-        <tr><th>dim</th><td>Dimensions for the result, in samples.</td></tr>
-        <tr><th>as</th><td><code>"double"</code>, the default with a <code>datatype</code>, <code>"integer"</code>, or <code>"raw"</code> for the native bytes, which torch reads without a copy through <code>torch_tensor_from_buffer()</code>.</td></tr>
-        <tr><th>nodata</th><td>Samples equal to this value become <code>NA</code>.</td></tr>
+        <tr><th>dtype</th><td>The storage type of the frame. Without it the result is the raw native bytes.</td></tr>
+        <tr><th>dim</th><td>Dimensions for the result, in samples, whole numbers from 0 to 2147483647 with a product of at most 2<sup>52</sup>.</td></tr>
+        <tr><th>as</th><td><code>"double"</code>, the default with a <code>dtype</code>, <code>"integer"</code>, or <code>"raw"</code> for the native bytes, which torch reads without a copy through <code>torch_tensor_from_buffer()</code>.</td></tr>
+        <tr><th>nodata</th><td>Samples equal to this value become <code>NA</code>, and <code>NaN</code> or <code>NA</code> turns every NaN of a float dtype into <code>NA</code>. It is checked as in <code>geozl_graph</code>.</td></tr>
         <tr><th>verify</th><td>Check the frame checksums.</td></tr>
-        <tr><th>max_output_size</th><td>Refuse a frame that declares more output bytes than this. Set it for untrusted frames.</td></tr>
+        <tr><th>max_output_size</th><td>Refuse a frame that declares more output bytes than this, a plain error. The limit is a finite number of at least 0. Set it for untrusted frames.</td></tr>
       </table>
+      <p>A frame the library cannot read, or one that decodes to fewer bytes than it declares, signals a <code>geozl_error</code>. int64 and uint64 samples read as double warn when a value does not convert exactly, such as 2^53 + 1.</p>
 <pre><code class="language-r">back &lt;- geozl_decompress(frame, "uint16", dim = dim(tile), as = "integer")</code></pre>
 
       <h3 id="geozl_coeffs">geozl_coeffs</h3>

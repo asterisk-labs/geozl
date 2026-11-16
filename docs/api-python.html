@@ -92,15 +92,15 @@
       <p>Compresses and decompresses <code>tile</code> with every candidate recipe and returns one row per recipe, sorted by compression ratio. Timing runs in C and keeps the fastest of <code>reps</code> round trips.</p>
       <table class="spec">
         <tr><th>prior</th><td>A predictor name, <code>"planar"</code>, <code>"med"</code>, <code>"delta_w"</code>, <code>"delta_n"</code>, <code>"average"</code>, <code>"wp_static"</code> or <code>"delta_1d"</code>, profiles that predictor and the <code>id</code> path. <code>None</code> profiles every predictor and <code>"none"</code> only <code>id</code>.</td></tr>
-        <tr><th>width</th><td>Row length in samples. Defaults to the last axis and is required for a 1d array.</td></tr>
-        <tr><th>planes</th><td>Stacked images predicted independently. Defaults to the first axis of an array with three or more dimensions, otherwise 1.</td></tr>
+        <tr><th>width</th><td>Row length in samples, a whole number from 1 to 4294967295. Defaults to the last axis and is required for a 1d array.</td></tr>
+        <tr><th>planes</th><td>Stacked images predicted independently, a whole number from 1 to 4294967295. Defaults to the first axis of an array with three or more dimensions, otherwise 1.</td></tr>
         <tr><th>error</th><td>The error budget, see <a href="#error">error budgets</a>. <code>None</code> is lossless.</td></tr>
-        <tr><th>reps</th><td>Round trips timed per recipe, at least 1.</td></tr>
-        <tr><th>nodata</th><td>A sentinel value to mask. NaNs are masked without it on a float tile.</td></tr>
-        <tr><th>verify</th><td>Verify checksums while timing decode. The frames always carry them.</td></tr>
+        <tr><th>reps</th><td>Round trips timed per recipe, a whole number from 1 to 2147483647.</td></tr>
+        <tr><th>nodata</th><td>A sentinel value to mask, as in <code>graph</code>. NaNs are masked without it on a float tile.</td></tr>
+        <tr><th>verify</th><td>A boolean, to verify checksums while timing decode. The frames always carry them.</td></tr>
       </table>
       <p>Returns a <a href="#profileresults"><code>ProfileResults</code></a>. Each row is a dict with <code>graph</code>, <code>bytes</code>, <code>ratio</code>, <code>encode_mbps</code>, <code>decode_mbps</code> and <code>shannon_pct</code>, the frame size against the order 0 byte entropy of the tile. A recipe that fails on the tile is left out.</p>
-      <p>Raises <code>ValueError</code> for <code>reps</code> below 1, an unknown prior, a bad error budget or geometry, and a dtype that is not native byte order or not 1, 2, 4 or 8 bytes. Raises <code>RuntimeError</code> when every recipe fails.</p>
+      <p>Raises <code>TypeError</code> when <code>reps</code>, <code>width</code> or <code>planes</code> is not a whole number, <code>nodata</code> is not a number or <code>verify</code> is not a boolean. Raises <code>ValueError</code> for <code>reps</code> below 1, an unknown prior, a bad error budget, geometry or sentinel, and a dtype that is not native byte order or not 1, 2, 4 or 8 bytes. Raises <a href="#geozlerror"><code>GeoZLError</code></a> with the first reason when every recipe fails.</p>
 
       <h3 id="graph">graph</h3>
 <pre><code class="sig language-python">geozl.graph(raster, method, *, width=None, planes=None, error=None,
@@ -111,36 +111,36 @@
         <tr><th>method</th><td>A recipe as <code>profile</code> spells it, <code>&lt;predictor&gt;&gt;zigzag&gt;&lt;terminal&gt;</code>, <code>delta_1d&gt;&lt;terminal&gt;</code> or <code>id&gt;&lt;terminal&gt;</code>. The predictors are <code>delta_w</code>, <code>delta_n</code>, <code>planar</code>, <code>med</code>, <code>average</code> and <code>wp_static</code>. The terminals are <code>entropy</code>, <code>field_lz</code>, <code>zstd</code>, <code>categorical</code>, <code>transpose&gt;entropy</code>, <code>transpose&gt;zstd</code>, <code>pfor</code>, <code>lanes</code> and <code>sparse</code>.</td></tr>
         <tr><th>width, planes</th><td>As in <code>profile</code>. Row predictors reset at each plane. Pass <code>width=Y*X, planes=1</code> to predict across bands.</td></tr>
         <tr><th>error</th><td>See <a href="#error">error budgets</a>.</td></tr>
-        <tr><th>nodata</th><td>A sentinel to mask, read at the raster dtype. Without it a float raster that holds NaNs gets a NaN mask.</td></tr>
+        <tr><th>nodata</th><td>A sentinel to mask, one number read at the raster dtype. NaN marks every NaN of a float raster. Without it a float raster that holds NaNs gets a NaN mask.</td></tr>
       </table>
       <p>Returns a <a href="#graph-class"><code>Graph</code></a>.</p>
-      <p>Raises <code>ValueError</code> for an empty method, a bad budget, geometry or dtype, a lossy budget on a dtype the quantizers lack, such as complex, and a sentinel on <code>float16</code>. Raises <code>RuntimeError</code> when the C library refuses the recipe, such as an unknown method, a terminal that does not take the sample width, or a bound finer than the dtype resolves.</p>
+      <p>Raises <code>TypeError</code> when <code>width</code> or <code>planes</code> is not a whole number or <code>nodata</code> is not a number. Raises <code>ValueError</code> for an empty method or one holding a NUL character, a bad budget, geometry or dtype, a lossy budget on a dtype the quantizers lack, such as complex, a sentinel outside the dtype, NaN as the sentinel of an integer raster and a sentinel on <code>float16</code>. Raises <a href="#geozlerror"><code>GeoZLError</code></a> when the C library refuses the recipe, such as an unknown method, a terminal that does not take the sample width, or a bound finer than the dtype resolves. Each of these three is also a <code>ValueError</code>.</p>
 <pre><code class="language-python">g = geozl.graph(tile, "planar&gt;zigzag&gt;pfor", error=2)
 g.error                                     # 'LINEAR:MAX_ERROR=2'</code></pre>
 
       <h3 id="compress">compress</h3>
-<pre><code class="sig language-python">geozl.compress(tile, *, graph, coeffs=None) -&gt; bytes</code></pre>
+<pre><code class="sig language-python">geozl.compress(tile, graph, *, coeffs=None) -&gt; bytes</code></pre>
       <p>Compresses one tile with a prepared graph and returns the frame. The dtype must equal the graph's. The geometry is not checked against the graph.</p>
       <table class="spec">
-        <tr><th>graph</th><td>A <code>Graph</code> from <code>geozl.graph</code>.</td></tr>
+        <tr><th>graph</th><td>A <code>Graph</code> from <code>geozl.graph</code>, by position or by name.</td></tr>
         <tr><th>coeffs</th><td>Integer vectors stored in the frame header, read back with <a href="#coeffs"><code>coeffs</code></a>. At most 255 non-empty vectors of int32 values within 10,000 packed bytes. GeoZL gives them no meaning.</td></tr>
       </table>
-      <p>Raises <code>TypeError</code> when <code>graph</code> is not a <code>Graph</code> or a coefficient is not an integer. Raises <code>ValueError</code> for a dtype mismatch or coefficients past the limits. Raises <code>RuntimeError</code> when compression fails, including a lossy tile the graph's grid cannot hold to its bound.</p>
+      <p>Raises <code>TypeError</code> when <code>graph</code> is not a <code>Graph</code> or a coefficient is not an integer. Raises <code>ValueError</code> for a dtype mismatch or coefficients past the limits. Raises <a href="#geozlerror"><code>GeoZLError</code></a> when compression fails. A lossy tile the graph's grid cannot hold to its bound is one such refusal, and it is also a <code>ValueError</code>.</p>
       <p>That check refuses a negative sample where the raster had none, a floating-point sample whose magnitude exceeds the raster's largest magnitude under <code>LINEAR</code>, and a finite value outside the raster's range under <code>SQRT</code>. Integer <code>LINEAR</code> and every <code>LOG</code> grid span the whole dtype, so only the sign is checked there. NaN and infinity are not checked, apart from <code>LOG</code> refusing <code>-inf</code> on a graph built without negatives.</p>
 
       <h3 id="decompress">decompress</h3>
 <pre><code class="sig language-python">geozl.decompress(frame, *, verify=True, max_output_size=None) -&gt; ndarray</code></pre>
       <p>Decodes a frame into a flat, 8-byte aligned <code>uint8</code> array. The frame stores no dtype or shape, so restore them with <code>.view(dtype).reshape(shape)</code>.</p>
       <table class="spec">
-        <tr><th>verify</th><td>Check the frame checksums. Set <code>False</code> to skip them.</td></tr>
+        <tr><th>verify</th><td>A boolean, to check the frame checksums. Set <code>False</code> to skip them.</td></tr>
         <tr><th>max_output_size</th><td>Refuse a frame that declares more output bytes than this. <a href="https://github.com/facebook/openzl" rel="noopener noreferrer">OpenZL</a> may still allocate intermediate streams while decoding.</td></tr>
       </table>
-      <p>Raises <code>ValueError</code> when <code>max_output_size</code> is negative, not finite or below the declared size. Raises <code>RuntimeError</code> for an unreadable or corrupt frame.</p>
+      <p>Raises <code>TypeError</code> when <code>verify</code> is not a boolean. Raises <code>ValueError</code> when <code>max_output_size</code> is negative, not finite or below the declared size. Raises <a href="#geozlerror"><code>GeoZLError</code></a> for an unreadable or corrupt frame, and for one that decodes to fewer bytes than it declares.</p>
 
       <h3 id="coeffs">coeffs</h3>
 <pre><code class="sig language-python">geozl.coeffs(frame) -&gt; tuple[tuple[int, ...], ...] | None</code></pre>
       <p>Returns the coefficient vectors stored by <code>compress</code>, or <code>None</code> when the frame has none. Only the frame header is read.</p>
-      <p>Raises <code>RuntimeError</code> for an unreadable frame or one older than OpenZL format 22.</p>
+      <p>Raises <a href="#geozlerror"><code>GeoZLError</code></a> for an unreadable frame or one older than OpenZL format 22.</p>
 <pre><code class="language-python">frame = geozl.compress(tile, graph=g, coeffs=[[1, 2, 3], [4]])
 geozl.coeffs(frame)                         # ((1, 2, 3), (4,))</code></pre>
 
@@ -156,11 +156,23 @@ geozl.coeffs(frame)                         # ((1, 2, 3), (4,))</code></pre>
 
       <h3 id="graph-class">Graph</h3>
       <p>The type <code>geozl.graph</code> returns. It is exported for <code>isinstance</code> checks and annotations, and calling it raises <code>TypeError</code>.</p>
-      <p>Its attributes are <code>method</code>, <code>width</code>, <code>planes</code>, <code>dtype</code>, <code>itemsize</code>, <code>error</code>, the normalized recipe or <code>None</code>, and <code>nodata</code>.</p>
+      <p>Its attributes are <code>method</code>, <code>width</code>, <code>planes</code>, <code>dtype</code>, <code>itemsize</code>, <code>error</code>, the normalized recipe or <code>None</code>, and <code>nodata</code>. Its repr shows the method, the dtype, the row width, the planes and the recipe.</p>
+<pre><code class="language-python">geozl.graph(tile, "planar&gt;zigzag&gt;pfor")
+# &lt;geozl.Graph planar&gt;zigzag&gt;pfor, uint16, row width 48, 1 plane, lossless&gt;</code></pre>
 
       <h3 id="profileresults">ProfileResults</h3>
       <p>The type <code>geozl.profile</code> returns. It is exported for <code>isinstance</code> checks and annotations, and calling it raises <code>TypeError</code>.</p>
       <p>It is a list of profile rows that also keeps the input and settings as the attributes <code>shape</code>, <code>dtype</code>, <code>raw_bytes</code>, <code>width</code>, <code>planes</code>, <code>prior</code>, <code>reps</code> and <code>error</code>. <code>print(rows)</code> shows them above the table.</p>
+
+      <h3 id="geozlerror">GeoZLError</h3>
+<pre><code class="sig language-python">geozl.GeoZLError(message, code=None)</code></pre>
+      <p>Raised when the C library refuses a recipe, a tile or a frame. It derives from <code>RuntimeError</code>, so <code>except RuntimeError</code> still catches it.</p>
+      <p><code>code</code> is the ZL error code as an <code>int</code>. It is <code>None</code> when the refusal has no code, as for a frame that decodes to fewer bytes than it declares.</p>
+      <p>A refusal with code 21, an invalid parameter, or 30, an invalid graph, is an invalid request, and its class also derives from <code>ValueError</code>. An unknown method or a lossy tile outside the grid is then caught as a bad argument is. A corrupt frame is not.</p>
+<pre><code class="language-python">try:
+    geozl.graph(tile, "planar&gt;nothing")
+except ValueError as exc:
+    exc.code                                # 21</code></pre>
 
       <h3 id="simd_info">simd_info</h3>
 <pre><code class="sig language-python">geozl.simd_info() -&gt; SimdInfo</code></pre>
@@ -259,6 +271,7 @@ g = geozl.graph(counts, "planar&gt;zigzag&gt;pfor", error=noise.recipe(2))</code
         <li><a href="#error">Error budgets</a></li>
         <li><a href="#graph-class">Graph</a></li>
         <li><a href="#profileresults">ProfileResults</a></li>
+        <li><a href="#geozlerror">GeoZLError</a></li>
         <li><a href="#simd_info">simd_info</a></li>
         <li><a href="#register_decoders">register_decoders</a></li>
         <li><a href="#version">__version__</a></li>

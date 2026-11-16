@@ -98,19 +98,19 @@ back = GeoZL.decompress(UInt16, frame, size(tile)...)
 back == tile                                 # true</code></pre>
 
       <h2 class="part" id="functions">Functions</h2>
-      <p>The module exports only <code>GeoZLError</code>, so call the functions as <code>GeoZL.graph</code> and so on. Bad arguments throw <code>ArgumentError</code>, and a recipe, tile or frame the library refuses throws <code>GeoZLError</code>.</p>
+      <p>The module exports only <code>GeoZLError</code>, so call the functions as <code>GeoZL.graph</code> and so on. Bad arguments throw <code>ArgumentError</code>. So does a request the library refuses as invalid, with ZL error code 21 or 30, such as an unknown recipe or a lossy tile outside its graph's domain. Any other refusal, such as a corrupt frame, throws <a href="#types"><code>GeoZLError</code></a>. A library message starts with the call, as in <code>GeoZL.compress failed (method = "planar&gt;zigzag&gt;pfor")</code>, and ends with the ZL error code.</p>
 
       <h3 id="profile">profile</h3>
 <pre><code class="sig language-julia">GeoZL.profile(x; prior="planar", width=nothing, planes=nothing,
     error=nothing, reps=5, nodata=nothing, verify=false) -&gt; Profile</code></pre>
-      <p>Compresses and decompresses <code>x</code> with every recipe <code>prior</code> allows and ranks them by ratio. Recipes that do not apply to the input are left out.</p>
+      <p>Compresses and decompresses <code>x</code> with every recipe <code>prior</code> allows and ranks them by ratio. Recipes that do not apply to the input are left out. When every recipe fails, it throws the first failure as <code>graph</code> would, with the text <code>GeoZL.profile failed</code> and the reason.</p>
       <table class="spec">
         <tr><th>prior</th><td>One predictor plus the <code>id</code> path, <code>"planar"</code>, <code>"med"</code>, <code>"delta_w"</code>, <code>"delta_n"</code>, <code>"average"</code>, <code>"wp_static"</code> or <code>"delta_1d"</code>. <code>nothing</code> tries every predictor and <code>"none"</code> only <code>id</code>.</td></tr>
-        <tr><th>reps</th><td>Round trips per recipe, at least 1. The fastest is kept.</td></tr>
-        <tr><th>verify</th><td>Check checksums while timing decode.</td></tr>
+        <tr><th>reps</th><td>Round trips per recipe, an integer from 1 to 2147483647. The fastest is kept.</td></tr>
+        <tr><th>verify</th><td><code>true</code> to check checksums while timing decode.</td></tr>
         <tr><th>others</th><td>As in <a href="#graph"><code>graph</code></a>.</td></tr>
       </table>
-      <p>Returns a <a href="#types"><code>Profile</code></a>, best ratio first.</p>
+      <p>Returns a <a href="#types"><code>Profile</code></a>, best ratio first. It prints its settings as Python does, separated by <code>·</code>.</p>
 <pre><code class="language-julia">rows = GeoZL.profile(tile; prior = nothing, reps = 1)
 rows[1].graph                                # "med&gt;zigzag&gt;zstd"</code></pre>
 
@@ -119,30 +119,34 @@ rows[1].graph                                # "med&gt;zigzag&gt;zstd"</code></p
     nodata=nothing) -&gt; Graph</code></pre>
       <p>Builds a reusable graph for one recipe. The graph fixes the element type and the geometry of every tile compressed with it.</p>
       <table class="spec">
-        <tr><th>x</th><td>An array of <code>UInt8</code> to <code>UInt64</code>, <code>Int8</code> to <code>Int64</code>, <code>Float16</code>, <code>Float32</code> or <code>Float64</code>, possibly with <code>missing</code>. For a lossy graph it fixes the domain later tiles are checked against.</td></tr>
-        <tr><th>method</th><td>A recipe as <code>profile</code> spells it, such as <code>"planar&gt;zigzag&gt;pfor"</code>. <a href="api-python.html#graph">Python's <code>graph</code></a> lists them all.</td></tr>
-        <tr><th>width</th><td>Row length in samples. Defaults to <code>size(x, 1)</code> and is required for a vector.</td></tr>
-        <tr><th>planes</th><td>Stacked images predicted independently. Defaults to the last dimension of an array with three or more, otherwise 1.</td></tr>
-        <tr><th>error</th><td><code>nothing</code> or <code>0</code> for lossless, a number for an absolute bound, <code>"1%"</code> for a relative bound, or a full <code>LINEAR</code>, <code>LOG</code> or <code>SQRT</code> recipe, as in <a href="api-python.html#error">Python</a>.</td></tr>
-        <tr><th>nodata</th><td>A sentinel. <code>missing</code> values in <code>x</code> are stored as it. NaN holes in a float raster are found without it.</td></tr>
+        <tr><th>x</th><td>An array of <code>UInt8</code> to <code>UInt64</code>, <code>Int8</code> to <code>Int64</code>, <code>Float16</code>, <code>Float32</code> or <code>Float64</code>, possibly with <code>missing</code>. A lossless graph also takes any other primitive element of 1, 2, 4 or 8 bytes but a pointer, such as <code>Bool</code> or <code>Char</code>, and a <code>Complex</code> of one. A struct is refused, since it may hold padding. For a lossy graph it fixes the domain later tiles are checked against.</td></tr>
+        <tr><th>method</th><td>A recipe as <code>profile</code> spells it, such as <code>"planar&gt;zigzag&gt;pfor"</code>, without a NUL character. <a href="api-python.html#graph">Python's <code>graph</code></a> lists them all.</td></tr>
+        <tr><th>width</th><td>Row length in samples, an integer from 1 to 4294967295. Defaults to <code>size(x, 1)</code> and is required for a vector.</td></tr>
+        <tr><th>planes</th><td>Stacked images predicted independently, an integer from 1 to 4294967295. Defaults to the last dimension of an array with three or more, otherwise 1.</td></tr>
+        <tr><th>error</th><td><code>nothing</code> or <code>0</code> for lossless, a number for an absolute bound, <code>"1%"</code> for a relative bound, or a full <code>LINEAR</code>, <code>LOG</code> or <code>SQRT</code> recipe, as in <a href="api-python.html#error">Python</a>. A float is written as Python writes it, so <code>2.0</code> gives <code>"LINEAR:MAX_ERROR=2.0"</code> and <code>1e20</code> gives <code>"LINEAR:MAX_ERROR=1e+20"</code>. A lossy graph needs one of the eleven <code>Sample</code> types.</td></tr>
+        <tr><th>nodata</th><td>A sentinel, one real number or NaN but not a <code>Bool</code>. <code>missing</code> values in <code>x</code> are stored as it. NaN holes in a float raster are found without it. An integer raster cannot use NaN, a <code>Float16</code> raster takes only NaN, and other elements than the eleven <code>Sample</code> types take none.</td></tr>
       </table>
+      <p>Returns a <a href="#types"><code>Graph{T}</code></a> for the element type <code>T</code> of <code>x</code>.</p>
 <pre><code class="language-julia">g = GeoZL.graph(tile, "planar&gt;zigzag&gt;pfor"; error = 2)
-g.error                                      # "LINEAR:MAX_ERROR=2"</code></pre>
+g.error                                      # "LINEAR:MAX_ERROR=2"
+g.dtype, eltype(g)                           # ("uint16", UInt16)</code></pre>
 
       <h3 id="compress">compress</h3>
-<pre><code class="sig language-julia">GeoZL.compress(x, g::Graph; coeffs=nothing) -&gt; Vector{UInt8}</code></pre>
-      <p>Compresses one tile with a graph and returns the frame. The element type must be the graph's, and the geometry is not checked. <code>coeffs</code>, a vector of integer vectors, is stored in the frame header and read back with <a href="#coeffs"><code>coeffs</code></a>.</p>
-<pre><code class="language-julia">frame = GeoZL.compress(tile, g; coeffs = [[1, 2, 3], [4]])</code></pre>
+<pre><code class="sig language-julia">GeoZL.compress(x, graph::Graph; coeffs=nothing) -&gt; Vector{UInt8}
+GeoZL.compress(x; graph::Graph, coeffs=nothing) -&gt; Vector{UInt8}</code></pre>
+      <p>Compresses one tile with a graph, given by position or by name, and returns the frame. The element type must be the graph's, and the geometry is not checked. A lossy tile outside the domain the graph was built from throws <code>ArgumentError</code>. <code>coeffs</code>, a vector or tuple of integer vectors, is stored in the frame header and read back with <a href="#coeffs"><code>coeffs</code></a>.</p>
+<pre><code class="language-julia">frame = GeoZL.compress(tile, g; coeffs = ([1, 2, 3], [4]))
+frame = GeoZL.compress(tile; graph = g)</code></pre>
 
       <h3 id="decompress">decompress</h3>
 <pre><code class="sig language-julia">GeoZL.decompress(frame; verify=true, max_output_size=nothing) -&gt; Vector{UInt8}
 GeoZL.decompress(T, frame, dims...; nodata=nothing, verify=true,
     max_output_size=nothing) -&gt; Array{T}</code></pre>
-      <p>Decodes a frame. Without <code>T</code> the result is the raw native bytes. With it, the frame decodes in place into an <code>Array{T}</code> shaped <code>dims</code>, which may also be given as a tuple.</p>
+      <p>Decodes a frame. Without <code>T</code> the result is the raw native bytes. With it, the frame decodes in place into an <code>Array{T}</code> shaped <code>dims</code>, which may also be given as a tuple. <code>T</code> is any element type <code>graph</code> takes, and a frame its size does not divide throws <code>ArgumentError</code>. A frame that decodes to fewer bytes than it declares throws <code>GeoZLError</code>.</p>
       <table class="spec">
-        <tr><th>nodata</th><td>Samples equal to this value become <code>missing</code>, and the result is an <code>Array{Union{Missing,T}}</code>.</td></tr>
-        <tr><th>verify</th><td>Check the frame checksums.</td></tr>
-        <tr><th>max_output_size</th><td>Refuse a frame that declares more output bytes than this. Set it for untrusted frames.</td></tr>
+        <tr><th>nodata</th><td>Samples equal to this value become <code>missing</code>, and the result is an <code>Array{Union{Missing,T}}</code>. It is checked as in <a href="#graph"><code>graph</code></a>, so a <code>Float16</code> frame takes only NaN.</td></tr>
+        <tr><th>verify</th><td><code>true</code> or <code>false</code>, whether to check the frame checksums.</td></tr>
+        <tr><th>max_output_size</th><td>A finite number of at least 0. A frame that declares more output bytes than this throws <code>ArgumentError</code>. Set it for untrusted frames.</td></tr>
       </table>
 <pre><code class="language-julia">back = GeoZL.decompress(UInt16, frame, size(tile))</code></pre>
 
@@ -153,10 +157,10 @@ GeoZL.decompress(T, frame, dims...; nodata=nothing, verify=true,
 
       <h3 id="types">Types</h3>
       <table class="spec">
-        <tr><th>Graph</th><td>What <code>graph</code> returns, with the fields <code>method</code>, <code>width</code>, <code>planes</code>, <code>eltype</code>, <code>error</code> and <code>nodata</code>. It holds native state and is not thread safe, so build one per task.</td></tr>
-        <tr><th>Profile</th><td>What <code>profile</code> returns, a vector of named tuples with the fields <code>graph</code>, <code>bytes</code>, <code>ratio</code>, <code>encode_mbps</code>, <code>decode_mbps</code> and <code>shannon_pct</code>. It also keeps <code>dims</code>, <code>eltype</code>, <code>raw_bytes</code>, <code>width</code>, <code>planes</code>, <code>prior</code>, <code>reps</code> and <code>error</code>.</td></tr>
-        <tr><th>Sample</th><td>The union of the element types GeoZL stores.</td></tr>
-        <tr><th>GeoZLError</th><td>Thrown when the library refuses a recipe, a tile or a frame. Its message carries the library's.</td></tr>
+        <tr><th>Graph</th><td>What <code>graph</code> returns, a <code>Graph{T}</code> for samples of type <code>T</code>, which <code>eltype(g)</code> returns. Its fields are <code>method</code>, <code>width</code>, <code>planes</code>, <code>dtype</code>, the name of <code>T</code> such as <code>"uint16"</code>, <code>itemsize</code>, its bytes per sample, <code>error</code> and <code>nodata</code>. It prints as <code>GeoZL.Graph(planar&gt;zigzag&gt;pfor, uint16, row width 48, 1 plane, lossless)</code>. It holds native state and is not thread safe, so build one per task.</td></tr>
+        <tr><th>Profile</th><td>What <code>profile</code> returns, a vector of named tuples with the fields <code>graph</code>, <code>bytes</code>, <code>ratio</code>, <code>encode_mbps</code>, <code>decode_mbps</code> and <code>shannon_pct</code>. It also keeps <code>dims</code>, <code>dtype</code>, the element type's name, <code>raw_bytes</code>, <code>width</code>, <code>planes</code>, <code>prior</code>, <code>reps</code> and <code>error</code>.</td></tr>
+        <tr><th>Sample</th><td>The union of the eleven element types lossy graphs and sentinels take.</td></tr>
+        <tr><th>GeoZLError</th><td><code>GeoZLError(code, message)</code>, thrown when the library refuses a tile or a frame other than as an invalid request. <code>code</code> is the ZL error code as an <code>Int</code>, or <code>nothing</code> when the refusal has none, and <code>message</code> carries the library's text.</td></tr>
       </table>
 
       <h2 class="part" id="rasters">Rasters</h2>
