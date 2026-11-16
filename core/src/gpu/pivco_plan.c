@@ -121,27 +121,58 @@ static unsigned popcount8(uint8_t value) {
   return (unsigned)((value + (value >> 4)) & 0x0Fu);
 }
 
-static unsigned popcount64(uint64_t value) {
+// Base x86-64 has no POPCNT, so the builtin becomes a libgcc call. Count inline
+// there, with POPCNT when the CPU has it.
+#if (defined(__x86_64__) || defined(__i386__)) && !defined(__POPCNT__)
+#define PIVCO_SOFT_POPCOUNT 1
 #if defined(__GNUC__) || defined(__clang__)
-  return (unsigned)__builtin_popcountll(value);
+#define PIVCO_POPCNT_DISPATCH 1
+#endif
+#endif
+
+static unsigned popcount64(uint64_t value) {
+#if defined(PIVCO_SOFT_POPCOUNT) || !(defined(__GNUC__) || defined(__clang__))
+  value -= (value >> 1) & 0x5555555555555555u;
+  value = (value & 0x3333333333333333u) + ((value >> 2) & 0x3333333333333333u);
+  value = (value + (value >> 4)) & 0x0F0F0F0F0F0F0F0Fu;
+  return (unsigned)((value * 0x0101010101010101u) >> 56);
 #else
-  unsigned count = 0;
-  while (value != 0) {
-    ++count;
-    value &= value - 1;
-  }
-  return count;
+  return (unsigned)__builtin_popcountll(value);
 #endif
 }
 
-static size_t bitmap_ones(const uint8_t *bitmap, size_t bits) {
+static size_t words_ones(const uint8_t *bitmap, size_t words) {
   size_t ones = 0;
-  const size_t words = bits / 64;
   for (size_t i = 0; i < words; ++i) {
     uint64_t word;
     memcpy(&word, bitmap + i * sizeof(word), sizeof(word));
     ones += popcount64(word);
   }
+  return ones;
+}
+
+#ifdef PIVCO_POPCNT_DISPATCH
+__attribute__((target("popcnt"))) static size_t
+words_ones_popcnt(const uint8_t *bitmap, size_t words) {
+  size_t ones = 0;
+  for (size_t i = 0; i < words; ++i) {
+    uint64_t word;
+    memcpy(&word, bitmap + i * sizeof(word), sizeof(word));
+    ones += (size_t)__builtin_popcountll(word);
+  }
+  return ones;
+}
+#endif
+
+static size_t bitmap_ones(const uint8_t *bitmap, size_t bits) {
+  const size_t words = bits / 64;
+#ifdef PIVCO_POPCNT_DISPATCH
+  size_t ones = __builtin_cpu_supports("popcnt")
+                    ? words_ones_popcnt(bitmap, words)
+                    : words_ones(bitmap, words);
+#else
+  size_t ones = words_ones(bitmap, words);
+#endif
   const size_t bytes = bits / 8;
   for (size_t i = words * sizeof(uint64_t); i < bytes; ++i)
     ones += popcount8(bitmap[i]);

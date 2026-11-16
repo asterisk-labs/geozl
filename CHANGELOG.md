@@ -46,6 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Updated the Python, R and Julia API pages and binding guides with the new
   argument rules, error types and examples.
+- The GPU planner for `lanes` frames counts bitmap bits with the POPCNT
+  instruction on x86 CPUs that have it, and with an inline bit count on the
+  rest, in place of the libgcc popcount call.
 
 ### Fixed
 
