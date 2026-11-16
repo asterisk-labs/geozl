@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="Compress and decompress raster tiles with GeoZL in Python, R and Julia.">
+<title>GeoZL · Compress and decompress</title>
+<link rel="icon" href="assets/svg/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/reading.css?v=28">
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <a class="lockup vt-lockup" href="index.html" aria-label="GeoZL home">
+      <img class="marksvg" src="assets/svg/mark-light.svg" alt="">
+      <span class="wm-sm">GeoZL</span>
+    </a>
+
+    <div class="offsite" aria-label="Project links">
+      <a href="https://github.com/asterisk-labs/geozl" title="GitHub" aria-label="GeoZL on GitHub" rel="noopener noreferrer">
+        <svg class="github" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg>
+      </a>
+      <a class="pypi" href="https://pypi.org/project/geozl/" title="PyPI" aria-label="GeoZL on PyPI" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.3 14.3 4.7v6.6L8 14.7l-6.3-3.4V4.7Z"></path><path d="M1.7 4.7 8 8.1l6.3-3.4M8 8.1v6.6"></path></svg>
+        <img class="mark-color" src="assets/svg/pypi-color.svg" alt="" width="18" height="16">
+      </a>
+      <a class="rumi" href="https://asterisk.coop/rumi/" title="Rumi" aria-label="Rumi, the raster format built with GeoZL" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.1 10.2L3 10.6L1.5 11.3L1 12.3L1 13.1L1.3 13.6L2.2 14.1L3.9 14.4L9.4 14.2L13.5 13.6L14.6 13.1L15 12.6L15 11.9L14.6 11.3L12.9 10.5L11.7 10.3L9.7 10.5ZM5.7 7L3.8 7.3L2.7 7.7L2.3 8.2L2.3 8.9L3 9.4L4.4 9.9L8.9 10.5L11.5 10.4L12.3 10L12.7 9.5L12.7 8.9L12.5 8.3L12 7.8L11.2 7.5L8.8 7ZM12.3 5.2L11.9 4.6L10.9 4.3L7.2 4.2L5.9 4.5L5.1 4.9L4.7 5.3L4.6 6.1L4.9 6.7L5.5 7L7.9 7L11.5 6.3L12.2 5.8ZM10.1 2.7L9.9 3.6L9.6 3.9L8.1 4.1L6.1 3.5L5.6 3.1L5.5 2.6L5.7 2.1L6.3 1.7L8.4 1.6L9.8 2.2Z"></path></svg>
+        <img class="mark-color" src="assets/svg/rumi-color.svg?v=2" alt="" width="16" height="16">
+      </a>
+      <a class="asterisk" href="https://asterisk.coop" title="asterisk labs" aria-label="asterisk labs" rel="noopener noreferrer">
+        <img class="mark-mono" src="assets/svg/asterisk-mark-black.svg" alt="" width="16" height="18">
+        <img class="mark-color" src="assets/svg/asterisk-mark-color.svg" alt="" width="16" height="18">
+      </a>
+    </div>
+
+    <nav class="nav" aria-label="Sections">
+      <a href="docs.html">Docs</a>
+      <a href="api.html">API</a>
+      <a href="examples.html">Examples</a>
+      <a href="https://earth-compress.github.io/benchmark/" rel="noopener noreferrer">Benchmark</a>
+    </nav>
+  </header>
+
+  <main class="doc">
+    <nav class="toc" aria-label="Contents">
+      <p class="toc-title">Docs</p>
+      <ol class="toc-pages">
+        <li class="toc-group">Codecs</li>
+        <li><a href="docs.html">Overview</a></li>
+        <li><a href="guide.html" class="here" aria-current="page">Compress and decompress</a></li>
+        <li><a href="predictors.html">Predictors</a></li>
+        <li><a href="streams.html">Streams</a></li>
+        <li><a href="fused.html">Fused</a></li>
+        <li><a href="near-lossless.html">Near-lossless</a></li>
+        <li class="toc-group">Algorithms</li>
+        <li><a href="pfor.html">PFOR</a></li>
+        <li><a href="pivco.html">PivCo</a></li>
+        <li class="toc-group">Optimizations</li>
+        <li><a href="cpu.html">Fast on one core</a></li>
+        <li><a href="gpu-codecs.html">What a GPU wants</a></li>
+        <li><a href="gpu-internals.html">Bytes to tensors</a></li>
+        <li><a href="slang.html">One source, many GPUs</a></li>
+      </ol>
+    </nav>
+
+    <article class="content">
+      <h1>Compress and decompress</h1>
+      <ul class="facts">
+        <li>One tile through GeoZL in Python, R and Julia, from a recipe to a checked round trip.</li>
+      </ul>
+      <aside class="series" aria-label="Section">
+        <p class="series-title">Codecs, in six pages</p>
+        <ol>
+          <li><a href="docs.html">Overview</a></li>
+          <li class="here" aria-current="page">Compress and decompress</li>
+          <li><a href="predictors.html">Predictors</a></li>
+          <li><a href="streams.html">Streams</a></li>
+          <li><a href="fused.html">Fused</a></li>
+          <li><a href="near-lossless.html">Near-lossless</a></li>
+        </ol>
+      </aside>
+      <p>These examples compress one tile, pick a recipe for it, mask missing samples, bound the error, stack bands and limit the size of untrusted frames. Each example comes in Python, R and Julia. The three packages write the same frames, so a tile compressed in one language decodes in the others.</p>
+
+      <h2 class="part" id="setup">Installation</h2>
+<div class="code-tabs">
+<pre data-lang="Python"><code class="language-sh">pip install geozl</code></pre>
+<pre data-lang="R" data-run="skip"><code class="language-r">install.packages("geozl", repos = "https://asterisk-labs.r-universe.dev")</code></pre>
+<pre data-lang="Julia" data-run="skip"><code class="language-julia">using Pkg
+Pkg.Registry.add(url = "https://github.com/asterisk-labs/AsteriskRegistry")
+Pkg.add("GeoZL")</code></pre>
+</div>
+<div class="code-tabs">
+<pre data-lang="Python"><code class="language-python">import numpy as np
+import geozl</code></pre>
+<pre data-lang="R"><code class="language-r">library(geozl)</code></pre>
+<pre data-lang="Julia"><code class="language-julia">using GeoZL</code></pre>
+</div>
+      <div class="note"><p><b>Shapes.</b> These examples use <code>(Y, X)</code> and <code>(B, Y, X)</code> in Python, and <code>(X, Y)</code> and <code>(X, Y, B)</code> in R and Julia. The samples are laid out in the same order, so they give the same frame. Arrays from raster packages may need rearranging first; see <a href="api-r.html#rasters">R</a> and <a href="api-julia.html#rasters">Julia</a>.</p></div>
+
+      <h2 class="part" id="tile">One tile</h2>
+      <p>The tile is a synthetic 256 by 256 <code>int16</code> elevation model, a gentle slope with a little noise. A graph fixes the recipe, the dtype and the row width, so build it once and reuse it for every tile of the same kind.</p>
+<div class="code-tabs">
+<pre data-lang="Python"><code class="language-python">y, x = np.mgrid[0:256, 0:256]
+tile = (1200 + 2 * x + 3 * y + (7919 * x + 104729 * y) ** 2 % 13).astype(np.int16)
+
+g = geozl.graph(tile, "planar&gt;zigzag&gt;zstd")
+frame = geozl.compress(tile, graph=g)
+back = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)
+
+assert np.array_equal(back, tile)
+print(len(frame))                           # 204</code></pre>
+<pre data-lang="R"><code class="language-r">tile &lt;- outer(0:255, 0:255, function(x, y) {
+  1200 + 2 * x + 3 * y + (7919 * x + 104729 * y)^2 %% 13
+})
+
+g &lt;- geozl_graph(tile, "planar&gt;zigzag&gt;zstd", dtype = "int16")
+frame &lt;- geozl_compress(tile, g)
+back &lt;- geozl_decompress(frame, "int16", dim = dim(tile))
+
+stopifnot(identical(back, tile))
+length(frame)                               # 204</code></pre>
+<pre data-lang="Julia"><code class="language-julia">tile = [Int16(1200 + 2x + 3y + (7919x + 104729y)^2 % 13) for x in 0:255, y in 0:255]
+
+g = GeoZL.graph(tile, "planar&gt;zigzag&gt;zstd")
+frame = GeoZL.compress(tile, g)
+back = GeoZL.decompress(Int16, frame, size(tile))
+
+@assert back == tile
+length(frame)                               # 204</code></pre>
+</div>
+      <p>The frame stores neither the dtype nor the shape. Keep both next to it, in a catalog, a file header or a database row, and pass them back to decompress. This R tile is stored as doubles, so <code>dtype</code> names the sample type to encode. Python and Julia take it from the array.</p>
+      <p>The tile is smooth on purpose, so 128 KiB shrinks to 204 bytes. Real elevation data usually has a much lower compression ratio.</p>
+
+      <h2 class="part" id="recipe">Choosing a recipe</h2>
+      <p>A recipe names the codecs in the order data flows through them. Most read <code>predictor&gt;zigzag&gt;terminal</code>. The predictor turns samples into small residuals, zigzag folds signed residuals into small unsigned numbers, and the terminal stores them. <code>id&gt;terminal</code> skips the prediction. <a href="api-python.html#graph">graph</a> lists every predictor and terminal.</p>
+      <p>Profile tries the recipes on a sample tile and ranks them by ratio. The default prior tries <code>planar</code> and the <code>id</code> path. Pass another predictor, or none to try them all.</p>
+<div class="code-tabs">
+<pre data-lang="Python"><code class="language-python">rows = geozl.profile(tile, reps=1)
+print(rows)                                 # settings, then one line per recipe
+best = rows[0]["graph"]                     # 'planar&gt;zigzag&gt;transpose&gt;zstd'
+
+every = geozl.profile(tile, prior=None, reps=1)</code></pre>
+<pre data-lang="R"><code class="language-r">rows &lt;- geozl_profile(tile, dtype = "int16", reps = 1)
+print(rows)                                 # settings, then one line per recipe
+best &lt;- rows$graph[[1]]                     # "planar&gt;zigzag&gt;transpose&gt;zstd"
+
+every &lt;- geozl_profile(tile, prior = NULL, dtype = "int16", reps = 1)</code></pre>
+<pre data-lang="Julia"><code class="language-julia">rows = GeoZL.profile(tile; reps = 1)
+display(rows)                               # settings, then one line per recipe
+best = rows[1].graph                        # "planar&gt;zigzag&gt;transpose&gt;zstd"
+
+every = GeoZL.profile(tile; prior = nothing, reps = 1)</code></pre>
+</div>
+      <p>Each row gives the recipe, the compressed bytes, the ratio, the encode and decode speed in MB/s, and the ratio as a share of the Shannon bound. Ratio is the same on every machine. Speed is not, so profile on the machine that will decode. <code>reps</code> sets how many round trips each recipe gets, and the fastest one counts.</p>
+      <p>Profile once per product, not per tile. Tiles of one product usually agree on a recipe, and a graph is cheap to reuse but not free to build.</p>
+
+      <h2 class="part" id="nodata">NoData</h2>
+      <p>A hole filled with a sentinel such as −32768 is a cliff to a predictor, and the residuals around it cost bits. <code>nodata</code> adds the <a href="streams.html#nodata">nodata</a> codec in front. It moves the holes to a mask and fills them from their neighbours, so the predictor sees a smooth surface.</p>
+<div class="code-tabs">
+<pre data-lang="Python"><code class="language-python">hole = tile.copy()
+hole[100:140, 50:90] = -32768
+
+g = geozl.graph(hole, "planar&gt;zigzag&gt;zstd", nodata=-32768)
+frame = geozl.compress(hole, graph=g)
+back = geozl.decompress(frame).view(np.int16).reshape(hole.shape)
+
+assert np.array_equal(back, hole)
+missing = back == -32768</code></pre>
+<pre data-lang="R"><code class="language-r">hole &lt;- tile
+hole[51:90, 101:140] &lt;- NA
+
+g &lt;- geozl_graph(hole, "planar&gt;zigzag&gt;zstd", nodata = -32768, dtype = "int16")
+frame &lt;- geozl_compress(hole, g)
+back &lt;- geozl_decompress(frame, "int16", dim = dim(hole), nodata = -32768)
+
+stopifnot(identical(back, hole))
+missing &lt;- is.na(back)</code></pre>
+<pre data-lang="Julia"><code class="language-julia">hole = Array{Union{Missing,Int16}}(tile)
+hole[51:90, 101:140] .= missing
+
+g = GeoZL.graph(hole, "planar&gt;zigzag&gt;zstd"; nodata = -32768)
+frame = GeoZL.compress(hole, g)
+back = GeoZL.decompress(Int16, frame, size(hole); nodata = -32768)
+
+@assert isequal(back, hole)
+missing_mask = ismissing.(back)</code></pre>
+</div>
+      <p>The sentinel comes back exactly. Python returns it as a number. R turns it into <code>NA</code> and Julia into <code>missing</code> when decompress gets the same <code>nodata</code>. A float raster with NaN holes gets the mask without asking.</p>
+
+      <h2 class="part" id="error">Bounded error</h2>
+      <p>Lossless is the default. <code>error</code> adds a quantizer right after the nodata step and keeps finite, unmasked samples within the bound you give. A number is an absolute bound, a percentage is a bound relative to each value, and a full recipe picks the quantizer by name. <a href="near-lossless.html">Near-lossless</a> explains the three.</p>
+<div class="code-tabs">
+<pre data-lang="Python"><code class="language-python">g = geozl.graph(tile, "planar&gt;zigzag&gt;zstd", error=2)
+frame = geozl.compress(tile, graph=g)
+back = geozl.decompress(frame).view(np.int16).reshape(tile.shape)
+
+print(g.error)                              # LINEAR:MAX_ERROR=2
+assert np.abs(back.astype(int) - tile).max() &lt;= 2
+
+relative = geozl.graph(tile, "planar&gt;zigzag&gt;zstd", error="1%")
+same = geozl.graph(tile, "planar&gt;zigzag&gt;zstd", error="LINEAR:MAX_ERROR=2")</code></pre>
+<pre data-lang="R"><code class="language-r">g &lt;- geozl_graph(tile, "planar&gt;zigzag&gt;zstd", error = 2, dtype = "int16")
+frame &lt;- geozl_compress(tile, g)
+back &lt;- geozl_decompress(frame, "int16", dim = dim(tile))
+
+g$error                                     # "LINEAR:MAX_ERROR=2"
+stopifnot(max(abs(back - tile)) &lt;= 2)
+
+relative &lt;- geozl_graph(tile, "planar&gt;zigzag&gt;zstd", error = "1%", dtype = "int16")
+same &lt;- geozl_graph(tile, "planar&gt;zigzag&gt;zstd", error = "LINEAR:MAX_ERROR=2",
+                    dtype = "int16")</code></pre>
+<pre data-lang="Julia"><code class="language-julia">g = GeoZL.graph(tile, "planar&gt;zigzag&gt;zstd"; error = 2)
+frame = GeoZL.compress(tile, g)
+back = GeoZL.decompress(Int16, frame, size(tile))
+
+g.error                                     # "LINEAR:MAX_ERROR=2"
+@assert maximum(abs.(Int.(back) .- tile)) &lt;= 2
+
+relative = GeoZL.graph(tile, "planar&gt;zigzag&gt;zstd"; error = "1%")
+same = GeoZL.graph(tile, "planar&gt;zigzag&gt;zstd"; error = "LINEAR:MAX_ERROR=2")</code></pre>
+</div>
+      <p>The tile you build a lossy graph from also fixes the range later tiles must stay inside, and compress refuses a tile outside it. Build the graph from data that spans the whole product.</p>
+
+      <h2 class="part" id="bands">Several bands</h2>
+      <p>A stack of bands is one frame. Each band is a plane, and row predictors start again at the top of every plane. The plane count defaults to the band axis.</p>
+<div class="code-tabs">
+<pre data-lang="Python"><code class="language-python">stack = np.stack([tile, tile + 40, tile + 90])        # (B, Y, X)
+
+per_band = geozl.graph(stack, "planar&gt;zigzag&gt;zstd")
+across = geozl.graph(stack, "planar&gt;zigzag&gt;zstd", width=256 * 256, planes=1)
+
+print(len(geozl.compress(stack, graph=per_band)))     # 235
+print(len(geozl.compress(stack, graph=across)))       # 197</code></pre>
+<pre data-lang="R"><code class="language-r">stack &lt;- array(c(tile, tile + 40, tile + 90), dim = c(256, 256, 3))   # (X, Y, B)
+
+per_band &lt;- geozl_graph(stack, "planar&gt;zigzag&gt;zstd", dtype = "int16")
+across &lt;- geozl_graph(stack, "planar&gt;zigzag&gt;zstd", width = 256 * 256, planes = 1,
+                      dtype = "int16")
+
+length(geozl_compress(stack, per_band))               # 235
+length(geozl_compress(stack, across))                 # 197</code></pre>
+<pre data-lang="Julia"><code class="language-julia">stack = cat(tile, tile .+ Int16(40), tile .+ Int16(90); dims = 3)   # (X, Y, B)
+
+per_band = GeoZL.graph(stack, "planar&gt;zigzag&gt;zstd")
+across = GeoZL.graph(stack, "planar&gt;zigzag&gt;zstd"; width = 256 * 256, planes = 1)
+
+length(GeoZL.compress(stack, per_band))               # 235
+length(GeoZL.compress(stack, across))                 # 197</code></pre>
+</div>
+      <p>With <code>width</code> set to a whole band and one plane, the row above a pixel is the same pixel in the band before. That wins here because the bands differ by a constant. When bands do not look alike, keep the default. Profile takes <code>width</code> and <code>planes</code> too, so compare both there.</p>
+
+      <h2 class="part" id="coeffs">Coefficients in the frame</h2>
+      <p>A frame can carry a few integer vectors in its header, such as a scale and an offset, or the index of the tile. GeoZL stores them and gives them no meaning. Reading them back touches only the header.</p>
+<div class="code-tabs">
+<pre data-lang="Python"><code class="language-python">g = geozl.graph(tile, "planar&gt;zigzag&gt;zstd")
+frame = geozl.compress(tile, graph=g, coeffs=[[10, -3], [7]])
+
+geozl.coeffs(frame)                         # ((10, -3), (7,))</code></pre>
+<pre data-lang="R"><code class="language-r">g &lt;- geozl_graph(tile, "planar&gt;zigzag&gt;zstd", dtype = "int16")
+frame &lt;- geozl_compress(tile, g, coeffs = list(c(10L, -3L), 7L))
+
+geozl_coeffs(frame)                         # list(c(10L, -3L), 7L)</code></pre>
+<pre data-lang="Julia"><code class="language-julia">g = GeoZL.graph(tile, "planar&gt;zigzag&gt;zstd")
+frame = GeoZL.compress(tile, g; coeffs = ([10, -3], [7]))
+
+@assert GeoZL.coeffs(frame) == [Int32[10, -3], Int32[7]]</code></pre>
+</div>
+
+      <h2 class="part" id="untrusted">Untrusted frames</h2>
+      <p>Checksums are verified by default. A frame also declares how many bytes it decodes to, and that number comes from whoever wrote it. Pass <code>max_output_size</code> for frames from outside your process, so a hostile frame cannot ask for a huge buffer.</p>
+<div class="code-tabs">
+<pre data-lang="Python"><code class="language-python">back = geozl.decompress(frame, max_output_size=tile.nbytes)
+
+try:
+    geozl.decompress(bytes(range(64)))
+except geozl.GeoZLError as error:
+    print(error)                            # geozl.decompress: unreadable frame (ZL error code 10)</code></pre>
+<pre data-lang="R"><code class="language-r">back &lt;- geozl_decompress(frame, "int16", dim = dim(tile),
+                         max_output_size = 2 * length(tile))
+
+e &lt;- tryCatch(geozl_decompress(as.raw(0:63)), geozl_error = identity)
+e$code                                      # 10</code></pre>
+<pre data-lang="Julia"><code class="language-julia">back = GeoZL.decompress(Int16, frame, size(tile); max_output_size = sizeof(tile))
+
+try
+    GeoZL.decompress(UInt8.(0:63))
+catch error
+    error isa GeoZLError || rethrow()
+    println(error.code)                     # 10
+end</code></pre>
+</div>
+      <p>A frame the library cannot read raises <code>geozl.GeoZLError</code> in Python, signals a <code>geozl_error</code> condition in R and throws <code>GeoZLError</code> in Julia. Each carries the ZL error code. A frame that declares more than <code>max_output_size</code> is refused before decoding, as a <code>ValueError</code> in Python, a plain error in R and an <code>ArgumentError</code> in Julia.</p>
+
+      <h2 class="part" id="gpu">GPU-friendly recipes</h2>
+      <p>Four recipes have a GPU decoder: <code>id&gt;pfor</code>, <code>planar&gt;zigzag&gt;pfor</code>, <code>id&gt;lanes</code> and <code>planar&gt;zigzag&gt;lanes</code>. Their blocks or byte lanes can be decoded in parallel. GPU routing also requires one chunk and samples of 1 or 2 bytes; <a href="api-gpu.html#routing">GPU decoding</a> lists the remaining limits.</p>
+<div class="code-tabs">
+<pre data-lang="Python"><code class="language-python">pfor = geozl.compress(tile, graph=geozl.graph(tile, "planar&gt;zigzag&gt;pfor"))
+lanes = geozl.compress(tile, graph=geozl.graph(tile, "planar&gt;zigzag&gt;lanes"))
+
+print(len(pfor), len(lanes))                # 41811 11621</code></pre>
+<pre data-lang="R"><code class="language-r">pfor &lt;- geozl_compress(tile, geozl_graph(tile, "planar&gt;zigzag&gt;pfor", dtype = "int16"))
+lanes &lt;- geozl_compress(tile, geozl_graph(tile, "planar&gt;zigzag&gt;lanes", dtype = "int16"))
+
+c(length(pfor), length(lanes))              # 41811 11621</code></pre>
+<pre data-lang="Julia"><code class="language-julia">pfor = GeoZL.compress(tile, GeoZL.graph(tile, "planar&gt;zigzag&gt;pfor"))
+lanes = GeoZL.compress(tile, GeoZL.graph(tile, "planar&gt;zigzag&gt;lanes"))
+
+length(pfor), length(lanes)                 # (41811, 11621)</code></pre>
+</div>
+      <p>All three packages write these frames and decode them on the CPU. The GPU decoder is a C API in <code>geozl/gpu.h</code>, and a library that wants tensors on a GPU binds it, as <a href="https://asterisk.coop/rumi/" rel="noopener noreferrer">Rumi</a> does. <a href="api-gpu.html#routing">GPU decoding</a> lists the exact recipes, and <a href="pfor.html">PFOR</a> and <a href="pivco.html">PivCo</a> explain the two coders.</p>
+
+      <nav class="pager" aria-label="Pages">
+        <a class="prev" href="docs.html"><span>Previous</span>Overview</a>
+        <a class="next" href="predictors.html"><span>Next</span>Predictors</a>
+      </nav>
+    </article>
+
+    <nav class="toc onpage" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ol class="toc-sections">
+        <li><a href="#setup">Installation</a></li>
+        <li><a href="#tile">One tile</a></li>
+        <li><a href="#recipe">Choosing a recipe</a></li>
+        <li><a href="#nodata">NoData</a></li>
+        <li><a href="#error">Bounded error</a></li>
+        <li><a href="#bands">Several bands</a></li>
+        <li><a href="#coeffs">Coefficients in the frame</a></li>
+        <li><a href="#untrusted">Untrusted frames</a></li>
+        <li><a href="#gpu">GPU-friendly recipes</a></li>
+      </ol>
+    </nav>
+  </main>
+
+  <footer class="colophon">
+    <span>Part of Earth Compress, led by Asterisk Labs and the National Oceanography Centre and funded by ARIA.</span>
+    <div class="partners">
+      <a href="https://asterisk.coop" rel="noopener noreferrer"><img src="assets/svg/partners/asterisk.svg" alt="Asterisk Labs" height="20"></a>
+      <a href="https://asterisk.coop/project-pages/earth-compress.html" rel="noopener noreferrer"><img src="assets/svg/partners/earth-compress.svg" alt="Earth Compress" height="22"></a>
+      <a href="https://noc.ac.uk/" rel="noopener noreferrer"><img src="assets/svg/partners/noc.svg" alt="National Oceanography Centre" height="30"></a>
+      <a href="https://www.aria.org.uk/" rel="noopener noreferrer"><img src="assets/svg/partners/aria.svg" alt="ARIA" height="28"></a>
+    </div>
+  </footer>
+</div>
+<script src="assets/js/toc.js" defer></script>
+<script src="assets/js/code.js?v=4" defer></script>
+</body>
+</html>

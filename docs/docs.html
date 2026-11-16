@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=27">
+<link rel="stylesheet" href="assets/css/reading.css?v=28">
 </head>
 <body>
 <div class="page">
@@ -52,6 +52,7 @@
       <ol class="toc-pages">
         <li class="toc-group">Codecs</li>
         <li><a href="docs.html" class="here" aria-current="page">Overview</a></li>
+        <li><a href="guide.html">Compress and decompress</a></li>
         <li><a href="predictors.html">Predictors</a></li>
         <li><a href="streams.html">Streams</a></li>
         <li><a href="fused.html">Fused</a></li>
@@ -73,9 +74,10 @@
         <li>GeoZL 0.33.0, 17 codecs, BSD-3-Clause licence.</li>
       </ul>
       <aside class="series" aria-label="Section">
-        <p class="series-title">Codecs, in five pages</p>
+        <p class="series-title">Codecs, in six pages</p>
         <ol>
           <li class="here" aria-current="page">Overview</li>
+          <li><a href="guide.html">Compress and decompress</a></li>
           <li><a href="predictors.html">Predictors</a></li>
           <li><a href="streams.html">Streams</a></li>
           <li><a href="fused.html">Fused</a></li>
@@ -96,11 +98,40 @@
       </figure>
       <p>Each frame stores its graph as a decode recipe. A reader looks up the codecs by CTid. A shipped CTid is never renumbered or reused.</p>
       <p>Graphs can vary between frames. A DEM and a land cover map can use different graphs. They can also vary by band, season or location, including ocean, mountain and city tiles. Frames for a training loop can use a GPU recipe.</p>
-      <p>A <b>recipe</b> names the graph in data-flow order. The first code line builds the graph shown above.</p>
-      <pre><code class="language-python">g = geozl.graph(tile, "planar&gt;zigzag&gt;transpose&gt;entropy", nodata=-32768)
+      <p>A <b>recipe</b> names the graph in data-flow order. The <code>graph</code> line builds the graph shown above.</p>
+      <div class="code-tabs">
+      <pre data-lang="Python"><code class="language-python">import numpy as np
+import geozl
+
+y, x = np.mgrid[0:256, 0:256]
+tile = (1000 + 3 * x + 2 * y).astype(np.int16)
+tile[:16, :16] = -32768                     # a corner of missing samples
+
+g = geozl.graph(tile, "planar&gt;zigzag&gt;transpose&gt;entropy", nodata=-32768)
 frame = geozl.compress(tile, graph=g)
-out = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)</code></pre>
-      <p><code>nodata=</code> adds the first step, and <code>error=</code> would add a quantizer right after it. <code>decompress</code> returns <b>bytes</b>. The frame stores neither dtype nor shape, so retain both separately. <code>geozl.profile</code> tries candidate recipes on a tile and <b>ranks them</b>.</p>
+out = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)
+assert np.array_equal(out, tile)</code></pre>
+      <pre data-lang="R"><code class="language-r">library(geozl)
+
+tile &lt;- outer(0:255, 0:255, function(x, y) 1000 + 3 * x + 2 * y)
+tile[1:16, 1:16] &lt;- -32768                  # a corner of missing samples
+
+g &lt;- geozl_graph(tile, "planar&gt;zigzag&gt;transpose&gt;entropy", nodata = -32768,
+                 dtype = "int16")
+frame &lt;- geozl_compress(tile, g)
+out &lt;- geozl_decompress(frame, "int16", dim = dim(tile))
+stopifnot(all(out == tile))</code></pre>
+      <pre data-lang="Julia"><code class="language-julia">using GeoZL
+
+tile = [Int16(1000 + 3x + 2y) for x in 0:255, y in 0:255]
+tile[1:16, 1:16] .= -32768                  # a corner of missing samples
+
+g = GeoZL.graph(tile, "planar&gt;zigzag&gt;transpose&gt;entropy"; nodata = -32768)
+frame = GeoZL.compress(tile, g)
+out = GeoZL.decompress(Int16, frame, size(tile))
+@assert out == tile</code></pre>
+      </div>
+      <p><code>nodata=</code> adds the first step, and <code>error=</code> would add a quantizer right after it. The frame stores neither dtype nor shape, so keep both beside it. Python's <code>decompress</code> returns <b>bytes</b> to view and reshape, and R and Julia take the type and dimensions as arguments. <code>profile</code> tries candidate recipes on a tile and <b>ranks them</b>.</p>
       <p>All GeoZL codecs fit into this chain. The map places all <b>seventeen codecs</b> beside the OpenZL codecs they work with.</p>
       <figure class="diagram wide">
         <img src="assets/svg/codecs-light/geozl-map.svg?v=2" alt="GeoZL codecs arranged by graph stage: split, quantize, predict, map and code. Fused codecs span several stages, and PFOR or lanes endings also decode on the GPU." loading="lazy">
@@ -135,7 +166,7 @@ out = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)</code></pre>
       <p>The <a href="api.html"><b>API</b></a> section documents the calls in every language.</p>
 
       <nav class="pager" aria-label="Pages">
-        <a class="next" href="predictors.html"><span>Next</span>Predictors</a>
+        <a class="next" href="guide.html"><span>Next</span>Compress and decompress</a>
       </nav>
     </article>
 
@@ -161,7 +192,7 @@ out = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)</code></pre>
   </footer>
 </div>
 <script src="assets/js/toc.js" defer></script>
-<script src="assets/js/code.js?v=3" defer></script>
+<script src="assets/js/code.js?v=4" defer></script>
 <script src="assets/js/stepper.js?v=4" defer></script>
 </body>
 </html>
