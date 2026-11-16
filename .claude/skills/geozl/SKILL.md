@@ -17,7 +17,7 @@ spatial predictors (`planar`, `med`, `wp_static`, ...), a NoData mask codec,
 bounded-error quantizers (`quant_linear`, `quant_log`, `quant_sqrt`) and a block
 bit packer (`pfor`).
 
-This skill describes **geozl 0.32.0** (OpenZL `b7f498b`). Check `geozl.__version__`.
+This skill describes **geozl 0.33.0** (OpenZL `b7f498b`). Check `geozl.__version__`.
 If it differs, trust the installed source and `CHANGELOG.md` over this file.
 
 ## Mental model
@@ -93,11 +93,15 @@ recipes that fail. Treat these as starting points, not fixed recommendations.
   exposed by the Python packages; the high-level C-backed `geozl.decompress` also knows
   the C-only `planar_zigzag_lanes` and `lanes`.
 - Keep checksum verification enabled and set `max_output_size` for untrusted frames.
+- Bad arguments raise `ValueError` or `TypeError`. A library refusal raises
+  `geozl.GeoZLError`, a `RuntimeError` with the ZL error code in `.code`. Codes 21 and
+  30 (an unknown recipe, a recipe the width refuses, a lossy tile outside the build
+  domain) raise a class that is also a `ValueError`.
 
 ## Reference map
 
 Read only the reference relevant to the current task. Each one identifies its source
-files in the repository and is scoped to GeoZL 0.32.0.
+files in the repository and is scoped to GeoZL 0.33.0.
 
 | Task | Read |
 | --- | --- |

@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-11-15
+
+### Breaking
+
+- Python, R and Julia now agree on shared argument checks and error categories.
+  Frame bytes are unchanged.
+- R uses `dtype` instead of `datatype` in graph, profile, decompress and their
+  results. Profile metadata uses `dims` and no longer has `itemsize`.
+- Julia graphs are `Graph{T}`; `eltype(g)` returns `T`, and graphs and profiles
+  expose `dtype`.
+- Python requires whole-number widths and plane counts from 1 to 4294967295,
+  and repetitions from 1 to 2147483647. Text rejects NUL characters; `verify`
+  must be boolean, and `nodata` must fit the sample type.
+- Library failures carry the ZL code through `GeoZLError` in Python and Julia
+  and `geozl_error` in R. Codes 21 and 30 mean an invalid request in graph,
+  compress and profile; a corrupt frame remains a library error.
+- R and Julia profile now report the first failure when every recipe fails.
+  Julia also uses `ArgumentError` for invalid inputs and output-size limits.
+- Julia error messages start with `GeoZL.`; R and Julia compression errors
+  include the method name.
+
+### Added
+
+- Python `compress` takes the graph by position too, as R and Julia do, and
+  Julia `compress` takes it by name too.
+- Graphs report `itemsize` in R and Julia, and a Python `Graph` prints its
+  method, dtype, row width, planes and error as R and Julia print them.
+- Julia lossless graphs accept 1-, 2-, 4- and 8-byte primitive values other
+  than pointers, and compatible `Complex` values. Structs are rejected.
+  `coeffs` also accepts a tuple of vectors.
+- Julia writes the normalized error with Python's float spelling, such as
+  `LINEAR:MAX_ERROR=2.0` and `1e+20`.
+
+### Changed
+
+- Updated the Python, R and Julia API pages and binding guides with the new
+  argument rules, error types and examples.
+
+### Fixed
+
+- R warns when an int64 or uint64 sample loses precision as a double, and
+  stays quiet when the conversion is exact.
+- Python refuses frames that decode to fewer bytes than declared.
+- R validates `nodata` and `max_output_size`; Julia refuses a float16 sentinel
+  on decompress.
+- Corrupt frames remain library errors even when OpenZL reports code 30.
+- R maps every NaN to `NA` when `nodata = NaN`.
+- Python rejects fractional integer sentinels such as `Fraction(1, 2)`.
+
 ## [0.32.0] - 2026-11-10
 
 ### Breaking
@@ -766,7 +815,8 @@ First release.
   `register_decoders` for reading frames back.
 - A libFuzzer harness over the decode path.
 
-[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.32.0...HEAD
+[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.33.0...HEAD
+[0.33.0]: https://github.com/asterisk-labs/geozl/compare/v0.32.0...v0.33.0
 [0.32.0]: https://github.com/asterisk-labs/geozl/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/asterisk-labs/geozl/compare/v0.30.0...v0.31.0
 [0.30.0]: https://github.com/asterisk-labs/geozl/compare/v0.21.1...v0.30.0

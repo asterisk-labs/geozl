@@ -1,4 +1,4 @@
-# Preparing GeoZL 0.32.0
+# Preparing GeoZL 0.33.0
 
 This checklist prepares a local release candidate. Pushing a `v*` tag starts
 publication, so review the candidate and its CI artifacts first.
@@ -42,12 +42,12 @@ artifacts in clean environments.
 
 ## Version and publication
 
-1. Move the candidate notes into the dated 0.32.0 changelog entry. State the
+1. Move the candidate notes into the dated 0.33.0 changelog entry. State the
    compatibility direction of any wire change.
 2. Set `VERSION` and run `python tools/sync_r_vendor.py` to synchronize R,
    Julia and npm. `test_release.py` checks their versions.
 3. Re-run the validation gates on that exact tree. Review the release
    workflow's dry-run artifacts.
-4. Push a `v0.32.0` tag only when publication is intended. The tag workflow
+4. Push a `v0.33.0` tag only when publication is intended. The tag workflow
    publishes PyPI wheels and a GitHub release, then npm. R and Julia use their
    own package channels.
