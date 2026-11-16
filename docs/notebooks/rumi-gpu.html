@@ -102,8 +102,9 @@ for frame in frames:
     graph = geozl.graph(frame.data, "planar&gt;zigzag&gt;lanes")
     frame.compressed = geozl.compress(frame.data, graph=graph)
 
-path, header = rumi.write(
-    Path("annecy.rumi"),
+path = Path("annecy.rumi")
+header = rumi.write(
+    path,
     frames,
     bands=["B2", "B3", "B4", "B8"],
     time=["2025-08-08"],

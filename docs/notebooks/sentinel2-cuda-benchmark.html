@@ -127,7 +127,7 @@ for name, recipe in (("pfor", "planar&gt;zigzag&gt;pfor"), ("pivco", "planar&gt;
         if frame.shape not in graphs:
             graphs[frame.shape] = geozl.graph(frame.data, recipe)
         frame.compressed = geozl.compress(frame.data, graph=graphs[frame.shape])
-    _, headers[name] = rumi.write(
+    headers[name] = rumi.write(
         f"{name}.rumi",
         frames,
         bands=names,
