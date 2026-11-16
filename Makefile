@@ -4,6 +4,7 @@
 # make test-c     run the C tests only, builds straight from source
 # make exhaustive the C tests over every value of a type, minutes
 # make test-san   run both suites against an ASan and UBSan build
+# make docs-examples run the Python, R and Julia examples in docs/
 # make wasm       build the wasm64 JavaScript module
 # make wasm-test  build wasm64 and run its Node tests
 # make r          test the R package from the checkout
@@ -136,7 +137,7 @@ else
   CTEST_LIBS := -lm -lpthread
 endif
 
-.PHONY: all build configure lib python test test-c test-san test-notebooks test-notebooks-gpu \
+.PHONY: all build configure lib python test test-c test-san test-notebooks test-notebooks-gpu docs-examples \
         wasm wasm-test fuzz fuzz-build \
         fuzz-seed fuzz-report fuzz-check fuzz-replay clean-fuzz \
         exhaustive r r-vendor r-check julia \
@@ -224,6 +225,9 @@ test-notebooks: python
 
 test-notebooks-gpu: python
 	$(PYTHON) tools/run_notebooks.py --gpu
+
+docs-examples:
+	$(PYTHON) tools/check_docs_examples.py $(DOCS_EXAMPLES_ARGS)
 
 wasm: $(OPENZL)/CMakeLists.txt
 	$(EMCMAKE) $(CMAKE) -S $(CORE) -B $(WASM_BUILD_DIR) -G $(GEN) \
@@ -405,6 +409,7 @@ help:
 	@echo "make test-san   run both suites against an ASan and UBSan build"
 	@echo "make test-notebooks     run the CPU example notebooks, minutes"
 	@echo "make test-notebooks-gpu run the GPU example notebooks on a CUDA machine"
+	@echo "make docs-examples run the Python, R and Julia docs examples"
 	@echo "make wasm       build the wasm64 JavaScript module"
 	@echo "make wasm-test  build wasm64 and run its Node tests"
 	@echo "make r          test the R package from the checkout"

@@ -250,12 +250,45 @@ jobs:
           pip install -q dist/*.whl -r tools/notebook-requirements.txt
           python tools/run_notebooks.py
 
+  docs-examples:
+    name: Docs examples
+    needs: [validate, linux]
+    if: github.event_name != 'workflow_dispatch' || !inputs.publish_npm
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - uses: r-lib/actions/setup-r@v2
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.10'
+      - uses: actions/download-artifact@v8
+        with:
+          name: wheel-linux
+          path: dist
+      - name: Install Python and build Julia library
+        run: |
+          python -m pip install -q dist/*.whl cmake ninja
+          cmake -S core -B core/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DGEOZL_BUILD_FULL=ON
+          cmake --build core/build --target geozl
+      - name: Install R and Julia packages
+        run: |
+          R CMD INSTALL bindings/r
+          julia --startup-file=no --project=bindings/julia -e 'using Pkg; Pkg.instantiate()'
+      - name: Run the docs examples
+        run: python tools/check_docs_examples.py
+
   # Only on a tag. Every package must have built and the notebooks must have
   # run, so either failing blocks the release. Trusted publishing over OIDC, no
   # stored token.
   publish:
     name: Publish
-    needs: [validate, linux, macos, wasm, notebooks]
+    needs: [validate, linux, macos, wasm, notebooks, docs-examples]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     environment: pypi

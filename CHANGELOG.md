@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The codec guides now show Python, R and Julia side by side. A new walkthrough
+  covers the full round trip, and the release checks its runnable examples.
+
 ## [0.33.0] - 2026-11-16
 
 ### Breaking

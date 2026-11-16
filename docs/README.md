@@ -4,8 +4,8 @@ The site is maintained as static HTML, CSS and JavaScript in `docs/`. There is
 no framework or deployment build. The notebook pages are generated from their
 `.ipynb` sources with `tools/render_notebooks.py` and committed with them. Most
 pages open from disk; cross-document view transitions need HTTP and a browser
-that supports them. JavaScript adds the section highlight, copy buttons and
-figure steppers.
+that supports them. JavaScript adds the section highlight, copy buttons, figure
+steppers and language tabs for the runnable examples.
 
 The landing page and codec catalog use a dark background. The reading, API and
 notebook pages use a light background. The landing page keeps its styles and
@@ -18,6 +18,7 @@ scripts in `index.html`; the other pages share `style.css`, `dark.css` and
 docs/
 ├── index.html          landing page, with its own styles and scripts
 ├── docs.html           codecs overview and the reading order
+├── guide.html          compress and decompress in Python, R and Julia
 ├── predictors.html, streams.html, fused.html, near-lossless.html  the four codec families
 ├── pfor.html           how PFOR works
 ├── pivco.html          how PivCo-Huffman works
@@ -25,7 +26,7 @@ docs/
 ├── gpu-codecs.html     why PFOR and PivCo decode well on a GPU
 ├── gpu-internals.html  how the GPU decoder is built
 ├── slang.html          the GPU kernels, written once in Slang
-├── api.html            API overview, the four calls and one line per language
+├── api.html            API overview and the four calls in three languages
 ├── api-python.html     every public Python function, checked by test_docs.py
 ├── api-c.html          every public C function, checked by test_docs.py
 ├── api-gpu.html        the geozl/gpu.h API, as a guide
@@ -46,7 +47,7 @@ docs/
     ├── js/main.js           codec list read by test_catalog.py; no page loads it
     ├── js/toc.js            highlights the current section in the docs sidebar
     ├── js/stepper.js        steps through the figures marked .stepper
-    ├── js/code.js           colors the code blocks and adds their copy buttons
+    ├── js/code.js           highlights code, adds copy buttons and syncs language tabs
     └── svg/
         ├── mark.svg          animated 2x2 prediction mark
         ├── banner.svg        the README banner
@@ -95,3 +96,8 @@ highlight the current section.
 python3 -m http.server 8000 --directory docs
 # http://localhost:8000
 ```
+
+Run `make docs-examples` to execute the Python, R and Julia blocks. Install the
+current checkout in each language first; the checker rejects older packages.
+`python tools/check_docs_examples.py --list` checks that each tab group has one
+tab per language, without loading the packages.
