@@ -1,6 +1,7 @@
 """Library refusals raise geozl.GeoZLError with the ZL error code."""
 
 import pickle
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -118,20 +119,8 @@ def test_an_unreadable_frame_has_a_code_in_coeffs():
     assert isinstance(caught.value.code, int) and caught.value.code > 0
 
 
-def _format_21_frame():
-    zl = pytest.importorskip("openzl.ext")
-    compressor = zl.Compressor()
-    compressor.select_starting_graph(zl.graphs.Compress().parameterize(compressor))
-    cctx = zl.CCtx()
-    cctx.ref_compressor(compressor)
-    cctx.set_parameter(zl.CParam.FormatVersion, 21)
-    return bytes(cctx.compress([zl.Input(zl.Type.Numeric, _tile().reshape(-1))]))
-
-
 def test_an_old_frame_has_the_unsupported_format_code():
-    # Built in a helper, so the traceback the test keeps holds no openzl
-    # object. One released that late aborts the interpreter at exit.
-    old = _format_21_frame()
+    old = (Path(__file__).parent / "fixtures" / "openzl-format21.zl").read_bytes()
     with pytest.raises(geozl.GeoZLError, match="predates OpenZL format 22") as caught:
         geozl.coeffs(old)
     assert caught.value.code == _FORMAT_UNSUPPORTED
