@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=27">
+<link rel="stylesheet" href="assets/css/reading.css?v=28">
 </head>
 <body>
 <div class="page">
@@ -52,6 +52,7 @@
       <ol class="toc-pages">
         <li class="toc-group">Codecs</li>
         <li><a href="docs.html">Overview</a></li>
+        <li><a href="guide.html">Compress and decompress</a></li>
         <li><a href="predictors.html">Predictors</a></li>
         <li><a href="streams.html">Streams</a></li>
         <li><a href="fused.html">Fused</a></li>
@@ -70,9 +71,10 @@
     <article class="content">
 <h1>Near-lossless</h1>
       <aside class="series" aria-label="Section">
-        <p class="series-title">Codecs, in five pages</p>
+        <p class="series-title">Codecs, in six pages</p>
         <ol>
           <li><a href="docs.html">Overview</a></li>
+          <li><a href="guide.html">Compress and decompress</a></li>
           <li><a href="predictors.html">Predictors</a></li>
           <li><a href="streams.html">Streams</a></li>
           <li><a href="fused.html">Fused</a></li>
@@ -81,6 +83,20 @@
       </aside>
       <p>A <b>quantizer</b> snaps each sample to a grid, so the error never passes the bound you set. Every stage after it is lossless. <b>quant_linear</b> bounds the absolute error, <b>quant_log</b> the relative error, and <b>quant_sqrt</b> an error that grows with the signal, like sensor noise.</p>
       <p>The bound covers every finite sample. NaN and infinities are outside it and belong to the <a href="streams.html#nodata">nodata</a> codec. On floats, quant_log and quant_sqrt guarantee their bound only from the smallest normal value up, because subnormals sit a fixed gap apart that no bound shrinking with the signal can cover.</p>
+      <p>The examples on this page compress one 256 by 256 <code>uint16</code> tile, made the same way in each language, and check the bound on the way back.</p>
+      <div class="code-tabs">
+      <pre data-lang="Python"><code class="language-python">import numpy as np
+import geozl
+
+y, x = np.mgrid[0:256, 0:256]
+tile = (1000 + 3 * x + 2 * y + (x * y) % 17).astype(np.uint16)</code></pre>
+      <pre data-lang="R"><code class="language-r">library(geozl)
+
+tile &lt;- outer(0:255, 0:255, function(x, y) 1000 + 3 * x + 2 * y + (x * y) %% 17)</code></pre>
+      <pre data-lang="Julia"><code class="language-julia">using GeoZL
+
+tile = [UInt16(1000 + 3x + 2y + (x * y) % 17) for x in 0:255, y in 0:255]</code></pre>
+      </div>
       <section class="codec" id="quant_linear" data-no="15" data-ctid="0x72D781" data-fam="orange" data-page="codecs/quant-linear.html" style="--fam:var(--orange)">
         <h3><span class="num">15</span>quant_linear</h3>
         <p><b>quant_linear</b> snaps samples to <b>one uniform grid</b>, so every sample comes back within MAX_ERROR of where it started, in the data&#8217;s own units.</p>
@@ -101,7 +117,25 @@ step = max(1, floor(2 * MAX_ERROR));
 
 q = sign(s) * ((abs(s) + step / 2) / step);   // encode
 o = clamp(q * step);                           // decode</code></pre>
-        <pre><code class="language-python">error="LINEAR:MAX_ERROR=5"</code></pre>
+        <div class="code-tabs">
+        <pre data-lang="Python"><code class="language-python"># error = 5 gives the same recipe.
+g = geozl.graph(tile, "planar&gt;zigzag&gt;entropy", error="LINEAR:MAX_ERROR=5")
+frame = geozl.compress(tile, graph=g)
+back = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)
+diff = np.abs(back.astype(np.int64) - tile)
+assert diff.max() &lt;= 5</code></pre>
+        <pre data-lang="R"><code class="language-r"># error = 5 gives the same recipe.
+g &lt;- geozl_graph(tile, "planar&gt;zigzag&gt;entropy", error = "LINEAR:MAX_ERROR=5", dtype = "uint16")
+frame &lt;- geozl_compress(tile, g)
+back &lt;- geozl_decompress(frame, "uint16", dim = dim(tile))
+stopifnot(max(abs(back - tile)) &lt;= 5)</code></pre>
+        <pre data-lang="Julia"><code class="language-julia"># error = 5 gives the same recipe.
+g = GeoZL.graph(tile, "planar&gt;zigzag&gt;entropy"; error = "LINEAR:MAX_ERROR=5")
+frame = GeoZL.compress(tile, g)
+back = GeoZL.decompress(UInt16, frame, size(tile))
+diff = abs.(Int.(back) .- Int.(tile))
+@assert maximum(diff) &lt;= 5</code></pre>
+        </div>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/quant_linear" rel="noopener noreferrer">Source in core/src/quant_linear</a></p>
       </section>
       <section class="codec" id="quant_log" data-no="16" data-ctid="0x72D782" data-fam="orange" data-page="codecs/quant-log.html" style="--fam:var(--orange)">
@@ -124,7 +158,25 @@ q = index of the nearest level in log2 space;   // encode
 
 o = q == 0 ? 0                                  // decode
            : sign(q) * exp2(A + (abs(q) - 1) * step);</code></pre>
-        <pre><code class="language-python">error="LOG:MAX_ERROR=1%"</code></pre>
+        <div class="code-tabs">
+        <pre data-lang="Python"><code class="language-python"># error = "1%" gives the same recipe.
+g = geozl.graph(tile, "planar&gt;zigzag&gt;entropy", error="LOG:MAX_ERROR=1%")
+frame = geozl.compress(tile, graph=g)
+back = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)
+diff = np.abs(back.astype(np.int64) - tile)
+assert np.all(diff &lt;= 0.01 * tile)</code></pre>
+        <pre data-lang="R"><code class="language-r"># error = "1%" gives the same recipe.
+g &lt;- geozl_graph(tile, "planar&gt;zigzag&gt;entropy", error = "LOG:MAX_ERROR=1%", dtype = "uint16")
+frame &lt;- geozl_compress(tile, g)
+back &lt;- geozl_decompress(frame, "uint16", dim = dim(tile))
+stopifnot(all(abs(back - tile) &lt;= 0.01 * tile))</code></pre>
+        <pre data-lang="Julia"><code class="language-julia"># error = "1%" gives the same recipe.
+g = GeoZL.graph(tile, "planar&gt;zigzag&gt;entropy"; error = "LOG:MAX_ERROR=1%")
+frame = GeoZL.compress(tile, g)
+back = GeoZL.decompress(UInt16, frame, size(tile))
+diff = abs.(Int.(back) .- Int.(tile))
+@assert all(diff .&lt;= 0.01 .* tile)</code></pre>
+        </div>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/quant_log" rel="noopener noreferrer">Source in core/src/quant_log</a></p>
       </section>
       <section class="codec" id="quant_sqrt" data-no="17" data-ctid="0x72D783" data-fam="orange" data-page="codecs/quant-sqrt.html" style="--fam:var(--orange)">
@@ -148,7 +200,25 @@ q = t &lt;= 0.25 ? 0 : floor(0.5 + sqrt(t - 0.25));
 
 // decode
 o = (q * step) * (q * step) - offset;</code></pre>
-        <pre><code class="language-python">error="SQRT:MAX_ERROR=0.5N"</code></pre>
+        <div class="code-tabs">
+        <pre data-lang="Python"><code class="language-python"># Fix A and B here; this synthetic tile has no shot-noise variance to fit.
+g = geozl.graph(tile, "planar&gt;zigzag&gt;entropy", error="SQRT:MAX_ERROR=0.5N,A=4,B=1")
+frame = geozl.compress(tile, graph=g)
+back = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)
+diff = np.abs(back.astype(np.int64) - tile)
+assert np.all(diff &lt;= 0.5 * np.sqrt(4 + 1 * tile))</code></pre>
+        <pre data-lang="R"><code class="language-r"># Fix A and B here; this synthetic tile has no shot-noise variance to fit.
+g &lt;- geozl_graph(tile, "planar&gt;zigzag&gt;entropy", error = "SQRT:MAX_ERROR=0.5N,A=4,B=1", dtype = "uint16")
+frame &lt;- geozl_compress(tile, g)
+back &lt;- geozl_decompress(frame, "uint16", dim = dim(tile))
+stopifnot(all(abs(back - tile) &lt;= 0.5 * sqrt(4 + 1 * tile)))</code></pre>
+        <pre data-lang="Julia"><code class="language-julia"># Fix A and B here; this synthetic tile has no shot-noise variance to fit.
+g = GeoZL.graph(tile, "planar&gt;zigzag&gt;entropy"; error = "SQRT:MAX_ERROR=0.5N,A=4,B=1")
+frame = GeoZL.compress(tile, g)
+back = GeoZL.decompress(UInt16, frame, size(tile))
+diff = abs.(Int.(back) .- Int.(tile))
+@assert all(diff .&lt;= 0.5 .* sqrt.(4 .+ 1 .* tile))</code></pre>
+        </div>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/quant_sqrt" rel="noopener noreferrer">Source in core/src/quant_sqrt</a></p>
       </section>
 
@@ -179,7 +249,7 @@ o = (q * step) * (q * step) - offset;</code></pre>
   </footer>
 </div>
 <script src="assets/js/toc.js" defer></script>
-<script src="assets/js/code.js?v=3" defer></script>
+<script src="assets/js/code.js?v=4" defer></script>
 <script src="assets/js/stepper.js?v=4" defer></script>
 </body>
 </html>

@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=League+Spartan:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/reading.css?v=27">
+<link rel="stylesheet" href="assets/css/reading.css?v=28">
 </head>
 <body>
 <div class="page">
@@ -52,6 +52,7 @@
       <ol class="toc-pages">
         <li class="toc-group">Codecs</li>
         <li><a href="docs.html">Overview</a></li>
+        <li><a href="guide.html">Compress and decompress</a></li>
         <li><a href="predictors.html">Predictors</a></li>
         <li><a href="streams.html">Streams</a></li>
         <li><a href="fused.html" class="here" aria-current="page">Fused</a></li>
@@ -70,9 +71,10 @@
     <article class="content">
 <h1>Fused</h1>
       <aside class="series" aria-label="Section">
-        <p class="series-title">Codecs, in five pages</p>
+        <p class="series-title">Codecs, in six pages</p>
         <ol>
           <li><a href="docs.html">Overview</a></li>
+          <li><a href="guide.html">Compress and decompress</a></li>
           <li><a href="predictors.html">Predictors</a></li>
           <li><a href="streams.html">Streams</a></li>
           <li class="here" aria-current="page">Fused</li>
@@ -83,6 +85,20 @@
       <p>Fusion helps most when cheap steps such as planar, zigzag and pfor spend more time moving data than computing. Follow one 1024 × 1024 uint16 tile of 2 MiB through separate and fused <code>planar&gt;zigzag&gt;pfor</code>.</p>
       <figure class="diagram wide stepper" data-beats="2.2,4.4,6.6,9.2"><img src="assets/svg/codecs-light/fused-vs-separate.svg" alt="As separate nodes, planar reads the 2 MiB tile and writes 2 MiB of residuals, zigzag reads them and writes 2 MiB of unsigned values, and pfor reads those and writes the frame, 10 MiB of memory plus the frame. Fused into one codec, the tile is read once and the frame written once, 2 MiB plus the frame, with samples kept in registers and one small block buffer." loading="lazy"><figcaption>Separate nodes pass the whole tile through memory between every step. The fused codec reads it once.</figcaption></figure>
       <p>GeoZL uses a fused codec when that chain has a fused implementation. The available fused codecs are listed below.</p>
+      <p>The examples compress one 256 by 256 <code>uint16</code> tile, made the same way in each language. Python also exposes individual fused nodes for custom OpenZL graphs; R and Julia use recipes.</p>
+      <div class="code-tabs">
+      <pre data-lang="Python"><code class="language-python">import numpy as np
+import geozl
+
+y, x = np.mgrid[0:256, 0:256]
+tile = (1000 + 3 * x + 2 * y + (x * y) % 17).astype(np.uint16)</code></pre>
+      <pre data-lang="R"><code class="language-r">library(geozl)
+
+tile &lt;- outer(0:255, 0:255, function(x, y) 1000 + 3 * x + 2 * y + (x * y) %% 17)</code></pre>
+      <pre data-lang="Julia"><code class="language-julia">using GeoZL
+
+tile = [UInt16(1000 + 3x + 2y + (x * y) % 17) for x in 0:255, y in 0:255]</code></pre>
+      </div>
       <section class="codec" id="planar_zigzag" data-no="11" data-ctid="0x72D70F" data-fam="gold" data-page="codecs/planar-zigzag.html" style="--fam:var(--gold)">
         <h3><span class="num">11</span>planar_zigzag</h3>
         <p><b>planar_zigzag</b> computes the planar residual and <b>maps it to unsigned</b> with Zigzag in the same pass, so a small negative residual stays a small number.</p>
@@ -105,7 +121,25 @@ z = (r &lt;&lt; 1) ^ (r &gt;&gt; (bits - 1));   // zigzag, small signed to small
 // decode
 r = (z &gt;&gt; 1) ^ -(z &amp; 1);
 o = r + W + N - NW;                  // a prefix sum per row, as planar</code></pre>
-        <pre><code class="language-python">geozl.lossless.PlanarZigzag(width, planes=1)</code></pre>
+        <div class="code-tabs">
+        <pre data-lang="Python"><code class="language-python"># Any terminal but pfor or lanes runs planar_zigzag on its own.
+g = geozl.graph(tile, "planar&gt;zigzag&gt;entropy")
+frame = geozl.compress(tile, graph=g)
+back = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)
+assert np.array_equal(back, tile)
+
+node = geozl.lossless.PlanarZigzag(tile.shape[1], planes=1)</code></pre>
+        <pre data-lang="R"><code class="language-r"># Any terminal but pfor or lanes runs planar_zigzag on its own.
+g &lt;- geozl_graph(tile, "planar&gt;zigzag&gt;entropy", dtype = "uint16")
+frame &lt;- geozl_compress(tile, g)
+back &lt;- geozl_decompress(frame, "uint16", dim = dim(tile))
+stopifnot(all(back == tile))</code></pre>
+        <pre data-lang="Julia"><code class="language-julia"># Any terminal but pfor or lanes runs planar_zigzag on its own.
+g = GeoZL.graph(tile, "planar&gt;zigzag&gt;entropy")
+frame = GeoZL.compress(tile, g)
+back = GeoZL.decompress(UInt16, frame, size(tile))
+@assert back == tile</code></pre>
+        </div>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag" rel="noopener noreferrer">Source in core/src/planar_zigzag</a></p>
       </section>
       <section class="codec" id="planar_zigzag_pfor" data-no="12" data-ctid="0x72D710" data-fam="gold" data-page="codecs/planar-zigzag-pfor.html" style="--fam:var(--gold)">
@@ -133,7 +167,25 @@ for (i = 0; i &lt; h; i++)
     o = r + W + N - NW;              // N, NW are 0 on a band's first row,
                                      // W, NW on a strip's first column
   }</code></pre>
-        <pre><code class="language-python">geozl.lossless.PlanarZigzagPfor(width, planes=1)</code></pre>
+        <div class="code-tabs">
+        <pre data-lang="Python"><code class="language-python"># planar&gt;zigzag&gt;pfor runs as this one codec.
+g = geozl.graph(tile, "planar&gt;zigzag&gt;pfor")
+frame = geozl.compress(tile, graph=g)
+back = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)
+assert np.array_equal(back, tile)
+
+node = geozl.lossless.PlanarZigzagPfor(tile.shape[1], planes=1)</code></pre>
+        <pre data-lang="R"><code class="language-r"># planar&gt;zigzag&gt;pfor runs as this one codec.
+g &lt;- geozl_graph(tile, "planar&gt;zigzag&gt;pfor", dtype = "uint16")
+frame &lt;- geozl_compress(tile, g)
+back &lt;- geozl_decompress(frame, "uint16", dim = dim(tile))
+stopifnot(all(back == tile))</code></pre>
+        <pre data-lang="Julia"><code class="language-julia"># planar&gt;zigzag&gt;pfor runs as this one codec.
+g = GeoZL.graph(tile, "planar&gt;zigzag&gt;pfor")
+frame = GeoZL.compress(tile, g)
+back = GeoZL.decompress(UInt16, frame, size(tile))
+@assert back == tile</code></pre>
+        </div>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag_pfor" rel="noopener noreferrer">Source in core/src/planar_zigzag_pfor</a></p>
       </section>
       <section class="codec" id="planar_zigzag_lanes" data-no="13" data-ctid="0x72D712" data-fam="gold" data-page="codecs/planar-zigzag-lanes.html" style="--fam:var(--gold)">
@@ -159,7 +211,23 @@ for (i = 0; i &lt; n; i++) {
   r = (z &gt;&gt; 1) ^ -(z &amp; 1);
   o = r + W + N - NW;
 }</code></pre>
-        <pre><code class="language-python">geozl.graph(tile, "planar&gt;zigzag&gt;lanes")</code></pre>
+        <div class="code-tabs">
+        <pre data-lang="Python"><code class="language-python"># planar&gt;zigzag&gt;lanes runs as this one codec.
+g = geozl.graph(tile, "planar&gt;zigzag&gt;lanes")
+frame = geozl.compress(tile, graph=g)
+back = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)
+assert np.array_equal(back, tile)</code></pre>
+        <pre data-lang="R"><code class="language-r"># planar&gt;zigzag&gt;lanes runs as this one codec.
+g &lt;- geozl_graph(tile, "planar&gt;zigzag&gt;lanes", dtype = "uint16")
+frame &lt;- geozl_compress(tile, g)
+back &lt;- geozl_decompress(frame, "uint16", dim = dim(tile))
+stopifnot(all(back == tile))</code></pre>
+        <pre data-lang="Julia"><code class="language-julia"># planar&gt;zigzag&gt;lanes runs as this one codec.
+g = GeoZL.graph(tile, "planar&gt;zigzag&gt;lanes")
+frame = GeoZL.compress(tile, g)
+back = GeoZL.decompress(UInt16, frame, size(tile))
+@assert back == tile</code></pre>
+        </div>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/planar_zigzag_lanes" rel="noopener noreferrer">Source in core/src/planar_zigzag_lanes</a></p>
       </section>
       <section class="codec" id="med_zigzag" data-no="14" data-ctid="0x72D711" data-fam="gold" data-page="codecs/med-zigzag.html" style="--fam:var(--gold)">
@@ -184,7 +252,25 @@ z = (r &lt;&lt; 1) ^ (r &gt;&gt; (bits - 1));
 // decode, one sample at a time along each row
 r = (z &gt;&gt; 1) ^ -(z &amp; 1);
 o = r + med(W, N, NW);</code></pre>
-        <pre><code class="language-python">geozl.lossless.MedZigzag(width, planes=1)</code></pre>
+        <div class="code-tabs">
+        <pre data-lang="Python"><code class="language-python"># med&gt;zigzag runs as med_zigzag, whatever terminal follows.
+g = geozl.graph(tile, "med&gt;zigzag&gt;entropy")
+frame = geozl.compress(tile, graph=g)
+back = geozl.decompress(frame).view(tile.dtype).reshape(tile.shape)
+assert np.array_equal(back, tile)
+
+node = geozl.lossless.MedZigzag(tile.shape[1], planes=1)</code></pre>
+        <pre data-lang="R"><code class="language-r"># med&gt;zigzag runs as med_zigzag, whatever terminal follows.
+g &lt;- geozl_graph(tile, "med&gt;zigzag&gt;entropy", dtype = "uint16")
+frame &lt;- geozl_compress(tile, g)
+back &lt;- geozl_decompress(frame, "uint16", dim = dim(tile))
+stopifnot(all(back == tile))</code></pre>
+        <pre data-lang="Julia"><code class="language-julia"># med&gt;zigzag runs as med_zigzag, whatever terminal follows.
+g = GeoZL.graph(tile, "med&gt;zigzag&gt;entropy")
+frame = GeoZL.compress(tile, g)
+back = GeoZL.decompress(UInt16, frame, size(tile))
+@assert back == tile</code></pre>
+        </div>
         <p class="source"><a href="https://github.com/asterisk-labs/geozl/tree/main/core/src/med_zigzag" rel="noopener noreferrer">Source in core/src/med_zigzag</a></p>
       </section>
 
@@ -216,7 +302,7 @@ o = r + med(W, N, NW);</code></pre>
   </footer>
 </div>
 <script src="assets/js/toc.js" defer></script>
-<script src="assets/js/code.js?v=3" defer></script>
+<script src="assets/js/code.js?v=4" defer></script>
 <script src="assets/js/stepper.js?v=4" defer></script>
 </body>
 </html>
