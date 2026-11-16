@@ -206,7 +206,7 @@ def main(*, check=False):
         '</head>', '<link rel="stylesheet" href="../assets/css/notebook.css?v=4">\n</head>')
     footer = relative(examples[examples.index("  </main>") + len("  </main>\n"):])
     footer = footer.replace('<script src="../assets/js/toc.js" defer></script>',
-                            '<script src="../assets/js/code.js?v=3" defer></script>')
+                            '<script src="../assets/js/code.js?v=4" defer></script>')
     stale = []
     for name, title, tags in NOTEBOOKS:
         out = DOCS / "notebooks" / f"{name}.html"
