@@ -193,6 +193,7 @@
       </table>
       </div>
       <p>Green marks a strength, yellow a partial fit and red a gap.</p>
+      <p>The table compares what each path supports, not how fast it is. We have not yet run these options side by side on the same data and GPUs, so where open codecs stand against NVIDIA's closed decoders is still an open question. It needs more experiments and a shared benchmark.</p>
       <p>A GPU read also has to fetch compressed bytes, plan the work on the CPU and put the result where the caller needs it. The next part, <a href="gpu-internals.html">Bytes to tensors</a>, follows one batch from file to tensor.</p>
       <nav class="pager" aria-label="Pages">
         <a class="prev" href="cpu.html"><span>Previous</span>Fast on one core</a>
