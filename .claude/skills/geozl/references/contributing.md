@@ -33,6 +33,7 @@ bindings/python/
   geozl/_ffi.py         hand-written cffi cdef (ABI mode) and library loading
   geozl/_2d.py          profile, graph, compress, decompress, error shorthand
   geozl/_codec.py       spatial_predictor and quantizer factories
+  geozl/_error.py       GeoZLError and the class each ZL error code raises
   geozl/_dtype.py _coeffs.py _simd.py
   geozl/lossless/ lossy/  one module per exposed codec
   test/                 pytest suites, golden/ frames and manifest
@@ -97,6 +98,8 @@ otherwise Python keeps loading the previously staged libraries.
 | File | Guards |
 | --- | --- |
 | `test_2d.py`, `test_graph.py` | high-level API contract: shorthand errors, grid sizes per width, profile bytes equal compress bytes, lossy domains, nodata surface |
+| `test_arguments.py` | the argument rules Python shares with R and Julia, such as `graph` by position or name, `Graph` fields and `repr`, whole-number `width`, `planes` and `reps`, NUL refusals, `nodata` a number, `verify` a bool |
+| `test_errors.py` | `GeoZLError` and its `code`, codes 21 and 30 also a `ValueError`, the first profile failure, a short decoded frame, pickling |
 | `test_api_contract.py` | `Graph` and `ProfileResults` refuse direct construction, `QuantSqrt` refuses a recipe without its curve, `geozl_2d_frame_dsize_c` tells an empty frame from an unreadable one, and no recipe writes past `geozl_2d_compress_bound_c` on noise at any dtype |
 | `test_codecs.py` | every predictor bit exact across 11 dtypes, shapes and patterns; quantizer bounds; checksum refusal |
 | `test_cross_reader.py` | **the strongest check**: C-written frames decode with Python decoders and the reverse, byte for byte on lossy frames |

@@ -98,7 +98,9 @@ set so a caller can size and retry).
   `errCtx`. Codes with OpenZL 0.3: `21` invalid parameter (unknown method, bad
   recipe, lossy domain refusal), `30` graph invalid (recipe does not apply to the
   element width), `55` node precondition (plain `entropy` on 4 or 8 bytes, tile size not
-  divisible by the row width). Match on the message, not the number.
+  divisible by the row width). Match on the message, not the number. The Python, R and
+  Julia bindings carry the code on their error and treat 21 and 30 as an invalid
+  request (a Python `ValueError`, a plain R error, a Julia `ArgumentError`).
 - Node builders return `ZL_NODE_ILLEGAL`; check with `ZL_NodeID_isValid`.
 - OpenZL calls return `ZL_Report`; check `ZL_isError`, read details with
   `ZL_CCtx_getErrorContextString` or `ZL_DCtx_getErrorContextString`.

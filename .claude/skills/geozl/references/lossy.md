@@ -103,7 +103,8 @@ change. A reader refuses a frame whose layout is not the one this table names.
 
 `geozl.graph(raster, method, error=...)` resolves the grid from `raster` and records
 its statistics. `compress` then refuses tiles outside that domain, raising
-`RuntimeError` with `... build the graph from the full product`:
+`GeoZLError` with `... build the graph from the full product`. Its ZL error code is 21,
+so it is also a `ValueError`:
 
 | Family and mode | A later tile is refused when |
 | --- | --- |

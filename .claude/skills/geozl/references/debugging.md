@@ -1,6 +1,15 @@
 # Debugging
 
-Numeric `ZL error code` values come from OpenZL and may move; match on the text.
+A library refusal raises `geozl.GeoZLError`, a `RuntimeError` whose `code` holds the
+`ZL error code`. Codes 21 (parameter invalid) and 30 (graph invalid) raise a class that
+is also a `ValueError`, printed as `geozl._error._InvalidError`. The numbers come from
+OpenZL and may move; match on the class or the text (`python-api.md` section 11).
+
+R and Julia follow the same split. R signals a condition of class `geozl_error` with a
+`code` field, and Julia throws `GeoZLError(code, message)`. For codes 21 and 30 and for
+bad arguments, R raises a plain error with no call and Julia an `ArgumentError`. A
+refusal names the call, as `geozl_graph failed (method = "planar>entropy")` in R and
+`GeoZL.graph failed (method = "planar>entropy")` in Julia.
 
 ## Contents
 
@@ -15,9 +24,10 @@ Numeric `ZL error code` values come from OpenZL and may move; match on the text.
 
 ### Building a graph
 
-`geozl.profile` raises the Python-side `ValueError` and `OverflowError` rows below. A
+`geozl.profile` raises the Python-side `ValueError` and `TypeError` rows below. A
 recipe that fails in C (full recipe grammar, SQRT fit, grid limits, element width) is
-skipped. When none survive, `profile` raises `RuntimeError` with the last reason.
+skipped. When none survive, `profile` raises `GeoZLError` with the first reason, as
+`geozl.profile failed: ...`.
 
 | Message (excerpt) | Cause | Fix |
 | --- | --- | --- |
@@ -25,21 +35,29 @@ skipped. When none survive, `profile` raises `RuntimeError` with the last reason
 | `ValueError: dtype complex128 is 16 bytes per element` | element width not 1, 2, 4 or 8 | view as components and use the low-level `Deinterleave` path |
 | `ValueError: give width for a 1d raster` | 1-D input | pass `width=` |
 | `ValueError: N planes do not split M elements into whole rows of W` | bad `planes` or `width` | fix the geometry |
+| `TypeError: width must be a whole number` (or `planes`) | bool, float or string geometry | pass an `int` or NumPy integer |
+| `ValueError: width must be from 1 to 4294967295` (or `planes`) | zero, negative or above `uint32` | fix the geometry |
 | `ValueError: method must be a recipe name` | `method` is not a non-empty `str` | pass a recipe string |
-| `RuntimeError: geozl.graph failed (...): unknown method "planar>entropy"` | misspelled recipe | copy from `profile` rows; predictors need `>zigzag>`; `id` and `delta_1d` must not have it |
-| `RuntimeError: ... does not apply to 1-byte elements; the transpose terminals need 2 to 8, categorical needs 1 or 2, and lanes needs 1, 2, 4 or 8` | terminal vs element width | choose another terminal (`recipes.md` section 4) |
-| `ValueError: prior 'x' is not one of (...) or None` | bad `prior` | `planar med delta_w delta_n average wp_static delta_1d none` or `None` |
-| `ValueError: reps must be at least 1` | `reps=0` | use `reps >= 1` |
+| `ValueError: method must not contain a NUL character` | NUL inside `method` | pass the recipe without it |
+| `geozl._error._InvalidError: geozl.graph failed (...): unknown method "planar>entropy"` | misspelled recipe | copy from `profile` rows; predictors need `>zigzag>`; `id` and `delta_1d` must not have it |
+| `geozl._error._InvalidError: ... does not apply to 1-byte elements; the transpose terminals need 2 to 8, categorical needs 1 or 2, and lanes needs 1, 2, 4 or 8` | terminal vs element width | choose another terminal (`recipes.md` section 4) |
+| `ValueError: prior 'x' is not one of (...) or None` | bad `prior`, a NUL included | `planar med delta_w delta_n average wp_static delta_1d none` or `None` |
+| `TypeError: reps must be a whole number` | `reps=1.5`, a bool or a string | pass an `int` |
+| `ValueError: reps must be at least 1, got 0` | `reps=0` | use `reps >= 1` |
+| `TypeError: verify must be a boolean` | `verify=1` and similar | pass `True` or `False` |
 | `ValueError: the quantizers do not support dtype bool` | lossy on an unsupported dtype | cast to one of the 11 geozl dtypes |
 | `ValueError: error must be a number, a percentage such as "10%", or a LINEAR, LOG or SQRT recipe, got '10'` | numeric string | pass `10` or `"LINEAR:MAX_ERROR=10"` |
 | `ValueError: relative error must be between 0% and 100%` | `"100%"` or more | use a smaller percentage |
-| `RuntimeError: ... MAX_ERROR takes one number ending in N` | SQRT recipe without `N` | `SQRT:MAX_ERROR=0.5N` |
-| `RuntimeError: ... A and B travel together` | only one of `A`, `B` | give both, or neither to fit |
-| `RuntimeError: ... the local variance does not grow with the signal, so this is not shot noise` | SQRT fit on data without signal-dependent noise | use LINEAR or LOG, or give `A` and `B` |
-| `RuntimeError: ... a shot bound is defined at or above -A/B, which is -4, and this raster reaches -10` | data below the SQRT model's domain | shift data or choose another family |
-| `RuntimeError: ... is at or below what this type rebuilds to, which bottoms out near ...%` | LOG bound finer than float precision | loosen the bound or go lossless |
-| `OverflowError: nodata does not fit the dtype` | sentinel outside the dtype | choose a representable sentinel |
+| `ValueError: error must not contain a NUL character` | NUL inside the recipe | pass the recipe without it |
+| `geozl._error._InvalidError: ... MAX_ERROR takes one number ending in N` | SQRT recipe without `N` | `SQRT:MAX_ERROR=0.5N` |
+| `geozl._error._InvalidError: ... A and B travel together` | only one of `A`, `B` | give both, or neither to fit |
+| `geozl._error._InvalidError: ... the local variance does not grow with the signal, so this is not shot noise` | SQRT fit on data without signal-dependent noise | use LINEAR or LOG, or give `A` and `B` |
+| `geozl._error._InvalidError: ... a shot bound is defined at or above -A/B, which is -4, and this raster reaches -10` | data below the SQRT model's domain | shift data or choose another family |
+| `geozl._error._InvalidError: ... is at or below what this type rebuilds to, which bottoms out near ...%` | LOG bound finer than float precision | loosen the bound or go lossless |
+| `TypeError: nodata must be a number` | string, bool or complex sentinel | pass a number or NaN |
+| `ValueError: nodata does not fit the dtype` | sentinel outside the dtype | choose a representable sentinel |
 | `ValueError: nodata 3.5 is not a whole number, it cannot be a sentinel on int16` | fractional sentinel on integers | use an integer sentinel |
+| `ValueError: a uint16 raster cannot use NaN as nodata` | NaN sentinel on an integer dtype | use an integer sentinel |
 | `ValueError: a half float carries no sentinel, NaN still works on one` | sentinel on `float16` | use NaN, or store as float32 |
 | `ValueError: nodata needs a dtype geozl knows` | sentinel on `bool` and similar | cast first |
 
@@ -47,13 +65,13 @@ skipped. When none survive, `profile` raises `RuntimeError` with the last reason
 
 | Message (excerpt) | Cause | Fix |
 | --- | --- | --- |
-| `TypeError: graph must be a geozl.Graph, got str` | recipe passed to `compress` | `compress(tile, graph=geozl.graph(sample, recipe))` |
-| `ValueError: this graph was built for dtype int16, got uint16` | dtype differs, even only in sign | build a graph per dtype or cast |
-| `RuntimeError: geozl.compress failed (...): Code: Input does not respect conditions for this node` with `eltWidth != 2` in the message (ZL error code 55) | plain `entropy` terminal on 4 or 8 byte elements | pick a transpose, zstd, field_lz or pfor recipe |
-| `RuntimeError: geozl.compress failed (...): Code: Input does not respect conditions for this node ... Transform ID: ...` (ZL error code 55) with a predictor recipe | tile sample count not a multiple of the graph's row width | build a graph with this tile's column count |
-| `RuntimeError: ... the lossy graph was built without negative samples, but this tile contains them; build the graph from the full product` | domain frozen at `graph()` | build from data spanning the product |
-| `RuntimeError: ... built for magnitudes up to A, but this tile reaches B` | float LINEAR domain | same |
-| `RuntimeError: ... built for values from lo to hi, but this tile reaches ...` | SQRT domain | same |
+| `TypeError: graph must be a geozl.Graph, got str` | recipe passed to `compress` | `compress(tile, geozl.graph(sample, recipe))` |
+| `ValueError: this graph was built for dtype uint16, got int16` | dtype differs, even only in sign | build a graph per dtype or cast |
+| `geozl._error.GeoZLError: geozl.compress failed (...): Code: Input does not respect conditions for this node` with `eltWidth != 2` in the message (ZL error code 55) | plain `entropy` terminal on 4 or 8 byte elements | pick a transpose, zstd, field_lz or pfor recipe |
+| `geozl._error.GeoZLError: geozl.compress failed (...): Code: Input does not respect conditions for this node ... Transform ID: ...` (ZL error code 55) with a predictor recipe | tile sample count not a multiple of the graph's row width | build a graph with this tile's column count |
+| `geozl._error._InvalidError: ... the lossy graph was built without negative samples, but this tile contains them; build the graph from the full product` | domain frozen at `graph()` | build from data spanning the product |
+| `geozl._error._InvalidError: ... built for magnitudes up to A, but this tile reaches B` | float LINEAR domain | same |
+| `geozl._error._InvalidError: ... built for values from lo to hi, but this tile reaches ...` | SQRT domain | same |
 | `TypeError: coefficient is not an integer: 1.5` | float in `coeffs` | integers only |
 | `ValueError: coeffs exceeds the 10000-byte limit` | too much metadata | fewer or shorter vectors |
 
@@ -77,11 +95,13 @@ Silent outcomes with no error, worth checking when results look wrong:
 
 | Message (excerpt) | Cause | Fix |
 | --- | --- | --- |
-| `RuntimeError: geozl.decompress: unreadable frame` | not an OpenZL frame, or the size field is unreadable | check the bytes and offsets you stored |
-| `RuntimeError: geozl.decompress failed: Code: Source size too small` | truncated frame | fix storage or range reads |
-| `RuntimeError: geozl.decompress failed: ...` on flipped bytes | checksum or corruption detection | the frame is damaged; `verify=False` will not repair it |
-| `... Custom decoder transform 7526160 not found!` | the reader lacks that codec | section 2 |
+| `geozl._error.GeoZLError: geozl.decompress: unreadable frame` | not an OpenZL frame, or the size field is unreadable | check the bytes and offsets you stored |
+| `geozl._error.GeoZLError: geozl.decompress failed: Code: Source size too small` | truncated frame | fix storage or range reads |
+| `geozl._error.GeoZLError: geozl.decompress failed: Code: Compressed checksum mismatch` on flipped bytes | checksum or corruption detection | the frame is damaged; `verify=False` will not repair it |
+| `geozl._error.GeoZLError: geozl.decompress failed: Code: Graph invalid ... Custom decoder transform 7526160 not found!` | the reader lacks that codec | section 2 |
+| `geozl._error.GeoZLError: geozl.decompress: the frame held N bytes, not M` | the frame decoded to fewer bytes than it declares | treat the frame as damaged |
 | `ValueError: geozl.decompress: the frame declares N bytes of output, above the M allowed` | `max_output_size` guard | raise the limit only for trusted frames |
+| `TypeError: verify must be a boolean` | `verify=1` and similar | pass `True` or `False` |
 
 ### Low-level `openzl.ext`
 
@@ -89,9 +109,9 @@ Silent outcomes with no error, worth checking when results look wrong:
 | --- | --- |
 | `RuntimeError: OpenZL error code: 61` on `compress` | `CParam.FormatVersion` not set |
 | `RuntimeError: OpenZL error code: 1` with `disable ContentChecksum on the CCtx` in the traceback | quantizer under the default content checksum |
-| `RuntimeError: OpenZL error code: 1` from `QuantSqrt` | recipe without `A` and `B` |
+| `ValueError: geozl.lossy.quant_sqrt: recipe '...' has no A and B, which a node cannot fit, so use Noise.recipe` | `QuantSqrt` with a recipe without `A` and `B` |
 | `RuntimeError: OpenZL error code: 30`, `Custom decoder transform ... not found!` | `geozl.register_decoders(dctx)` missing, a C-only codec (read it with `geozl.decompress`), or a retired CTid |
-| `ValueError: geozl.lossless.delta_w does not support planes` | `DeltaW(width, planes=...)` |
+| `TypeError: ... got an unexpected keyword argument 'planes'` | `DeltaW(width, planes=...)` |
 
 ## 2. Unknown codec IDs in a frame
 

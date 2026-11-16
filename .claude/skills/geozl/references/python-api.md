@@ -14,6 +14,7 @@ Sources: `bindings/python/geozl/_2d.py`, `_coeffs.py`, `_dtype.py` and `_simd.py
 8. Supported dtypes
 9. The `error=` shorthand
 10. Patterns: tiling, metadata, parallelism, untrusted input
+11. Errors
 
 ## 1. Install and runtime
 
@@ -45,8 +46,8 @@ one row per recipe that succeeded, sorted by `ratio` descending.
 | --- | --- |
 | `prior` | `"planar"` (default), `"med"`, `"delta_w"`, `"delta_n"`, `"average"`, `"wp_static"` or `"delta_1d"`: that predictor plus the `id` branch. `None`: all 8 predictors. `"none"` (or `"id"`): no predictor. Anything else raises `ValueError(... is not one of ...)`. |
 | `width`, `planes`, `error`, `nodata` | Same as `graph`. Profile with the settings you will build with. |
-| `reps` | Timed round trips per recipe; the fastest rep is reported. `reps < 1` raises `ValueError`. |
-| `verify` | Checksum verification during timed decode only. The benchmark writes the same checksums as `compress` (compressed checksum always, content checksum only for lossless), so `bytes` does not change. |
+| `reps` | Timed round trips per recipe; the fastest rep is reported. A whole number (`int` or NumPy integer). A float, bool or string raises `TypeError`, and `reps < 1` raises `ValueError`. |
+| `verify` | Checksum verification during timed decode only. A `bool` or `numpy.bool_`; anything else raises `TypeError`. The benchmark writes the same checksums as `compress` (compressed checksum always, content checksum only for lossless), so `bytes` does not change. |
 
 Each row is a `dict`:
 
@@ -77,9 +78,9 @@ graph                             ratio  enc MB/s  dec MB/s  shan%
 
 Rows whose recipe fails on this tile are skipped, which is why a float32
 profile with `prior=None` returns 56 rows while the grid lists 64 names (every
-plain `>entropy` recipe fails at 4 bytes). If every recipe fails, `profile` raises the
-last reason. Speeds depend on the machine and the SIMD path; compare rows from one
-run only.
+plain `>entropy` recipe fails at 4 bytes). If every recipe fails, `profile` raises a
+`GeoZLError` with the first reason (`geozl.profile failed: ...`). Speeds depend on the
+machine and the SIMD path; compare rows from one run only.
 
 ## 3. `graph` and `Graph`
 
@@ -91,11 +92,11 @@ geozl.graph(raster, method, *, width=None, planes=None, error=None,
 | Argument | Meaning |
 | --- | --- |
 | `raster` | Array-like, converted with `np.ascontiguousarray`. Native byte order; 1, 2, 4 or 8 bytes per element. |
-| `method` | Recipe string, exactly as `profile` spells it. Non-string or empty raises `ValueError`; an unknown name raises `RuntimeError(... unknown method ...)`; a recipe the element width cannot run raises `RuntimeError(... does not apply to N-byte elements ...)`. |
-| `width` | Row width in samples. Defaults to `raster.shape[-1]`; required for 1-D input. |
-| `planes` | Number of stacked images whose row predictors restart at each boundary. Defaults to `shape[0]` when `ndim >= 3`, else 1. Must split the size into whole rows. |
+| `method` | Recipe string, exactly as `profile` spells it. Non-string, empty or holding a NUL raises `ValueError`; an unknown name raises `GeoZLError(... unknown method ...)`; a recipe the element width cannot run raises `GeoZLError(... does not apply to N-byte elements ...)`. Both refusals are also `ValueError` (section 11). |
+| `width` | Row width in samples, a whole number from 1 to 4294967295 (`int` or NumPy integer). A bool, float or string raises `TypeError`, and a count out of range raises `ValueError`. Defaults to `raster.shape[-1]`; required for 1-D input. |
+| `planes` | Number of stacked images whose row predictors restart at each boundary. The same whole-number rule as `width`. Defaults to `shape[0]` when `ndim >= 3`, else 1. Must split the size into whole rows. |
 | `error` | `None` or `0` lossless; number, percentage string or full recipe (section 9, `lossy.md`). |
-| `nodata` | `None`: NaN mode only if the raster is floating point **and contains NaN now**. A float NaN: NaN mode. Any other value: sentinel compared by bit pattern at the dtype. See `nodata-and-planes.md`. |
+| `nodata` | `None`: NaN mode only if the raster is floating point **and contains NaN now**. A float NaN: NaN mode. Any other number: sentinel compared by bit pattern at the dtype. A string, bool or other non-number raises `TypeError`. See `nodata-and-planes.md`. |
 
 What `graph()` fixes, and what it means later:
 
@@ -111,22 +112,26 @@ What `graph()` fixes, and what it means later:
 
 `Graph` attributes: `method`, `width`, `planes`, `dtype` (read-only), `itemsize`,
 `error` (normalized recipe string or `None`), `nodata` (the argument you passed; it
-stays `None` even when NaN mode was detected automatically). Only `graph()` makes one;
-`geozl.Graph(...)` raises `TypeError`, and the type is exported for `isinstance` and
-annotations.
+stays `None` even when NaN mode was detected automatically). `repr(g)` prints them in
+order, as `<geozl.Graph planar>zigzag>pfor, uint16, row width 48, 1 plane, lossless>`.
+Only `graph()` makes one; `geozl.Graph(...)` raises `TypeError`, and the type is
+exported for `isinstance` and annotations.
 
 ## 4. `compress`
 
 ```text
-geozl.compress(tile, *, graph, coeffs=None) -> bytes
+geozl.compress(tile, graph, *, coeffs=None) -> bytes
 ```
 
-- `graph` must be a `Graph`; passing a recipe string raises `TypeError`.
+- `graph` goes by position or by name (`compress(tile, g)` or `compress(tile, graph=g)`);
+  `coeffs` is keyword only. `graph` must be a `Graph`; passing a recipe string raises
+  `TypeError`.
 - `tile.dtype` must equal `graph.dtype` exactly.
 - Output is deterministic for the same tile and graph, and every frame decodes on
   its own: frames from one graph do not depend on each other.
 - Lossy graphs check the tile against the build domain first and raise
-  `RuntimeError(... build the graph from the full product)` when the grid cannot hold
+  `GeoZLError(... build the graph from the full product)`, also a `ValueError` (ZL
+  error code 21), when the grid cannot hold
   it to its bound. That is a negative sample when the raster had none, a float magnitude
   above the raster's under LINEAR, or a value outside the raster's range under SQRT. Integer
   LINEAR and every LOG grid span the whole dtype, so only the sign is checked there
@@ -149,11 +154,15 @@ geozl.decompress(frame, *, verify=True, max_output_size=None) -> np.ndarray
 - No decoder registration is needed; the C path registers every geozl codec.
 - `verify=False` skips both frame checksums. A flipped payload bit may then decode into
   a different raster without error (codecs' own structural checks can still raise).
+  `verify` must be a `bool` or `numpy.bool_`; anything else raises `TypeError`.
 - `max_output_size` refuses a frame whose declared output exceeds it, before
-  allocating (`ValueError`). Use it for untrusted input.
-- Errors: `RuntimeError("geozl.decompress: unreadable frame")` when the size cannot
-  be read, `RuntimeError("geozl.decompress failed: ...")` for corruption, checksum
-  failures or unknown codecs.
+  allocating (`ValueError`, not a `GeoZLError`). Use it for untrusted input.
+- Errors: `GeoZLError("geozl.decompress: unreadable frame (ZL error code N)")` when the
+  size cannot be read, `GeoZLError("geozl.decompress failed: ...")` for corruption,
+  checksum failures or unknown codecs. An unknown codec carries ZL error code 30, so it
+  is also a `ValueError`. A frame that decodes to fewer bytes than it declares raises
+  `GeoZLError("geozl.decompress: the frame held N bytes, not M")` with `code` `None`,
+  instead of returning the short array.
 
 ## 6. `coeffs`
 
@@ -165,8 +174,8 @@ geozl.coeffs(frame)          # ((7, -3, 11), (2, 5)); None when absent
 - Stored in the OpenZL frame header comment, read without decompressing the
   payload. geozl gives the numbers no meaning.
 - A frame older than OpenZL format 22 has no header comment and raises
-  `RuntimeError(... predates OpenZL format 22 ...)`. Any other unreadable frame
-  raises `RuntimeError(... unreadable frame ...)`.
+  `GeoZLError(... predates OpenZL format 22 ...)` with code 60. Any other unreadable
+  frame raises `GeoZLError(... unreadable frame ...)`.
 - 1 to 255 non-empty vectors of int32 values; floats, bools and strings raise
   `TypeError`, out-of-range values raise `ValueError`.
 - Blob size is `6 + 4 * vectors + 4 * values` and must stay within 10000 bytes
@@ -198,7 +207,7 @@ geozl.coeffs(frame)          # ((7, -3, 11), (2, 5)); None when absent
 | positive `int` or `float` (numpy scalars too) | `"LINEAR:MAX_ERROR=<value>"` |
 | `"P%"` with `0 < P < 100` | `"LOG:MAX_ERROR=P%"` |
 | any string containing `:` | passed to C unchanged and validated there |
-| `bool`, negative, NaN, inf, `"10"`, `"100%"`, `"-1%"` | `ValueError` |
+| `bool`, negative, NaN, inf, `"10"`, `"100%"`, `"-1%"`, a string holding a NUL | `ValueError` |
 
 `Graph.error` and `ProfileResults.error` hold the normalized form.
 
@@ -252,3 +261,25 @@ out = geozl.decompress(frame, max_output_size=expected_nbytes)
 
 Keep `verify=True`. Report malformed frames that crash, hang or exhaust memory as
 security issues (email `hello@asterisk.coop`, subject `[geozl security]`).
+
+## 11. Errors
+
+The classes live in `bindings/python/geozl/_error.py`.
+
+- Invalid arguments raise a plain `ValueError` or `TypeError`, an exceeded
+  `max_output_size` included.
+- A library refusal raises `geozl.GeoZLError`, a `RuntimeError` subclass, so
+  `except RuntimeError` still catches it. `code` holds the ZL error code as an `int`,
+  or `None` when the refusal has none (the short frame in section 5).
+- Codes 21 (`parameter_invalid`) and 30 (`graph_invalid`) mark an invalid request, such
+  as an unknown or width-refused recipe, a bad error recipe, a failed SQRT fit, a lossy
+  tile outside the build domain or a frame naming a codec the reader lacks. They raise
+  a class deriving from both `GeoZLError` and `ValueError`, so `except ValueError`
+  catches a bad recipe as it catches a bad argument. It prints as
+  `geozl._error._InvalidError`; catch it as `ValueError` or `GeoZLError`, not by that
+  name.
+- Other codes stay a plain `GeoZLError`, for example 3 on a truncated frame, 13 on a
+  checksum mismatch and 55 on a node precondition.
+- A refusal pickles with its class and code, so it crosses a process pool intact.
+- `geozl.lossy.fit_noise` raises a plain `RuntimeError`, and low-level `openzl.ext` calls
+  raise OpenZL's own `RuntimeError` (`debugging.md` section 1).

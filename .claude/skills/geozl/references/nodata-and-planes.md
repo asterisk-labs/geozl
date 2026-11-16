@@ -27,8 +27,12 @@ from the raster passed in:
 
 Sentinel rules (`nodata_bits`):
 
+- It must be one real number. A string, a bool or a complex raises `TypeError`
+  (`nodata must be a number`).
 - It must be a whole number on integer dtypes (`nodata=3.5` on int raises `ValueError`).
-- It must fit the dtype (`nodata=-9999` on `uint16` raises `OverflowError`).
+  NaN on an integer dtype raises `ValueError` (`a uint16 raster cannot use NaN as nodata`).
+- It must fit the dtype (`nodata=-9999` on `uint16` and `nodata=1e300` on `float32`
+  raise `ValueError`).
 - `float16` has no sentinel support; NaN mode still works.
 - The dtype must be one of the 11 geozl dtypes (not `bool`, not complex).
 - It crosses into C as bits, so `int64` and `uint64` sentinels above `2^53` work.
@@ -138,7 +142,7 @@ predictors restart at each plane boundary, so nothing is predicted across bands:
 | Codec | Planes |
 | --- | --- |
 | `planar`, `planar_zigzag`, `planar_zigzag_pfor`, `delta_n`, `average`, `med`, `med_zigzag`, `wp_static` | restart per plane (`wp_static` shares one set of weights across planes, `planar_zigzag_pfor` also restarts every 16 rows and at every strip edge) |
-| `delta_w` | reads only to its left, takes no plane count (`DeltaW(width, planes=2)` raises `ValueError`) |
+| `delta_w` | reads only to its left, takes no plane count (`DeltaW(width, planes=2)` raises `TypeError`) |
 | `delta_1d`, `id`, terminals | see a flat stream |
 
 Headers carry the plane count only when it is above one, so a single-plane header has no
@@ -169,6 +173,9 @@ b = geozl.profile(cube, prior=None, reps=3, width=cube.shape[1] * cube.shape[2],
 - `planes` defaults to the first axis when `ndim >= 3`. A `(T, B, Y, X)` array therefore
   gets `planes=T` and treats each band boundary inside a time step as an ordinary row
   boundary. Pass `planes=T * B` to restart per band.
+- In the high-level API, an explicit `width` and every `planes` are whole numbers from 1
+  to 4294967295 (`TypeError` for a bool, float or string, `ValueError` out of range). A
+  raster with an empty last axis still defaults to width 0.
 - In the high-level API, `planes > 1` must split the size into whole rows, otherwise
   `ValueError`. Low-level C nodes quietly treat an invalid plane layout as one plane.
 - A row width of 0 or wider than the stream is stored as one row covering the whole
