@@ -3,6 +3,7 @@ from typing import Any
 
 from ._2d import Graph, ProfileResults, compress, decompress, graph, profile
 from ._coeffs import coeffs
+from ._error import GeoZLError
 from ._simd import simd_info
 
 # OpenZL publishes wheels for a few platforms only. Where it has none the
@@ -32,6 +33,6 @@ def register_decoders(dctx: Any) -> None:
         dctx.register_custom_decoder(decoder())
 
 
-__all__ = ["Graph", "ProfileResults", *_LOW_LEVEL, "coeffs",
+__all__ = ["GeoZLError", "Graph", "ProfileResults", *_LOW_LEVEL, "coeffs",
            "compress", "decompress", "graph", "profile", "register_decoders",
            "simd_info", "__version__"]

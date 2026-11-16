@@ -3,6 +3,7 @@ from collections.abc import Iterable
 
 import numpy as np
 
+from ._error import GeoZLError
 from ._ffi import _load_lib_full, _ptr, ffi
 from ._ffi import lib as _kernels
 
@@ -137,16 +138,16 @@ def coeffs(frame: bytes) -> tuple[tuple[int, ...], ...] | None:
     if rc < 0:
         return None
     if rc == _FORMAT_UNSUPPORTED:
-        raise RuntimeError(
+        raise GeoZLError(
             "geozl.coeffs: the frame predates OpenZL format 22, which GeoZL "
-            "does not read")
+            "does not read", rc)
     if rc != 0:
-        raise RuntimeError(f"geozl.coeffs: unreadable frame (ZL error code {rc})")
+        raise GeoZLError(f"geozl.coeffs: unreadable frame (ZL error code {rc})", rc)
 
     blob = ffi.new("char[]", size[0])
     rc = full.geozl_2d_frame_coeffs_c(
         _ptr(src), src.size, blob, size[0], size
     )
     if rc != 0:
-        raise RuntimeError(f"geozl.coeffs: unreadable frame (ZL error code {rc})")
+        raise GeoZLError(f"geozl.coeffs: unreadable frame (ZL error code {rc})", rc)
     return _parse_coeffs(bytes(ffi.buffer(blob, size[0])))

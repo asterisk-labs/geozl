@@ -591,7 +591,7 @@ def test_a_wide_sentinel_reaches_the_codec(dtype, hole):
 
 def test_a_sentinel_outside_the_dtype_is_refused():
     arr = _tile(shape=(8, 8), dtype=np.int32).astype(np.uint64)
-    with pytest.raises(OverflowError):
+    with pytest.raises(ValueError, match="does not fit"):
         geozl.graph(arr, method=GRAPH, nodata=-1)
 
 

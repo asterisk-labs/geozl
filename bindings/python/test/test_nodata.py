@@ -370,7 +370,7 @@ def test_a_sentinel_needs_a_type_that_can_carry_one():
     np.int64(300), np.int64(-1), np.float64(300.0), np.array(300),
 ], ids=["int64 over", "int64 under", "float64", "0d"])
 def test_a_numpy_sentinel_outside_the_dtype_is_refused(value):
-    with pytest.raises(OverflowError):
+    with pytest.raises(ValueError, match="does not fit"):
         geozl.graph(_smooth(np.uint8), method=GRAPH, nodata=value)
 
 
@@ -690,8 +690,6 @@ def test_the_radius_covers_every_sample_a_quantizer_lands_on_the_sentinel(
 
 
 @pytest.mark.parametrize("value, dtype, bits", [
-    (True, "uint64", 1),
-    ("5", "uint16", 5),
     (2**64 - 1, "uint64", 2**64 - 1),
     (-2**63, "int64", 2**63),
 ])
@@ -707,5 +705,5 @@ def test_a_sentinel_at_the_edge_of_its_dtype_is_kept(value, dtype, bits):
 ])
 def test_a_sentinel_past_its_dtype_raises(value, dtype):
     from geozl._dtype import nodata_bits
-    with pytest.raises(OverflowError):
+    with pytest.raises(ValueError, match="does not fit"):
         nodata_bits(value, dtype)
