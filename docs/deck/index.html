@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="How GeoZL compresses Earth observation data with OpenZL graphs, and how its frames decode on a CPU and on a GPU.">
+  <title>GeoZL · codecs and decode paths</title>
+  <link rel="icon" href="../assets/svg/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;family=League+Spartan:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=48">
+  <script defer src="app.js?v=9"></script>
+</head>
+<body>
+  <div class="progress" id="progress"></div>
+  <a class="site-back" href="../" aria-label="Back to the GeoZL website">←</a>
+
+  <main class="deck" id="deck" aria-label="GeoZL codecs and decode paths">
+    <section class="slide cover active" aria-label="GeoZL cover">
+      <img class="cover-asterisk" src="../assets/svg/asterisk_banner.svg" alt="Asterisk Labs">
+      <div class="cover-inner">
+        <img class="cover-logo" src="../assets/svg/mark-light.svg" alt="">
+        <div class="cover-copy">
+          <h1>GeoZL</h1>
+          <p>Earth observation codecs for OpenZL</p>
+        </div>
+      </div>
+    </section>
+    <section class="slide" aria-label="The Asterisk stack for AI">
+      <header><span class="brand"><img class="brand-icon" src="../assets/svg/mark-light.svg" alt=""><span class="brand-name">GeoZL</span></span><span class="count">02 / 13</span></header>
+      <h1>GeoZL is one layer of the <span class="title-mark">Asterisk stack for AI</span></h1>
+      <figure class="st-wrap">
+        <svg class="st-fig" viewBox="0 0 864 376" role="img" aria-label="The Asterisk stack for AI, with arrows from caller to callee. The model calls TACO and Rumi. TACO calls cozip, Rumi and Karu. cozip calls Karu and can hold Rumi files. Rumi calls GeoZL, highlighted, which runs on OpenZL, and Karu.">
+          <defs>
+            <marker id="st-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#777"/></marker>
+            <marker id="st-arrow-on" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#492ae8"/></marker>
+          </defs>
+          <text class="st-layer" x="0" y="32">training</text>
+          <text class="st-layer" x="0" y="112">datasets</text>
+          <text class="st-layer" x="0" y="192">files</text>
+          <text class="st-layer" x="0" y="272">codecs</text>
+          <text class="st-layer" x="0" y="352">bytes</text>
+          <rect class="st-box st-open" x="132" y="0" width="732" height="54"/>
+          <text class="st-name" x="148" y="24">PyTorch, JAX, TensorFlow</text>
+          <text class="st-text" x="148" y="44">your model, fed tensors through DLPack on a CPU or a GPU</text>
+          <rect class="st-box" x="132" y="80" width="440" height="54"/>
+          <text class="st-name" x="148" y="104">TACO</text>
+          <text class="st-text" x="148" y="124">AI-ready datasets, one sample per example</text>
+          <rect class="st-box" x="172" y="160" width="280" height="54"/>
+          <text class="st-name" x="188" y="184">cozip</text>
+          <text class="st-text" x="188" y="204">a ZIP you open like a table</text>
+          <rect class="st-box" x="512" y="160" width="352" height="54"/>
+          <text class="st-name" x="528" y="184">Rumi</text>
+          <text class="st-text" x="528" y="204">tensors read by window, band and time</text>
+          <rect class="st-box st-on" x="512" y="240" width="270" height="54"/>
+          <text class="st-name" x="528" y="264">GeoZL</text>
+          <text class="st-text" x="528" y="284">Earth observation codecs, on OpenZL</text>
+          <rect class="st-box" x="132" y="320" width="732" height="54"/>
+          <text class="st-name" x="148" y="344">Karu</text>
+          <text class="st-text" x="148" y="364">batched byte-range reads from files, HTTP, S3, GCS, Azure, Hugging Face and Source Cooperative</text>
+          <image href="../assets/svg/mark-light.svg" x="748" y="245" width="26" height="26"/>
+          <path class="st-call" d="M300 54 V78" marker-end="url(#st-arrow)"/>
+          <path class="st-call" d="M300 134 V158" marker-end="url(#st-arrow)"/>
+          <path class="st-call" d="M540 134 V158" marker-end="url(#st-arrow)"/>
+          <path class="st-call" d="M152 134 V318" marker-end="url(#st-arrow)"/>
+          <path class="st-call" d="M300 214 V318" marker-end="url(#st-arrow)"/>
+          <path class="st-call" d="M700 54 V158" marker-end="url(#st-arrow)"/>
+          <path class="st-call on" d="M640 214 V238" marker-end="url(#st-arrow-on)"/>
+          <path class="st-call" d="M823 214 V318" marker-end="url(#st-arrow)"/>
+          <path class="st-hold" d="M452 190 H508" marker-end="url(#st-arrow)"/>
+          <text class="st-tag" x="481" y="182">holds</text>
+        </svg>
+      </figure>
+    </section>
+    <section class="slide" aria-label="Who picks the codec">
+      <header><span class="brand"><img class="brand-icon" src="../assets/svg/mark-light.svg" alt=""><span class="brand-name">GeoZL</span></span><span class="count">03 / 13</span></header>
+      <h1>Dataset developers <span class="title-mark red">cannot pick their own codec</span></h1>
+      <figure class="gz-fig">
+        <svg viewBox="0 0 864 210" role="img" aria-label="Before a GeoTIFF can use a new codec, four parties must act in turn. Adobe keeps the registry of TIFF Compression numbers, and ZSTD is still missing from it. libtiff has to write and release the codec. Every GDAL build picks its own list of codecs. Every user has to install the new version, and until they do the file does not open for them.">
+          <defs><marker id="arr-3m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path fill="#7d7884" d="M0 0 10 5 0 10Z"/></marker></defs>
+          <text class="g-term" x="0" y="22">What a new codec needs before a GeoTIFF can use it</text>
+          <rect class="g-box" x="0" y="60" width="192" height="136"/>
+          <text class="g-mono" x="16" y="88">1 · Adobe</text>
+          <text class="g-name" x="16" y="122">a Compression number</text>
+          <text class="g-text" x="16" y="152">in the TIFF registry,</text>
+          <text class="g-text" x="16" y="172">where ZSTD is still missing</text>
+          <path class="g-arrow" marker-end="url(#arr-3m)" d="M196 128H220"/>
+          <rect class="g-box" x="224" y="60" width="192" height="136"/>
+          <text class="g-mono" x="240" y="88">2 · libtiff</text>
+          <text class="g-name" x="240" y="122">the codec itself</text>
+          <text class="g-text" x="240" y="152">written into libtiff</text>
+          <text class="g-text" x="240" y="172">and released</text>
+          <path class="g-arrow" marker-end="url(#arr-3m)" d="M420 128H444"/>
+          <rect class="g-box" x="448" y="60" width="192" height="136"/>
+          <text class="g-mono" x="464" y="88">3 · GDAL</text>
+          <text class="g-name" x="464" y="122">turned on in the build</text>
+          <text class="g-text" x="464" y="152">every GDAL build picks</text>
+          <text class="g-text" x="464" y="172">its own list of codecs</text>
+          <path class="g-arrow" marker-end="url(#arr-3m)" d="M644 128H668"/>
+          <rect class="g-box" x="672" y="60" width="192" height="136"/>
+          <text class="g-mono" x="688" y="88">4 · every user</text>
+          <text class="g-name" x="688" y="122">the new version installed</text>
+          <text class="g-text" x="688" y="152">until they update GDAL,</text>
+          <text class="g-text" x="688" y="172">the file does not open</text>
+        </svg>
+        <p class="punch">The format picks the codec, not the data developers who <span class="title-mark">understand the data</span>.</p>
+      </figure>
+    </section>
+    <section class="slide statement" aria-label="Compression tied to the format">
+      <p>We let <span class="title-mark red">the file format</span> choose the codec. Now that we want better compression, we cannot change one without the other.</p>
+    </section>
+    <section class="slide" aria-label="Models became graphs">
+      <header><span class="brand"><img class="brand-icon" src="../assets/svg/mark-light.svg" alt=""><span class="brand-name">GeoZL</span></span><span class="count">05 / 13</span></header>
+      <h1>Models became graphs. <span class="title-mark">Now codecs do too.</span></h1>
+      <figure class="gr">
+        <svg class="gr-fig" viewBox="0 0 864 290" role="img" aria-label="Lines of code. Deep learning, AlexNet in hand-written CUDA in 2012 against a PyTorch graph of layers in 2017. Compression, PNG in libpng and zlib, more than 22,735 lines of hand-written C, against a PNG-style graph of OpenZL and GeoZL nodes in 8 lines.">
+          <text class="gr-field" x="0" y="22">deep learning</text>
+          <line class="gr-base" x1="0" y1="236" x2="392" y2="236"/>
+          <rect class="gr-bar is-hand" x="40" y="66" width="100" height="170" style="--h:170px"/><text class="gr-val" x="90" y="56">8,449</text><text class="gr-name" x="90" y="262">AlexNet</text><text class="gr-sub" x="90" y="283">hand-written CUDA, 2012</text>
+          <rect class="gr-bar is-graph" x="240" y="230" width="100" height="6" style="--h:6px"/><text class="gr-val" x="290" y="220">35</text><text class="gr-name" x="290" y="262">PyTorch</text><text class="gr-sub" x="290" y="283">a graph of layers, 2017</text>
+          <line class="gr-split" x1="432" y1="4" x2="432" y2="286"/>
+          <text class="gr-field" x="472" y="22">compression</text>
+          <line class="gr-base" x1="472" y1="236" x2="864" y2="236"/>
+          <rect class="gr-bar is-hand" x="512" y="66" width="100" height="170" style="--h:170px"/><text class="gr-val" x="562" y="56">22,735+</text><text class="gr-name" x="562" y="262">PNG</text><text class="gr-sub" x="562" y="283">libpng and zlib, hand-written C</text>
+          <rect class="gr-bar is-graph" x="712" y="230" width="100" height="6" style="--h:6px"/><text class="gr-val" x="762" y="220">8</text><text class="gr-name" x="762" y="262">PNG-style graph</text><text class="gr-sub" x="762" y="283">OpenZL and GeoZL nodes</text>
+        </svg>
+      </figure>
+    </section>
+    <section class="slide" aria-label="The graph and the universal decoder">
+      <header><span class="brand"><img class="brand-icon" src="../assets/svg/mark-light.svg" alt=""><span class="brand-name">GeoZL</span></span><span class="count">06 / 13</span></header>
+      <h1>The decoder is <span class="title-mark">universal</span></h1>
+      <div class="cx">
+        <div class="cx-top">
+          <div class="cx-pool">
+            <div class="cx-row"><span class="cx-who">OpenZL</span><span class="cx-chip oz" data-b="zigzag">zigzag</span><span class="cx-chip oz" data-b="transpose">transpose</span><span class="cx-chip oz" data-b="entropy">entropy</span><span class="cx-chip oz" data-b="zstd">zstd</span><span class="cx-chip oz" data-b="field_lz">field_lz</span><span class="cx-chip oz" data-b="split">split</span><span class="cx-chip oz" data-b="tokenize">tokenize</span></div>
+            <div class="cx-row"><span class="cx-who geo">GeoZL</span><span class="cx-chip gz" data-b="planar">planar</span><span class="cx-chip gz" data-b="med">med</span><span class="cx-chip gz" data-b="average">average</span><span class="cx-chip gz" data-b="wp_static">wp_static</span><span class="cx-chip gz" data-b="delta_w">delta_w</span><span class="cx-chip gz" data-b="pfor">pfor</span><span class="cx-chip gz" data-b="lanes">lanes</span><span class="cx-chip gz" data-b="nodata">nodata</span></div>
+          </div>
+          <div class="cx-nav">
+            <div class="cx-pick">
+              <button type="button" class="cx-prev" aria-label="Previous dataset">‹</button>
+              <div class="cx-thumbs" role="tablist" aria-label="Dataset"></div>
+              <button type="button" class="cx-next" aria-label="Next dataset">›</button>
+            </div>
+            <span class="cx-which" aria-live="polite"></span>
+          </div>
+        </div>
+        <div class="cx-lane cx-fwd">
+          <span class="cx-dir"><span class="title-mark">forward</span><small>compress</small></span>
+          <div class="cx-data"><span class="cx-tile"></span><b class="cx-name"></b></div>
+          <div class="cx-path">
+            <span class="cx-wire"></span>
+            <div class="cx-steps"></div>
+          </div>
+          <div class="cx-frame">
+            <p class="cx-cap">one frame</p>
+            <div class="cx-parts">
+              <div class="cx-head"><span class="cx-mini"></span><small>header, the graph</small></div>
+              <div class="cx-body"><span class="cx-bars"><i></i><i></i><i></i><i></i><i></i><i></i></span><small>streams, the compressed samples</small></div>
+            </div>
+          </div>
+        </div>
+        <div class="cx-down" aria-hidden="true"><span></span></div>
+        <div class="cx-lane cx-bwd">
+          <span class="cx-dir"><span class="title-mark">backward</span><small>decompress</small></span>
+          <div class="cx-data"><span class="cx-tile out"></span><b class="cx-same">bit-identical</b></div>
+          <span class="cx-back" aria-hidden="true"></span>
+          <div class="cx-dec">
+            <div class="cx-undo"></div>
+            <div class="cx-dec-head"><b>universal decoder</b><span>reads the graph in the header and runs it backwards</span></div>
+          </div>
+        </div>
+        <p class="cx-note">The <span class="title-mark">same decoder opens every frame, whatever graph it carries</span>. So codecs can follow the data, one per modality, per region or per date.</p>
+      </div>
+    </section>
+
+    <section class="slide" aria-label="Writing a Rumi file" data-steps="5" data-step="1">
+      <header><span class="brand"><img class="brand-icon" src="../assets/svg/mark-light.svg" alt=""><span class="brand-name">GeoZL</span></span><span class="count">07 / 13</span></header>
+      <h1>Cut, compress your way. <span class="title-mark">Rumi just writes.</span></h1>
+      <div class="wr">
+        <div class="wr-tabs" role="tablist" aria-label="Steps">
+          <button type="button" role="tab" data-to="1">the data</button>
+          <button type="button" role="tab" data-to="2">frames by tile</button>
+          <button type="button" role="tab" data-to="3">or by cell</button>
+          <button type="button" role="tab" data-to="4">compress</button>
+          <button type="button" role="tab" data-to="5">write</button>
+        </div>
+        <div class="wr-main">
+          <pre class="wr-code"><code></code></pre>
+          <div class="wr-vis" aria-hidden="true">
+            <div class="wr-stage"></div>
+            <p class="wr-label"></p>
+          </div>
+        </div>
+        <p class="wr-note"></p>
+      </div>
+    </section>
+
+    <section class="slide" aria-label="Predictors">
+      <header><span class="brand"><img class="brand-icon" src="../assets/svg/mark-light.svg" alt=""><span class="brand-name">GeoZL</span></span><span class="count">08 / 13</span></header>
+      <h1>Predictors guess each sample <span class="title-mark">from its neighbours</span></h1>
+      <figure class="gz-fig">
+        <svg viewBox="0 0 864 184" role="img" aria-label="Six predictors, each drawn on a three by two stencil of neighbours. delta_w uses the west sample, delta_n the north one, planar W plus N minus NW, med the median edge detector over W, N and NW, average the floor average of W and N, and wp_static a weighted kernel whose weights travel in the frame.">
+          <g transform="translate(0 0)">
+            <rect class="g-empty" x="20" y="0" width="34" height="34"/><rect class="g-empty" x="54" y="0" width="34" height="34"/><rect class="g-geo" x="20" y="34" width="34" height="34"/><rect class="g-geo-strong" x="54" y="34" width="34" height="34"/>
+            <text class="g-mono g-mid" x="37" y="56">W</text><text class="g-mono g-mid white" x="71" y="56">x</text>
+            <text class="g-name" x="110" y="24">delta_w</text><text class="g-text" x="110" y="44">x − W</text><text class="g-small" x="110" y="62">smooth along rows only</text>
+          </g>
+          <g transform="translate(300 0)">
+            <rect class="g-empty" x="20" y="0" width="34" height="34"/><rect class="g-geo" x="54" y="0" width="34" height="34"/><rect class="g-empty" x="20" y="34" width="34" height="34"/><rect class="g-geo-strong" x="54" y="34" width="34" height="34"/>
+            <text class="g-mono g-mid" x="71" y="22">N</text><text class="g-mono g-mid white" x="71" y="56">x</text>
+            <text class="g-name" x="110" y="24">delta_n</text><text class="g-text" x="110" y="44">x − N</text><text class="g-small" x="110" y="62">the fastest to decode</text>
+          </g>
+          <g transform="translate(600 0)">
+            <rect class="g-geo" x="20" y="0" width="34" height="34"/><rect class="g-geo" x="54" y="0" width="34" height="34"/><rect class="g-geo" x="20" y="34" width="34" height="34"/><rect class="g-geo-strong" x="54" y="34" width="34" height="34"/>
+            <text class="g-mono g-mid" x="37" y="22">NW</text><text class="g-mono g-mid" x="71" y="22">N</text><text class="g-mono g-mid" x="37" y="56">W</text><text class="g-mono g-mid white" x="71" y="56">x</text>
+            <text class="g-name" x="110" y="24">planar</text><text class="g-text" x="110" y="44">x − (W + N − NW)</text><text class="g-small" x="110" y="62">continues the local slope</text>
+          </g>
+          <g transform="translate(0 110)">
+            <rect class="g-geo" x="20" y="0" width="34" height="34"/><rect class="g-geo" x="54" y="0" width="34" height="34"/><rect class="g-geo" x="20" y="34" width="34" height="34"/><rect class="g-geo-strong" x="54" y="34" width="34" height="34"/>
+            <text class="g-mono g-mid" x="37" y="22">NW</text><text class="g-mono g-mid" x="71" y="22">N</text><text class="g-mono g-mid" x="37" y="56">W</text><text class="g-mono g-mid white" x="71" y="56">x</text>
+            <text class="g-name" x="110" y="24">med</text><text class="g-text" x="110" y="44">median edge detector</text><text class="g-small" x="110" y="62">crisp edges, fields and cities</text>
+          </g>
+          <g transform="translate(300 110)">
+            <rect class="g-empty" x="20" y="0" width="34" height="34"/><rect class="g-geo" x="54" y="0" width="34" height="34"/><rect class="g-geo" x="20" y="34" width="34" height="34"/><rect class="g-geo-strong" x="54" y="34" width="34" height="34"/>
+            <text class="g-mono g-mid" x="71" y="22">N</text><text class="g-mono g-mid" x="37" y="56">W</text><text class="g-mono g-mid white" x="71" y="56">x</text>
+            <text class="g-name" x="110" y="24">average</text><text class="g-text" x="110" y="44">x − ⌊(W + N) / 2⌋</text><text class="g-small" x="110" y="62">textured or noisy surfaces</text>
+          </g>
+          <g transform="translate(600 110)">
+            <rect class="g-geo" x="20" y="0" width="34" height="34"/><rect class="g-geo" x="54" y="0" width="34" height="34"/><rect class="g-geo" x="20" y="34" width="34" height="34"/><rect class="g-geo-strong" x="54" y="34" width="34" height="34"/>
+            <text class="g-mono g-mid" x="37" y="22">NW</text><text class="g-mono g-mid" x="71" y="22">N</text><text class="g-mono g-mid" x="37" y="56">W</text><text class="g-mono g-mid white" x="71" y="56">x</text>
+            <text class="g-name" x="110" y="24">wp_static</text><text class="g-text" x="110" y="44">a kernel fitted to the tile</text><text class="g-small" x="110" y="62">a slanted dominant direction</text>
+          </g>
+        </svg>
+        <p class="punch is-small">Every predictor is tuned for one CPU core, with <span class="title-mark">NEON, SSE2 and AVX2</span> kernels picked at run time.</p>
+      </figure>
+    </section>
+    <section class="slide" aria-label="Near-lossless quantizers">
+      <header><span class="brand"><img class="brand-icon" src="../assets/svg/mark-light.svg" alt=""><span class="brand-name">GeoZL</span></span><span class="count">09 / 13</span></header>
+      <h1>Near-lossless keeps <span class="title-mark">the bound you choose</span></h1>
+      <figure class="gz-fig">
+        <svg viewBox="0 0 864 290" role="img" aria-label="Three quantizers place their grid differently. LINEAR keeps one step everywhere, an absolute bound. LOG spaces the steps evenly in log scale, a bound relative to the value. SQRT widens the steps with the square root of the signal, a bound that follows shot noise. Every sample stays within its bound.">
+          <g transform="translate(0 0)">
+            <text class="g-term" x="0" y="20">LINEAR</text>
+            <text class="g-mono" x="0" y="42">error=2</text>
+            <line class="g-line" x1="0" y1="96" x2="250" y2="96"/>
+            <path class="g-line" d="M0 86V106M31 86V106M62 86V106M94 86V106M125 86V106M156 86V106M187 86V106M219 86V106M250 86V106" style="stroke:#492ae8"/>
+            <text class="g-small" x="0" y="130">low values</text><text class="g-small g-end" x="250" y="130">high values</text>
+            <text class="g-name" x="0" y="172">one step everywhere</text>
+            <text class="g-text" x="0" y="194">|x − x̂| stays under a fixed value,</text>
+            <text class="g-text" x="0" y="212">such as metres of elevation</text>
+          </g>
+          <g transform="translate(307 0)">
+            <text class="g-term" x="0" y="20">LOG</text>
+            <text class="g-mono" x="0" y="42">error="1%"</text>
+            <line class="g-line" x1="0" y1="96" x2="250" y2="96"/>
+            <path class="g-line" d="M0 86V106M8 86V106M18 86V106M30 86V106M46 86V106M66 86V106M92 86V106M126 86V106M170 86V106M226 86V106" style="stroke:#492ae8"/>
+            <text class="g-small" x="0" y="130">low values</text><text class="g-small g-end" x="250" y="130">high values</text>
+            <text class="g-name" x="0" y="172">steps grow with the value</text>
+            <text class="g-text" x="0" y="194">|x − x̂| stays under a share of x,</text>
+            <text class="g-text" x="0" y="212">such as rainfall or radiance</text>
+          </g>
+          <g transform="translate(614 0)">
+            <text class="g-term" x="0" y="20">SQRT</text>
+            <text class="g-mono" x="0" y="42">error="SQRT:MAX_ERROR=0.5N"</text>
+            <line class="g-line" x1="0" y1="96" x2="250" y2="96"/>
+            <path class="g-line" d="M0 86V106M18 86V106M40 86V106M65 86V106M93 86V106M124 86V106M157 86V106M193 86V106M230 86V106" style="stroke:#492ae8"/>
+            <text class="g-small" x="0" y="130">low values</text><text class="g-small g-end" x="250" y="130">high values</text>
+            <text class="g-name" x="0" y="172">steps follow the noise</text>
+            <text class="g-text" x="0" y="194">the bound is a share of the shot</text>
+            <text class="g-text" x="0" y="212">noise a sensor already adds</text>
+          </g>
+          <line class="g-rule" x1="0" y1="238" x2="864" y2="238"/>
+          <text class="g-name" x="0" y="270">The quantizer runs right after nodata, then the same predictors and coders follow.</text>
+        </svg>
+      </figure>
+    </section>
+    <section class="slide" aria-label="Decoding on the CPU">
+      <header><span class="brand"><img class="brand-icon" src="../assets/svg/mark-light.svg" alt=""><span class="brand-name">GeoZL</span></span><span class="count">10 / 13</span></header>
+      <h1><span class="title-mark">On the CPU</span>, frames decode in RAM</h1>
+      <div class="fig path-fig">
+        <pre class="code"><code>tile = geozl.<span class="tok-fn">decompress</span>(frame).<span class="tok-fn">view</span>(dtype).<span class="tok-fn">reshape</span>(shape)</code></pre>
+        <svg viewBox="0 0 864 254" role="img" aria-label="Your code hands GeoZL one frame. OpenZL reads the graph stored in the frame. The GeoZL codecs run in SIMD on one core, undoing the coder, zigzag and the predictor, with fused codecs doing it in one pass. The samples land in your array, which keeps the dtype and shape you stored beside the frame." data-path="[[215,51,0],[297,51,-1],[297,109,-1],[380,109,1],[470,109,-1],[470,167,-1],[560,167,2],[675,167,-1],[675,225,-1],[790,225,3]]">
+          <rect class="pt-band" x="150" y="0" width="714" height="254"/>
+          <text class="pt-region" x="856" y="14">HOST</text>
+          <line class="pt-lane-rule" x1="0" y1="80" x2="864" y2="80"/>
+          <line class="pt-lane-rule" x1="0" y1="138" x2="864" y2="138"/>
+          <line class="pt-lane-rule" x1="0" y1="196" x2="864" y2="196"/>
+          <g class="pt-lane" data-lane="0"><text class="pt-lane-name" x="0" y="48">Your code</text><text class="pt-lane-sub" x="0" y="64">Python, R, Julia, C, JS</text></g>
+          <g class="pt-lane" data-lane="1"><text class="pt-lane-name" x="0" y="106">OpenZL</text><text class="pt-lane-sub" x="0" y="122">reads the graph</text></g>
+          <g class="pt-lane" data-lane="2"><text class="pt-lane-name" x="0" y="164">GeoZL</text><text class="pt-lane-sub" x="0" y="180">runs the EO codecs</text></g>
+          <g class="pt-lane" data-lane="3"><text class="pt-lane-name" x="0" y="222">Your array</text><text class="pt-lane-sub" x="0" y="238">dtype and shape you kept</text></g>
+          <polyline class="pt-line" points="215,51 297,51 297,109 380,109 470,109 470,167 560,167 675,167 675,225 790,225"/>
+          <polyline class="pt-trail" points="215,51 297,51 297,109 380,109 470,109 470,167 560,167 675,167 675,225 790,225"/>
+          <g class="pt-station" data-lane="0"><circle class="pt-stop" cx="215" cy="51" r="6"/><text class="pt-title" x="215" y="39">decompress</text><text class="pt-detail" x="215" y="72">one frame</text></g>
+          <g class="pt-station" data-lane="1"><circle class="pt-stop" cx="380" cy="109" r="6"/><text class="pt-title" x="380" y="97">read the recipe</text><text class="pt-detail" x="380" y="130">codecs by CTid</text></g>
+          <g class="pt-station" data-lane="2" data-grow data-hold="900"><circle class="pt-stop" cx="560" cy="167" r="6"/><text class="pt-title" x="560" y="155">undo each codec</text><text class="pt-detail" x="560" y="188">SIMD, fused when it can</text></g>
+          <g class="pt-station" data-lane="3"><circle class="pt-stop" cx="790" cy="225" r="6"/><text class="pt-title" x="790" y="213">samples</text><text class="pt-detail" x="790" y="246">as the recipe wrote them</text></g>
+          <g class="pt-packet"><circle class="pt-glow" r="9"/><circle class="pt-dot" r="4.5"/></g>
+        </svg>
+        <p class="path-note">The frame stores no dtype or shape. The caller keeps them, as Rumi does in its external header.</p>
+      </div>
+    </section>
+    <section class="slide" aria-label="Decoding on a GPU">
+      <header><span class="brand"><img class="brand-icon" src="../assets/svg/mark-light.svg" alt=""><span class="brand-name">GeoZL</span></span><span class="count">11 / 13</span></header>
+      <h1><span class="title-mark">On a GPU</span>, frames decode in GPU memory</h1>
+      <div class="fig path-fig">
+        <pre class="code"><code>geozl_gpu_<span class="tok-fn">decode</span>(gpu, frames, n, copies, m, sampleBytes, elementBytes, &amp;target, NULL, err, len);</code></pre>
+        <svg viewBox="0 0 864 254" role="img" aria-label="The caller, Rumi or your own C code, hands GeoZL a batch of frames and where each window goes in a device buffer. On the host OpenZL reads each frame and keeps its payload before the last codec expands it. Only the compressed payload crosses the bus. On the GPU the PFOR or PivCo kernels expand it, undo zigzag and the predictor, and copy each window into place. Frames whose recipe does not end in pfor or lanes decode on the CPU and are copied up." data-speed="2" data-path="[[215,51,0],[290,51,-1],[290,109,-1],[365,109,1],[440,109,-1],[440,51,-1],[515,51,2],[590,51,-1],[590,167,-1],[665,167,3],[732,167,-1],[732,225,-1],[800,225,4]]">
+          <rect class="pt-band" x="150" y="0" width="440" height="254"/>
+          <text class="pt-region" x="582" y="14">HOST</text>
+          <rect class="pt-band is-gpu" x="590" y="0" width="274" height="254"/>
+          <text class="pt-region" x="856" y="14">GPU</text>
+          <line class="pt-rule" x1="590" y1="0" x2="590" y2="254"/>
+          <line class="pt-lane-rule" x1="0" y1="80" x2="864" y2="80"/>
+          <line class="pt-lane-rule" x1="0" y1="138" x2="864" y2="138"/>
+          <line class="pt-lane-rule" x1="0" y1="196" x2="864" y2="196"/>
+          <g class="pt-lane" data-lane="0"><text class="pt-lane-name" x="0" y="48">Caller</text><text class="pt-lane-sub" x="0" y="64">Rumi or your C code</text></g>
+          <g class="pt-lane" data-lane="1"><text class="pt-lane-name" x="0" y="106">OpenZL</text><text class="pt-lane-sub" x="0" y="122">reads each frame</text></g>
+          <g class="pt-lane" data-lane="2"><text class="pt-lane-name" x="0" y="164">GeoZL kernels</text><text class="pt-lane-sub" x="0" y="180">expand on the GPU</text></g>
+          <g class="pt-lane" data-lane="3"><text class="pt-lane-name" x="0" y="222">Device buffer</text><text class="pt-lane-sub" x="0" y="238">yours, or a tensor</text></g>
+          <polyline class="pt-line" points="215,51 290,51 290,109 365,109 440,109 440,51 515,51 590,51 590,167 665,167 732,167 732,225 800,225"/>
+          <polyline class="pt-trail" points="215,51 290,51 290,109 365,109 440,109 440,51 515,51 590,51 590,167 665,167 732,167 732,225 800,225"/>
+          <g class="pt-station" data-lane="0"><circle class="pt-stop" cx="215" cy="51" r="6"/><text class="pt-title" x="215" y="39">a batch of frames</text><text class="pt-detail" x="215" y="72">and where each window goes</text></g>
+          <g class="pt-station" data-lane="1"><circle class="pt-stop" cx="365" cy="109" r="6"/><text class="pt-title" x="365" y="97">keep the payload</text><text class="pt-detail" x="365" y="130">before it expands</text></g>
+          <g class="pt-station" data-lane="0"><circle class="pt-stop" cx="515" cy="51" r="6"/><text class="pt-title" x="515" y="39">send it over</text><text class="pt-detail" x="515" y="72">compressed bytes only</text></g>
+          <g class="pt-station" data-lane="2" data-grow data-hold="220"><circle class="pt-stop" cx="665" cy="167" r="6"/><text class="pt-title" x="665" y="155">PFOR or PivCo</text><text class="pt-detail" x="665" y="188">then zigzag and planar</text></g>
+          <g class="pt-station" data-lane="3"><circle class="pt-stop" cx="800" cy="225" r="6"/><text class="pt-title" x="800" y="213">windows in place</text><text class="pt-detail" x="800" y="246">no stacking after</text></g>
+          <g class="pt-packet"><circle class="pt-glow" r="9"/><circle class="pt-dot" r="4.5"/></g>
+        </svg>
+        <p class="path-note">Frames whose recipe ends in pfor or lanes expand on the GPU. Any other frame decodes on the CPU and is copied up.</p>
+      </div>
+    </section>
+    <section class="slide" aria-label="Five languages, one C core">
+      <header><span class="brand"><img class="brand-icon" src="../assets/svg/mark-light.svg" alt=""><span class="brand-name">GeoZL</span></span><span class="count">12 / 13</span></header>
+      <h1>Five languages, <span class="title-mark">one C core</span></h1>
+      <div class="lnx">
+        <svg class="ln-fig" viewBox="0 0 864 170" role="img" aria-label="The C core, libgeozl, sits first. One line runs out of it to every language. C calls it directly, Python through cffi, R through .Call and Julia through ccall. JavaScript is the same C compiled to WebAssembly with Emscripten.">
+          <rect class="ln-core" data-lang="C" x="0" y="44" width="232" height="96"/>
+          <g transform="translate(36 92)"><g class="lg"><polygon points="0,-19 16.5,-9.5 16.5,9.5 0,19 -16.5,9.5 -16.5,-9.5" fill="#00599C"/><text x="0" y="8" text-anchor="middle" font-size="22" font-weight="800" fill="#fff" font-family="Arial, Helvetica, sans-serif">C</text></g></g>
+          <text class="ln-core-name" x="66" y="84">libgeozl</text>
+          <text class="ln-core-sub" x="66" y="104">GeoZL codecs on OpenZL</text>
+          <text class="ln-core-sub" x="66" y="122">C calls it directly</text>
+          <line class="ln-bus" x1="232" y1="92" x2="793" y2="92"/>
+          <path class="ln-edge" data-lang="Python" d="M232 92 H320 V82"/>
+          <path class="ln-edge" data-lang="R" d="M232 92 H446 V82"/>
+          <path class="ln-edge" data-lang="Julia" d="M232 92 H572 V82"/>
+          <path class="ln-edge" data-lang="JavaScript" d="M232 92 H793"/>
+          <rect class="ln-core-hit" data-lang="C" x="0" y="44" width="232" height="96"/>
+          <g class="ln" data-lang="Python" transform="translate(320 0)"><rect class="ln-hit" x="-58" y="6" width="116" height="134"/><g transform="translate(0 34)"><g class="lg"><rect x="-17" y="-17" width="22" height="22" fill="#3776AB"/><rect x="-5" y="-5" width="22" height="22" fill="#FFD43B"/><rect x="-13" y="-13" width="4" height="4" fill="#fff"/><rect x="9" y="9" width="4" height="4" fill="#fff"/></g></g><text class="ln-name" x="0" y="74">Python</text><text class="ln-how" x="0" y="128">cffi</text></g>
+          <g class="ln" data-lang="R" transform="translate(446 0)"><rect class="ln-hit" x="-58" y="6" width="116" height="134"/><g transform="translate(0 34)"><g class="lg"><ellipse cx="0" cy="-1" rx="19" ry="13" fill="none" stroke="#a9acb3" stroke-width="5"/><text x="2" y="10" text-anchor="middle" font-size="26" font-weight="800" fill="#276DC3" font-family="Arial, Helvetica, sans-serif">R</text></g></g><text class="ln-name" x="0" y="74">R</text><text class="ln-how" x="0" y="128">.Call</text></g>
+          <g class="ln" data-lang="Julia" transform="translate(572 0)"><rect class="ln-hit" x="-58" y="6" width="116" height="134"/><g transform="translate(0 34)"><g class="lg"><circle cx="0" cy="-9" r="7.5" fill="#389826"/><circle cx="-9" cy="7" r="7.5" fill="#CB3C33"/><circle cx="9" cy="7" r="7.5" fill="#9558B2"/></g></g><text class="ln-name" x="0" y="74">Julia</text><text class="ln-how" x="0" y="128">ccall</text></g>
+          <g class="ln-wasm" data-lang="JavaScript" transform="translate(694 92)"><g class="lg"><path d="M-17 -17 H-5 A5 5 0 0 0 5 -17 H17 V17 H-17 Z" fill="#654FF0"/><text x="0" y="12" text-anchor="middle" font-size="11" font-weight="800" fill="#fff" font-family="Arial, Helvetica, sans-serif">WA</text></g></g>
+          <text class="ln-wasm-name" x="694" y="128" text-anchor="middle">WebAssembly</text>
+          <text class="ln-how" x="694" y="146">Emscripten</text>
+          <g class="ln" data-lang="JavaScript" transform="translate(812 0)"><rect class="ln-hit" x="-50" y="6" width="100" height="134"/><g transform="translate(0 92)"><g class="lg"><rect x="-17" y="-17" width="34" height="34" fill="#F7DF1E"/><text x="13" y="13" text-anchor="end" font-size="15" font-weight="800" fill="#111" font-family="Arial, Helvetica, sans-serif">JS</text></g></g><text class="ln-name" x="0" y="128">JavaScript</text></g>
+        </svg>
+        <div class="ln-code">
+          <div class="ln-tabs" role="tablist" aria-label="Language"><button type="button" role="tab" data-lang="C" aria-selected="false">C</button><button type="button" role="tab" data-lang="Python" aria-selected="true">Python</button><button type="button" role="tab" data-lang="R" aria-selected="false">R</button><button type="button" role="tab" data-lang="Julia" aria-selected="false">Julia</button><button type="button" role="tab" data-lang="JavaScript" aria-selected="false">JavaScript</button></div>
+          <pre data-lang="C" hidden><code><span class="tok-fn">geozl_2d_compress_c</span>(<span class="tok-str">"planar&gt;zigzag&gt;pfor"</span>, width, planes, NULL, GEOZL_DT_U16,
+                    GEOZL_NODATA_NONE, <span class="tok-num">0</span>, src, n, <span class="tok-num">2</span>, dst, capacity, &amp;size, err, <span class="tok-kw">sizeof</span> err);</code></pre><pre data-lang="Python"><code>g = geozl.<span class="tok-fn">graph</span>(tile, <span class="tok-str">"planar&gt;zigzag&gt;pfor"</span>)
+frame = geozl.<span class="tok-fn">compress</span>(tile, graph=g)</code></pre><pre data-lang="R" hidden><code>g &lt;- <span class="tok-fn">geozl_graph</span>(tile, <span class="tok-str">"planar&gt;zigzag&gt;pfor"</span>, dtype = <span class="tok-str">"uint16"</span>)
+frame &lt;- <span class="tok-fn">geozl_compress</span>(tile, g)</code></pre><pre data-lang="Julia" hidden><code>g = GeoZL.<span class="tok-fn">graph</span>(tile, <span class="tok-str">"planar&gt;zigzag&gt;pfor"</span>)
+frame = GeoZL.<span class="tok-fn">compress</span>(tile, g)</code></pre><pre data-lang="JavaScript" hidden><code>const geozl = <span class="tok-kw">await</span> <span class="tok-fn">createGeoZL</span>();
+frame = geozl.<span class="tok-fn">compress</span>(bytes, {method: <span class="tok-str">'planar&gt;zigzag&gt;pfor'</span>, width: <span class="tok-num">256</span>, dtype: DType.U16});</code></pre>
+        </div>
+      </div>
+    </section>
+    <section class="slide cover closing" aria-label="Thank you">
+      <img class="cover-asterisk" src="../assets/svg/asterisk_banner.svg" alt="Asterisk Labs">
+      <div class="cover-inner">
+        <img class="cover-logo" src="../assets/svg/mark-light.svg" alt="">
+        <div class="cover-copy">
+          <h1>Thank you</h1>
+          <button type="button" class="end-install" data-copy="pip install geozl" aria-label="Copy the install command">pip install geozl</button>
+          <p class="end-links">
+            <a href="https://asterisk.coop/geozl/" target="_blank" rel="noopener noreferrer">asterisk.coop/geozl</a>
+            <a href="https://github.com/asterisk-labs/geozl" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"></path></svg>GitHub</a>
+            <a href="https://asterisk.coop/rumi/" target="_blank" rel="noopener noreferrer">Rumi</a>
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    if (new URLSearchParams(window.location.search).has('embed')) document.documentElement.classList.add('is-embedded');
+  </script>
+  <script>
+    // The CPU and GPU decodes on the CPU and GPU slides, drawn like the reads of the Rumi deck.
+    // The dot is the frame. It moves to the lane of the library that handles it, pauses
+    // and grows where the codecs expand it, and runs again when its slide comes back or
+    // the route is clicked.
+    (function () {
+      var SPEED = 3.2;
+      var HOLD = 0;
+      var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      document.querySelectorAll('.path-fig').forEach(function (fig) {
+        var svg = fig.querySelector('svg');
+        var points = JSON.parse(svg.dataset.path);
+        var speed = Number(svg.dataset.speed || SPEED);
+        var stations = Array.prototype.slice.call(svg.querySelectorAll('.pt-station'));
+        var lanes = Array.prototype.slice.call(svg.querySelectorAll('.pt-lane'));
+        var packet = svg.querySelector('.pt-packet');
+        var trail = svg.querySelector('.pt-trail');
+        var length = trail.getTotalLength();
+        var timers = [];
+        var animations = [];
+        trail.style.strokeDasharray = length;
+        trail.style.strokeDashoffset = length;
+
+        function light(i) {
+          stations[i].classList.add('is-lit');
+          lanes.forEach(function (lane) {
+            lane.classList.toggle('is-now', lane.dataset.lane === stations[i].dataset.lane);
+          });
+        }
+
+        function run() {
+          timers.forEach(window.clearTimeout);
+          animations.forEach(function (animation) { animation.cancel(); });
+          timers = [];
+          stations.forEach(function (el) { el.classList.remove('is-lit'); });
+          if (reduce) {
+            stations.forEach(function (station, i) { light(i); });
+            trail.style.strokeDashoffset = 0;
+            return;
+          }
+          var stops = [];
+          var t = 0;
+          var walked = 0;
+          var scale = 1;
+          points.forEach(function (point, k) {
+            if (k) {
+              var step = Math.abs(point[0] - points[k - 1][0]) + Math.abs(point[1] - points[k - 1][1]);
+              walked += step;
+              t += step * speed;
+            }
+            stops.push({ t: t, x: point[0], y: point[1], scale: scale, walked: walked });
+            if (point[2] < 0) return;
+            timers.push(window.setTimeout(light.bind(null, point[2]), t));
+            var station = stations[point[2]];
+            if (station.hasAttribute('data-grow')) scale = 1.9;
+            t += Number(station.dataset.hold || HOLD);
+            stops.push({ t: t, x: point[0], y: point[1], scale: scale, walked: walked });
+          });
+          animations = [
+            packet.animate(stops.map(function (stop) {
+              return { offset: stop.t / t, opacity: 1, transform: 'translate(' + stop.x + 'px, ' + stop.y + 'px) scale(' + stop.scale + ')' };
+            }), { duration: t, fill: 'forwards' }),
+            trail.animate(stops.map(function (stop) {
+              return { offset: stop.t / t, strokeDashoffset: length - stop.walked };
+            }), { duration: t, fill: 'forwards' })
+          ];
+        }
+
+        svg.addEventListener('click', run);
+        var slide = fig.closest('.slide');
+        new MutationObserver(function () {
+          if (slide.classList.contains('active')) run();
+        }).observe(slide, { attributes: true, attributeFilter: ['class'] });
+        if (slide.classList.contains('active')) run();
+      });
+    })();
+  </script>
+  <script>
+    // Slide 6, after the "how it works" slide of the CNG 2026 talk, as a carousel with one
+    // dataset per step. Each step shows the route from the tile through the codecs into the
+    // frame header, down into the universal decoder, back through the inverted codecs and
+    // out to the tile. It stays still so the presenter can talk over it.
+    (function () {
+      var box = document.querySelector('.cx');
+      if (!box) return;
+      var GEO = { planar: 1, med: 1, average: 1, wp_static: 1, delta_w: 1, pfor: 1, lanes: 1, nodata: 1 };
+      var DATA = [
+        { name: 'Sentinel-2', tile: 'img/tiles/t01.jpg', graph: ['med', 'zigzag', 'entropy'] },
+        { name: 'Copernicus DEM', tile: 'img/tiles/t03.jpg', graph: ['wp_static', 'zigzag', 'entropy'] },
+        { name: 'GPM IMERG', tile: 'img/tiles/t13.jpg', graph: ['split', 'med', 'entropy'] }
+      ];
+      var chips = Array.prototype.slice.call(box.querySelectorAll('.cx-pool .cx-chip'));
+      var steps = box.querySelector('.cx-steps');
+      var undo = box.querySelector('.cx-undo');
+      var mini = box.querySelector('.cx-mini');
+      var tiles = Array.prototype.slice.call(box.querySelectorAll('.cx-tile'));
+      var which = box.querySelector('.cx-which');
+      var name = box.querySelector('.cx-name');
+      var at = 0;
+
+      function chip(codec, suffix) {
+        var c = document.createElement('span');
+        c.className = 'cx-chip ' + (GEO[codec] ? 'gz' : 'oz');
+        c.textContent = codec + (suffix || '');
+        return c;
+      }
+
+      function show(i) {
+        at = (i + DATA.length) % DATA.length;
+        var d = DATA[at];
+        which.textContent = d.name;
+        name.textContent = d.name;
+        tiles.forEach(function (t) { t.style.backgroundImage = 'url(' + d.tile + ')'; });
+        chips.forEach(function (c) { c.classList.toggle('is-pick', d.graph.indexOf(c.dataset.b) >= 0); });
+        steps.innerHTML = '';
+        undo.innerHTML = '';
+        mini.innerHTML = '';
+        d.graph.forEach(function (codec) {
+          steps.appendChild(chip(codec));
+          var m = document.createElement('i');
+          m.className = GEO[codec] ? 'gz' : 'oz';
+          mini.appendChild(m);
+        });
+        d.graph.slice().reverse().forEach(function (codec) { undo.appendChild(chip(codec, '⁻¹')); });
+      }
+
+      // one thumbnail per dataset, so it is plain there is more than one to show
+      var thumbs = DATA.map(function (d, i) {
+        var t = document.createElement('button');
+        t.type = 'button';
+        t.className = 'cx-thumb';
+        t.setAttribute('role', 'tab');
+        t.setAttribute('aria-label', d.name);
+        t.style.backgroundImage = 'url(' + d.tile + ')';
+        t.addEventListener('click', function () { show(i); });
+        box.querySelector('.cx-thumbs').appendChild(t);
+        return t;
+      });
+      var draw = show;
+      show = function (i) {
+        draw(i);
+        thumbs.forEach(function (t, k) { t.setAttribute('aria-selected', String(k === at)); });
+      };
+      box.querySelector('.cx-prev').addEventListener('click', function () { show(at - 1); });
+      box.querySelector('.cx-next').addEventListener('click', function () { show(at + 1); });
+      show(0);
+    })();
+  </script>
+  <script>
+    // The languages slide. Pointing at a language, or clicking its tab, shows its call in
+    // the one code block and lights its path into the C core, as the docs tabs do.
+    (function () {
+      var box = document.querySelector('.lnx');
+      if (!box) return;
+      var tabs = Array.prototype.slice.call(box.querySelectorAll('.ln-tabs button'));
+      var pres = Array.prototype.slice.call(box.querySelectorAll('.ln-code pre'));
+      var parts = Array.prototype.slice.call(box.querySelectorAll('.ln-fig [data-lang]'));
+      function pick(lang) {
+        tabs.forEach(function (t) { t.setAttribute('aria-selected', String(t.dataset.lang === lang)); });
+        pres.forEach(function (p) { p.hidden = p.dataset.lang !== lang; });
+        parts.forEach(function (p) { p.classList.toggle('is-on', p.dataset.lang === lang); });
+      }
+      tabs.forEach(function (t) { t.addEventListener('click', function () { pick(t.dataset.lang); }); });
+      box.querySelectorAll('.ln-fig g.ln, .ln-fig .ln-core-hit').forEach(function (g) {
+        g.addEventListener('mouseenter', function () { pick(g.dataset.lang); });
+        g.addEventListener('click', function () { pick(g.dataset.lang); });
+      });
+      pick('C');
+    })();
+  </script>
+  <script>
+    // Slide 7, writing a Rumi file. Every piece is one band of one tile, drawn as a thin
+    // 3D slab, and the same twelve slabs carry every step. Only their place, size, depth
+    // and colour change, so each step eases into the next and back. Stacked tight they
+    // read as one block, apart as frames by tile, joined per tile as frames by cell,
+    // coloured by recipe, and flattened into the file. The arrows step through the slide
+    // before they move on (app.js), the tabs jump to a step, and it starts at step 1.
+    (function () {
+      var slide = document.querySelector('.slide[aria-label="Writing a Rumi file"]');
+      if (!slide) return;
+      var stage = slide.querySelector('.wr-stage');
+      var code = slide.querySelector('.wr-code code');
+      var label = slide.querySelector('.wr-label');
+      var note = slide.querySelector('.wr-note');
+      var BANDS = 3, TILES = 4, W = 60, D = 16;
+      var fn = function (t) { return '<span class="tok-fn">' + t + '</span>'; };
+      var str = function (t) { return '<span class="tok-str">' + t + '</span>'; };
+      var kw = function (t) { return '<span class="tok-kw">' + t + '</span>'; };
+      var num = function (t) { return '<span class="tok-num">' + t + '</span>'; };
+      var com = function (t) { return '<span class="tok-com">' + t + '</span>'; };
+      var DATA = 'image  ' + com('# (3, 512, 512) uint16, red, green and blue');
+      var CUT = function (pattern) {
+        return 'frames = rumi.' + fn('frames') + '(image, ' + str('"b (row h) (col w) -&gt; <span class="wr-pat">' + pattern + '</span>"') + ',\n                     tile_size=' + num('256') + ')';
+      };
+      var LOOP = kw('for') + ' frame ' + kw('in') + ' frames:\n' +
+        '    recipe = ' + str('"med&gt;zigzag&gt;entropy"') + ' ' + kw('if') + ' frame.row == ' + num('0') + ' \\\n' +
+        '        ' + kw('else') + ' ' + str('"planar&gt;zigzag&gt;pfor"') + '\n' +
+        '    graph = rumi.geozl.' + fn('graph') + '(frame.data, recipe)\n' +
+        '    frame.compressed = rumi.geozl.' + fn('compress') + '(frame.data, graph)';
+      var LOOP_SHORT = kw('for') + ' frame ' + kw('in') + ' frames:\n    ...  ' + com('# compressed as above, each with its recipe');
+      var WRITE = 'header = rumi.' + fn('write') + '(' + str('"scene.rumi"') + ', frames,\n                    bands=bands, time=[' + str('"2026-01-01"') + '])';
+      var hot = function (t) { return '<span class="wr-hot">' + t + '</span>'; };
+      var STEPS = [
+        { code: [hot(DATA)], label: 'one block of data', note: 'Start from the data, here one <span class="title-mark">RGB image</span>.' },
+        { code: [DATA, hot(CUT('row col b (h w)'))], label: '12 frames, one band of one tile each', note: 'Rumi cuts it into frames. <span class="title-mark">By tile</span>, every band of every tile is a frame of its own.' },
+        { code: [DATA, hot(CUT('row col (b h w)'))], label: '4 frames, the bands of one tile joined', note: 'Or <span class="title-mark">by cell</span>, the bands of each tile join along the band axis into one frame. Same data, different frames.' },
+        { code: [DATA, CUT('row col (b h w)'), hot(LOOP)], label: 'each frame with its own recipe', note: 'The loop is yours. Every frame can take <span class="title-mark">its own recipe</span>, by band, place, date or anything else.' },
+        { code: [DATA, CUT('row col (b h w)'), LOOP_SHORT, hot(WRITE)], label: 'scene.rumi', note: 'rumi.write stores each payload <span class="title-mark">as it is</span>, without decoding or recompressing it.' }
+      ];
+      var slabs = [];
+      for (var t = 0; t < TILES; t++) {
+        for (var b = 0; b < BANDS; b++) {
+          var el = document.createElement('span');
+          el.className = 'wr-slab';
+          el.innerHTML = '<i class="wr-front"></i><i class="wr-top"></i><i class="wr-side"></i>';
+          var tx = t % 2, ty = Math.floor(t / 2);
+          // Front bands over back ones, and a tile over the side of the tile to its left and
+          // the top of the tile below it, so the block closes and nothing reorders later.
+          el.style.zIndex = String((BANDS - b) * 10 + (1 - ty) * 3 + tx);
+          stage.appendChild(el);
+          slabs.push({ el: el, t: t, b: b, tx: tx, ty: ty });
+        }
+      }
+      var head = document.createElement('span');
+      head.className = 'wr-head';
+      head.textContent = 'header';
+      stage.appendChild(head);
+
+      // left, top, front width, front height and depth of a slab at each step
+      function place(p, step) {
+        if (step === 1) return [30 + p.tx * W + p.b * D, 76 + p.ty * W - p.b * D, W, W, D];
+        if (step === 2) return [14 + p.tx * 84 + p.b * 36, 94 + p.ty * 76 - p.b * 36, W, W, D];
+        if (step <= 4) return [20 + p.tx * 112 + p.b * D, 62 + p.ty * 100 - p.b * D, W, W, D];
+        return [58 + (p.t * BANDS + p.b) * 19, 186, 19, 40, 0];
+      }
+      function show(step) {
+        var st = STEPS[step - 1];
+        code.innerHTML = st.code.join('\n\n');
+        label.textContent = st.label;
+        note.innerHTML = st.note;
+        slide.querySelectorAll('.wr-tabs button').forEach(function (btn) {
+          btn.setAttribute('aria-selected', String(Number(btn.dataset.to) === step));
+        });
+        stage.dataset.step = String(step);
+        slabs.forEach(function (p) {
+          var r = place(p, step);
+          var st = p.el.style;
+          st.left = r[0] + 'px';
+          st.top = r[1] + 'px';
+          st.setProperty('--fw', r[2] + 'px');
+          st.setProperty('--fh', r[3] + 'px');
+          st.setProperty('--d', r[4] + 'px');
+          p.el.dataset.recipe = step >= 4 ? (p.ty === 0 ? 'med' : 'pfor') : '';
+          p.el.classList.toggle('is-start', p.b === 0);
+          p.el.classList.toggle('is-end', p.t === TILES - 1 && p.b === BANDS - 1);
+        });
+      }
+
+      slide.querySelectorAll('.wr-tabs button').forEach(function (btn) {
+        btn.addEventListener('click', function () { slide.dataset.step = btn.dataset.to; });
+      });
+      new MutationObserver(function (list) {
+        list.forEach(function (m) {
+          if (m.attributeName === 'data-step') show(Number(slide.dataset.step));
+          if (m.attributeName === 'class' && !slide.classList.contains('active')) slide.dataset.step = '1';
+        });
+      }).observe(slide, { attributes: true, attributeFilter: ['class', 'data-step'] });
+      show(1);
+    })();
+  </script>
+  <script>
+    // The install command on the closing slide copies itself when clicked.
+    (function () {
+      var button = document.querySelector('.end-install');
+      if (!button || !navigator.clipboard) return;
+      button.addEventListener('click', function () {
+        navigator.clipboard.writeText(button.dataset.copy).then(function () {
+          button.classList.add('is-copied');
+          window.setTimeout(function () { button.classList.remove('is-copied'); }, 1200);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

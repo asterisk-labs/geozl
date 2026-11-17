@@ -1,0 +1,395 @@
+*, *::before, *::after { box-sizing: border-box; }
+/* clip, not hidden, so focusing a control inside a scaled slide never scrolls the page */
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; overflow: clip; }
+:root {
+  color-scheme: light;
+  --ink: #000;
+  --soft: #2b2f36;
+  --dim: #5c6370;
+  --faint: #8a919c;
+  --rule: #dedede;
+  --line: #c9cbd3;
+  --grey: #ececef;
+  --violet: #492ae8;
+  --violet-soft: #ebe7fd;
+  --mint: #26745f;
+  --bg: #fff;
+  --edge: rgba(0, 0, 0, .1);
+  --ink-soft: #1d2025;
+  --wash: #f6f6f4;
+  --wash-deep: #eeeeeb;
+  --sans: 'League Spartan', Inter, ui-sans-serif, system-ui, sans-serif;
+  --mono: 'JetBrains Mono', 'SFMono-Regular', monospace;
+}
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  color: var(--ink);
+  font-family: var(--sans);
+}
+.deck {
+  position: relative;
+  flex: none;
+  width: 960px;
+  height: 540px;
+  transform-origin: center;
+  background: #fff;
+  box-shadow: 0 18px 55px #0002;
+}
+.slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 48px 24px;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .22s ease;
+  overflow: hidden;
+}
+.slide.active { opacity: 1; pointer-events: auto; }
+.slide.cover { align-items: center; justify-content: center; padding: 0; }
+.cover-asterisk { position: absolute; top: 32px; right: 48px; display: block; width: 185px; height: auto; }
+.cover-inner { display: flex; align-items: center; gap: 32px; }
+.cover-logo { display: block; width: 116px; height: 116px; }
+.cover h1 { margin: 0 0 12px; font-size: 92px; line-height: .86; font-weight: 700; }
+.cover p { margin: 0; color: var(--soft); font-size: 25px; }
+.closing .cover-copy { display: flex; flex-direction: column; align-items: flex-start; gap: 20px; }
+.closing h1 { margin: 0; }
+.end-install { display: inline-flex; align-items: center; gap: 12px; padding: 10px 22px; border: 0; background: var(--wash); color: var(--ink); cursor: pointer; font: 500 20px var(--mono); }
+.end-install::before { color: var(--violet); content: "$"; }
+.end-install::after { color: var(--faint); font: 400 14px var(--sans); content: "copy"; }
+.end-install.is-copied::after { color: var(--violet); content: "copied"; }
+.end-links { display: flex; gap: 12px; }
+.end-links a { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border: 1px solid var(--violet); color: var(--violet); font: 500 17px var(--sans); text-decoration: none; }
+.end-links a:hover,
+.end-links a:focus-visible { background: #ece9fd; outline: none; }
+.slide header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 10px;
+  margin-bottom: 16px;
+}
+.brand { display: flex; align-items: center; gap: 8px; }
+.brand-icon { display: block; width: 30px; height: 30px; }
+.brand-name { font-size: 26px; font-weight: 700; letter-spacing: -.045em; }
+.count { color: var(--dim); font: 500 11px var(--mono); }
+h1 {
+  font-size: 40px;
+  line-height: 1;
+  letter-spacing: -.042em;
+  font-weight: 600;
+  margin: 0;
+}
+.title-mark { position: relative; isolation: isolate; display: inline-block; }
+.title-mark::before { position: absolute; inset: .56em -.06em .02em -.04em; z-index: -1; content: ''; background: #c4ffc2; transform: rotate(-.8deg); }
+.title-mark.red::before { background: #ffc4c2; }
+p { margin: 0; }
+code, pre { font-family: var(--mono); font-variant-ligatures: none; }
+.mono { font-family: var(--mono); }
+
+
+/* Shared figure parts. */
+.fig {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 22px;
+}
+
+/* 09 and 10 The call, in the colours of the docs code blocks. */
+.code {
+  align-self: center;
+  margin: 0;
+  padding: 12px 20px;
+  background: var(--wash);
+  color: var(--ink);
+  font: 13.5px/1.65 var(--mono);
+  font-variant-ligatures: none;
+}
+.tok-fn { color: #0a5fb4; }
+.tok-str { color: #17803d; }
+.tok-num { color: #c2410c; }
+
+/* 09 and 10 The CPU and GPU reads, one lane for each library, drawn like the read of the landing page. */
+.path-fig { gap: 12px; }
+.path-fig svg { display: block; width: 100%; height: auto; overflow: visible; cursor: pointer; }
+.pt-band { fill: transparent; }
+.pt-band.is-gpu { fill: rgba(73, 42, 232, .05); }
+.pt-rule { stroke: #d4d4d8; stroke-width: 1; }
+.pt-region { fill: var(--faint); font: 600 10.5px var(--sans); letter-spacing: .12em; text-anchor: end; }
+.pt-lane-rule { stroke: #ececef; stroke-width: 1; }
+.pt-lane-name { fill: var(--ink-soft); font: 600 15px var(--sans); transition: fill 180ms ease; }
+.pt-lane-sub { fill: var(--faint); font: 400 12px var(--sans); }
+.pt-lane.is-now .pt-lane-name { fill: var(--violet); }
+.pt-line,
+.pt-trail { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.pt-line { stroke: #d4d4d8; }
+.pt-trail { stroke: rgba(73, 42, 232, .55); }
+.pt-stop { fill: var(--bg); stroke: #b8b8bf; stroke-width: 1.6; transition: fill 180ms ease, stroke 180ms ease; }
+.pt-title { fill: var(--ink-soft); font: 500 14.5px var(--sans); text-anchor: middle; transition: fill 180ms ease; }
+.pt-detail { fill: var(--dim); font: 400 12px var(--sans); text-anchor: middle; }
+.pt-size { fill: var(--faint); font: 650 15px var(--sans); transition: fill 180ms ease; }
+.pt-size.is-key { font-size: 17px; }
+.pt-size.is-lit { fill: var(--ink); }
+.pt-size.is-key.is-lit { fill: var(--violet); }
+.pt-station.is-lit .pt-stop { fill: var(--violet); stroke: var(--violet); }
+.pt-station.is-lit .pt-title { fill: var(--violet); }
+.pt-packet { opacity: 0; pointer-events: none; }
+.pt-dot { fill: var(--violet); }
+.pt-glow { fill: var(--violet); opacity: .18; }
+.path-note { color: var(--dim); font-size: 14.5px; line-height: 1.3; text-align: center; }
+
+
+.progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  height: 3px;
+  background: var(--violet);
+  transition: width .25s ease;
+}
+.site-back {
+  position: fixed;
+  top: 13px;
+  left: 15px;
+  z-index: 1000;
+  color: var(--soft);
+  font: 500 12px var(--mono);
+  text-decoration: none;
+}
+.site-back:hover, .site-back:focus-visible { color: var(--violet); }
+.is-embedded, .is-embedded body { background: white; }
+.is-embedded .site-back { display: none; }
+@media (prefers-reduced-motion: reduce) { .slide, .progress { transition: none; } }
+@media print {
+  html, body { height: auto; overflow: visible; background: white; }
+  .deck { width: 960px; height: auto; transform: none !important; box-shadow: none; }
+  .slide { position: relative; width: 960px; height: 540px; opacity: 1; pointer-events: auto; page-break-after: always; break-after: page; }
+  .site-back, .progress { display: none; }
+}
+
+
+/* Schematic figures, drawn in the deck fonts. Violet is GeoZL, grey is OpenZL,
+   orange is what a byte codec trips on, green is what the GPU expands. */
+.gz-fig { flex: 1; min-height: 0; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+.gz-fig svg { display: block; width: 100%; height: auto; overflow: visible; }
+.gz-fig text { font-family: var(--sans); fill: var(--ink); }
+.gz-fig .g-term { font-size: 19px; font-weight: 600; letter-spacing: -.02em; }
+.gz-fig .g-name { font-size: 15px; font-weight: 600; }
+.gz-fig .g-text { font-size: 13.5px; fill: var(--dim); }
+.gz-fig .g-small { font-size: 12px; fill: var(--dim); }
+.gz-fig .g-mono { font: 500 13px var(--mono); fill: #492ae8; }
+.gz-fig .g-mono.ink { fill: var(--ink-soft); }
+.gz-fig .g-mid { text-anchor: middle; }
+.gz-fig .g-end { text-anchor: end; }
+.g-box { fill: #fff; stroke: #777; stroke-width: 1.3; }
+.g-wash { fill: var(--wash); stroke: #c9c9c9; stroke-width: 1; }
+.g-geo { fill: #ece9fd; stroke: #492ae8; stroke-width: 1.5; }
+.g-geo-strong { fill: #492ae8; stroke: #492ae8; }
+.g-ozl { fill: #f6f6f4; stroke: #999; stroke-width: 1.3; }
+.g-hot { fill: #ffeae1; stroke: #fe6b37; stroke-width: 1.5; }
+.g-gpu { fill: #e3f6ec; stroke: #26745f; stroke-width: 1.5; }
+.g-yellow { fill: #fdf5d0; stroke: #f7cc09; stroke-width: 1.3; }
+.g-empty { fill: #fff; stroke: #d4d4d8; stroke-width: 1; }
+.g-opt { fill: #fff; stroke: #999; stroke-width: 1.3; stroke-dasharray: 5 4; }
+.g-rule { fill: none; stroke: var(--rule); stroke-width: 1; }
+.g-line { fill: none; stroke: #999; stroke-width: 1.4; }
+.g-link { fill: none; stroke: #fe6b37; stroke-width: 1.6; stroke-dasharray: 4 3; }
+.g-arrow { fill: none; stroke: #7d7884; stroke-width: 1.6; }
+.gz-fig figcaption { color: var(--dim); font-size: 16px; line-height: 1.3; text-align: center; }
+.gz-fig .white { fill: #fff; }
+.gz-fig .violet { fill: #492ae8; }
+.gz-fig .orange { fill: #c2410c; }
+.gz-fig .mint { fill: #26745f; }
+
+/* The recipe under the graph of slide 3. */
+.recipe { align-self: center; margin: 0; padding: 10px 20px; background: var(--wash); font: 15px/1.5 var(--mono); }
+.recipe b { color: #492ae8; font-weight: 500; }
+.recipe i { color: var(--dim); font-style: normal; }
+
+/* The languages slide, five languages into one C core, and one code block that follows
+   the language picked. */
+.lnx { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+.ln-fig { display: block; width: 100%; height: auto; overflow: visible; }
+.ln-fig text { font-family: var(--sans); }
+.ln-fig .lg text { font-family: Arial, Helvetica, sans-serif; }
+.ln-hit { fill: transparent; cursor: pointer; }
+.ln-fig .ln-name { fill: var(--ink); font-size: 17px; font-weight: 600; text-anchor: middle; }
+.ln-fig .ln-how { fill: var(--dim); font: 500 12px var(--mono); text-anchor: middle; }
+.ln-fig .ln-wasm-name { fill: #654FF0; font: 500 12px var(--mono); }
+.ln-edge { fill: none; stroke: #c9cbd3; stroke-width: 2; transition: stroke 160ms ease; }
+.ln-edge.is-on { stroke: #492ae8; stroke-width: 2.5; }
+.ln-fig g.ln { opacity: .55; transition: opacity 160ms ease; }
+.ln-fig g.ln.is-on { opacity: 1; }
+.ln-core { fill: #ece9fd; stroke: #492ae8; stroke-width: 2; }
+.ln-bus { stroke: #c9cbd3; stroke-width: 2; }
+.ln-core-hit { fill: transparent; cursor: pointer; }
+.ln-core.is-on { stroke-width: 3.5; fill: #ddd6fc; }
+.ln-fig .ln-wasm .lg { opacity: .55; transition: opacity 160ms ease; }
+.ln-fig .ln-wasm.is-on .lg { opacity: 1; }
+
+.ln-fig .ln-core-name { fill: var(--ink); font-size: 19px; font-weight: 700; letter-spacing: -.02em; }
+.ln-fig .ln-core-sub { fill: var(--ink-soft); font-size: 13.5px; }
+.ln-tabs { display: flex; gap: 18px; margin-bottom: 6px; }
+.ln-tabs button { padding: 4px 0; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--dim); font: 500 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.ln-tabs button[aria-selected="true"] { border-color: var(--ink); color: var(--ink); }
+.ln-code pre { margin: 0; padding: 10px 16px; min-height: 64px; background: var(--wash); color: var(--ink); font: 13px/1.6 var(--mono); white-space: pre; overflow: hidden; }
+
+/* 02 The Asterisk stack for AI, GeoZL in violet. */
+.st-wrap { flex: 1; min-height: 0; margin: 0; display: flex; align-items: center; }
+.st-fig { width: 100%; height: auto; overflow: visible; }
+.st-fig text { font-family: var(--sans); fill: var(--ink); }
+.st-fig .st-layer { font: 500 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; fill: var(--dim); }
+.st-box { fill: #f6f6f4; stroke: #777; stroke-width: 1.2; }
+.st-open { fill: none; stroke: #999; stroke-dasharray: 5 4; }
+.st-on { fill: #ece9fd; stroke: #492ae8; stroke-width: 2.4; }
+.st-fig .st-name { font-size: 20px; font-weight: 600; letter-spacing: -.02em; }
+.st-fig .st-text { font-size: 14px; fill: var(--dim); }
+.st-call { fill: none; stroke: #777; stroke-width: 1.5; }
+.st-call.on { stroke: #492ae8; stroke-width: 2; }
+.st-hold { fill: none; stroke: #777; stroke-width: 1.5; stroke-dasharray: 4 3; }
+.st-fig .st-tag { font: 500 11px var(--mono); fill: var(--dim); text-anchor: middle; }
+
+/* A slide that is one sentence. */
+.slide.statement { justify-content: center; padding: 0 96px; }
+.statement p { font-size: 44px; line-height: 1.15; letter-spacing: -.04em; font-weight: 600; }
+
+/* The one line a figure slide ends on. */
+.gz-fig .punch { align-self: stretch; padding-top: 18px; border-top: 1px solid var(--rule); color: var(--ink); font-size: 28px; line-height: 1.2; letter-spacing: -.03em; font-weight: 600; }
+.gz-fig .credit { align-self: stretch; color: var(--dim); font-size: 14px; }
+
+/* 05 Models became graphs, the lines-of-code chart of the CNG 2026 talk. The bars grow
+   from the baseline each time the slide is shown. */
+.gr { flex: 1; min-height: 0; margin: 0; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+.gr-fig { width: 100%; height: auto; overflow: visible; }
+.gr-fig text { font-family: var(--sans); fill: var(--ink); text-anchor: middle; }
+.gr-fig .gr-field { font-size: 22px; font-weight: 600; letter-spacing: -.02em; text-anchor: start; }
+.gr-fig .gr-val { font-size: 24px; font-weight: 600; }
+.gr-fig .gr-name { font-size: 19px; font-weight: 600; }
+.gr-fig .gr-sub { font-size: 14.5px; fill: var(--dim); }
+.gr-base, .gr-split { stroke: #e7e5e4; stroke-width: 1.5; }
+.gr-bar.is-hand { fill: #f7cc09; }
+.gr-bar.is-graph { fill: #492ae8; }
+.gr-bar { transform-box: fill-box; transform-origin: bottom; }
+.slide.active .gr-bar { animation: gr-grow 900ms cubic-bezier(.2, .7, .2, 1) both; }
+.slide.active .gr-bar.is-graph { animation-delay: 250ms; }
+@keyframes gr-grow { from { transform: scaleY(0); } }
+.gr figcaption { color: var(--faint); font-size: 12px; line-height: 1.4; }
+@media (prefers-reduced-motion: reduce) { .slide.active .gr-bar { animation: none; } }
+
+/* 06 The graph and the universal decoder, one dataset per step, drawn still. */
+.cx { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+.cx-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.cx-row { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+.cx-who { width: 58px; margin-right: 6px; color: var(--dim); font-size: 12.5px; font-weight: 600; text-align: right; }
+.cx-who.geo { color: #492ae8; }
+.cx-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 60px; height: 24px; padding: 0 6px; border: 1.5px solid; font: 500 12px var(--mono); white-space: nowrap; }
+.cx-chip.oz { border-color: #c9cbd3; background: #f4f4f5; color: var(--ink-soft); }
+.cx-chip.gz { border-color: #492ae8; background: #492ae8; color: #fff; }
+.cx-pool .cx-chip:not(.is-pick) { opacity: .3; }
+.cx-nav { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.cx-pick { display: flex; align-items: center; gap: 8px; }
+.cx-nav button.cx-prev, .cx-nav button.cx-next { width: 30px; height: 40px; border: 1.5px solid #492ae8; background: #fff; color: #492ae8; font: 600 20px var(--sans); cursor: pointer; }
+.cx-nav button.cx-prev:hover, .cx-nav button.cx-next:hover { background: #ece9fd; }
+.cx-thumbs { display: flex; gap: 6px; }
+.cx-thumb { width: 40px; height: 40px; padding: 0; border: 0; background: #eee center / cover no-repeat; cursor: pointer; opacity: .45; outline: 2.5px solid transparent; outline-offset: 2px; transition: opacity 160ms ease, outline-color 160ms ease; }
+.cx-thumb:hover { opacity: .8; }
+.cx-thumb[aria-selected="true"] { opacity: 1; outline-color: #492ae8; }
+.cx-which { color: var(--ink-soft); font: 500 12px var(--mono); }
+.cx-lane { display: grid; grid-template-columns: 84px 96px 44px 1fr; align-items: center; }
+.cx-fwd { grid-template-columns: 84px 96px 1fr 320px; }
+.cx-dir { color: #492ae8; font: 700 13px var(--sans); letter-spacing: .1em; text-transform: uppercase; }
+.cx-dir .title-mark::before { inset: .5em -.12em .02em -.1em; }
+.cx-dir small { display: block; margin-top: 3px; color: var(--faint); font: 500 10.5px var(--mono); letter-spacing: 0; text-transform: none; }
+.cx-data { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.cx-data b { font-size: 12.5px; font-weight: 600; }
+.cx-tile { width: 60px; height: 60px; background: #eee center / cover no-repeat; }
+.cx-same { color: #492ae8; }
+.cx-path { position: relative; height: 60px; margin: 0 16px 0 10px; display: flex; align-items: center; }
+.cx-wire, .cx-back, .cx-down { background: #492ae8; }
+.cx-wire { position: absolute; left: 0; right: 0; top: calc(50% - 1px); height: 2px; }
+.cx-wire::after { position: absolute; right: -2px; top: -6px; border: 7px solid transparent; border-left: 10px solid #492ae8; border-right: 0; content: ''; }
+.cx-steps { position: relative; z-index: 1; width: 100%; display: flex; justify-content: space-around; }
+.cx-cap { margin-bottom: 4px; color: var(--dim); font: 500 11px var(--mono); }
+.cx-parts { display: grid; grid-template-columns: 120px 1fr; border: 1.5px solid var(--ink); }
+.cx-head, .cx-body { display: flex; flex-direction: column; justify-content: center; gap: 6px; height: 64px; padding: 8px 10px; }
+.cx-head { background: var(--ink); color: #fff; }
+.cx-head small, .cx-body small { font-size: 11px; line-height: 1.2; }
+.cx-head small { color: #c9cbd3; }
+.cx-body { background: #e7e5e4; }
+.cx-body small { color: var(--ink-soft); }
+.cx-mini { display: flex; gap: 5px; }
+.cx-mini i { width: 16px; height: 16px; border: 1.5px solid #fff; }
+.cx-mini i.gz { background: #492ae8; }
+.cx-mini i.oz { background: #f4f4f5; }
+.cx-bars { display: flex; gap: 3px; }
+.cx-bars i { width: 22px; height: 16px; background: #5f5e5a; }
+.cx-down { position: relative; height: 26px; margin-left: calc(100% - 320px + 59px); width: 2px; }
+.cx-down span { position: absolute; left: -6px; bottom: -2px; border: 7px solid transparent; border-top: 10px solid #492ae8; border-bottom: 0; }
+.cx-back { position: relative; height: 2px; margin: 0 4px 0 10px; }
+.cx-back::before { position: absolute; left: -2px; top: -6px; border: 7px solid transparent; border-right: 10px solid #492ae8; border-left: 0; content: ''; }
+.cx-dec { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 26px; padding: 12px 18px; border: 3px solid #492ae8; background: #ece9fd; }
+.cx-dec-head b { display: block; color: #492ae8; font-size: 30px; font-weight: 700; letter-spacing: -.03em; line-height: 1; }
+.cx-dec-head span { color: var(--ink-soft); font-size: 13px; }
+.cx-undo { display: flex; flex-direction: row-reverse; justify-content: flex-end; gap: 8px; }
+.cx-dec-head { text-align: right; }
+.cx-note .title-mark { color: var(--ink); font-weight: 600; }
+.cx-note { padding-top: 10px; border-top: 1px solid var(--rule); color: var(--ink-soft); font-size: 16px; line-height: 1.35; }
+.gz-fig .punch.is-small { font-size: 20px; }
+
+/* 07 Writing a Rumi file. One block of data that changes with every step, and one code
+   block that grows, its newest lines in full ink. */
+.wr { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+.wr-tabs { display: flex; gap: 20px; }
+.wr-tabs button { padding: 4px 0; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--dim); font: 500 12px var(--mono); cursor: pointer; }
+.wr-tabs button[aria-selected="true"] { border-color: var(--ink); color: var(--ink); }
+.wr-main { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: center; }
+.wr-code { margin: 0; height: 236px; padding: 14px 18px; background: var(--wash); color: #9aa0a8; font: 12.5px/1.6 var(--mono); white-space: pre; overflow: hidden; }
+.wr-code .tok-fn, .wr-code .tok-str, .wr-code .tok-kw, .wr-code .tok-num { color: inherit; }
+.wr-hot { color: var(--ink); }
+.wr-hot .tok-fn { color: #0a5fb4; }
+.wr-hot .tok-str { color: #17803d; }
+.wr-hot .tok-kw { color: #492ae8; }
+.wr-hot .tok-num { color: #c2410c; }
+.wr-hot .tok-com { color: #8a919c; }
+.wr-vis { display: flex; flex-direction: column; gap: 8px; }
+.wr-stage { position: relative; height: 230px; }
+/* A slab is one band of one tile, a front with a top and a side of depth --d. Its sizes
+   are registered so they ease like any length. Edges show only where a slab stands on
+   its own, by tile and in the file; stacked into a block or a cell they melt away. */
+@property --fw { syntax: '<length>'; inherits: true; initial-value: 60px; }
+@property --fh { syntax: '<length>'; inherits: true; initial-value: 60px; }
+@property --d { syntax: '<length>'; inherits: true; initial-value: 16px; }
+.wr-slab { --edge: #f1f1f3; --face: #f1f1f3; --lid: #e3e4e8; --flank: #d4d6db; position: absolute; width: 0; height: 0; transition: left 700ms cubic-bezier(.4, 0, .2, 1), top 700ms cubic-bezier(.4, 0, .2, 1), --fw 700ms cubic-bezier(.4, 0, .2, 1), --fh 700ms cubic-bezier(.4, 0, .2, 1), --d 700ms cubic-bezier(.4, 0, .2, 1); }
+.wr-slab i { position: absolute; display: block; transition: background-color 500ms ease, box-shadow 500ms ease; }
+.wr-slab .wr-front { left: 0; top: 0; width: var(--fw); height: var(--fh); background: var(--face); box-shadow: inset 0 0 0 1.5px var(--edge); }
+.wr-slab .wr-top { left: 0; top: calc(-1 * var(--d)); width: calc(var(--fw) + var(--d)); height: var(--d); background: var(--lid); clip-path: polygon(0 100%, var(--d) 0, 100% 0, var(--fw) 100%); }
+.wr-slab .wr-side { left: var(--fw); top: calc(-1 * var(--d)); width: var(--d); height: calc(var(--fh) + var(--d)); background: var(--flank); clip-path: polygon(0 var(--d), 100% 0, 100% var(--fh), 0 100%); }
+.wr-stage[data-step="2"] .wr-slab { --edge: #8a8f98; }
+.wr-slab[data-recipe="med"] { --face: #ece9fd; --lid: #d9d3fb; --flank: #c4bbf7; }
+.wr-slab[data-recipe="pfor"] { --face: #ffeae1; --lid: #ffd8c6; --flank: #fcc4aa; }
+/* In the file the slabs lie flat, side by side, with an edge only where a frame starts. */
+.wr-stage[data-step="5"] .wr-slab .wr-front { box-shadow: inset 0 1.5px 0 #25231f, inset 0 -1.5px 0 #25231f; }
+.wr-stage[data-step="5"] .wr-slab.is-start .wr-front { box-shadow: inset 0 1.5px 0 #25231f, inset 0 -1.5px 0 #25231f, inset 1.5px 0 0 #25231f; }
+.wr-stage[data-step="5"] .wr-slab.is-end .wr-front { box-shadow: inset 0 1.5px 0 #25231f, inset 0 -1.5px 0 #25231f, inset -1.5px 0 0 #25231f; }
+.wr-head { position: absolute; left: 6px; top: 186px; width: 52px; height: 40px; display: flex; align-items: center; justify-content: center; background: var(--ink); color: #fff; font: 500 10.5px var(--mono); opacity: 0; transition: opacity 400ms ease; }
+.wr-stage[data-step="5"] .wr-head { opacity: 1; transition-delay: 300ms; }
+.wr-label { color: var(--dim); font: 500 12px var(--mono); }
+.wr-note { color: var(--ink-soft); font-size: 18px; line-height: 1.35; min-height: 1.35em; }
+.wr-note .title-mark { color: var(--ink); font-weight: 600; }
+/* The part of the pattern that changes between tile and cell gets marked as it appears. */
+.wr-hot .wr-pat { padding: 0 3px; background: linear-gradient(#c4ffc2, #c4ffc2) no-repeat left center / 0 100%; color: var(--ink); font-weight: 700; animation: wr-mark 650ms cubic-bezier(.4, 0, .2, 1) 250ms forwards; }
+@keyframes wr-mark { to { background-size: 100% 100%; } }
+@media (prefers-reduced-motion: reduce) { .wr-hot .wr-pat { animation: none; background-size: 100% 100%; } }
+@media (prefers-reduced-motion: reduce) { .wr-slab, .wr-slab i, .wr-head { transition: none !important; } }
+.tok-kw { color: #492ae8; }
+.tok-com { color: #8a919c; }
