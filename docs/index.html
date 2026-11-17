@@ -292,11 +292,11 @@ main {
   position: relative;
   isolation: isolate;
   min-width: 0;
-  min-height: clamp(520px, calc(100svh - 150px), 650px);
+  min-height: clamp(520px, calc(100svh - 150px), 720px);
   display: grid;
-  grid-template-columns: minmax(330px, 0.88fr) minmax(500px, 1.12fr);
+  grid-template-columns: minmax(400px, 430px) minmax(0, 1fr);
   align-items: center;
-  gap: clamp(36px, 5vw, 72px);
+  gap: 64px;
   overflow: hidden;
   padding-block: clamp(12px, 2vh, 24px);
 }
@@ -572,10 +572,15 @@ main {
   pointer-events: auto;
 }
 
+/* Side by side with the text, the drawing sits a little left of its column. */
+@media (min-width: 861px) {
+  .geozl-flow { left: -28px; }
+}
+
 .recipe-stage {
   position: relative;
   width: 100%;
-  height: clamp(400px, 59vh, 480px);
+  height: clamp(440px, 66vh, 560px);
   overflow: hidden;
   background: transparent;
 }
@@ -1467,7 +1472,7 @@ main {
     var items = legends[graphScenes[scene].legendIndex];
     var compact = graphCompact();
     items.forEach(function (item, index) {
-      var x = 8;
+      var x = compact ? 8 : 48;
       var y = (compact ? 58 : 48) + index * (compact ? 16 : 18);
       graphContext.save();
       graphContext.globalAlpha = alpha;
