@@ -19,6 +19,7 @@ docs/
 ├── index.html          landing page, with its own styles and scripts
 ├── docs.html           codecs overview and the reading order
 ├── guide.html          compress and decompress in Python, R and Julia
+├── deck/index.html     the presentation deck, linked as Deck in every page
 ├── predictors.html, streams.html, fused.html, near-lossless.html  the four codec families
 ├── pfor.html           how PFOR works
 ├── pivco.html          how PivCo-Huffman works
