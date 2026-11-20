@@ -25,9 +25,10 @@ core/
   src/2d/2d.c           recipe grammar, graph builder, geozl_2d_* entry points, bench
   src/gpu/              GPU decode runtime (GEOZL_BUILD_GPU)
   src/lossy/            recipe parse, SQRT fit, resolve, domain check
-  src/common/           simd.c/h, scan.h, vprefix.h, vshift.h, raster.h, endian.h, fp.h, half.h, recipe_parse.h, graph_num1to{1,2}.h
+  src/common/           simd.c/h, scan.h, vprefix.h, vshift.h, raster.h, endian.h, fp.h, half.h, recipe_parse.h, graph_num1to{1,2}.h, predictor_binding.h
   src/encoder_registry.c  geozl_node_* builders
-  src/decoder_registry.c  kDecoders table, geozl_register_decoders
+  src/codec_list.h      GEOZL_CODECS, the active codecs and their lossy flag
+  src/decoder_registry.c  kDecoders built from it, compile-time CTid checks, geozl_register_decoders
   CMakeLists.txt        codec discovery by folder convention
 bindings/python/
   geozl/_ffi.py         hand-written cffi cdef (ABI mode) and library loading
@@ -142,7 +143,11 @@ Checklist (from `docs/adding-a-codec.md`):
       macros `EI_<NAME>(id)` / `DI_<NAME>(id)`.
 - [ ] CTid in `core/include/geozl/ctids.h`: next free id in the right band, lossless
       `0x72D700` to `0x72D77F`, lossy `0x72D780` to `0x72D7FF`. Never reuse or renumber.
-- [ ] Decoder row `REGISTER(GEOZL_CTID_<NAME>, DI_<NAME>)` in `decoder_registry.c`.
+- [ ] `X(<NAME>, lossy)` in `GEOZL_CODECS` (`core/src/codec_list.h`) and the decode
+      binding included in `decoder_registry.c`; a `kSlots` row at the end of
+      `fuzz/binding_fuzzer.c`. A wrong band or a CTid listed twice or retired fails
+      the build, a missing slot fails the fuzzer build, and `-Wswitch` names an
+      enumerator the list misses.
 - [ ] Node builder in `encoder_registry.c`, declared in `geozl.h` with `GEOZL_API`
       (a width predictor is one line through `geometry_node` or `width_node`); refuse bad
       caller input at the top.
@@ -180,7 +185,8 @@ update grid-size tests in `test_2d.py`.
   call still leaves its output buffer readable.
 - The **decode binding** checks what only it sees: header length, field layout, and the
   relation between header values and the stream widths OpenZL reports; it rejects with
-  `ZL_ErrorCode_corruption`.
+  `ZL_ERR(corruption, "<short reason>", ...)`, not `ZL_ERR_IF`, whose stringified
+  condition would put `%` and expanded macros into the one-line error.
 - Codecs with several preconditions share a `<name>_check.h` between both ends (the
   quantizers' `quant_<name>_check.h`, `pfor/pfor_check.h`).
 - Anything read from the wire that drives an allocation is bounded by the payload size

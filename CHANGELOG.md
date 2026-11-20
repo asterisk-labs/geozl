@@ -33,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rules of the `geozl_2d_*` calls.
 - Python type hints accept the buffers, NumPy integers, floats and booleans
   the functions already took.
+- Decoders name the reason they refuse a damaged frame, such as
+  `header is 5 bytes, not 4 or 8`, next to the corruption code, which is
+  unchanged.
 
 ### Fixed
 

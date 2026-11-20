@@ -4,6 +4,8 @@
 
 #include "geozl/geozl.h"
 
+#include "../core/src/codec_list.h" // GEOZL_CODECS, not installed
+
 #include "openzl/codecs/zl_store.h"
 #include "openzl/zl_common_types.h" // ZL_TernaryParam_disable
 #include "openzl/zl_compress.h"
@@ -55,6 +57,12 @@ static const codec_slot kSlots[] = {
 };
 
 #define NB_SLOTS (sizeof(kSlots) / sizeof(kSlots[0]))
+
+// Written out rather than generated from GEOZL_CODECS because the saved inputs
+// pick a slot by index, so a new codec goes last. The count must match.
+#define ONE(NAME, LOSSY) +1
+_Static_assert(NB_SLOTS == 0 GEOZL_CODECS(ONE), "kSlots misses a codec");
+#undef ONE
 
 static struct {
   uint8_t hdr[MAX_HDR];

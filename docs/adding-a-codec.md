@@ -53,6 +53,11 @@ registered and there is nothing to keep alive.
 The encoder reads its params, creates the outputs, runs the kernel, writes the
 header, and commits. The decoder reads the header, rejects a wrong size or
 stream shape with `ZL_ErrorCode_corruption`, then runs the kernel and commits.
+Each refusal is `ZL_ERR(corruption, "...")` with a short reason, such as
+`"header is %zu bytes, not 4 or 8"`, which reaches the caller's one line error
+next to the node name. A row predictor whose header is a width and a plane count
+passes its kernel to `common/predictor_binding.h`, and its bindings are one line
+each.
 
 The graph description inside the descriptor is shared. One numeric in, one
 numeric out reuses `GEOZL_NUM1TO1_GRAPH` from `common/`, one in two out reuses
@@ -72,8 +77,13 @@ Follow whichever the codec is closer to rather than padding out headings.
 Then three edits, and one non-edit.
 
 1. `ctids.h`, add the CTid in the right band.
-2. `decoder_registry.c`, include the decode binding and add a
-   `REGISTER(GEOZL_CTID_FOO, DI_FOO)` row to `kDecoders`.
+2. `core/src/codec_list.h`, add `X(FOO, 0)` to `GEOZL_CODECS`, 1 for a lossy
+   codec, and include the decode binding in `decoder_registry.c`, which builds
+   `kDecoders` from the list. The registry then fails to compile when the CTid
+   is outside the band its flag names or repeats a listed or retired id, and
+   `-Wswitch` names an enumerator of `ctids.h` the list misses. Add a row at the
+   end of `kSlots` in `fuzz/binding_fuzzer.c`, whose count is checked against
+   the list.
 3. `encoder_registry.c`, write the node builder and declare it in `geozl.h`. A
    width predictor is one line through `width_node` or `geometry_node`. Anything
    else registers the encoder and attaches its params, and refuses at the top
@@ -158,7 +168,8 @@ preconditions.
 - [ ] four file pairs, plus `graph_foo.h` if the stream types are the codec's own
 - [ ] CTid in `ctids.h`, in the right band
 - [ ] `EI_FOO` and `DI_FOO` descriptor macros in the two binding headers
-- [ ] decoder row in `kDecoders`, in `decoder_registry.c`
+- [ ] `X(FOO, lossy)` in `GEOZL_CODECS`, `core/src/codec_list.h`, and a `kSlots`
+      row in `fuzz/binding_fuzzer.c`
 - [ ] node builder in `encoder_registry.c` and declared in `geozl.h`
 - [ ] `core/CMakeLists.txt` only if the codec has a source outside the convention
 - [ ] `spec.md`, enough for a reader to invert the codec without the encoder
