@@ -97,20 +97,20 @@ otherwise Python keeps loading the previously staged libraries.
 
 | File | Guards |
 | --- | --- |
-| `test_2d.py`, `test_graph.py` | high-level API contract: shorthand errors, grid sizes per width, profile bytes equal compress bytes, lossy domains, nodata surface |
+| `test_2d.py`, `test_graph.py` | high-level API contract: shorthand errors, grid sizes per width, profile bytes equal compress bytes, lossy domains, nodata surface, one graph shared by threads, `Graph` refusing pickle and copy |
 | `test_arguments.py` | the argument rules Python shares with R and Julia, such as `graph` by position or name, `Graph` fields and `repr`, whole-number `width`, `planes` and `reps`, NUL refusals, `nodata` a number, `verify` a bool |
 | `test_errors.py` | `GeoZLError` and its `code`, codes 21 and 30 also a `ValueError`, the first profile failure, a short decoded frame, pickling |
 | `test_api_contract.py` | `Graph` and `ProfileResults` refuse direct construction, `QuantSqrt` refuses a recipe without its curve, `geozl_2d_frame_dsize_c` tells an empty frame from an unreadable one, and no recipe writes past `geozl_2d_compress_bound_c` on noise at any dtype |
 | `test_codecs.py` | every predictor bit exact across 11 dtypes, shapes and patterns; quantizer bounds; checksum refusal |
 | `test_cross_reader.py` | **the strongest check**: C-written frames decode with Python decoders and the reverse, byte for byte on lossy frames |
-| `test_cdef.py` | the `_CDEF` block in `_ffi.py` matches the C headers (ABI mode verifies nothing; drift corrupts memory silently) |
+| `test_cdef.py` | the `_CDEF` block in `_ffi.py` matches the C headers, functions and struct fields alike (ABI mode verifies nothing; drift corrupts memory silently) |
 | `test_golden.py` | every golden frame decodes to the recorded hashes |
 | `test_malformed.py`, `test_headers.py` | decoders refuse forged headers and streams |
 | `test_catalog.py` | the codec catalog agrees across `ctids.h`, README, `docs/docs.html`, `docs/assets/js/main.js`, `docs/codecs/*.html` |
 | `test_docs.py` | every Python signature in a `<code class="sig">` block of `docs/api-python.html` equals `inspect.signature` of the live object, and every public name in `geozl`, `geozl.lossless` and `geozl.lossy` (decoders aside) has one; the `<code class="proto">` blocks of `docs/api-c.html` hold exactly the `GEOZL_API` prototypes of `geozl.h`, `coeffs.h` and `gpu.h`; `api-r.html`, `api-julia.html` and `api-js.html` show every function exported by `NAMESPACE`, the Julia sources and `geozl_api.d.ts`; notebook mentions `profile`, `graph`, `compress`, `decompress`; every notebook installs geozl unpinned with `-U`; local links resolve; `SKILL.md` names `VERSION` and its links resolve |
 | `test_release.py` | `VERSION` has a `## [X.Y.Z] - date` entry and compare links in `CHANGELOG.md` |
 | `test_licenses.py` | `licenses/` copies equal the vendored upstream texts and `NOTICE` lists them |
-| `test_simd.py`, `test_ffi.py` | SIMD capping via `GEOZL_SIMD` in fresh processes; library lookup errors |
+| `test_simd.py`, `test_ffi.py` | SIMD capping via `GEOZL_SIMD` in fresh processes; library lookup errors; the package and `fit_noise` with `openzl` hidden |
 | `test_planes.py`, `test_nodata.py`, `test_noise.py`, `test_categorical.py`, `test_coeffs.py`, `test_wpstatic.py`, `test_deinterleave.py`, `test_planar_zigzag_pfor.py`, `test_linear_zero.py` | feature suites |
 
 C tests (`test/`): per-kernel round trips (`test_pfor.c`, `test_planar_zigzag*.c`,

@@ -1,6 +1,10 @@
 """The graph handle. It exists so a compressor survives between tiles, so what
 matters is that it does, and that the frames stay independent of each other.
 """
+import copy
+import pickle
+from concurrent.futures import ThreadPoolExecutor
+
 import numpy as np
 import pytest
 
@@ -70,6 +74,47 @@ def test_a_shared_graph_writes_what_a_fresh_one_would():
         shared = geozl.graph(_tile(0), GRAPH)
         assert geozl.compress(t, graph=shared) == \
                geozl.compress(t, graph=geozl.graph(t, GRAPH))
+
+
+@pytest.mark.parametrize("method, error, coeffs", [
+    ("planar>zigzag>zstd", None, False),
+    ("planar>zigzag>pfor", None, False),
+    ("planar>zigzag>pfor", 2, False),
+    ("planar>zigzag>pfor", None, True),
+], ids=["zstd", "pfor", "lossy", "coeffs"])
+def test_threads_sharing_a_graph_write_what_one_thread_would(method, error,
+                                                              coeffs):
+    """cffi drops the GIL inside compress and a graph holds one ZL_CCtx, so
+    without the graph's lock two threads in it crash the process."""
+    tiles = [_tile(seed, (128, 128), np.uint16) for seed in range(8)]
+    g = geozl.graph(tiles[0], method, error=error)
+
+    def frame(i):
+        extra = {"coeffs": [[i]]} if coeffs else {}
+        return geozl.compress(tiles[i % len(tiles)], g, **extra)
+
+    jobs = range(4 * 64)
+    serial = [frame(i) for i in jobs]
+    with ThreadPoolExecutor(8) as pool:
+        assert list(pool.map(frame, jobs)) == serial
+
+
+_ONE_PER_WORKER = "build one graph per worker from the same raster and recipe"
+
+
+@pytest.mark.parametrize("duplicate", [copy.copy, copy.deepcopy],
+                         ids=["copy", "deepcopy"])
+def test_a_graph_cannot_be_copied(duplicate):
+    """A copy would share the C handle and its one context."""
+    with pytest.raises(TypeError, match=_ONE_PER_WORKER):
+        duplicate(geozl.graph(_tile(), GRAPH))
+
+
+@pytest.mark.parametrize("protocol", range(pickle.HIGHEST_PROTOCOL + 1))
+def test_a_graph_cannot_be_pickled(protocol):
+    """The handle cannot leave the process, so each worker builds its own."""
+    with pytest.raises(TypeError, match=_ONE_PER_WORKER):
+        pickle.dumps(geozl.graph(_tile(), GRAPH), protocol=protocol)
 
 
 def test_a_shorter_tile_goes_through_the_same_graph():

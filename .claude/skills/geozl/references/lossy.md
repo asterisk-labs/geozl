@@ -184,11 +184,16 @@ g = geozl.graph(stack, best, width=stack.shape[-1], planes=1, error=recipe)
 - `Noise` fields: `a`, `b`, `blocks` measured, `bins` that held enough blocks (needs at
   least 4 with 12 blocks each), `range` (brightest bin mean over darkest), `colin`
   (larger means `a` and `b` are harder to separate), `resid` (relative RMS residual).
-- `fit_noise` raises `RuntimeError` with the reason, for example
+- `fit_noise` raises `geozl.GeoZLError` (a `RuntimeError`, `code` `None`) with the
+  reason, for example
   `... not enough to fit a curve ...`, `only N intensity bins held enough blocks ...`,
   `the raster has no dynamic range to fit against`, or
   `the local variance does not grow with the signal, so this is not shot noise`.
 - Units: `MAX_ERROR=KN` counts standard deviations of the fitted noise.
+- `Noise.recipe(k)` takes a positive finite Python or NumPy number and raises
+  `ValueError` for a bool, zero, a negative, NaN or infinity.
+- `fit_noise` and `Noise` run on the kernels alone and import from `geozl.lossy` even
+  without the `openzl` package, where the quantizer nodes are missing.
 
 ## 8. Choosing a family and a budget
 

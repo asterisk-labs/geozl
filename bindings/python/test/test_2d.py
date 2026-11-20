@@ -399,6 +399,16 @@ def test_print_profile_shows_the_normalized_error():
     assert "planar + id · 1 rep · LINEAR:MAX_ERROR=2" in str(rows)
 
 
+def test_the_id_prior_is_the_none_path_and_prints_as_it():
+    by_id = geozl.profile(_tile(), prior="id", reps=1)
+    by_none = geozl.profile(_tile(), prior="none", reps=1)
+    assert by_id.prior == by_none.prior == "none"
+    assert {r["graph"] for r in by_id} == {r["graph"] for r in by_none}
+    # the header, which holds no timings
+    assert str(by_id).split("\n\n")[0] == str(by_none).split("\n\n")[0]
+    assert "row width 32 · no predictor · 1 rep" in str(by_id)
+
+
 def test_profile_names_graphs_compress_accepts():
     arr = _tile()
     best = geozl.profile(arr, reps=1)[0]["graph"]
@@ -430,6 +440,13 @@ def test_every_grid_width_has_one_lanes_recipe_per_predictor(elt_width):
     names = _2d._grid_names(None, elt_width)
     assert "planar>zigzag>lanes" in names
     assert sum(name.endswith(">lanes") for name in names) == 8
+
+
+def test_a_grid_longer_than_the_first_buffer_is_read_whole(monkeypatch):
+    whole = _2d._grid_names(None, 2)
+    monkeypatch.setattr(_2d, "_GRID_SLOTS", 5)
+    assert len(whole) > 5
+    assert _2d._grid_names(None, 2) == whole
 
 
 def test_the_grid_at_one_byte_keeps_categorical_and_drops_the_rest():

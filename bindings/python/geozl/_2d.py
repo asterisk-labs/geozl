@@ -1,8 +1,9 @@
 import math
 import operator
 import re
+import threading
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any, NoReturn, SupportsIndex
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -19,6 +20,16 @@ from ._dtype import (
 from ._error import GeoZLError, refusal
 from ._ffi import _load_lib_full, _ptr, ffi
 
+if TYPE_CHECKING:
+    # Only the type checker reads it, so typing_extensions is no dependency.
+    from typing_extensions import Buffer
+else:
+    # typing.get_type_hints resolves it at run time; Python 3.11 has none.
+    try:
+        from collections.abc import Buffer
+    except ImportError:
+        Buffer = Any
+
 # Predictor priors. A name expands to {that predictor, id}; None is unbiased
 # over all; "none" is the no-predictor branch alone.
 PRIORS = ("planar", "med", "delta_w", "delta_n", "average", "wp_static",
@@ -33,7 +44,10 @@ _NODATA_NONE, _NODATA_NAN, _NODATA_VALUE = 0, 1, 2
 _UINT32_MAX = 2**32 - 1
 _REPS_MAX = 2**31 - 1
 
-Error = int | float | str | None
+# Recipe names the first grid call has room for. C counts past it.
+_GRID_SLOTS = 128
+
+Error = int | float | np.integer | np.floating | str | None
 
 _NUMBER = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
 
@@ -167,27 +181,27 @@ def _flag(value: Any, name: str) -> bool:
     return bool(value)
 
 
-def _prepare(tile: ArrayLike, width: int | None,
-             planes: int | None = None) -> tuple[np.ndarray, int, int, int]:
+def _prepare(tile: ArrayLike, width: SupportsIndex | None,
+             planes: SupportsIndex | None = None) -> tuple[np.ndarray, int, int, int]:
     arr, elt = _as_raster(tile)
     if width is None:
         if arr.ndim < 2:
             raise ValueError("give width for a 1d raster")
         # an empty last axis gives 0, which C reads as one row of nothing
-        width = arr.shape[-1]
+        cols: int = arr.shape[-1]
     else:
-        width = _count(width, "width")
+        cols = _count(width, "width")
     if planes is None:
         # a (B, Y, X) cube is B stacked images, anything else is one
         planes = arr.shape[0] if arr.ndim >= 3 else 1
     planes = _count(planes, "planes")
     if planes > 1:
         n = arr.size
-        if not width or n % planes or (n // planes) % width:
+        if not cols or n % planes or (n // planes) % cols:
             raise ValueError(
                 f"{planes} planes do not split {n} elements into whole rows "
-                f"of {width}")
-    return arr, width, planes, elt
+                f"of {cols}")
+    return arr, cols, planes, elt
 
 
 def _dtype_arg(arr: np.ndarray, error: str | None) -> int:
@@ -282,13 +296,15 @@ class Graph:
     ``geozl.graph`` returns one. The type is exported for ``isinstance`` and
     annotations, and calling it raises ``TypeError``.
 
-    A graph owns its compression context and is not thread-safe.
+    A graph owns one compression context. Threads may share it and take turns;
+    build one per thread to compress in parallel. It cannot be pickled or copied.
     """
 
-    __slots__ = ("_h", "_dtype", "method", "width", "planes", "itemsize",
-                 "error", "nodata")
+    __slots__ = ("_h", "_lock", "_dtype", "method", "width", "planes",
+                 "itemsize", "error", "nodata")
 
     _h: Any
+    _lock: threading.Lock
     _dtype: np.dtype
     method: str
     width: int
@@ -307,6 +323,7 @@ class Graph:
              nodata: Any) -> "Graph":
         g = object.__new__(cls)
         g._h = handle
+        g._lock = threading.Lock()
         g.method = method
         g.width = width
         g.planes = planes
@@ -326,9 +343,16 @@ class Graph:
                 f"{self.width}, {self.planes} {plane_word}, "
                 f"{self.error or 'lossless'}>")
 
+    # A copy would share the handle, and the state cannot leave the process.
+    # This covers pickle, copy and deepcopy alike.
+    def __reduce__(self) -> NoReturn:
+        raise TypeError("a geozl.Graph holds a native compression context and "
+                        "cannot be pickled or copied; build one graph per "
+                        "worker from the same raster and recipe")
 
-def graph(raster: ArrayLike, method: str, *, width: int | None = None,
-          planes: int | None = None, error: Error = None,
+
+def graph(raster: ArrayLike, method: str, *, width: SupportsIndex | None = None,
+          planes: SupportsIndex | None = None, error: Error = None,
           nodata: Any = None) -> Graph:
     """Build a reusable graph for ``method``.
 
@@ -376,7 +400,9 @@ def compress(tile: ArrayLike, graph: Graph, *,
              coeffs: CoeffVectors | None = None) -> bytes:
     """Compress ``tile`` with a prepared graph and return the frame bytes.
 
-    The dtype must match exactly. Geometry is not checked against the graph.
+    The dtype must match exactly. The shape is not checked against the graph,
+    but a row predictor refuses a tile longer than one row that is not whole
+    rows of its width.
 
     A lossy tile the graph's grid cannot hold to its bound is refused. That is
     a negative sample when the raster had none, a floating-point sample whose
@@ -408,14 +434,17 @@ def compress(tile: ArrayLike, graph: Graph, *,
     dst = np.empty(cap, np.uint8)
     out_size = ffi.new("size_t*")
     err_ctx = ffi.new("char[]", 256)
-    if blob is None:
-        rc = full.geozl_2d_compress_graph_c(
-            graph._h, _ptr(arr), n, _ptr(dst), cap, out_size, err_ctx,
-            len(err_ctx))
-    else:
-        rc = full.geozl_2d_compress_coeffs_c(
-            graph._h, _ptr(arr), n, blob, len(blob), _ptr(dst), cap, out_size,
-            err_ctx, len(err_ctx))
+    # cffi drops the GIL for the call, and the handle's one ZL_CCtx would be
+    # corrupted by a second thread inside it.
+    with graph._lock:
+        if blob is None:
+            rc = full.geozl_2d_compress_graph_c(
+                graph._h, _ptr(arr), n, _ptr(dst), cap, out_size, err_ctx,
+                len(err_ctx))
+        else:
+            rc = full.geozl_2d_compress_coeffs_c(
+                graph._h, _ptr(arr), n, blob, len(blob), _ptr(dst), cap,
+                out_size, err_ctx, len(err_ctx))
     if rc != 0:
         reason = ffi.string(err_ctx).decode("utf-8", "replace")
         raise refusal(f"geozl.compress failed (method={graph.method!r}): "
@@ -423,8 +452,9 @@ def compress(tile: ArrayLike, graph: Graph, *,
     return dst[:out_size[0]].tobytes()
 
 
-def decompress(frame: bytes, *, verify: bool = True,
-               max_output_size: int | None = None) -> np.ndarray:
+def decompress(frame: "Buffer", *, verify: bool | np.bool_ = True,
+               max_output_size: float | np.integer | np.floating | None = None,
+               ) -> np.ndarray:
     """Decompress a frame into a flat ``uint8`` array.
 
     Restore the dtype and shape with ``.view(dtype).reshape(shape)``. Set
@@ -480,13 +510,19 @@ def _grid_names(prior: str | None, elt: int) -> list[str]:
                               "\x00" in prior):
         raise ValueError(f"prior {prior!r} is not one of {PRIORS} or None")
     lib = _load_lib_full()
-    stride, cap = 48, 128
-    names = ffi.new("char[]", stride * cap)
+    arg = ("" if prior is None else prior).encode("utf-8")
+    stride, cap = 48, _GRID_SLOTS
     count = ffi.new("size_t*")
-    arg = "" if prior is None else prior
-    rc = lib.geozl_2d_grid_c(arg.encode("utf-8"), elt, names, stride, cap, count)
-    if rc != 0:
-        raise ValueError(f"prior {prior!r} is not one of {PRIORS} or None")
+    # A grid longer than the buffer comes back whole from a second call sized
+    # to the count the first one reported.
+    for _ in range(2):
+        names = ffi.new("char[]", stride * cap)
+        rc = lib.geozl_2d_grid_c(arg, elt, names, stride, cap, count)
+        if rc != 0:
+            raise ValueError(f"prior {prior!r} is not one of {PRIORS} or None")
+        if count[0] <= cap:
+            break
+        cap = int(count[0])
     n = min(int(count[0]), cap)
     return [ffi.string(names + i * stride).decode("utf-8") for i in range(n)]
 
@@ -504,10 +540,10 @@ def _order0_bits(arr: np.ndarray) -> float:
 
 
 def profile(tile: ArrayLike, *, prior: str | None = "planar",
-            width: int | None = None, planes: int | None = None,
-            error: Error = None,
-            reps: int = 5, nodata: Any = None,
-            verify: bool = False) -> ProfileResults:
+            width: SupportsIndex | None = None,
+            planes: SupportsIndex | None = None, error: Error = None,
+            reps: SupportsIndex = 5, nodata: Any = None,
+            verify: bool | np.bool_ = False) -> ProfileResults:
     """Benchmark candidate graphs on ``tile``, sorted by compression ratio.
 
     ``prior`` selects one predictor plus the identity path. Use ``None`` for all
@@ -533,9 +569,11 @@ def profile(tile: ArrayLike, *, prior: str | None = "planar",
     code = _dtype_arg(arr, error_recipe)
     nd_mode, nd_bits = _nodata_args(arr, nodata)
 
+    # "id" is C's other name for the "none" path, and prints as it does.
     rows = ProfileResults._new(
         shape=arr.shape, dtype=arr.dtype, raw_bytes=raw, width=width,
-        planes=planes, prior=prior, reps=reps, error=error_recipe)
+        planes=planes, prior="none" if prior == "id" else prior, reps=reps,
+        error=error_recipe)
     failure = None
     for name in _grid_names(prior, elt):
         comp = ffi.new("size_t*")

@@ -31,6 +31,10 @@ pip install geozl
   OpenZL, loaded lazily by the high-level functions).
 - Override library discovery with `GEOZL_LIB` (kernels) and `GEOZL_FULL_LIB` (full
   library). `GEOZL_SIMD` caps the vector path (see `debugging.md`).
+- Without the `openzl` package, importing `geozl.lossless` or a `geozl.lossy` node, or
+  calling `register_decoders`, raises `ModuleNotFoundError` naming openzl. The high-level
+  API, `geozl.lossy.fit_noise` and `Noise` still work, since they run on the bundled
+  libraries.
 
 ## 2. `profile`
 
@@ -108,7 +112,9 @@ What `graph()` fixes, and what it means later:
   raster's statistics become the domain `compress` enforces (`lossy.md`).
 - **NoData mode.** Decided here, not per tile.
 - **Compressor state.** The handle owns an OpenZL compressor and compression context,
-  freed by the garbage collector. It is **not thread-safe** and **cannot be pickled**.
+  freed by the garbage collector. Threads may share a graph: a lock serializes the
+  `compress` calls on it, so build one graph per thread for parallel throughput.
+  Pickling or copying it (`pickle`, `copy.copy`, `copy.deepcopy`) raises `TypeError`.
 
 `Graph` attributes: `method`, `width`, `planes`, `dtype` (read-only), `itemsize`,
 `error` (normalized recipe string or `None`), `nodata` (the argument you passed; it
@@ -249,9 +255,12 @@ code is enough).
 
 ### Parallelism
 
-`Graph` wraps a C handle: not thread-safe, not picklable. Build a graph per thread,
-or inside each worker process from the same recipe and the same build raster. Frames
-are independent, so tiles parallelize freely.
+`Graph` wraps a C handle. Threads may share one, but its `compress` calls run one at
+a time, so build a graph per thread to compress in parallel. It cannot be pickled, so
+build one inside each worker process from the same recipe and the same build raster.
+Fork only while no thread is compressing with a graph, since the child inherits its lock
+as it was.
+Frames are independent, so tiles parallelize freely.
 
 ### Untrusted frames
 
@@ -281,5 +290,6 @@ The classes live in `bindings/python/geozl/_error.py`.
 - Other codes stay a plain `GeoZLError`, for example 3 on a truncated frame, 13 on a
   checksum mismatch and 55 on a node precondition.
 - A refusal pickles with its class and code, so it crosses a process pool intact.
-- `geozl.lossy.fit_noise` raises a plain `RuntimeError`, and low-level `openzl.ext` calls
-  raise OpenZL's own `RuntimeError` (`debugging.md` section 1).
+- `geozl.lossy.fit_noise` raises a plain `GeoZLError` with `code` `None` when the data
+  supports no fit, and low-level `openzl.ext` calls raise OpenZL's own `RuntimeError`
+  (`debugging.md` section 1).

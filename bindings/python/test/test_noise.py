@@ -2,13 +2,15 @@ import numpy as np
 import pytest
 
 geozl = pytest.importorskip("geozl")
-# fit_noise is exported beside the SQRT codec classes, which need OpenZL
-pytest.importorskip("openzl.ext")
 
 # The curve the synthetic rasters are drawn from, so a fit that works recovers
 # these. b is the robust half; a is an intercept extrapolated past where the data
 # reaches and moves several fold, which is why nothing here pins it tightly.
 _A, _B = 100.0, 1.0
+
+# recipe reads only a and b
+_CURVE = geozl.lossy.Noise(a=_A, b=_B, blocks=0, bins=0, range=0.0, colin=0.0,
+                           resid=0.0)
 
 
 def _scene(n, lo, hi, seed=0):
@@ -72,9 +74,28 @@ def test_recipe_refuses_what_the_codec_would():
         noise.recipe(0)
 
 
+@pytest.mark.parametrize("bound, reason", [
+    (True, "boolean"), (np.True_, "boolean"), (False, "boolean"),
+    (float("inf"), "finite"), (float("nan"), "finite"), (-1.0, "positive"),
+])
+def test_recipe_refuses_a_bound_that_is_not_a_positive_number(bound, reason):
+    """True printed as 1 and wrote a recipe for one sigma."""
+    with pytest.raises(ValueError, match=reason):
+        _CURVE.recipe(bound)
+
+
+@pytest.mark.parametrize("bound, text", [
+    (2, "2"), (np.int64(2), "2"), (np.float32(0.5), "0.5"), (0.25, "0.25"),
+])
+def test_recipe_takes_python_and_numpy_numbers(bound, text):
+    assert _CURVE.recipe(bound) == f"SQRT:MAX_ERROR={text}N,A=100,B=1"
+
+
 def test_a_flat_raster_has_no_curve():
-    with pytest.raises(RuntimeError, match="dynamic range"):
+    with pytest.raises(geozl.GeoZLError, match="dynamic range") as caught:
         geozl.lossy.fit_noise(np.zeros((64, 64), np.float32))
+    # still a RuntimeError, which callers caught before
+    assert isinstance(caught.value, RuntimeError) and caught.value.code is None
 
 
 def test_a_raster_too_small_to_hold_a_block_is_refused():

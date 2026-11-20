@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   than the new `GEOZL_2D_NAME_MAX`, instead of cutting them short.
 - `geozl_2d_graph_open_c` refuses NaN nodata with an integer dtype, which the
   bindings already refused and which silently broke a lossy bound.
+- Python `pickle`, `copy.copy` and `copy.deepcopy` refuse a `Graph` with
+  `TypeError`. A copy used to share the native handle.
 
 ### Added
 
@@ -29,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   failure, the CUDA context a stream must belong to, how staging grows, and
   which calls may overlap. `geozl.h` states the alignment, NULL and threading
   rules of the `geozl_2d_*` calls.
+- Python type hints accept the buffers, NumPy integers, floats and booleans
+  the functions already took.
 
 ### Fixed
 
@@ -50,6 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   refusal, invalid arguments fail before the call waits on earlier work, and a
   decode or synchronize that overlaps another on the same `GeozlGpu` fails
   instead of corrupting it.
+- Python threads that share a `Graph` take turns instead of crashing the
+  process. `geozl.lossy.fit_noise` and `Noise` import without the openzl
+  package and raise `GeoZLError`, and the quantizer nodes then raise
+  `ModuleNotFoundError` for openzl. `Noise.recipe` refuses booleans and
+  non-finite bounds, and `profile(prior="id")` reports its prior as `"none"`.
 
 ## [0.33.0] - 2026-11-16
 
