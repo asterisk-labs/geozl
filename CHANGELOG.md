@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-11-20
+
 ### Breaking
 
 - `geozl_2d_*` errors are one line: the code text, the reason and the node.
@@ -887,7 +889,8 @@ First release.
   `register_decoders` for reading frames back.
 - A libFuzzer harness over the decode path.
 
-[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.33.0...HEAD
+[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.34.0...HEAD
+[0.34.0]: https://github.com/asterisk-labs/geozl/compare/v0.33.0...v0.34.0
 [0.33.0]: https://github.com/asterisk-labs/geozl/compare/v0.32.0...v0.33.0
 [0.32.0]: https://github.com/asterisk-labs/geozl/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/asterisk-labs/geozl/compare/v0.30.0...v0.31.0
