@@ -117,7 +117,8 @@ caught <- function(expr) {
   }, error = identity)
   if (is.null(e))
     return(NULL)
-  list(geozl_error = inherits(e, "geozl_error"), code = e$code,
+  list(geozl_error = inherits(e, "geozl_error"),
+       invalid = inherits(e, "geozl_invalid"), code = e$code,
        message = conditionMessage(e), call = conditionCall(e))
 }
 

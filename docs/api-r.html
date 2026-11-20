@@ -100,7 +100,7 @@ back &lt;- geozl_decompress(frame, "uint16", dim = dim(tile))
 identical(back, tile)                        # TRUE</code></pre>
 
       <h2 class="part" id="functions">Functions</h2>
-      <p>Every exported function is below. A bad argument stops with a plain R error, and so does a request the library refuses as invalid, with ZL error code 21 or 30, such as an unknown recipe or a lossy tile outside its graph's domain. Any other refusal, such as a corrupt frame, signals a condition of class <code>geozl_error</code> whose <code>code</code> field holds the ZL error code, or <code>NA</code> when there is none. Every error has a <code>NULL</code> call.</p>
+      <p>Every exported function is below. A bad argument stops with a plain R error, and so does a request the library refuses as invalid, with ZL error code 21 or 30, such as an unknown recipe or a lossy tile outside its graph's domain; that error also has class <code>geozl_invalid</code> and the code in its <code>code</code> field. Any other refusal, such as a corrupt frame, signals a condition of class <code>geozl_error</code> whose <code>code</code> field holds the ZL error code, or <code>NA</code> when there is none. Every error has a <code>NULL</code> call.</p>
 <pre><code class="language-r">e &lt;- tryCatch(geozl_decompress(as.raw(0:63)), geozl_error = identity)
 e$code                                       # 10</code></pre>
 
@@ -140,9 +140,9 @@ g$itemsize                                   # 2</code></pre>
 
       <h3 id="geozl_compress">geozl_compress</h3>
 <pre><code class="sig language-r">geozl_compress(x, graph, coeffs = NULL)</code></pre>
-      <p>Compresses one tile with a graph and returns the frame as a raw vector. <code>x</code> is converted to the graph's dtype, and its geometry is not checked against the graph. A tile the graph refuses, such as a lossy tile outside its domain, stops with <code>geozl_compress failed (method = "...")</code> and the reason.</p>
+      <p>Compresses one tile with a graph and returns the frame as a raw vector. <code>x</code> is converted to the graph's dtype, and its shape is not checked against the graph, but a row predictor refuses a tile longer than one row that is not whole rows of the graph's width. A tile the graph refuses, such as a lossy tile outside its domain, stops with <code>geozl_compress failed (method = "...")</code> and the reason.</p>
       <table class="spec">
-        <tr><th>graph</th><td>A graph from <code>geozl_graph</code>.</td></tr>
+        <tr><th>graph</th><td>A graph from <code>geozl_graph</code>. Its <code>dtype</code> field must still name the type it was built with.</td></tr>
         <tr><th>coeffs</th><td>A list of integer vectors stored in the frame header, read back with <a href="#geozl_coeffs"><code>geozl_coeffs</code></a>. GeoZL gives them no meaning.</td></tr>
       </table>
 <pre><code class="language-r">frame &lt;- geozl_compress(tile, g, coeffs = list(c(1L, 2L, 3L), 4L))</code></pre>
@@ -155,11 +155,11 @@ g$itemsize                                   # 2</code></pre>
         <tr><th>dtype</th><td>The storage type of the frame. Without it the result is the raw native bytes.</td></tr>
         <tr><th>dim</th><td>Dimensions for the result, in samples, whole numbers from 0 to 2147483647 with a product of at most 2<sup>52</sup>.</td></tr>
         <tr><th>as</th><td><code>"double"</code>, the default with a <code>dtype</code>, <code>"integer"</code>, or <code>"raw"</code> for the native bytes, which torch reads without a copy through <code>torch_tensor_from_buffer()</code>.</td></tr>
-        <tr><th>nodata</th><td>Samples equal to this value become <code>NA</code>, and <code>NaN</code> or <code>NA</code> turns every NaN of a float dtype into <code>NA</code>. It is checked as in <code>geozl_graph</code>.</td></tr>
+        <tr><th>nodata</th><td>Samples equal to this value become <code>NA</code>, and <code>NaN</code> or <code>NA</code> turns every NaN of a float dtype into <code>NA</code>. It is checked as in <code>geozl_graph</code>, and needs a <code>dtype</code> with <code>as</code> other than <code>"raw"</code>.</td></tr>
         <tr><th>verify</th><td>Check the frame checksums.</td></tr>
         <tr><th>max_output_size</th><td>Refuse a frame that declares more output bytes than this, a plain error. The limit is a finite number of at least 0. Set it for untrusted frames.</td></tr>
       </table>
-      <p>A frame the library cannot read, or one that decodes to fewer bytes than it declares, signals a <code>geozl_error</code>. int64 and uint64 samples read as double warn when a value does not convert exactly, such as 2^53 + 1.</p>
+      <p>A frame the library cannot read, one that declares more bytes than an R vector holds, or one that decodes to fewer bytes than it declares, signals a <code>geozl_error</code>. int64 and uint64 samples read as double warn when a value does not convert exactly, such as 2^53 + 1.</p>
 <pre><code class="language-r">back &lt;- geozl_decompress(frame, "uint16", dim = dim(tile), as = "integer")</code></pre>
 
       <h3 id="geozl_coeffs">geozl_coeffs</h3>

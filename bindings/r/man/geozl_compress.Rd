@@ -7,10 +7,12 @@
 geozl_compress(x, graph, coeffs = NULL)
 }
 \arguments{
-\item{x}{Tile samples, converted to the graph's dtype. Its geometry is not
-checked against the graph.}
+\item{x}{Tile samples, converted to the graph's dtype. Its shape is not
+checked against the graph, but a row predictor refuses a tile longer than
+one row that is not whole rows of the graph's width.}
 
-\item{graph}{A graph from \code{\link[=geozl_graph]{geozl_graph()}}.}
+\item{graph}{A graph from \code{\link[=geozl_graph]{geozl_graph()}}. Its \code{dtype} field must still name
+the type it was built with.}
 
 \item{coeffs}{Optional list of integer vectors to attach to this frame. Read
 them back with \code{\link[=geozl_coeffs]{geozl_coeffs()}}; geozl assigns them no meaning.}

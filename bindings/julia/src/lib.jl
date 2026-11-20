@@ -63,6 +63,17 @@ end
 
 _sym(name::Symbol) = Libdl.dlsym(libgeozl[], name)
 
+# `@ccall` for the long calls, GC-safe from Julia 1.12 so a thread inside
+# libgeozl does not stall collection on the others. Only for calls whose
+# buffers are preserved and that never call back into Julia.
+macro _long_ccall(call)
+    @static if VERSION >= v"1.12"
+        esc(Expr(:macrocall, Symbol("@ccall"), __source__, :(gc_safe = true), call))
+    else
+        esc(Expr(:macrocall, Symbol("@ccall"), __source__, call))
+    end
+end
+
 function __init__()
     libgeozl[] = Libdl.dlopen(_lib_path())
 end

@@ -26,25 +26,26 @@
 // A corrupt frame can report any ZL code; it is never an invalid request.
 enum { FRAME = 0, REQUEST = 1 };
 
-// Invalid requests are plain errors; other refusals retain the ZL code.
+// Invalid requests are plain errors that also carry the class geozl_invalid;
+// other refusals are geozl_error. Both retain the ZL code.
 static SEXP refusal(int what, int code, const char *msg) {
   int plain = what == REQUEST && (code == ZL_ErrorCode_parameter_invalid ||
                                   code == ZL_ErrorCode_graph_invalid);
-  int n = plain ? 2 : 3;
-  SEXP cond = PROTECT(Rf_allocVector(VECSXP, n));
-  SEXP names = PROTECT(Rf_allocVector(STRSXP, n));
+  SEXP cond = PROTECT(Rf_allocVector(VECSXP, 3));
+  SEXP names = PROTECT(Rf_allocVector(STRSXP, 3));
   SET_VECTOR_ELT(cond, 0, Rf_ScalarString(Rf_mkCharCE(msg, CE_UTF8)));
   SET_STRING_ELT(names, 0, Rf_mkChar("message"));
   SET_STRING_ELT(names, 1, Rf_mkChar("call"));
-  if (!plain) {
-    SET_VECTOR_ELT(cond, 2, Rf_ScalarReal(code ? code : NA_REAL));
-    SET_STRING_ELT(names, 2, Rf_mkChar("code"));
-  }
+  SET_VECTOR_ELT(cond, 2, Rf_ScalarReal(code ? code : NA_REAL));
+  SET_STRING_ELT(names, 2, Rf_mkChar("code"));
   Rf_setAttrib(cond, R_NamesSymbol, names);
-  SEXP cls = PROTECT(Rf_allocVector(STRSXP, 3));
-  SET_STRING_ELT(cls, 0, Rf_mkChar(plain ? "simpleError" : "geozl_error"));
-  SET_STRING_ELT(cls, 1, Rf_mkChar("error"));
-  SET_STRING_ELT(cls, 2, Rf_mkChar("condition"));
+  const char *const plainCls[] = {"geozl_invalid", "simpleError", "error",
+                                  "condition"};
+  const char *const frameCls[] = {"geozl_error", "error", "condition"};
+  int k = plain ? 4 : 3;
+  SEXP cls = PROTECT(Rf_allocVector(STRSXP, k));
+  for (int i = 0; i < k; ++i)
+    SET_STRING_ELT(cls, i, Rf_mkChar(plain ? plainCls[i] : frameCls[i]));
   Rf_setAttrib(cond, R_ClassSymbol, cls);
   UNPROTECT(3);
   return cond;
@@ -406,6 +407,16 @@ static geozl_2d_graph *graph_of(SEXP ptr) {
   return g;
 }
 
+// The dtype the graph was opened with, kept in the pointer's protected slot.
+// The list field beside it can be edited, while C reads samples at the
+// graph's own width.
+static int graph_dtype(SEXP ptr) {
+  SEXP d = R_ExternalPtrProtected(ptr);
+  if (TYPEOF(d) != INTSXP || XLENGTH(d) != 1 || !GEOZL_DT_OK(INTEGER(d)[0]))
+    fail("`graph` must come from geozl_graph()");
+  return INTEGER(d)[0];
+}
+
 SEXP geozl_r_graph_open(SEXP bytes, SEXP method_s, SEXP width_s, SEXP planes_s,
                         SEXP error_s, SEXP dtype_s, SEXP mode_s,
                         SEXP nodata_s) {
@@ -418,6 +429,10 @@ SEXP geozl_r_graph_open(SEXP bytes, SEXP method_s, SEXP width_s, SEXP planes_s,
   int mode = Rf_asInteger(mode_s);
   uint64_t bits = mode == GEOZL_NODATA_VALUE ? nodata_bits(d, Rf_asReal(nodata_s)) : 0;
   size_t w = kWidth[d];
+  // R allocates before the graph opens, so no R error can strand it.
+  SEXP code = PROTECT(Rf_ScalarInteger(d));
+  SEXP ptr = PROTECT(R_MakeExternalPtr(NULL, Rf_install("geozl_graph"), code));
+  R_RegisterCFinalizerEx(ptr, graph_finalizer, TRUE);
   char err[ERR_SIZE] = {0};
   geozl_2d_graph *g = NULL;
   int rc = geozl_2d_graph_open_c(&g, method, width, planes, recipe, d, mode,
@@ -427,9 +442,8 @@ SEXP geozl_r_graph_open(SEXP bytes, SEXP method_s, SEXP width_s, SEXP planes_s,
     refuse(REQUEST, rc,
            "geozl_graph failed (method = \"%s\"): %s (ZL error code %d)",
            method, err, rc);
-  SEXP ptr = PROTECT(R_MakeExternalPtr(g, Rf_install("geozl_graph"), R_NilValue));
-  R_RegisterCFinalizerEx(ptr, graph_finalizer, TRUE);
-  UNPROTECT(1);
+  R_SetExternalPtrAddr(ptr, g);
+  UNPROTECT(2);
   return ptr;
 }
 
@@ -491,13 +505,21 @@ static SEXP shrink(SEXP raw, size_t size) {
   return out;
 }
 
-SEXP geozl_r_compress(SEXP ptr, SEXP bytes, SEXP coeffs_s, SEXP itemsize_s,
+// bytes were packed at dtype_s, which must be the graph's own dtype.
+SEXP geozl_r_compress(SEXP ptr, SEXP bytes, SEXP coeffs_s, SEXP dtype_s,
                       SEXP method_s) {
   geozl_2d_graph *g = graph_of(ptr);
+  int d = graph_dtype(ptr), given = dtype_arg(dtype_s);
+  if (given != d)
+    fail("this graph was built for %s samples, but its `dtype` field names "
+         "%s; build it again with geozl_graph()",
+         kName[d], kName[given]);
   const char *method = string_arg(method_s, "method");
   const uint8_t *src = raw_arg(bytes, "x");
-  size_t w = (size_t)Rf_asInteger(itemsize_s);
+  size_t w = kWidth[d];
   size_t len = (size_t)XLENGTH(bytes), n = len / w;
+  if (len % w != 0)
+    fail("%.0f bytes do not hold whole %s samples", (double)len, kName[d]);
   size_t blobSize = 0;
   const uint8_t *blob = Rf_isNull(coeffs_s) ? NULL : pack_coeffs(coeffs_s, &blobSize);
   size_t cap = geozl_2d_compress_bound_c(len, blobSize);
@@ -533,6 +555,12 @@ SEXP geozl_r_decompress(SEXP frame, SEXP verify_s, SEXP max_s) {
     fail("geozl_decompress: the frame declares %.0f bytes of output, above "
          "the %.15g allowed",
          (double)dsize, Rf_asReal(max_s));
+  // Refused before the cast to R_xlen_t, which would turn it negative or
+  // past the longest vector R allocates.
+  if (dsize > (size_t)R_XLEN_T_MAX)
+    refuse(FRAME, 0, "geozl_decompress: the frame declares %.0f bytes of "
+                     "output, more than an R vector holds",
+           (double)dsize);
   // An empty frame still gets a writable byte, so the pointer is never NULL.
   size_t capacity = dsize ? dsize : 1;
   SEXP out = PROTECT(Rf_allocVector(RAWSXP, (R_xlen_t)capacity));
@@ -553,19 +581,21 @@ SEXP geozl_r_decompress(SEXP frame, SEXP verify_s, SEXP max_s) {
 }
 
 SEXP geozl_r_grid(SEXP prior_s, SEXP width_s) {
-  enum { STRIDE = 48, CAP = 128 };
   const char *prior = string_arg(prior_s, "prior");
-  char *names = R_alloc(STRIDE * CAP, 1);
-  memset(names, 0, STRIDE * CAP);
+  const size_t width = (size_t)Rf_asInteger(width_s);
+  // Count first, so no grid is cut to a fixed number of slots.
   size_t count = 0;
-  if (geozl_2d_grid_c(prior, (size_t)Rf_asInteger(width_s), names, STRIDE, CAP,
-                      &count) != 0)
+  if (geozl_2d_grid_c(prior, width, NULL, GEOZL_2D_NAME_MAX, 0, &count) != 0)
     return R_NilValue;
-  if (count > CAP)
-    count = CAP;
+  char *names = R_alloc(count ? count : 1, GEOZL_2D_NAME_MAX);
+  size_t written = 0;
+  if (count != 0 && geozl_2d_grid_c(prior, width, names, GEOZL_2D_NAME_MAX,
+                                    count, &written) != 0)
+    return R_NilValue;
   SEXP out = PROTECT(Rf_allocVector(STRSXP, (R_xlen_t)count));
   for (size_t i = 0; i < count; ++i)
-    SET_STRING_ELT(out, (R_xlen_t)i, Rf_mkCharCE(names + i * STRIDE, CE_UTF8));
+    SET_STRING_ELT(out, (R_xlen_t)i,
+                   Rf_mkCharCE(names + i * GEOZL_2D_NAME_MAX, CE_UTF8));
   UNPROTECT(1);
   return out;
 }

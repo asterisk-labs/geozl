@@ -70,6 +70,14 @@ end
     @test GeoZL.decompress(Int16, frame) == vec(x)
 end
 
+@testset "frames own only their bytes" begin
+    x = cases[UInt16](smooth(256, 256, 0.0, 0.01))
+    frame = GeoZL.compress(x, GeoZL.graph(x, "planar>zigzag>pfor"))
+    @test length(frame) < sizeof(x) ÷ 4
+    # Not the compress bound the frame was written into.
+    @test Base.summarysize(frame) == Base.summarysize(Vector{UInt8}(undef, length(frame)))
+end
+
 @testset "empty frames" begin
     x = Array{Int16}(undef, 8, 0)
     frame = GeoZL.compress(x, GeoZL.graph(x, "id>zstd"))
@@ -267,6 +275,47 @@ end
     @test coeffs_junk isa GeoZLError && startswith(coeffs_junk.message, "GeoZL.coeffs: ")
 end
 
+varint(v::UInt64) = v < 0x80 ? UInt8[v] : vcat(UInt8(v & 0x7f | 0x80), varint(v >> 7))
+
+# A frame of 300 UInt8 samples whose header declares `size` bytes in place of
+# 300. The header checksum after the size is found by trying every byte until
+# the size reads back.
+function declaring(size::UInt64)
+    x = ones(UInt8, 300)
+    frame = GeoZL.compress(x, GeoZL.graph(x, "id>zstd"; width = 300))
+    # Bytes 7 and 8 are the varint of 301, the size plus one, and byte 9 the checksum.
+    @assert frame[7:8] == varint(UInt64(301))
+    for check in 0x00:0xff
+        f = vcat(frame[1:6], varint(size + 1), check, frame[10:end])
+        e = try GeoZL.decompress(f; max_output_size = 0) catch e; e end
+        e isa ArgumentError && occursin("declares", e.msg) && return f
+    end
+    error("no header checksum fits")
+end
+
+@testset "frames declaring more than Julia can allocate" begin
+    # Past any address space, an Array Julia refuses, and past Int.
+    for size in (UInt64(2)^62, UInt64(typemax(Int)), UInt64(2)^63 + 5)
+        f = declaring(size)
+        message = "GeoZL.decompress: the frame declares $size bytes of output, " *
+                  "more than Julia can allocate"
+        for read in (() -> GeoZL.decompress(f), () -> GeoZL.decompress(f; verify = false),
+                     () -> GeoZL.decompress(UInt8, f))
+            e = try read() catch e; e end
+            @test e isa GeoZLError && e.code === nothing && e.message == message
+        end
+        @test_throws ArgumentError GeoZL.decompress(f; max_output_size = 1000)
+    end
+    e = try GeoZL.decompress(UInt16, declaring(UInt64(2)^62)) catch e; e end
+    @test e isa GeoZLError && e.code === nothing
+    # dims whose product wraps are the caller's mistake, not the frame's.
+    x = UInt8[1, 2, 3, 4]
+    f = GeoZL.compress(x, GeoZL.graph(x, "id>zstd"; width = 4))
+    @test_throws ArgumentError GeoZL.decompress(UInt8, f, 2^62 + 1, 4)
+    empty = GeoZL.compress(UInt8[], GeoZL.graph(UInt8[], "id>zstd"; width = 1))
+    @test_throws ArgumentError GeoZL.decompress(UInt8, empty, 2^32, 2^32)
+end
+
 @testset "bounded error" begin
     normalize = GeoZL._normalize_error
     @test normalize(nothing) === nothing
@@ -370,6 +419,10 @@ end
     @test err isa ArgumentError
     @test startswith(err.msg, "GeoZL.profile failed: error \"NOPE:1\": ")
     @test any(r -> startswith(r.graph, "med>"), GeoZL.profile(x; prior = nothing, reps = 1))
+    # "id" is the no-predictor path, reported as Python reports it.
+    q = GeoZL.profile(x; prior = "id", reps = 1)
+    @test q.prior == "none"
+    @test occursin("no predictor", sprint(show, MIME"text/plain"(), q))
     @test_throws ArgumentError GeoZL.profile(x; prior = "bogus")
     @test_throws ArgumentError GeoZL.profile(x; prior = "")
     @test_throws ArgumentError GeoZL.profile(x; reps = 0)

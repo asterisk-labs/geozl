@@ -6,8 +6,9 @@ is also a `ValueError`, printed as `geozl._error._InvalidError`. The numbers com
 OpenZL and may move; match on the class or the text (`python-api.md` section 11).
 
 R and Julia follow the same split. R signals a condition of class `geozl_error` with a
-`code` field, and Julia throws `GeoZLError(code, message)`. For codes 21 and 30 and for
-bad arguments, R raises a plain error with no call and Julia an `ArgumentError`. A
+`code` field, and Julia throws `GeoZLError(code, message)`. For bad arguments R raises a
+plain error with no call, and for codes 21 and 30 a plain error that also has class
+`geozl_invalid` and the `code` field; Julia throws an `ArgumentError` for both. A
 refusal names the call, as `geozl_graph failed (method = "planar>entropy")` in R and
 `GeoZL.graph failed (method = "planar>entropy")` in Julia.
 

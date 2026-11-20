@@ -29,7 +29,7 @@ reads without a copy through \code{torch_tensor_from_buffer()}.}
 
 \item{nodata}{Samples equal to this value become \code{NA}, and \code{NaN} or \code{NA}
 turns every NaN of a float dtype into \code{NA}. It is checked as in
-\code{\link[=geozl_graph]{geozl_graph()}}.}
+\code{\link[=geozl_graph]{geozl_graph()}}, and needs a \code{dtype} with \code{as} other than \code{"raw"}.}
 
 \item{verify}{Whether to check the frame's checksums.}
 
@@ -45,7 +45,7 @@ does.
 }
 \details{
 A frame the library cannot read signals a \code{geozl_error}, as does one that
-decodes to fewer bytes than it declares. A frame above \code{max_output_size} is
-a plain error. int64 and uint64 samples read as double warn when a value
-does not convert exactly.
+declares more bytes than an R vector holds or decodes to fewer than it
+declares. A frame above \code{max_output_size} is a plain error. int64 and uint64
+samples read as double warn when a value does not convert exactly.
 }

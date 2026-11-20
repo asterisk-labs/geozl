@@ -59,6 +59,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   package and raise `GeoZLError`, and the quantizer nodes then raise
   `ModuleNotFoundError` for openzl. `Noise.recipe` refuses booleans and
   non-finite bounds, and `profile(prior="id")` reports its prior as `"none"`.
+- R and Julia `profile` also report `prior = "id"` as `"none"` instead of
+  printing "id + id".
+- R `geozl_compress` refuses a graph whose `dtype` field was edited, which made
+  it read past its input. Refusals with codes 21 and 30 also have class
+  `geozl_invalid` and carry the code. A frame declaring more bytes than an R
+  vector holds is a `geozl_error`, and `nodata` without a dtype or with
+  `as = "raw"` is refused.
+- Julia frames no longer keep the whole compress bound alive, a frame
+  declaring more than Julia can allocate throws `GeoZLError`, and the long
+  calls are GC-safe on Julia 1.12 and later.
 
 ## [0.33.0] - 2026-11-16
 

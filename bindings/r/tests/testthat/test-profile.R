@@ -31,6 +31,13 @@ test_that("a prior of NULL tries every predictor", {
   expect_true(any(startsWith(p$graph, "delta_w>")))
 })
 
+test_that("a prior of id is the no-predictor path, as Python reports it", {
+  x <- round(smooth_raster(16, 16, 0, 255))
+  p <- geozl_profile(x, prior = "id", dtype = "uint8", reps = 1)
+  expect_identical(attr(p, "prior"), "none")
+  expect_true(any(grepl("no predictor", capture.output(print(p)), fixed = TRUE)))
+})
+
 test_that("the native benchmark validates reps too", {
   dt <- geozl:::.dtype("uint8")
   bytes <- .Call(geozl:::geozl_r_pack, matrix(0:63, 8, 8), dt$code, NULL)
@@ -58,7 +65,9 @@ test_that("a profile where every recipe fails stops with the first reason", {
   x <- round(smooth_raster(32, 32, 0, 4000))
   e <- caught(geozl_profile(x, error = "NOPE:1", dtype = "uint16", reps = 1))
   expect_false(e$geozl_error)
+  expect_true(e$invalid)
   expect_null(e$call)
   expect_true(startsWith(e$message, "geozl_profile failed: error \"NOPE:1\""))
   expect_identical(message_code(e$message), 21)
+  expect_identical(e$code, 21)
 })

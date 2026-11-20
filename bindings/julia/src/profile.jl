@@ -64,15 +64,22 @@ function _order0_bits(a::Array)
     return -sum(p .* log2.(p))
 end
 
+# GEOZL_2D_NAME_MAX in geozl.h, the slot that holds any recipe name.
+const _NAME_MAX = 48
+
 function _grid(prior, itemsize)
-    stride, cap = 48, 128
-    names = zeros(UInt8, stride * cap)
+    p = something(prior, "")
+    grid(names, cap, count) = ccall(_sym(:geozl_2d_grid_c), Cint,
+        (Cstring, Csize_t, Ptr{UInt8}, Csize_t, Csize_t, Ref{Csize_t}),
+        p, itemsize, names, _NAME_MAX, cap, count)
+    unknown() = ArgumentError("prior $(repr(prior)) is not one of $PRIORS or nothing")
+    # Count first, so no grid is cut to a fixed number of slots.
     count = Ref{Csize_t}(0)
-    rc = ccall(_sym(:geozl_2d_grid_c), Cint,
-               (Cstring, Csize_t, Ptr{UInt8}, Csize_t, Csize_t, Ref{Csize_t}),
-               something(prior, ""), itemsize, names, stride, cap, count)
-    rc == 0 || throw(ArgumentError("prior $(repr(prior)) is not one of $PRIORS or nothing"))
-    return [_errmsg(names[(i-1)*stride+1:i*stride]) for i in 1:min(Int(count[]), cap)]
+    grid(C_NULL, 0, count) == 0 || throw(unknown())
+    n = Int(count[])
+    names = zeros(UInt8, _NAME_MAX * max(n, 1))
+    n == 0 || grid(names, n, Ref{Csize_t}(0)) == 0 || throw(unknown())
+    return [_errmsg(names[(i-1)*_NAME_MAX+1:i*_NAME_MAX]) for i in 1:n]
 end
 
 """
@@ -112,12 +119,12 @@ function profile(x::AbstractArray; prior="planar", width=nothing, planes=nothing
         buf = zeros(UInt8, _ERR_SIZE)
         # Checksums on, so the size is the frame compress writes.
         GC.safepoint()
-        rc = GC.@preserve a ccall(_sym(:geozl_2d_bench_c), Cint,
-            (Cstring, UInt32, UInt32, Ptr{UInt8}, Cint, Cint, UInt64, Ptr{Cvoid}, Csize_t,
-             Csize_t, Csize_t, Cint, Cint, Ref{Csize_t}, Ref{Cdouble}, Ref{Cdouble},
-             Ptr{UInt8}, Csize_t),
-            name, w, p, recipe === nothing ? C_NULL : recipe, code, mode, bits, a,
-            length(a), sizeof(T), reps, 1, verify, comp, enc, dec, buf, length(buf))
+        rc = GC.@preserve a @_long_ccall $(_sym(:geozl_2d_bench_c))(
+            name::Cstring, w::UInt32, p::UInt32,
+            (recipe === nothing ? C_NULL : recipe)::Ptr{UInt8}, code::Cint, mode::Cint,
+            bits::UInt64, a::Ptr{Cvoid}, length(a)::Csize_t, sizeof(T)::Csize_t,
+            reps::Csize_t, 1::Cint, verify::Cint, comp::Ref{Csize_t}, enc::Ref{Cdouble},
+            dec::Ref{Cdouble}, buf::Ptr{UInt8}, length(buf)::Csize_t)::Cint
         GC.safepoint()
         if rc != 0
             failure === nothing && (failure = (rc, "$(_errmsg(buf)) (ZL error code $rc)"))
@@ -133,5 +140,7 @@ function profile(x::AbstractArray; prior="planar", width=nothing, planes=nothing
     end
     sort!(rows; by = r -> r.ratio, rev = true)
     return Profile{T}(rows, size(x), _dtype_name(T), raw, Int(w), Int(p),
-                      prior === nothing ? nothing : String(prior), Int(reps), recipe)
+                      # "id" names the no-predictor path, which Python reports as "none".
+                      prior === nothing ? nothing : prior == "id" ? "none" : String(prior),
+                      Int(reps), recipe)
 end

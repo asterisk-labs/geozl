@@ -103,9 +103,10 @@ set so a caller can size and retry).
   parameter (unknown method, bad recipe, lossy domain refusal, a NULL, misaligned or
   overflowing argument, a tile longer than one row that is not whole rows for a 2D
   predictor), `30` graph invalid (recipe does not apply to the element width), `55` node
-  precondition (plain `entropy` on 4 or 8 bytes). Match on the message, not the number. The Python, R and
-  Julia bindings carry the code on their error and treat 21 and 30 as an invalid
-  request (a Python `ValueError`, a plain R error, a Julia `ArgumentError`).
+  precondition (plain `entropy` on 4 or 8 bytes). Match on the message, not the number.
+  The Python, R and Julia bindings carry the code on their error and treat 21 and 30 as
+  an invalid request (a Python `ValueError`, a plain R error of class `geozl_invalid`, a
+  Julia `ArgumentError`).
 - After a failure `*outSize` is 0 and a failed open leaves `*out` `NULL`. `src` must be
   aligned to its samples and may be `NULL` only when `numElts` is 0. A graph serves one
   call at a time; distinct graphs are independent.

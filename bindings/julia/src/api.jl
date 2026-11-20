@@ -208,11 +208,11 @@ function graph(x::AbstractArray, method::AbstractString; width=nothing, planes=n
     w, p = _geometry(x, width, planes)
     out = Ref{Ptr{Cvoid}}(C_NULL)
     buf = zeros(UInt8, _ERR_SIZE)
-    rc = GC.@preserve a ccall(_sym(:geozl_2d_graph_open_c), Cint,
-        (Ref{Ptr{Cvoid}}, Cstring, UInt32, UInt32, Ptr{UInt8}, Cint, Cint, UInt64,
-         Ptr{Cvoid}, Csize_t, Csize_t, Ptr{UInt8}, Csize_t),
-        out, method, w, p, recipe === nothing ? C_NULL : recipe, code, mode, bits,
-        a, length(a), sizeof(T), buf, length(buf))
+    rc = GC.@preserve a @_long_ccall $(_sym(:geozl_2d_graph_open_c))(
+        out::Ref{Ptr{Cvoid}}, method::Cstring, w::UInt32, p::UInt32,
+        (recipe === nothing ? C_NULL : recipe)::Ptr{UInt8}, code::Cint, mode::Cint,
+        bits::UInt64, a::Ptr{Cvoid}, length(a)::Csize_t, sizeof(T)::Csize_t,
+        buf::Ptr{UInt8}, length(buf)::Csize_t)::Cint
     rc == 0 || throw(_refusal(rc, "GeoZL.graph failed (method = $(repr(method))): " *
                                   "$(_errmsg(buf)) (ZL error code $rc)"))
     return Graph{T}(out[], method, Int(w), Int(p), recipe, nodata)
@@ -223,10 +223,12 @@ end
     compress(x; graph::Graph, coeffs=nothing) -> Vector{UInt8}
 
 Compress the tile `x` with `graph` and return the frame. Its element type must
-be the graph's; its geometry is not checked. A lossy tile outside the domain
-the graph was built from is refused with `ArgumentError`, but NaN and infinity
-are not checked. A tile holding them may be accepted, and they then decode to
-finite values. Only a graph with NaN nodata, set or found at build, keeps NaN.
+be the graph's. Its shape is not checked, but a row predictor refuses a tile
+longer than one row that is not whole rows of the graph's width. A lossy tile
+outside the domain the graph was built from is refused with `ArgumentError`,
+but NaN and infinity are not checked. A tile holding them may be accepted, and
+they then decode to finite values. Only a graph with NaN nodata, set or found at
+build, keeps NaN.
 
 `coeffs`, a vector or tuple of integer vectors, is attached to this frame. Read
 it back with [`coeffs`](@ref); GeoZL assigns it no meaning.
@@ -246,20 +248,21 @@ function compress(x::AbstractArray, graph::Graph; coeffs=nothing)
     buf = zeros(UInt8, _ERR_SIZE)
     rc = GC.@preserve graph a dst blob begin
         if coeffs === nothing
-            ccall(_sym(:geozl_2d_compress_graph_c), Cint,
-                  (Ptr{Cvoid}, Ptr{Cvoid}, Csize_t, Ptr{UInt8}, Csize_t, Ref{Csize_t},
-                   Ptr{UInt8}, Csize_t),
-                  graph.ptr, a, length(a), dst, cap, outsize, buf, length(buf))
+            @_long_ccall $(_sym(:geozl_2d_compress_graph_c))(
+                graph.ptr::Ptr{Cvoid}, a::Ptr{Cvoid}, length(a)::Csize_t, dst::Ptr{UInt8},
+                cap::Csize_t, outsize::Ref{Csize_t}, buf::Ptr{UInt8},
+                length(buf)::Csize_t)::Cint
         else
-            ccall(_sym(:geozl_2d_compress_coeffs_c), Cint,
-                  (Ptr{Cvoid}, Ptr{Cvoid}, Csize_t, Ptr{UInt8}, Csize_t, Ptr{UInt8}, Csize_t,
-                   Ref{Csize_t}, Ptr{UInt8}, Csize_t),
-                  graph.ptr, a, length(a), blob, length(blob), dst, cap, outsize, buf, length(buf))
+            @_long_ccall $(_sym(:geozl_2d_compress_coeffs_c))(
+                graph.ptr::Ptr{Cvoid}, a::Ptr{Cvoid}, length(a)::Csize_t, blob::Ptr{UInt8},
+                length(blob)::Csize_t, dst::Ptr{UInt8}, cap::Csize_t,
+                outsize::Ref{Csize_t}, buf::Ptr{UInt8}, length(buf)::Csize_t)::Cint
         end
     end
     rc == 0 || throw(_refusal(rc, "GeoZL.compress failed (method = $(repr(graph.method))): " *
                                   "$(_errmsg(buf)) (ZL error code $rc)"))
-    return resize!(dst, outsize[])
+    # A copy, so the frame does not keep the whole bound alive.
+    return dst[1:outsize[]]
 end
 
 compress(x::AbstractArray; graph, coeffs=nothing) = compress(x, graph; coeffs)
@@ -279,7 +282,32 @@ function _frame_size(frame::Vector{UInt8}, max_output_size)
         throw(ArgumentError("GeoZL.decompress: the frame declares $dsize bytes of output, " *
                             "above the $max_output_size allowed"))
     end
+    dsize <= typemax(Int) || throw(_too_large(dsize))
     return Int(dsize)
+end
+
+function _checked_prod(shape)
+    total = 1
+    for d in shape
+        total, overflow = Base.Checked.mul_with_overflow(total, d)
+        overflow && return nothing
+    end
+    return total
+end
+
+_too_large(dsize) = GeoZLError(nothing, "GeoZL.decompress: the frame declares $dsize bytes " *
+                                        "of output, more than Julia can allocate")
+
+# A frame may declare any size. Julia refuses an Array too large for the
+# address space with ArgumentError, and one the system cannot back with a bare
+# OutOfMemoryError, so both read as the frame's refusal.
+function _output(::Type{T}, shape, dsize) where {T}
+    try
+        return Array{T}(undef, shape)
+    catch err
+        err isa Union{ArgumentError,OutOfMemoryError} || rethrow()
+        throw(_too_large(dsize))
+    end
 end
 
 # `out` is a fresh Array; Julia aligns those past the 8 bytes numeric output needs.
@@ -291,9 +319,9 @@ function _decompress!(out::Array, frame::Vector{UInt8}, verify::Bool)
     capacity = empty ? 1 : sizeof(out)
     outsize = Ref{Csize_t}(0)
     buf = zeros(UInt8, _ERR_SIZE)
-    rc = GC.@preserve dst frame ccall(_sym(:geozl_2d_decompress_c), Cint,
-        (Ptr{UInt8}, Csize_t, Ptr{Cvoid}, Csize_t, Ref{Csize_t}, Cint, Ptr{UInt8}, Csize_t),
-        frame, length(frame), dst, capacity, outsize, verify, buf, length(buf))
+    rc = GC.@preserve dst frame @_long_ccall $(_sym(:geozl_2d_decompress_c))(
+        frame::Ptr{UInt8}, length(frame)::Csize_t, dst::Ptr{Cvoid}, capacity::Csize_t,
+        outsize::Ref{Csize_t}, verify::Cint, buf::Ptr{UInt8}, length(buf)::Csize_t)::Cint
     rc == 0 || throw(GeoZLError(rc, "GeoZL.decompress failed: $(_errmsg(buf)) (ZL error code $rc)"))
     outsize[] == sizeof(out) ||
         throw(GeoZLError(nothing, "GeoZL.decompress: the frame held $(outsize[]) bytes, " *
@@ -312,12 +340,14 @@ takes. Samples equal to `nodata` become `missing`.
 
 Set `verify = false` to skip checksum verification, and `max_output_size` when
 reading untrusted frames. A frame declaring more output, or one that `T` does
-not divide, throws `ArgumentError`.
+not divide, throws `ArgumentError`. One declaring more than Julia can allocate
+throws [`GeoZLError`](@ref).
 """
 function decompress(frame::AbstractVector{UInt8}; verify=true, max_output_size=nothing)
     verify = _flag(verify, "verify")
     f = frame isa Vector{UInt8} ? frame : Vector{UInt8}(frame)
-    return _decompress!(Vector{UInt8}(undef, _frame_size(f, max_output_size)), f, verify)
+    dsize = _frame_size(f, max_output_size)
+    return _decompress!(_output(UInt8, (dsize,), dsize), f, verify)
 end
 
 function decompress(::Type{T}, frame::AbstractVector{UInt8}, dims::Integer...;
@@ -332,11 +362,14 @@ function decompress(::Type{T}, frame::AbstractVector{UInt8}, dims::Integer...;
         throw(ArgumentError("GeoZL.decompress: $dsize bytes do not hold whole $T samples"))
     n = dsize ÷ sizeof(T)
     shape = isempty(dims) ? (n,) : Int.(dims)
-    all(>=(0), shape) && prod(shape) == n ||
-        throw(ArgumentError("`dims` hold $(prod(shape)) samples, the frame $n"))
+    # Checked, so dims whose product wraps are not taken for the frame's count.
+    held = all(>=(0), shape) ? _checked_prod(shape) : nothing
+    held == n ||
+        throw(ArgumentError("`dims` hold $(something(held, prod(big.(shape)))) samples, " *
+                            "the frame $n"))
     # NumPy treats any nonzero byte as true.
-    T === Bool && return map(!iszero, _decompress!(Array{UInt8}(undef, shape), f, verify))
-    out = _decompress!(Array{T}(undef, shape), f, verify)
+    T === Bool && return map(!iszero, _decompress!(_output(UInt8, shape, dsize), f, verify))
+    out = _decompress!(_output(T, shape, dsize), f, verify)
     sentinel === nothing && return out
     if sentinel isa AbstractFloat && isnan(sentinel)
         return Union{Missing,T}[isnan(v) ? missing : v for v in out]
