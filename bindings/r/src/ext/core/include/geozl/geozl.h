@@ -60,6 +60,8 @@ GEOZL_API ZL_NodeID geozl_node_deinterleave(ZL_Compressor *c);
 GEOZL_API ZL_NodeID geozl_node_pfor(ZL_Compressor *c);
 // Build a quantizer node from resolved parameters, the fields a frame header
 // carries. geozl_node_quant resolves them from a recipe.
+// Returns ZL_NODE_ILLEGAL when c or params is NULL, dtype is not a
+// geozl_dtype code, or params fail the check the codec's decoder applies.
 GEOZL_API ZL_NodeID geozl_node_quant_linear(ZL_Compressor *c,
                                             const quant_linear_params *params,
                                             int dtype);

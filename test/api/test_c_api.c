@@ -48,18 +48,9 @@ static void fill(void) {
     }
 }
 
-// The frame a hand built quantizer -> entropy graph writes.
-static size_t compress_node(const char *recipe, void *dst, size_t cap) {
-  char err[256] = {0};
-  ZL_Compressor *c = ZL_Compressor_create();
-  ZL_NodeID q = geozl_node_quant(c, recipe, W, GEOZL_DT_U16, src, N, err,
-                                 sizeof err);
-  CHECK(ZL_NodeID_isValid(q));
-  if (!ZL_NodeID_isValid(q)) {
-    printf("  %s: %s\n", recipe, err);
-    ZL_Compressor_free(c);
-    return 0;
-  }
+// The frame a hand built quantizer -> entropy graph writes. Frees c.
+static size_t compress_graph(ZL_Compressor *c, ZL_NodeID q, void *dst,
+                             size_t cap) {
   ZL_GraphID g =
       ZL_Compressor_registerStaticGraph_fromNode1o(c, q, ZL_GRAPH_ENTROPY);
   CHECK(!ZL_isError(ZL_Compressor_selectStartingGraphID(c, g)));
@@ -75,6 +66,20 @@ static size_t compress_node(const char *recipe, void *dst, size_t cap) {
   ZL_Compressor_free(c);
   CHECK(!ZL_isError(r));
   return ZL_isError(r) ? 0 : ZL_validResult(r);
+}
+
+static size_t compress_node(const char *recipe, void *dst, size_t cap) {
+  char err[256] = {0};
+  ZL_Compressor *c = ZL_Compressor_create();
+  ZL_NodeID q = geozl_node_quant(c, recipe, W, GEOZL_DT_U16, src, N, err,
+                                 sizeof err);
+  CHECK(ZL_NodeID_isValid(q));
+  if (!ZL_NodeID_isValid(q)) {
+    printf("  %s: %s\n", recipe, err);
+    ZL_Compressor_free(c);
+    return 0;
+  }
+  return compress_graph(c, q, dst, cap);
 }
 
 // Within the bound the recipe declares, so the node used the resolved grid.
@@ -130,6 +135,146 @@ static void node_quant_refuses(const char *recipe, int dtype,
   ZL_Compressor_free(c);
 }
 
+// Each on a fresh compressor, so one refusal cannot stand in for another.
+static int builds_linear(unsigned char flags, double step, int dtype) {
+  ZL_Compressor *c = ZL_Compressor_create();
+  const quant_linear_params p = {.flags = flags, .step = step};
+  const int ok = ZL_NodeID_isValid(geozl_node_quant_linear(c, &p, dtype));
+  ZL_Compressor_free(c);
+  return ok;
+}
+
+static int builds_log(unsigned char flags, double step, int dtype) {
+  ZL_Compressor *c = ZL_Compressor_create();
+  const quant_log_params p = {.flags = flags, .step = step};
+  const int ok = ZL_NodeID_isValid(geozl_node_quant_log(c, &p, dtype));
+  ZL_Compressor_free(c);
+  return ok;
+}
+
+static int builds_sqrt(unsigned char flags, double step, double offset,
+                       int dtype) {
+  ZL_Compressor *c = ZL_Compressor_create();
+  const quant_sqrt_params p = {.flags = flags, .step = step, .offset = offset};
+  const int ok = ZL_NodeID_isValid(geozl_node_quant_sqrt(c, &p, dtype));
+  ZL_Compressor_free(c);
+  return ok;
+}
+
+// What the kernels would reject at compress time, refused by the builder.
+static void quant_builders_refuse_bad_input(void) {
+  const quant_linear_params lin = {.flags = 0, .step = 4.0};
+  const quant_log_params lg = {.flags = QUANT_LOG_FLAG_STORE_VALUES,
+                               .step = 0.02};
+  const quant_sqrt_params sq = {.flags = 0, .step = 0.5, .offset = 0.0};
+  ZL_Compressor *c = ZL_Compressor_create();
+  CHECK(!ZL_NodeID_isValid(geozl_node_quant_linear(NULL, &lin, GEOZL_DT_U16)));
+  CHECK(!ZL_NodeID_isValid(geozl_node_quant_linear(c, NULL, GEOZL_DT_U16)));
+  CHECK(!ZL_NodeID_isValid(geozl_node_quant_log(NULL, &lg, GEOZL_DT_U16)));
+  CHECK(!ZL_NodeID_isValid(geozl_node_quant_log(c, NULL, GEOZL_DT_U16)));
+  CHECK(!ZL_NodeID_isValid(geozl_node_quant_sqrt(NULL, &sq, GEOZL_DT_U16)));
+  CHECK(!ZL_NodeID_isValid(geozl_node_quant_sqrt(c, NULL, GEOZL_DT_U16)));
+  ZL_Compressor_free(c);
+
+  CHECK(builds_linear(0, 4.0, GEOZL_DT_U16));
+  CHECK(builds_linear(0, 0.25, GEOZL_DT_F32));
+  CHECK(!builds_linear(0, 0.0, GEOZL_DT_U16));
+  CHECK(!builds_linear(0, NAN, GEOZL_DT_F32));
+  CHECK(!builds_linear(0, 2.5, GEOZL_DT_U16)); // integer grids take whole steps
+  CHECK(!builds_linear(0x80, 4.0, GEOZL_DT_U16));
+  CHECK(!builds_linear(0, 4.0, 99));
+  CHECK(!builds_linear(0, 4.0, -1));
+
+  CHECK(builds_log(QUANT_LOG_FLAG_STORE_VALUES, 0.02, GEOZL_DT_U16));
+  CHECK(builds_log(0, 0.02, GEOZL_DT_F32));
+  CHECK(!builds_log(QUANT_LOG_FLAG_STORE_VALUES, 0.0, GEOZL_DT_U16));
+  CHECK(!builds_log(QUANT_LOG_FLAG_STORE_VALUES, INFINITY, GEOZL_DT_U16));
+  CHECK(!builds_log(0, 0.02, GEOZL_DT_U16)); // integers store values
+  CHECK(!builds_log(QUANT_LOG_FLAG_STORE_VALUES, 0.02, GEOZL_DT_F32));
+  CHECK(!builds_log(QUANT_LOG_FLAG_STORE_VALUES, 0.02, 99));
+
+  CHECK(builds_sqrt(0, 0.5, 0.0, GEOZL_DT_U16));
+  CHECK(builds_sqrt(QUANT_SQRT_FLAG_DECODE_F32, 0.5, 4.0, GEOZL_DT_F32));
+  CHECK(!builds_sqrt(0, 0.0, 0.0, GEOZL_DT_U16));
+  CHECK(!builds_sqrt(0, 1e-200, 0.0, GEOZL_DT_U16)); // squares to a subnormal
+  CHECK(!builds_sqrt(0, 0.5, -1.0, GEOZL_DT_U16));
+  CHECK(!builds_sqrt(QUANT_SQRT_FLAG_DECODE_F32, 0.5, 0.0, GEOZL_DT_U16));
+  CHECK(!builds_sqrt(0, 0.5, 0.0, 99));
+}
+
+// OpenZL would dereference a NULL compressor, so every builder refuses one.
+static void builders_refuse_a_null_compressor(void) {
+  CHECK(!ZL_NodeID_isValid(geozl_node_delta_w(NULL, W)));
+  CHECK(!ZL_NodeID_isValid(geozl_node_delta_n(NULL, W, 1)));
+  CHECK(!ZL_NodeID_isValid(geozl_node_planar(NULL, W, 1)));
+  CHECK(!ZL_NodeID_isValid(geozl_node_planar_zigzag(NULL, W, 1)));
+  CHECK(!ZL_NodeID_isValid(geozl_node_planar_zigzag_pfor(NULL, W, 1)));
+  CHECK(!ZL_NodeID_isValid(geozl_node_planar_zigzag_lanes(NULL, W, 1)));
+  CHECK(!ZL_NodeID_isValid(geozl_node_lanes(NULL)));
+  CHECK(!ZL_NodeID_isValid(geozl_node_med(NULL, W, 1)));
+  CHECK(!ZL_NodeID_isValid(geozl_node_med_zigzag(NULL, W, 1)));
+  CHECK(!ZL_NodeID_isValid(geozl_node_average(NULL, W, 1)));
+  CHECK(!ZL_NodeID_isValid(geozl_node_wp_static(NULL, W, 1)));
+  CHECK(!ZL_NodeID_isValid(geozl_node_deinterleave(NULL)));
+  CHECK(!ZL_NodeID_isValid(geozl_node_pfor(NULL)));
+  CHECK(!ZL_NodeID_isValid(
+      geozl_node_nodata(NULL, W, GEOZL_NODATA_NAN, 0, GEOZL_DT_F32, 0.0)));
+}
+
+// Compress src through q and decode it into back. Frees c.
+static int decodes(ZL_Compressor *c, ZL_NodeID q) {
+  if (!ZL_NodeID_isValid(q)) {
+    ZL_Compressor_free(c);
+    return 0;
+  }
+  const size_t cap = geozl_2d_compress_bound_c(sizeof src, 0);
+  unsigned char *frame = malloc(cap);
+  const size_t n = compress_graph(c, q, frame, cap);
+  char err[256] = {0};
+  size_t got = 0;
+  const int ok = n != 0 &&
+                 geozl_2d_decompress_c(frame, n, back, sizeof back, &got, 1,
+                                       err, sizeof err) == 0 &&
+                 got == sizeof src;
+  if (!ok)
+    printf("  decode: %s\n", err);
+  free(frame);
+  return ok;
+}
+
+// back moved off src, so the node quantized, and by no more than
+// a + b*x + c*sqrt(x + o), one level of the grid it was given.
+static void moved_within(double a, double b, double c, double o) {
+  int moved = 0;
+  double over = 0.0;
+  for (size_t i = 0; i < N; ++i) {
+    const double x = src[i], d = fabs(x - back[i]);
+    moved |= d != 0.0;
+    over = fmax(over, d - (a + b * x + c * sqrt(x + o)));
+  }
+  CHECK(moved);
+  CHECK(over <= 0.0);
+}
+
+// Parameters that pass build a node whose frame decodes on its grid.
+static void quant_builders_take_valid_parameters(void) {
+  const quant_linear_params lin = {.flags = 0, .step = 4.0};
+  ZL_Compressor *c = ZL_Compressor_create();
+  CHECK(decodes(c, geozl_node_quant_linear(c, &lin, GEOZL_DT_U16)));
+  moved_within(0.5 * lin.step, 0.0, 0.0, 0.0);
+
+  const quant_log_params lg = {.flags = QUANT_LOG_FLAG_STORE_VALUES,
+                               .step = 0.02};
+  c = ZL_Compressor_create();
+  CHECK(decodes(c, geozl_node_quant_log(c, &lg, GEOZL_DT_U16)));
+  moved_within(1.0, exp2(lg.step) - 1.0, 0.0, 0.0);
+
+  const quant_sqrt_params sq = {.flags = 0, .step = 0.5, .offset = 4.0};
+  c = ZL_Compressor_create();
+  CHECK(decodes(c, geozl_node_quant_sqrt(c, &sq, GEOZL_DT_U16)));
+  moved_within(sq.step * sq.step + 0.5, 0.0, sq.step, sq.offset);
+}
+
 static void frame_dsize_tells_empty_from_unreadable(void) {
   unsigned char frame[256];
   char err[256] = {0};
@@ -180,6 +325,9 @@ int main(void) {
   node_quant_refuses("CUBE:MAX_ERROR=1", GEOZL_DT_U16, "families");
   node_quant_refuses("LINEAR:MAX_ERROR=-1", GEOZL_DT_U16, "positive");
   node_quant_refuses("LINEAR:MAX_ERROR=1", 99, "dtype 99");
+  quant_builders_refuse_bad_input();
+  builders_refuse_a_null_compressor();
+  quant_builders_take_valid_parameters();
   frame_dsize_tells_empty_from_unreadable();
   compress_bound_covers_noise();
   if (failures != 0) {

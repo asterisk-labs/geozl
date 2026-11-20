@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The codec guides now show Python, R and Julia side by side. A new walkthrough
   covers the full round trip, and the release checks its runnable examples.
 
+### Fixed
+
+- The quantizer node builders refuse NULL arguments and parameters their codec
+  would reject, and every node builder refuses a NULL compressor.
+- The binding fuzzer turns off store on expansion, so its frames reach the
+  GeoZL decoders.
+
 ## [0.33.0] - 2026-11-16
 
 ### Breaking

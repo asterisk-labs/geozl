@@ -139,12 +139,16 @@ static size_t build_frame(const codec_slot *slot, uint8_t *dst, size_t cap) {
   if (ZL_isError(ZL_Compressor_selectStartingGraphID(c, g)))
     goto done;
 
+  // The streams and header usually outgrow the seed, and OpenZL would then
+  // swap the stub for STORE, so the decoder under test would never run.
   ZL_CCtx *cctx = ZL_CCtx_create();
   if (cctx == NULL)
     goto done;
   if (ZL_isError(ZL_CCtx_refCompressor(cctx, c)) ||
       ZL_isError(ZL_CCtx_setParameter(cctx, ZL_CParam_formatVersion,
-                                      ZL_MAX_FORMAT_VERSION))) {
+                                      ZL_MAX_FORMAT_VERSION)) ||
+      ZL_isError(ZL_CCtx_setParameter(cctx, ZL_CParam_storeOnExpansion,
+                                      ZL_TernaryParam_disable))) {
     ZL_CCtx_free(cctx);
     goto done;
   }
