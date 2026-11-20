@@ -240,28 +240,28 @@ typedef struct {
   size_t bytes;
   void *stream;
 } GeozlGpuTarget;</code></pre>
-      <p>A <code>GeozlGpuFrame</code> is the compressed bytes and the exact size they decode to. A <code>GeozlGpuCopy</code> moves a window of <code>rows</code> × <code>width</code> samples from one decoded frame into the target, with offsets and strides in bytes. A <code>GeozlGpuTarget</code> names the device memory, the byte offset and writable bytes after it, and the stream the work joins.</p>
+      <p>A <code>GeozlGpuFrame</code> is the compressed bytes and the exact size they decode to. A <code>GeozlGpuCopy</code> moves a window of <code>rows</code> × <code>width</code> samples from one decoded frame into the target, with offsets and strides in bytes. A <code>GeozlGpuTarget</code> names the device memory, the byte offset and writable bytes after it, and the stream the work joins, which on CUDA belongs to the device's primary context.</p>
 <pre><code class="proto language-c">int geozl_gpu_available(int deviceType);</code></pre>
       <p>Returns nonzero when this build drives the device type.</p>
 <pre><code class="proto language-c">GeozlGpu *geozl_gpu_create(int deviceType, int device, size_t threads,
                            size_t maxDecodedBytes, int verifyChecksums,
                            char *error, size_t errorCapacity);
 void geozl_gpu_destroy(GeozlGpu *gpu);</code></pre>
-      <p>Creates a decoder on one device, or returns <code>NULL</code> with a message. <code>threads</code> caps the host threads of one decode, with 0 meaning one, and <code>maxDecodedBytes</code> caps the decoded bytes of one call and must be nonzero. A decoder serves one call at a time.</p>
+      <p>Creates a decoder on one device, or returns <code>NULL</code> with a message. <code>threads</code> caps the host threads of one decode, with 0 meaning one, and <code>maxDecodedBytes</code> caps the decoded bytes of one call and must be nonzero. Host staging grows with the compressed and host-decoded bytes of a call and is kept until <code>geozl_gpu_destroy</code>, so bound it by the batch size. A decoder serves one decode or synchronize at a time, and one that overlaps another fails. Destroying must not overlap any call.</p>
 <pre><code class="proto language-c">int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
                      size_t frameCount, const GeozlGpuCopy copies[],
                      size_t copyCount, size_t sampleBytes,
                      size_t elementBytes, const GeozlGpuTarget *target,
                      const uint8_t forceHost[], char *error,
                      size_t errorCapacity);</code></pre>
-      <p>Decodes the frames and runs the copies into the target. Single-chunk <code>pfor</code> and <code>lanes</code> frames of 1 or 2-byte samples expand on the device, and the rest decode on the host and upload. <code>forceHost</code> is <code>NULL</code> or one byte per frame, nonzero to send that frame through the host.</p>
+      <p>Decodes the frames and runs the copies into the target. Single-chunk <code>pfor</code> and <code>lanes</code> frames of 1 or 2-byte samples expand on the device, and the rest decode on the host and upload. <code>forceHost</code> is <code>NULL</code> or one byte per frame, nonzero to send that frame through the host. The frames, their bytes, the copies and <code>forceHost</code> may be reused once the call returns. Invalid arguments fail the call before it waits on or reports earlier work. After a failure the target's contents are unspecified, and work queued by earlier calls may still write to it.</p>
 <pre><code class="proto language-c">int geozl_gpu_synchronize(GeozlGpu *gpu, char *error, size_t errorCapacity);</code></pre>
       <p>Waits for queued work and reports its errors. On CUDA <code>geozl_gpu_decode</code> returns once work is queued, so keep the target alive until this returns. Metal finishes inside the decode call.</p>
 <pre><code class="proto language-c">GeozlGpuMemory *geozl_gpu_alloc(GeozlGpu *gpu, size_t bytes, char *error,
                                 size_t errorCapacity);
 void *geozl_gpu_pointer(const GeozlGpuMemory *memory);
 void geozl_gpu_free(GeozlGpuMemory *memory);</code></pre>
-      <p>Allocate and free caller-owned device memory for a target. <code>geozl_gpu_pointer</code> returns the device handle to pass as <code>GeozlGpuTarget.memory</code>.</p>
+      <p>Allocate and free caller-owned device memory for a target. <code>geozl_gpu_pointer</code> returns the device handle to pass as <code>GeozlGpuTarget.memory</code>. These three may run on any thread, also while a decode is in progress.</p>
 
       <nav class="pager" aria-label="Pages">
         <a class="prev" href="api-python.html"><span>Previous</span>Python</a>

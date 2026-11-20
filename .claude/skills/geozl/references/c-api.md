@@ -288,9 +288,19 @@ if (failed || synced)
 ```
 
 - Keep the target and stream alive until the queued work finishes. A later decode
-  on the same stream need not wait for it.
+  on the same stream need not wait for it. On CUDA the stream belongs to the
+  device's primary context.
+- Frames, the bytes they point to, copies and `forceHost` may be reused once the
+  call returns. Invalid arguments fail a call before it waits on or reports
+  earlier work. After a failure the target's contents are unspecified, and work
+  queued by earlier calls may still write to it.
+- A decoder serves one decode or synchronize at a time, and an overlapping one
+  fails with `GPU decoder is serving another call`. `geozl_gpu_alloc`,
+  `geozl_gpu_pointer` and `geozl_gpu_free` may run on other threads meanwhile;
+  `geozl_gpu_destroy` must not overlap any call.
 - Changing streams or growing device scratch waits for pending calls. The decoder
-  keeps two pinned staging arenas until destruction.
+  keeps two pinned staging arenas until destruction. They grow with the
+  compressed and host-decoded bytes of a call, so bound them by the batch size.
 - On CUDA, whole, contiguous frames can decode into the target directly. Other
   copies use `place`.
 - The GPU finds and checks the blocks of `planar>zigzag>pfor` frames, so a malformed

@@ -25,8 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The codec guides now show Python, R and Julia side by side. A new walkthrough
   covers the full round trip, and the release checks its runnable examples.
-- `geozl.h` states the alignment, NULL and threading rules of the
-  `geozl_2d_*` calls.
+- `gpu.h` states when inputs may be reused, what a target holds after a
+  failure, the CUDA context a stream must belong to, how staging grows, and
+  which calls may overlap. `geozl.h` states the alignment, NULL and threading
+  rules of the `geozl_2d_*` calls.
 
 ### Fixed
 
@@ -44,6 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   would reject, and every node builder refuses a NULL compressor.
 - The binding fuzzer turns off store on expansion, so its frames reach the
   GeoZL decoders.
+- GPU decoding: a failed call no longer fails the next valid call with its own
+  refusal, invalid arguments fail before the call waits on earlier work, and a
+  decode or synchronize that overlaps another on the same `GeozlGpu` fails
+  instead of corrupting it.
 
 ## [0.33.0] - 2026-11-16
 

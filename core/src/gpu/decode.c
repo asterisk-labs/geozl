@@ -69,6 +69,8 @@ struct GeozlGpu {
   size_t wave;
   void *stream;
   char refused[256];
+  // Set while a decode or synchronize owns the waves and the refusal.
+  atomic_int busy;
 };
 
 // Mirrors place_copy in gpu/kernels/programs/place.slang. Counts are samples.
@@ -238,6 +240,7 @@ GeozlGpu *geozl_gpu_create(int deviceType, int device, size_t threads,
     geozl_gpu_error(error, errorCapacity, "out of memory");
     return NULL;
   }
+  atomic_init(&gpu->busy, 0);
   gpu->backend = backend;
   gpu->device = device;
   gpu->threads = threads == 0 ? 1 : threads;
@@ -304,6 +307,17 @@ static int take_refused(GeozlGpu *gpu, char *error, size_t errorCapacity) {
   return 1;
 }
 
+// An overlapping call fails instead of sharing the waves. alloc and free touch
+// no decoder state, so they stay outside.
+static int enter(GeozlGpu *gpu, char *error, size_t errorCapacity) {
+  if (atomic_exchange(&gpu->busy, 1) == 0)
+    return 0;
+  return geozl_gpu_error(error, errorCapacity,
+                         "GPU decoder is serving another call");
+}
+
+static void leave(GeozlGpu *gpu) { atomic_store(&gpu->busy, 0); }
+
 // Waves overlap only on one stream, the order CUDA guarantees across them.
 static int begin_wave(GeozlGpu *gpu, void *stream, char *error,
                       size_t errorCapacity) {
@@ -352,11 +366,15 @@ int geozl_gpu_synchronize(GeozlGpu *gpu, char *error, size_t errorCapacity) {
     error[0] = '\0';
   if (gpu == NULL)
     return geozl_gpu_error(error, errorCapacity, "invalid GPU decoder");
-  if (take_refused(gpu, error, errorCapacity)) {
-    finish_pending(gpu, 0, NULL, 0);
+  if (enter(gpu, error, errorCapacity) != 0)
     return 1;
-  }
-  return finish_pending(gpu, 1, error, errorCapacity);
+  int failed = 1;
+  if (take_refused(gpu, error, errorCapacity))
+    finish_pending(gpu, 0, NULL, 0);
+  else
+    failed = finish_pending(gpu, 1, error, errorCapacity);
+  leave(gpu);
+  return failed;
 }
 
 GeozlGpuMemory *geozl_gpu_alloc(GeozlGpu *gpu, size_t bytes, char *error,
@@ -470,6 +488,10 @@ static int copies_valid(const GeozlGpuFrame frames[], size_t frameCount,
                         size_t sampleBytes, size_t targetBytes) {
   for (size_t i = 0; i < copyCount; ++i) {
     const GeozlGpuCopy *copy = &copies[i];
+    // place addresses the target in 32-bit samples.
+    const size_t end =
+        span_end(copy->destination, copy->rows, copy->destinationRow,
+                 copy->width, copy->destinationStep, sampleBytes);
     if (copy->frame >= frameCount || copy->width == 0 || copy->rows == 0 ||
         copy->width > PLACE_MAX_WIDTH ||
         (copy->rows > 1 && copy->destinationRow == 0) ||
@@ -482,8 +504,7 @@ static int copies_valid(const GeozlGpuFrame frames[], size_t frameCount,
         span_end(copy->source, copy->rows, copy->sourceRow, copy->width,
                  copy->sourceStep,
                  sampleBytes) > frames[copy->frame].decodedBytes ||
-        span_end(copy->destination, copy->rows, copy->destinationRow,
-                 copy->width, copy->destinationStep, sampleBytes) > targetBytes)
+        end > targetBytes || end / sampleBytes > UINT32_MAX)
       return 0;
   }
   return 1;
@@ -818,18 +839,13 @@ static size_t piece_count(const GeozlGpuCopy *copy) {
   return ((size_t)copy->rows + PLACE_MAX_ROWS - 1) / PLACE_MAX_ROWS;
 }
 
-int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
-                     size_t frameCount, const GeozlGpuCopy copies[],
-                     size_t copyCount, size_t sampleBytes, size_t elementBytes,
-                     const GeozlGpuTarget *target, const uint8_t forceHost[],
-                     char *error, size_t errorCapacity) {
-  if (error != NULL && errorCapacity != 0)
-    error[0] = '\0';
-  if (gpu == NULL)
-    return geozl_gpu_error(error, errorCapacity, "invalid GPU decoder");
-  if (begin_wave(gpu, target != NULL ? target->stream : NULL, error,
-                 errorCapacity) != 0)
-    return 1;
+// Arguments are checked before begin_wave, so an invalid call reports its own
+// error and leaves earlier work and its failures to the next call.
+static int decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
+                  size_t frameCount, const GeozlGpuCopy copies[],
+                  size_t copyCount, size_t sampleBytes, size_t elementBytes,
+                  const GeozlGpuTarget *target, const uint8_t forceHost[],
+                  char *error, size_t errorCapacity) {
   if (frames == NULL || frameCount == 0 || frameCount > UINT32_MAX ||
       (copies == NULL && copyCount != 0) || place_slot(sampleBytes) < 0 ||
       elementBytes == 0 || sampleBytes % elementBytes != 0 || target == NULL ||
@@ -858,7 +874,10 @@ int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
   if (!copies_valid(frames, frameCount, copies, copyCount, sampleBytes,
                     targetBytes))
     return geozl_gpu_error(error, errorCapacity,
-                           "a copy reaches outside its frame or the target");
+                           "a copy reaches outside its frame or the target, "
+                           "or past 2^32 samples");
+  if (begin_wave(gpu, target->stream, error, errorCapacity) != 0)
+    return 1;
   if (copyCount == 0)
     return 0;
 
@@ -1276,9 +1295,13 @@ int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
   failed = 0;
 
 done:
-  // A failed call still waits for the work it queued before returning.
-  if (failed)
-    finish_pending(gpu, 0, NULL, 0);
+  // A failed call still waits for the work it queued before returning. It
+  // already reports a failure, so a refusal in its own wave is dropped, while
+  // one in the previous call's wave stays for the next call.
+  if (failed) {
+    finish_wave(gpu, &gpu->waves[!gpu->wave], 1, 0, NULL, 0);
+    finish_wave(gpu, wave, 0, 1, NULL, 0);
+  }
   if (locked)
     pthread_mutex_destroy(&pass.lock);
   pivco_gpu_work_free(&pivcoWork);
@@ -1299,5 +1322,23 @@ done:
   free(slots);
   free(planar);
   free(routes);
+  return failed;
+}
+
+int geozl_gpu_decode(GeozlGpu *gpu, const GeozlGpuFrame frames[],
+                     size_t frameCount, const GeozlGpuCopy copies[],
+                     size_t copyCount, size_t sampleBytes, size_t elementBytes,
+                     const GeozlGpuTarget *target, const uint8_t forceHost[],
+                     char *error, size_t errorCapacity) {
+  if (error != NULL && errorCapacity != 0)
+    error[0] = '\0';
+  if (gpu == NULL)
+    return geozl_gpu_error(error, errorCapacity, "invalid GPU decoder");
+  if (enter(gpu, error, errorCapacity) != 0)
+    return 1;
+  const int failed =
+      decode(gpu, frames, frameCount, copies, copyCount, sampleBytes,
+             elementBytes, target, forceHost, error, errorCapacity);
+  leave(gpu);
   return failed;
 }

@@ -53,6 +53,14 @@ DECODE_SRCS := decode_bench.c bench.c gpu.c $(CORE)/src/gpu/frame_batch.c \
 	$(CORE)/src/gpu/pivco_decode.c $(CORE)/src/gpu/pivco_capture.c \
 	$(CORE)/src/gpu/pivco_plan.c $(CORE)/src/gpu/pivco_plan_parallel.c \
 	$(CORE)/src/gpu/planar_scan.c
+# The host side of the public decoder, without a backend or its kernels.
+DECODER_SRCS := $(CORE)/src/gpu/decode.c $(CORE)/src/gpu/runtime.c \
+	$(CORE)/src/gpu/frame_batch.c $(CORE)/src/gpu/staging_arena.c \
+	$(CORE)/src/gpu/pfor_decode.c $(CORE)/src/gpu/pfor_capture.c \
+	$(CORE)/src/gpu/pfor_plan.c $(CORE)/src/gpu/pfor_plan_parallel.c \
+	$(CORE)/src/gpu/pivco_decode.c $(CORE)/src/gpu/pivco_capture.c \
+	$(CORE)/src/gpu/pivco_plan.c $(CORE)/src/gpu/pivco_plan_parallel.c \
+	$(CORE)/src/gpu/planar_scan.c
 PIVCO_CFLAGS := -O3 -std=gnu11 -Wall -I$(CORE)/include -I$(CORE)/src \
 	-I$(STATIC)/openzl/include -I$(OPENZL)/include -I$(OPENZL)/src
 # Each binary links one backend; GPU_BACKEND names it for tests and benchmarks.
@@ -67,7 +75,7 @@ GPU_COMMON := gpu.c gpu.h $(CORE)/src/gpu/runtime.h \
 # check needs no GPU; check-metal and check-cuda need a device.
 CHECKS := build/test_bench build/test_pfor_capture build/test_pivco_capture \
 	build/test_pivco_plan build/test_planar_scan build/test_runtime_validation \
-	build/test_c_api
+	build/test_c_api build/test_gpu_decode_mock
 
 .PHONY: metal cuda hosts-cuda check check-metal check-cuda check-slang check-pfor-metal \
 	check-gpu-decode check-runtime-metal \
@@ -86,6 +94,7 @@ check: $(CHECKS)
 	./build/test_planar_scan
 	./build/test_runtime_validation
 	./build/test_c_api
+	./build/test_gpu_decode_mock
 check-pfor-metal: build/test_pfor_decode_metal build/test_pfor_list_metal build/pzp1.metal build/pzp2.metal
 	./build/test_pfor_decode_metal build/pzp1.metal build/pzp2.metal
 	./build/test_pfor_list_metal build/pzp1.metal build/pzp2.metal
@@ -346,3 +355,11 @@ else
 		../../test/gpu/capture_frame_builder.c $(PIVCO_LIBS) \
 		-ldl -lpthread -lm -o $@
 endif
+
+# The public decoder over a mock backend that both device types reach, so its
+# waves and deferred errors run without a device.
+build/test_gpu_decode_mock: ../../test/gpu/test_gpu_decode_mock.c \
+		$(DECODER_SRCS) $(wildcard $(CORE)/src/gpu/*.h) geozl-static | build
+	cc $(PIVCO_CFLAGS) -DGEOZL_GPU_CUDA -DGEOZL_GPU_METAL \
+		../../test/gpu/test_gpu_decode_mock.c $(DECODER_SRCS) $(PIVCO_LIBS) \
+		-lpthread -lm -o $@
