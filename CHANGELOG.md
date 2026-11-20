@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A `geozl` codec for Zarr format 3, registered through the `zarr.codecs`
+  entry point. Install it with `pip install geozl[zarr]`.
+
 ### Changed
 
 - The codec guides now show Python, R and Julia side by side. A new walkthrough

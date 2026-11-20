@@ -29,7 +29,7 @@ jobs:
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          python -m pip install cmake ninja numpy cffi openzl pytest pytest-cov anybadge ruff mypy
+          python -m pip install cmake ninja numpy cffi openzl pytest pytest-cov anybadge ruff mypy "zarr>=3.1"
 
       # FULL=ON or libgeozl is missing and geozl.compress cannot run at all.
       - name: Build the library and install geozl
