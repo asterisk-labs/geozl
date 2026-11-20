@@ -7,6 +7,7 @@
 #include "quant_log/quant_log_dtype.h"
 #include "quant_sqrt/quant_sqrt_dtype.h"
 
+#include <limits.h>
 #include <stdio.h>
 
 static int failures = 0;
@@ -77,6 +78,12 @@ int main(void) {
     if (d >= GEOZL_DT_F16)
       eq_double("value_lo", d, lo, quant_log_value_lo(d), "linear", "log");
   }
+
+  // A code from outside has no width rather than one read past the table.
+  const int outside[4] = {-1, GEOZL_DT_F64 + 1, INT_MIN, INT_MAX};
+  for (int k = 0; k < 4; ++k)
+    eq_size("width", outside[k], geozl_dtype_width(outside[k]), 0, "geozl",
+            "none");
 
   if (failures != 0) {
     printf("FAIL, %d disagreement(s)\n", failures);

@@ -30,8 +30,9 @@ int geozl_owns_ctid(uint32_t ctid);
 int geozl_ctid_is_lossy(uint32_t ctid);
 ```
 
-Node builders (return `ZL_NODE_ILLEGAL` on failure; `width` in samples; invalid plane
-layouts are treated as one plane):
+Node builders (return `ZL_NODE_ILLEGAL` on failure; `width` in samples, 0 or a width
+above the stream's length is one row, and a predictor fails to encode a stream of partial
+rows; planes that do not split into whole rows are one plane):
 
 ```c
 ZL_NodeID geozl_node_delta_w(ZL_Compressor *c, uint32_t width);
@@ -59,9 +60,11 @@ ZL_NodeID geozl_node_quant(ZL_Compressor *c, const char *error, uint32_t width, 
                            const void *src, size_t numElts, char *errCtx, size_t errCtxSize);
 
 typedef enum { GEOZL_NODATA_NONE = 0, GEOZL_NODATA_NAN = 1, GEOZL_NODATA_VALUE = 2 } geozl_nodata_mode;
-// VALUE mode needs the sample dtype. The radius is the maximum error of the
-// following stages: use 0 for lossless and INFINITY when it is unknown. In NAN
-// mode, 0 keeps distinct NaN payloads and any other value masks every NaN.
+// VALUE mode needs the sample dtype. The geozl_2d_* calls refuse NAN with an
+// integer dtype and VALUE with a dtype whose width is not eltWidth. The radius is
+// the maximum error of the following stages: use 0 for lossless and INFINITY when
+// it is unknown. In NAN mode, 0 keeps distinct NaN payloads and any other value
+// masks every NaN.
 ZL_NodeID geozl_node_nodata(ZL_Compressor *c, uint32_t width, geozl_nodata_mode mode, uint64_t valueBits, int dtype, double radius);
 ```
 
@@ -72,15 +75,15 @@ High-level raster API (the same engine the Python `profile`, `graph`, `compress`
 | --- | --- |
 | `geozl_2d_compress_c(method, width, planes, error, dtype, nodataMode, nodataBits, src, numElts, eltWidth, dst, dstCapacity, &outSize, errCtx, errCtxSize)` | one-shot compress |
 | `geozl_2d_graph_open_c(&g, method, width, planes, error, dtype, nodataMode, nodataBits, src, numElts, eltWidth, errCtx, errCtxSize)` | build a reusable graph; `src` fixes the lossy grid and the tiles it accepts |
-| `geozl_2d_compress_graph_c(g, src, numElts, dst, dstCapacity, &outSize, errCtx, errCtxSize)` | compress one tile |
+| `geozl_2d_compress_graph_c(g, src, numElts, dst, dstCapacity, &outSize, errCtx, errCtxSize)` | compress one tile; a 2D predictor refuses a tile longer than one row that is not whole rows |
 | `geozl_2d_compress_coeffs_c(g, src, numElts, coeffs, coeffsSize, dst, ...)` | same, attaching a `geozl_coeffs_pack` blob |
 | `geozl_2d_graph_close_c(g)` | free; accepts `NULL` |
 | `geozl_2d_frame_dsize_c(frame, frameSize, &outSize)` | decompressed byte size into `outSize`; `0` on success (an empty frame gives size 0), a `ZL_ErrorCode` when unreadable |
 | `geozl_2d_compress_bound_c(srcSize, coeffsSize)` | largest frame a compress call writes for `srcSize` bytes and a `coeffsSize` blob (0 for none); 0 on overflow |
-| `geozl_2d_decompress_c(frame, frameSize, dst, dstCapacity, &outSize, verify, errCtx, errCtxSize)` | decode; `dst` must be 8-byte aligned |
+| `geozl_2d_decompress_c(frame, frameSize, dst, dstCapacity, &outSize, verify, errCtx, errCtxSize)` | decode; `dst` must be aligned to the frame's element width (8 bytes always suffices), which the call cannot check |
 | `geozl_2d_frame_coeffs_c(frame, frameSize, dst, dstCapacity, &outSize)` | copy the coefficient blob; `dst == NULL` queries the size; `-1` when absent |
 | `geozl_2d_bench_c(method, width, planes, error, dtype, nodataMode, nodataBits, src, numElts, eltWidth, reps, checksum, verify, &compSize, &encSec, &decSec, errCtx, errCtxSize)` | time one recipe |
-| `geozl_2d_grid_c(prior, eltWidth, names, stride, maxNames, &count)` | list recipe names for a prior (`""` for all, `"none"`) |
+| `geozl_2d_grid_c(prior, eltWidth, names, stride, maxNames, &count)` | list recipe names for a prior (`""` for all, `"none"`) into `stride`-byte slots; `-1` when `stride < GEOZL_2D_NAME_MAX` (48) |
 
 `error` is `NULL` or `""` for lossless, or a full recipe (`"LINEAR:MAX_ERROR=V"`,
 `"LOG:MAX_ERROR=P%"`, `"SQRT:MAX_ERROR=KN[,A=..,B=..]"`). The C API has no numeric
@@ -94,13 +97,18 @@ set so a caller can size and retry).
 
 ## 3. Error conventions
 
-- `geozl_2d_*` return `0` on success or a positive `ZL_ErrorCode`, with a message in
-  `errCtx`. Codes with OpenZL 0.3: `21` invalid parameter (unknown method, bad
-  recipe, lossy domain refusal), `30` graph invalid (recipe does not apply to the
-  element width), `55` node precondition (plain `entropy` on 4 or 8 bytes, tile size not
-  divisible by the row width). Match on the message, not the number. The Python, R and
+- `geozl_2d_*` return `0` on success or a positive `ZL_ErrorCode`, with a one-line
+  message in `errCtx`: GeoZL's reason, or OpenZL's code text with its reason and node
+  name, without the transform id or the stack trace. Codes with OpenZL 0.3: `21` invalid
+  parameter (unknown method, bad recipe, lossy domain refusal, a NULL, misaligned or
+  overflowing argument, a tile longer than one row that is not whole rows for a 2D
+  predictor), `30` graph invalid (recipe does not apply to the element width), `55` node
+  precondition (plain `entropy` on 4 or 8 bytes). Match on the message, not the number. The Python, R and
   Julia bindings carry the code on their error and treat 21 and 30 as an invalid
   request (a Python `ValueError`, a plain R error, a Julia `ArgumentError`).
+- After a failure `*outSize` is 0 and a failed open leaves `*out` `NULL`. `src` must be
+  aligned to its samples and may be `NULL` only when `numElts` is 0. A graph serves one
+  call at a time; distinct graphs are independent.
 - Node builders return `ZL_NODE_ILLEGAL`; check with `ZL_NodeID_isValid`.
 - OpenZL calls return `ZL_Report`; check `ZL_isError`, read details with
   `ZL_CCtx_getErrorContextString` or `ZL_DCtx_getErrorContextString`.
@@ -199,7 +207,8 @@ int roundtrip_u16(const uint16_t *tile, uint32_t width, size_t count) {
   if (ZL_isError(ds)) return 7;
   uint16_t *back = malloc(ZL_validResult(ds));
   ZL_OutputInfo info;
-  // geozl frames hold one numeric output, so use the typed call; dst must be 8-byte aligned
+  // geozl frames hold one numeric output, so use the typed call; dst must be aligned to the
+  // element width
   r = ZL_DCtx_decompressTyped(dctx, &info, back, ZL_validResult(ds), frame, fsize);
   int rc = ZL_isError(r) || memcmp(back, tile, count * sizeof(uint16_t)) != 0;
 

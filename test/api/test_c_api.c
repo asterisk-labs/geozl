@@ -1,11 +1,13 @@
 // The parts of geozl/geozl.h a C caller reaches without the 2d entry points,
-// which need OpenZL linked in and so cannot run from the Python tests.
+// which need OpenZL linked in and so cannot run from the Python tests, and the
+// 2d argument checks no binding can pass.
 
 #include "geozl/dtype.h"
 #include "geozl/geozl.h"
 
 #include "openzl/zl_compress.h"
 #include "openzl/zl_compressor.h"
+#include "openzl/zl_errors.h"
 #include "openzl/zl_input.h"
 #include "openzl/codecs/zl_entropy.h"
 
@@ -314,6 +316,328 @@ static void compress_bound_covers_noise(void) {
   free(noise);
 }
 
+// A refusal before OpenZL runs, with its reason in err.
+#define REFUSED(rc, err, needle)                                               \
+  do {                                                                         \
+    CHECK((rc) == ZL_ErrorCode_parameter_invalid);                             \
+    CHECK(strstr((err), (needle)) != NULL);                                    \
+    if (strstr((err), (needle)) == NULL)                                       \
+      printf("  wanted \"%s\", got \"%s\"\n", (needle), (err));                \
+  } while (0)
+
+static uint64_t any[N]; // aligned for every width, read as any dtype
+
+static const int dtype_of_width[9] = {-1, GEOZL_DT_U8, GEOZL_DT_U16, -1,
+                                      GEOZL_DT_U32, -1, -1, -1, GEOZL_DT_U64};
+
+// NaN mode reads samples as floats, so NaN-shaped integers became holes outside
+// a LINEAR bound. Value mode reads the sentinel at the dtype's width.
+static void nodata_modes_need_their_dtype(void) {
+  char err[256];
+  for (int d = GEOZL_DT_U8; d <= GEOZL_DT_LAST_INT; ++d) {
+    const char *recipes[2] = {NULL, "LINEAR:MAX_ERROR=2"};
+    for (int k = 0; k < 2; ++k) {
+      geozl_2d_graph *g = (geozl_2d_graph *)any;
+      const int rc = geozl_2d_graph_open_c(
+          &g, "planar>zigzag>pfor", W, 1, recipes[k], d, GEOZL_NODATA_NAN, 0,
+          any, N, geozl_dtype_width(d), err, sizeof err);
+      REFUSED(rc, err, "NaN nodata needs a float dtype");
+      CHECK(g == NULL);
+    }
+  }
+  for (int d = GEOZL_DT_F16; d <= GEOZL_DT_F64; ++d) {
+    geozl_2d_graph *g = NULL;
+    CHECK(geozl_2d_graph_open_c(&g, "id>zstd", W, 1, NULL, d,
+                                GEOZL_NODATA_NAN, 0, any, N,
+                                geozl_dtype_width(d), err, sizeof err) == 0);
+    geozl_2d_graph_close_c(g);
+  }
+  geozl_2d_graph *g = NULL;
+  int rc = geozl_2d_graph_open_c(&g, "id>zstd", W, 1, NULL, GEOZL_DT_U8,
+                                 GEOZL_NODATA_VALUE, 5, any, N, 2, err,
+                                 sizeof err);
+  REFUSED(rc, err, "a 1-byte type, but eltWidth is 2");
+  CHECK(g == NULL);
+  rc = geozl_2d_graph_open_c(&g, "id>zstd", W, 1, NULL, GEOZL_DT_U16,
+                             GEOZL_NODATA_VALUE, 5, any, N, 2, err, sizeof err);
+  CHECK(rc == 0);
+  geozl_2d_graph_close_c(g);
+}
+
+static void null_arguments_are_refused(void) {
+  static unsigned char frame[4096];
+  char err[256];
+  size_t n = 99;
+  CHECK(geozl_2d_graph_open_c(NULL, "id>zstd", W, 1, NULL, GEOZL_DT_U16,
+                              GEOZL_NODATA_NONE, 0, src, N, 2, err,
+                              sizeof err) == ZL_ErrorCode_parameter_invalid);
+  CHECK(strstr(err, "out is NULL") != NULL);
+  int rc = geozl_2d_compress_graph_c(NULL, src, N, frame, sizeof frame, &n, err,
+                                     sizeof err);
+  REFUSED(rc, err, "graph is NULL");
+  CHECK(n == 0);
+  n = 99;
+  rc = geozl_2d_compress_coeffs_c(NULL, src, N, NULL, 0, frame, sizeof frame,
+                                  &n, err, sizeof err);
+  REFUSED(rc, err, "graph is NULL");
+  CHECK(n == 0);
+
+  // OpenZL would read the samples, or count past size_t, before refusing.
+  geozl_2d_graph *g = (geozl_2d_graph *)any;
+  rc = geozl_2d_graph_open_c(&g, "id>zstd", W, 1, NULL, GEOZL_DT_U16,
+                             GEOZL_NODATA_NONE, 0, NULL, 5, 2, err, sizeof err);
+  REFUSED(rc, err, "src is NULL but numElts is 5");
+  CHECK(g == NULL);
+  rc = geozl_2d_graph_open_c(&g, "id>zstd", W, 1, NULL, GEOZL_DT_U16,
+                             GEOZL_NODATA_NONE, 0, src, SIZE_MAX / 2 + 1, 2,
+                             err, sizeof err);
+  REFUSED(rc, err, "overflow size_t");
+  n = 99;
+  rc = geozl_2d_compress_c("id>zstd", W, 1, NULL, GEOZL_DT_U16,
+                           GEOZL_NODATA_NONE, 0, NULL, 5, 2, frame,
+                           sizeof frame, &n, err, sizeof err);
+  REFUSED(rc, err, "src is NULL");
+  CHECK(n == 0);
+  size_t comp = 0;
+  double enc = 0, dec = 0;
+  rc = geozl_2d_bench_c("id>zstd", W, 1, NULL, GEOZL_DT_U16, GEOZL_NODATA_NONE,
+                        0, NULL, 5, 2, 1, 1, 1, &comp, &enc, &dec, err,
+                        sizeof err);
+  REFUSED(rc, err, "src is NULL");
+
+  CHECK(geozl_2d_graph_open_c(&g, "id>zstd", W, 1, NULL, GEOZL_DT_U16,
+                              GEOZL_NODATA_NONE, 0, src, N, 2, err,
+                              sizeof err) == 0);
+  rc = geozl_2d_compress_graph_c(g, NULL, 5, frame, sizeof frame, &n, err,
+                                 sizeof err);
+  REFUSED(rc, err, "src is NULL");
+  rc = geozl_2d_compress_graph_c(g, src, SIZE_MAX / 2 + 1, frame, sizeof frame,
+                                 &n, err, sizeof err);
+  REFUSED(rc, err, "overflow size_t");
+  rc = geozl_2d_compress_graph_c(g, src, N, NULL, 64, &n, err, sizeof err);
+  REFUSED(rc, err, "dst is NULL");
+  // OpenZL takes a misaligned stream for an allocation failure.
+  rc = geozl_2d_compress_graph_c(g, (const char *)src + 1, 16, frame,
+                                 sizeof frame, &n, err, sizeof err);
+  REFUSED(rc, err, "not aligned");
+  geozl_2d_graph_close_c(g);
+
+  n = 99;
+  rc = geozl_2d_decompress_c(NULL, 5, back, sizeof back, &n, 1, err,
+                             sizeof err);
+  REFUSED(rc, err, "frame is NULL");
+  CHECK(n == 0);
+  rc = geozl_2d_decompress_c(frame, sizeof frame, NULL, 5, &n, 1, err,
+                             sizeof err);
+  REFUSED(rc, err, "dst is NULL");
+  CHECK(geozl_2d_frame_dsize_c(NULL, 16, &n) == ZL_ErrorCode_parameter_invalid);
+  CHECK(geozl_2d_frame_coeffs_c(NULL, 16, NULL, 0, &n) ==
+        ZL_ErrorCode_parameter_invalid);
+
+  // A lossy open fits src, reading its samples before any compress.
+  g = (geozl_2d_graph *)any;
+  rc = geozl_2d_graph_open_c(&g, "id>zstd", W, 1, "LINEAR:MAX_ERROR=2",
+                             GEOZL_DT_U16, GEOZL_NODATA_NONE, 0,
+                             (const char *)src + 1, 16, 2, err, sizeof err);
+  REFUSED(rc, err, "not aligned");
+  CHECK(g == NULL);
+
+  // A byte frame needs no alignment.
+  size_t size = 0;
+  CHECK(geozl_2d_compress_c("id>zstd", W, 1, NULL, GEOZL_DT_U8,
+                            GEOZL_NODATA_NONE, 0, src, 64, 1, frame,
+                            sizeof frame, &size, err, sizeof err) == 0);
+  CHECK(geozl_2d_decompress_c(frame, size, (char *)any + 1, 64, &n, 1, err,
+                              sizeof err) == 0);
+  CHECK(n == 64);
+}
+
+// (NULL, 0) is an empty tile, the same frame as any other pointer with 0.
+static void an_empty_tile_needs_no_pointer(void) {
+  static unsigned char a[256], b[256];
+  char err[256];
+  const char *recipes[2] = {NULL, "LOG:MAX_ERROR=1%"};
+  for (int k = 0; k < 2; ++k) {
+    size_t na = 99, nb = 99;
+    const int ra = geozl_2d_compress_c("planar>zigzag>pfor", 4, 1, recipes[k],
+                                       GEOZL_DT_U16, GEOZL_NODATA_NONE, 0,
+                                       NULL, 0, 2, a, sizeof a, &na, err,
+                                       sizeof err);
+    const int rb = geozl_2d_compress_c("planar>zigzag>pfor", 4, 1, recipes[k],
+                                       GEOZL_DT_U16, GEOZL_NODATA_NONE, 0, any,
+                                       0, 2, b, sizeof b, &nb, err, sizeof err);
+    CHECK(ra == 0 && rb == 0);
+    CHECK(na == nb && memcmp(a, b, na) == 0);
+    size_t got = 99;
+    CHECK(geozl_2d_decompress_c(a, na, NULL, 0, &got, 1, err, sizeof err) ==
+              0 &&
+          got == 0);
+  }
+
+  geozl_2d_graph *g = NULL;
+  CHECK(geozl_2d_graph_open_c(&g, "planar>zigzag>pfor", 4, 1, NULL,
+                              GEOZL_DT_U16, GEOZL_NODATA_NONE, 0, NULL, 0, 2,
+                              err, sizeof err) == 0);
+  size_t n = 99;
+  CHECK(geozl_2d_compress_graph_c(g, NULL, 0, a, sizeof a, &n, err,
+                                  sizeof err) == 0 &&
+        n != 0);
+  geozl_2d_graph_close_c(g);
+  size_t comp = 0;
+  double enc = 0, dec = 0;
+  CHECK(geozl_2d_bench_c("id>zstd", 4, 1, NULL, GEOZL_DT_U16,
+                         GEOZL_NODATA_NONE, 0, NULL, 0, 2, 1, 1, 1, &comp,
+                         &enc, &dec, err, sizeof err) == 0);
+
+  // OpenZL decodes a NULL dst into a buffer of its own and drops it.
+  static unsigned char frame[4096];
+  CHECK(geozl_2d_compress_c("id>zstd", W, 1, NULL, GEOZL_DT_U16,
+                            GEOZL_NODATA_NONE, 0, src, 64, 2, frame,
+                            sizeof frame, &n, err, sizeof err) == 0);
+  size_t got = 99;
+  CHECK(geozl_2d_decompress_c(frame, n, NULL, 0, &got, 1, err, sizeof err) ==
+            ZL_ErrorCode_dstCapacity_tooSmall &&
+        got == 0);
+}
+
+// Every 2D predictor fails on a partial row, and before OpenZL it says so
+// instead of naming a node.
+static void a_partial_row_is_refused(void) {
+  static char names[128 * GEOZL_2D_NAME_MAX];
+  static unsigned char frame[4096];
+  char err[256];
+  size_t count = 0;
+  CHECK(geozl_2d_grid_c(NULL, 2, names, GEOZL_2D_NAME_MAX, 128, &count) == 0);
+  for (size_t i = 0; i < count && i < 128; ++i) {
+    const char *name = names + i * GEOZL_2D_NAME_MAX;
+    const int rows = strncmp(name, "id>", 3) != 0 &&
+                     strncmp(name, "delta_1d>", 9) != 0;
+    geozl_2d_graph *g = NULL;
+    CHECK(geozl_2d_graph_open_c(&g, name, 7, 1, NULL, GEOZL_DT_U16,
+                                GEOZL_NODATA_NONE, 0, src, 98, 2, err,
+                                sizeof err) == 0);
+    size_t n = 99;
+    const int rc = geozl_2d_compress_graph_c(g, src, 100, frame, sizeof frame,
+                                             &n, err, sizeof err);
+    if (rows) {
+      CHECK(rc == ZL_ErrorCode_parameter_invalid && n == 0 &&
+            strcmp(err, "100 samples do not divide into rows of 7") == 0);
+    } else {
+      CHECK(rc == 0);
+    }
+    if (rows ? rc != ZL_ErrorCode_parameter_invalid : rc != 0)
+      printf("  %s: %d \"%s\"\n", name, rc, err);
+    geozl_2d_graph_close_c(g);
+  }
+  // 0 and a width past the tile are one row.
+  const uint32_t widths[3] = {0, 1000, 10};
+  for (int k = 0; k < 3; ++k) {
+    size_t n = 0;
+    CHECK(geozl_2d_compress_c("planar>zigzag>pfor", widths[k], 1, NULL,
+                              GEOZL_DT_U16, GEOZL_NODATA_NONE, 0, src, 100, 2,
+                              frame, sizeof frame, &n, err, sizeof err) == 0);
+  }
+}
+
+static void one_line(int rc, const char *err) {
+  const char *code = ZL_ErrorCode_toString((ZL_ErrorCode)rc);
+  CHECK(strncmp(err, code, strlen(code)) == 0);
+  CHECK(strpbrk(err, "\n\t%") == NULL);
+  CHECK(strstr(err, "Stack Trace") == NULL);
+  CHECK(strstr(err, "Transform ID") == NULL);
+  CHECK(strstr(err, "openzl/src") == NULL);
+  if (strncmp(err, code, strlen(code)) != 0 || strpbrk(err, "\n\t%") != NULL)
+    printf("  rc %d: \"%s\"\n", rc, err);
+}
+
+// OpenZL's context holds a stack trace with build paths, but a message is the
+// code, the reason and the node.
+static void openzl_messages_are_one_line(void) {
+  static unsigned char frame[1 << 15], bad[1 << 15];
+  char err[256];
+  size_t n = 0;
+  CHECK(geozl_2d_compress_c("planar>zigzag>pfor", 64, 1, NULL, GEOZL_DT_U16,
+                            GEOZL_NODATA_NONE, 0, src, 64 * 64, 2, frame,
+                            sizeof frame, &n, err, sizeof err) == 0);
+  size_t got = 99;
+  int rc = geozl_2d_decompress_c(frame, n - 3, back, sizeof back, &got, 1, err,
+                                 sizeof err);
+  CHECK(rc == ZL_ErrorCode_srcSize_tooSmall && got == 0);
+  one_line(rc, err);
+  rc = geozl_2d_decompress_c(frame, n, back, 10, &got, 1, err, sizeof err);
+  CHECK(rc == ZL_ErrorCode_dstCapacity_tooSmall);
+  one_line(rc, err);
+  const unsigned char junk[64] = {1, 2, 3, 4};
+  rc = geozl_2d_decompress_c(junk, sizeof junk, back, sizeof back, &got, 1, err,
+                             sizeof err);
+  CHECK(rc != 0);
+  one_line(rc, err);
+  size_t small = 99;
+  rc = geozl_2d_compress_c("id>entropy", W, 1, NULL, GEOZL_DT_U16,
+                           GEOZL_NODATA_NONE, 0, src, N, 2, bad, 3, &small, err,
+                           sizeof err);
+  CHECK(rc == ZL_ErrorCode_dstCapacity_tooSmall && small == 0);
+  one_line(rc, err);
+
+  // Damaged headers reach the codecs, whose refusals name their node.
+  int named = 0;
+  for (size_t at = 0; at < 64; ++at) {
+    for (int bit = 0; bit < 8; bit += 2) {
+      memcpy(bad, frame, n);
+      bad[at] ^= (unsigned char)(1u << bit);
+      rc = geozl_2d_decompress_c(bad, n, back, sizeof back, &got, 0, err,
+                                 sizeof err);
+      if (rc == 0)
+        continue;
+      one_line(rc, err);
+      named |= strstr(err, "(node geozl.lossless.") != NULL;
+    }
+  }
+  CHECK(named);
+
+  // GeoZL's own reasons are no longer cut at 191 bytes.
+  char recipe[300], wide[512];
+  memset(recipe, 'x', sizeof recipe - 1);
+  memcpy(recipe, "CUBE:", 5);
+  recipe[sizeof recipe - 1] = '\0';
+  rc = geozl_2d_compress_c("id>zstd", W, 1, recipe, GEOZL_DT_U16,
+                           GEOZL_NODATA_NONE, 0, src, N, 2, frame, sizeof frame,
+                           &n, wide, sizeof wide);
+  CHECK(rc == ZL_ErrorCode_parameter_invalid && strlen(wide) > 300 &&
+        strstr(wide, "each followed by a colon") != NULL);
+}
+
+// Every name fits a GEOZL_2D_NAME_MAX slot with room to spare, so none was cut,
+// and a shorter slot is refused rather than cut.
+static void grid_names_fit_their_slots(void) {
+  static char names[128 * GEOZL_2D_NAME_MAX];
+  char err[256];
+  for (size_t w = 1; w <= 8; w *= 2) {
+    size_t count = 0;
+    CHECK(geozl_2d_grid_c(NULL, w, names, GEOZL_2D_NAME_MAX, 128, &count) ==
+          0);
+    CHECK(count > 0 && count <= 128);
+    for (size_t i = 0; i < count && i < 128; ++i) {
+      const char *name = names + i * GEOZL_2D_NAME_MAX;
+      CHECK(strlen(name) + 1 < GEOZL_2D_NAME_MAX);
+      geozl_2d_graph *g = NULL;
+      const int rc = geozl_2d_graph_open_c(&g, name, W, 1, NULL,
+                                           dtype_of_width[w], GEOZL_NODATA_NONE,
+                                           0, any, N, w, err, sizeof err);
+      CHECK(rc == 0);
+      if (rc != 0)
+        printf("  %s: %s\n", name, err);
+      geozl_2d_graph_close_c(g);
+    }
+  }
+  size_t count = 7;
+  CHECK(geozl_2d_grid_c(NULL, 2, names, GEOZL_2D_NAME_MAX - 1, 128, &count) ==
+            -1 &&
+        count == 7);
+  CHECK(geozl_2d_grid_c(NULL, 2, NULL, GEOZL_2D_NAME_MAX, 128, &count) == -1);
+  CHECK(geozl_2d_grid_c("planar", 2, NULL, 0, 0, &count) == 0 && count > 0);
+}
+
 int main(void) {
   fill();
   node_quant_matches_the_2d_path("LINEAR:MAX_ERROR=2", 2.0);
@@ -330,6 +654,12 @@ int main(void) {
   quant_builders_take_valid_parameters();
   frame_dsize_tells_empty_from_unreadable();
   compress_bound_covers_noise();
+  nodata_modes_need_their_dtype();
+  null_arguments_are_refused();
+  an_empty_tile_needs_no_pointer();
+  a_partial_row_is_refused();
+  openzl_messages_are_one_line();
+  grid_names_fit_their_slots();
   if (failures != 0) {
     printf("test_c_api: %d failures\n", failures);
     return 1;

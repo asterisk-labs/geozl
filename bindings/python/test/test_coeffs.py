@@ -67,7 +67,7 @@ def test_failed_compression_clears_coeffs(tile, graph):
     odd = odd[:tile.nbytes].view(tile.dtype)
     assert odd.ctypes.data % tile.dtype.itemsize != 0
 
-    with pytest.raises(RuntimeError, match="numeric stream"):
+    with pytest.raises(ValueError, match="not aligned to its 2-byte samples"):
         geozl.compress(odd, graph=graph, coeffs=VECTORS)
 
     after = geozl.compress(tile, graph=graph)

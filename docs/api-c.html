@@ -85,7 +85,7 @@ make lib        # core/build/libgeozl, with OpenZL linked in</code></pre>
       <p>Include <a href="https://github.com/asterisk-labs/geozl/blob/main/core/include/geozl/geozl.h" rel="noopener noreferrer"><code>geozl/geozl.h</code></a> for compression, <a href="https://github.com/asterisk-labs/geozl/blob/main/core/include/geozl/coeffs.h" rel="noopener noreferrer"><code>geozl/coeffs.h</code></a> for coefficients and <a href="https://github.com/asterisk-labs/geozl/blob/main/core/include/geozl/gpu.h" rel="noopener noreferrer"><code>geozl/gpu.h</code></a> for GPU decode. The CMake project in <a href="https://github.com/asterisk-labs/geozl/tree/main/core" rel="noopener noreferrer"><code>core/</code></a> also installs the headers and the library.</p>
 
       <h2 class="part" id="types">Types and errors</h2>
-      <p>Most operations in <code>geozl.h</code> return 0 on success and a <code>ZL_ErrorCode</code> on failure. Calls with <code>errCtx</code> also write an error message there. Functions with different return conventions document them in their entries below, and GPU failures use the caller's error buffer. The headers are the supported source API. Before 1.0 they may change in any release, as <a href="https://github.com/asterisk-labs/geozl/blob/main/docs/c-api.md" rel="noopener noreferrer">C API stability</a> sets out.</p>
+      <p>Most operations in <code>geozl.h</code> return 0 on success and a <code>ZL_ErrorCode</code> on failure. Calls with <code>errCtx</code> also write a one-line message there: GeoZL's reason, or OpenZL's error text with its reason and node when it gives them. A failed call leaves <code>*outSize</code> at 0 and a failed open leaves <code>*out</code> <code>NULL</code>, and <code>src</code> must be aligned to its samples and may be <code>NULL</code> only when <code>numElts</code> is 0. Functions with different return conventions document them in their entries below, and GPU failures use the caller's error buffer. The headers are the supported source API. Before 1.0 they may change in any release, as <a href="https://github.com/asterisk-labs/geozl/blob/main/docs/c-api.md" rel="noopener noreferrer">C API stability</a> sets out.</p>
 <pre><code class="language-c">typedef enum {
   GEOZL_DT_U8 = 0, GEOZL_DT_U16 = 1, GEOZL_DT_U32 = 2, GEOZL_DT_U64 = 3,
   GEOZL_DT_I8 = 4, GEOZL_DT_I16 = 5, GEOZL_DT_I32 = 6, GEOZL_DT_I64 = 7,
@@ -97,7 +97,7 @@ typedef enum {
   GEOZL_NODATA_NAN = 1,
   GEOZL_NODATA_VALUE = 2
 } geozl_nodata_mode;</code></pre>
-      <p>A <code>dtype</code> argument takes a <code>geozl_dtype</code> code, which is part of the wire format. NaN mode applies to floating point data and value mode masks the sentinel given as bits.</p>
+      <p>A <code>dtype</code> argument takes a <code>geozl_dtype</code> code, which is part of the wire format. NaN mode applies to floating point data and value mode masks the sentinel given as bits. The <code>geozl_2d_*</code> calls refuse NaN mode with an integer <code>dtype</code> and value mode with a <code>dtype</code> whose width is not <code>eltWidth</code>.</p>
 
       <h2 class="part" id="c-2d">One-shot compression</h2>
 <pre><code class="proto language-c">int geozl_2d_compress_c(const char *method, uint32_t width, uint32_t planes,
@@ -115,7 +115,7 @@ typedef enum {
 <pre><code class="proto language-c">int geozl_2d_decompress_c(const void *frame, size_t frameSize, void *dst,
                           size_t dstCapacity, size_t *outSize, int verify,
                           char *errCtx, size_t errCtxSize);</code></pre>
-      <p>Decompresses a frame into <code>dst</code>, which must be 8-byte aligned. <code>verify</code> set to 0 skips checksum verification.</p>
+      <p>Decompresses a frame into <code>dst</code>, which must be aligned to the frame's element width; 8 bytes always suffices. The frame header does not record that width, so the call cannot check it. <code>verify</code> set to 0 skips checksum verification.</p>
 <pre><code class="proto language-c">int geozl_2d_bench_c(const char *method, uint32_t width, uint32_t planes,
                      const char *error, int dtype, int nodataMode,
                      uint64_t nodataBits, const void *src, size_t numElts,
@@ -125,7 +125,7 @@ typedef enum {
       <p>Times <code>reps</code> round trips of one recipe and reports the frame size and the fastest encode and decode, in seconds. <code>checksum</code> controls the frame checksums and <code>verify</code> their check during decode.</p>
 <pre><code class="proto language-c">int geozl_2d_grid_c(const char *prior, size_t eltWidth, char *names,
                     size_t stride, size_t maxNames, size_t *outCount);</code></pre>
-      <p>Writes the recipe names <code>profile</code> sweeps, one per <code>stride</code>-byte slot, for the sample width. <code>prior</code> is a prior as in <code>profile</code>, with <code>NULL</code> or <code>""</code> for all predictors. Returns -1 for an unknown prior.</p>
+      <p>Writes the recipe names <code>profile</code> sweeps, one per <code>stride</code>-byte slot, for the sample width. <code>prior</code> is a prior as in <code>profile</code>, with <code>NULL</code> or <code>""</code> for all predictors. A slot of <code>GEOZL_2D_NAME_MAX</code> (48) bytes holds any name. Returns -1 for an unknown prior, and for a <code>stride</code> below <code>GEOZL_2D_NAME_MAX</code> or <code>NULL</code> <code>names</code> when <code>maxNames</code> is nonzero.</p>
 
       <h2 class="part" id="c-graphs">Graphs</h2>
 <pre><code class="language-c">typedef struct geozl_2d_graph_s geozl_2d_graph;</code></pre>
@@ -135,7 +135,7 @@ typedef enum {
                           uint64_t nodataBits, const void *src,
                           size_t numElts, size_t eltWidth, char *errCtx,
                           size_t errCtxSize);</code></pre>
-      <p>Opens a reusable graph, the C side of <code>geozl.graph</code>. <code>src</code> fixes the lossy grid, and a later tile the grid cannot hold to its bound is refused before compression, as <a href="api-python.html#compress"><code>compress</code></a> describes.</p>
+      <p>Opens a reusable graph, the C side of <code>geozl.graph</code>. <code>src</code> fixes the lossy grid, and a later tile the grid cannot hold to its bound is refused before compression, as <a href="api-python.html#compress"><code>compress</code></a> describes. A graph serves one call at a time, and distinct graphs are independent.</p>
 <pre><code class="proto language-c">int geozl_2d_compress_graph_c(geozl_2d_graph *g, const void *src,
                               size_t numElts, void *dst, size_t dstCapacity,
                               size_t *outSize, char *errCtx,
@@ -145,7 +145,7 @@ int geozl_2d_compress_coeffs_c(geozl_2d_graph *g, const void *src,
                                size_t coeffsSize, void *dst,
                                size_t dstCapacity, size_t *outSize,
                                char *errCtx, size_t errCtxSize);</code></pre>
-      <p>Compress one tile with an open graph, which supplies the sample width. The second attaches a blob from <code>geozl_coeffs_pack</code> to this frame only. <code>NULL</code> and 0 write a frame without one. A declared sentinel is left out of the domain check.</p>
+      <p>Compress one tile with an open graph, which supplies the sample width. The second attaches a blob from <code>geozl_coeffs_pack</code> to this frame only. <code>NULL</code> and 0 write a frame without one. A declared sentinel is left out of the domain check. A predictor that reads rows refuses a tile longer than one row that is not whole rows of the graph's width.</p>
 <pre><code class="proto language-c">void geozl_2d_graph_close_c(geozl_2d_graph *g);</code></pre>
       <p>Frees a graph. Accepts <code>NULL</code>.</p>
 <pre><code class="proto language-c">int geozl_2d_frame_coeffs_c(const void *frame, size_t frameSize, void *dst,
@@ -178,7 +178,7 @@ ZL_NodeID geozl_node_wp_static(ZL_Compressor *c, uint32_t width,
                                uint32_t planes);
 ZL_NodeID geozl_node_deinterleave(ZL_Compressor *c);
 ZL_NodeID geozl_node_pfor(ZL_Compressor *c);</code></pre>
-      <p>Build an encoder node in a compressor, or return <code>ZL_NODE_ILLEGAL</code>. <code>width</code> is in samples and <code>planes</code> counts stacked images, with an invalid plane layout treated as one plane. <code>lanes</code> splits samples into byte lanes coded with PivCo or PFOR, and <code>planar_zigzag_lanes</code> runs planar and zigzag first.</p>
+      <p>Build an encoder node in a compressor, or return <code>ZL_NODE_ILLEGAL</code>. <code>width</code> is in samples, and 0 or a width above the stream's length is one row. A predictor fails to encode a stream of partial rows. <code>planes</code> counts stacked images, and planes that do not split into whole rows are one plane. <code>lanes</code> splits samples into byte lanes coded with PivCo or PFOR, and <code>planar_zigzag_lanes</code> runs planar and zigzag first.</p>
 <pre><code class="proto language-c">ZL_NodeID geozl_node_quant_linear(ZL_Compressor *c,
                                   const quant_linear_params *params,
                                   int dtype);

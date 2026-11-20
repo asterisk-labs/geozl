@@ -67,8 +67,8 @@ skipped. When none survive, `profile` raises `GeoZLError` with the first reason,
 | --- | --- | --- |
 | `TypeError: graph must be a geozl.Graph, got str` | recipe passed to `compress` | `compress(tile, geozl.graph(sample, recipe))` |
 | `ValueError: this graph was built for dtype uint16, got int16` | dtype differs, even only in sign | build a graph per dtype or cast |
-| `geozl._error.GeoZLError: geozl.compress failed (...): Code: Input does not respect conditions for this node` with `eltWidth != 2` in the message (ZL error code 55) | plain `entropy` terminal on 4 or 8 byte elements | pick a transpose, zstd, field_lz or pfor recipe |
-| `geozl._error.GeoZLError: geozl.compress failed (...): Code: Input does not respect conditions for this node ... Transform ID: ...` (ZL error code 55) with a predictor recipe | tile sample count not a multiple of the graph's row width | build a graph with this tile's column count |
+| `geozl._error.GeoZLError: geozl.compress failed (...): Input does not respect conditions for this node` with `eltWidth != 2` in the message (ZL error code 55) | plain `entropy` terminal on 4 or 8 byte elements | pick a transpose, zstd, field_lz or pfor recipe |
+| `geozl._error._InvalidError: geozl.compress failed (...): N samples do not divide into rows of W` (ZL error code 21) with a predictor recipe | tile sample count not a multiple of the graph's row width | build a graph with this tile's column count |
 | `geozl._error._InvalidError: ... the lossy graph was built without negative samples, but this tile contains them; build the graph from the full product` | domain frozen at `graph()` | build from data spanning the product |
 | `geozl._error._InvalidError: ... built for magnitudes up to A, but this tile reaches B` | float LINEAR domain | same |
 | `geozl._error._InvalidError: ... built for values from lo to hi, but this tile reaches ...` | SQRT domain | same |
@@ -96,9 +96,9 @@ Silent outcomes with no error, worth checking when results look wrong:
 | Message (excerpt) | Cause | Fix |
 | --- | --- | --- |
 | `geozl._error.GeoZLError: geozl.decompress: unreadable frame` | not an OpenZL frame, or the size field is unreadable | check the bytes and offsets you stored |
-| `geozl._error.GeoZLError: geozl.decompress failed: Code: Source size too small` | truncated frame | fix storage or range reads |
-| `geozl._error.GeoZLError: geozl.decompress failed: Code: Compressed checksum mismatch` on flipped bytes | checksum or corruption detection | the frame is damaged; `verify=False` will not repair it |
-| `geozl._error.GeoZLError: geozl.decompress failed: Code: Graph invalid ... Custom decoder transform 7526160 not found!` | the reader lacks that codec | section 2 |
+| `geozl._error.GeoZLError: geozl.decompress failed: Source size too small` | truncated frame | fix storage or range reads |
+| `geozl._error.GeoZLError: geozl.decompress failed: Compressed checksum mismatch` on flipped bytes | checksum or corruption detection | the frame is damaged; `verify=False` will not repair it |
+| `geozl._error.GeoZLError: geozl.decompress failed: Graph invalid: ... Custom decoder transform 7526160 not found!` | the reader lacks that codec | section 2 |
 | `geozl._error.GeoZLError: geozl.decompress: the frame held N bytes, not M` | the frame decoded to fewer bytes than it declares | treat the frame as damaged |
 | `ValueError: geozl.decompress: the frame declares N bytes of output, above the M allowed` | `max_output_size` guard | raise the limit only for trusted frames |
 | `TypeError: verify must be a boolean` | `verify=1` and similar | pass `True` or `False` |

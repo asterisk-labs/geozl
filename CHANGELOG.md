@@ -7,13 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking
+
+- `geozl_2d_*` errors are one line: the code text, the reason and the node.
+  OpenZL's transform id and stack trace, which carried build-machine paths,
+  are gone, so code that matched the old "Code:" lines must match the new text.
+- `geozl_2d_grid_c` returns -1 when it would write names into slots shorter
+  than the new `GEOZL_2D_NAME_MAX`, instead of cutting them short.
+- `geozl_2d_graph_open_c` refuses NaN nodata with an integer dtype, which the
+  bindings already refused and which silently broke a lossy bound.
+
+### Added
+
+- `GEOZL_2D_NAME_MAX` in `geozl.h`, the slot size that holds any recipe name.
+
 ### Changed
 
 - The codec guides now show Python, R and Julia side by side. A new walkthrough
   covers the full round trip, and the release checks its runnable examples.
+- `geozl.h` states the alignment, NULL and threading rules of the
+  `geozl_2d_*` calls.
 
 ### Fixed
 
+- `geozl_2d_graph_open_c` refuses value nodata whose dtype width is not
+  `eltWidth`, which failed every tile.
+- The `geozl_2d_*` calls refuse NULL handles and NULL buffers with a size
+  instead of crashing, accept a NULL `src` for an empty tile, and set
+  `*outSize` to 0 on failure.
+- A tile longer than one row that is not whole rows for a row predictor is
+  code 21 with a reason instead of 55, and a `src` not aligned to its samples
+  is code 21 instead of 70, also when a graph opens.
+- `geozl_dtype_width` returns 0 for an unknown code instead of reading past
+  its table.
 - The quantizer node builders refuse NULL arguments and parameters their codec
   would reject, and every node builder refuses a NULL compressor.
 - The binding fuzzer turns off store on expansion, so its frames reach the
