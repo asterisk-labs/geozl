@@ -1,5 +1,7 @@
 // Wrap fuzzed GeoZL headers and streams in valid OpenZL frames.
 
+#include "fuzzer.h"
+
 #include "geozl/geozl.h"
 
 #include "openzl/codecs/zl_store.h"

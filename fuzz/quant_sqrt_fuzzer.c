@@ -1,3 +1,5 @@
+#include "fuzzer.h"
+
 #include "quant_sqrt/decode_quant_sqrt_kernel.h"
 #include "quant_sqrt/encode_quant_sqrt_kernel.h"
 #include "quant_sqrt/quant_sqrt_dtype.h"

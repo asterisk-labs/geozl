@@ -1,3 +1,5 @@
+#include "fuzzer.h"
+
 #include "quant_log/decode_quant_log_kernel.h"
 #include "quant_log/encode_quant_log_kernel.h"
 #include "quant_log/quant_log_dtype.h"

@@ -1,3 +1,5 @@
+#include "fuzzer.h"
+
 #include "quant_linear/decode_quant_linear_kernel.h"
 #include "quant_linear/encode_quant_linear_kernel.h"
 #include "quant_linear/quant_linear_dtype.h"

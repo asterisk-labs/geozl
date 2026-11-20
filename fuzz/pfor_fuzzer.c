@@ -1,5 +1,7 @@
 // The first byte selects the element width and round-trip or decode-only mode.
 
+#include "fuzzer.h"
+
 #include "pfor/decode_pfor_kernel.h"
 #include "pfor/encode_pfor_kernel.h"
 #include "pfor/pfor_check.h"

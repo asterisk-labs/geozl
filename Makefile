@@ -127,9 +127,10 @@ CTEST_CFLAGS  := -std=c11 $(CTEST_OPT) -g -ffp-contract=off -Wall -Wextra \
 ifeq ($(SAN),ON)
   # float-cast-overflow is not part of undefined in gcc, and a double that does
   # not fit the integer it is cast to is exactly how a forged parameter block
-  # reaches undefined behaviour.
+  # reaches undefined behaviour. Without no-recover a UBSan report only prints
+  # and the test still passes.
   CTEST_CFLAGS += -fsanitize=address,undefined,float-cast-overflow \
-                  -fno-omit-frame-pointer
+                  -fno-sanitize-recover=all -fno-omit-frame-pointer
 endif
 ifeq ($(OS),Windows_NT)
   CTEST_LIBS := -lm

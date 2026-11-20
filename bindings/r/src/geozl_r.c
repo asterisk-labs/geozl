@@ -20,6 +20,15 @@
 
 #define ERR_SIZE 256
 
+// As in core/src/common/printf_attr.h, which is not on this include path.
+#if defined(__MINGW32__) && !defined(__clang__)
+#define GEOZL_PRINTF(fmt, first) __attribute__((format(gnu_printf, fmt, first)))
+#elif defined(__GNUC__) || defined(__clang__)
+#define GEOZL_PRINTF(fmt, first) __attribute__((format(printf, fmt, first)))
+#else
+#define GEOZL_PRINTF(fmt, first)
+#endif
+
 // Match stop(call. = FALSE) for invalid arguments.
 #define fail(...) Rf_errorcall(R_NilValue, __VA_ARGS__)
 
@@ -52,6 +61,7 @@ static SEXP refusal(int what, int code, const char *msg) {
 }
 
 // Size the message for method names of arbitrary length.
+GEOZL_PRINTF(3, 4)
 static void refuse(int what, int code, const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);

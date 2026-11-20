@@ -48,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its table.
 - The quantizer node builders refuse NULL arguments and parameters their codec
   would reject, and every node builder refuses a NULL compressor.
+- GeoZL no longer sets the build type of a project that adds it with
+  `add_subdirectory`. The bundled zstd still sets an empty one to `Release`.
 - The binding fuzzer turns off store on expansion, so its frames reach the
   GeoZL decoders.
 - GPU decoding: a failed call no longer fails the next valid call with its own

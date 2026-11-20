@@ -1,3 +1,5 @@
+#include "fuzzer.h"
+
 #include "geozl/geozl.h"
 
 #include "openzl/zl_common_types.h" // ZL_TernaryParam_disable

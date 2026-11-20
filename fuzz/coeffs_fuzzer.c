@@ -1,3 +1,5 @@
+#include "fuzzer.h"
+
 #include "geozl/coeffs.h"
 
 #include <stddef.h>

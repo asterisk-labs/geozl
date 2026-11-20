@@ -226,9 +226,11 @@ packing, so the cross-reader test can compare two independent bindings.
 
 ## 8. Conventions
 
-- C11, `-Wall -Wextra` on geozl targets (`GEOZL_WERROR=ON` in CI), hidden visibility with
-  `GEOZL_API` on public symbols, `-ffp-contract=off` everywhere so reconstructions are
-  bit identical across CPUs.
+- C11, `GEOZL_WARN` (`-Wall -Wextra` and a stricter set, `core/CMakeLists.txt`) on geozl
+  targets and fuzzers (`GEOZL_WERROR=ON` in CI), `GEOZL_PRINTF` from
+  `common/printf_attr.h` on printf-like helpers, hidden visibility with `GEOZL_API` on
+  public symbols, `-ffp-contract=off` everywhere so reconstructions are bit identical
+  across CPUs.
 - Wire integers are little endian; never write native structs.
 - Kernels return `int` (nonzero refuses the geometry) unless nothing can be refused.
 - SIMD: runtime dispatch through `geozl_simd_has`; AVX2 via target attributes so x86

@@ -249,9 +249,10 @@ CMake project `core/` (C11, CMake 3.21+). Options:
 | `GEOZL_BUILD_GPU` | `OFF` | Metal or CUDA decode runtime behind `gpu.h`; needs `GEOZL_BUILD_FULL` |
 | `GEOZL_BUILD_WASM` | `OFF` | wasm64 JavaScript module; needs an Emscripten toolchain and `GEOZL_BUILD_FULL` |
 
-- Standalone builds produce a shared `geozl`; a parent project that sets
-  `BUILD_SHARED_LIBS=OFF` before `add_subdirectory` gets a static one. Link the
-  `geozl::geozl` target; OpenZL is a public dependency.
+- Standalone builds produce a shared `geozl` and default to `Release`; a parent project
+  that sets `BUILD_SHARED_LIBS=OFF` before `add_subdirectory` gets a static one. GeoZL
+  leaves the parent's build type alone, but the bundled zstd sets an empty one to
+  `Release`. Link the `geozl::geozl` target; OpenZL is a public dependency.
 - Only `GEOZL_API` symbols are exported; the vendored OpenZL is hidden inside a shared
   `libgeozl`.
 - `make install PREFIX=/opt/geozl` installs the library and `include/geozl`.
