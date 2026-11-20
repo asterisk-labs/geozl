@@ -453,7 +453,7 @@ def compress(tile: ArrayLike, graph: Graph, *,
 
 
 def decompress(frame: "Buffer", *, verify: bool | np.bool_ = True,
-               max_output_size: float | np.integer | np.floating | None = None,
+               max_output_size: int | float | np.integer | np.floating | None = None,
                ) -> np.ndarray:
     """Decompress a frame into a flat ``uint8`` array.
 

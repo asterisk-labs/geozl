@@ -26,7 +26,7 @@ class Noise:
     colin: float
     resid: float
 
-    def recipe(self, max_error: float | np.integer | np.floating) -> str:
+    def recipe(self, max_error: int | float | np.integer | np.floating) -> str:
         """Return a SQRT recipe using this fitted curve."""
         # True would print as 1 and pass for a bound
         if isinstance(max_error, (bool, np.bool_)):
