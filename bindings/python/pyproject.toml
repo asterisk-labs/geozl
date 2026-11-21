@@ -43,6 +43,13 @@ classifiers = [
 test = [
     "pytest>=7",
 ]
+zarr = [
+    "zarr>=3.1",
+]
+
+# Zarr resolves a codec by the name in the array metadata; this one is "geozl".
+[project.entry-points."zarr.codecs"]
+geozl = "geozl.zarr_codec:GeoZLCodec"
 
 [project.urls]
 Homepage   = "https://github.com/asterisk-labs/geozl"
