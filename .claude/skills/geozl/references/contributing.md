@@ -25,9 +25,10 @@ core/
   src/2d/2d.c           recipe grammar, graph builder, geozl_2d_* entry points, bench
   src/gpu/              GPU decode runtime (GEOZL_BUILD_GPU)
   src/lossy/            recipe parse, SQRT fit, resolve, domain check
-  src/common/           simd.c/h, scan.h, vprefix.h, vshift.h, raster.h, endian.h, fp.h, half.h, recipe_parse.h, graph_num1to{1,2}.h
+  src/common/           simd.c/h, scan.h, vprefix.h, vshift.h, raster.h, endian.h, fp.h, half.h, recipe_parse.h, graph_num1to{1,2}.h, predictor_binding.h
   src/encoder_registry.c  geozl_node_* builders
-  src/decoder_registry.c  kDecoders table, geozl_register_decoders
+  src/codec_list.h      GEOZL_CODECS, the active codecs and their lossy flag
+  src/decoder_registry.c  kDecoders built from it, compile-time CTid checks, geozl_register_decoders
   CMakeLists.txt        codec discovery by folder convention
 bindings/python/
   geozl/_ffi.py         hand-written cffi cdef (ABI mode) and library loading
@@ -97,20 +98,20 @@ otherwise Python keeps loading the previously staged libraries.
 
 | File | Guards |
 | --- | --- |
-| `test_2d.py`, `test_graph.py` | high-level API contract: shorthand errors, grid sizes per width, profile bytes equal compress bytes, lossy domains, nodata surface |
+| `test_2d.py`, `test_graph.py` | high-level API contract: shorthand errors, grid sizes per width, profile bytes equal compress bytes, lossy domains, nodata surface, one graph shared by threads, `Graph` refusing pickle and copy |
 | `test_arguments.py` | the argument rules Python shares with R and Julia, such as `graph` by position or name, `Graph` fields and `repr`, whole-number `width`, `planes` and `reps`, NUL refusals, `nodata` a number, `verify` a bool |
 | `test_errors.py` | `GeoZLError` and its `code`, codes 21 and 30 also a `ValueError`, the first profile failure, a short decoded frame, pickling |
 | `test_api_contract.py` | `Graph` and `ProfileResults` refuse direct construction, `QuantSqrt` refuses a recipe without its curve, `geozl_2d_frame_dsize_c` tells an empty frame from an unreadable one, and no recipe writes past `geozl_2d_compress_bound_c` on noise at any dtype |
 | `test_codecs.py` | every predictor bit exact across 11 dtypes, shapes and patterns; quantizer bounds; checksum refusal |
 | `test_cross_reader.py` | **the strongest check**: C-written frames decode with Python decoders and the reverse, byte for byte on lossy frames |
-| `test_cdef.py` | the `_CDEF` block in `_ffi.py` matches the C headers (ABI mode verifies nothing; drift corrupts memory silently) |
+| `test_cdef.py` | the `_CDEF` block in `_ffi.py` matches the C headers, functions and struct fields alike (ABI mode verifies nothing; drift corrupts memory silently) |
 | `test_golden.py` | every golden frame decodes to the recorded hashes |
 | `test_malformed.py`, `test_headers.py` | decoders refuse forged headers and streams |
 | `test_catalog.py` | the codec catalog agrees across `ctids.h`, README, `docs/docs.html`, `docs/assets/js/main.js`, `docs/codecs/*.html` |
 | `test_docs.py` | every Python signature in a `<code class="sig">` block of `docs/api-python.html` equals `inspect.signature` of the live object, and every public name in `geozl`, `geozl.lossless` and `geozl.lossy` (decoders aside) has one; the `<code class="proto">` blocks of `docs/api-c.html` hold exactly the `GEOZL_API` prototypes of `geozl.h`, `coeffs.h` and `gpu.h`; `api-r.html`, `api-julia.html` and `api-js.html` show every function exported by `NAMESPACE`, the Julia sources and `geozl_api.d.ts`; notebook mentions `profile`, `graph`, `compress`, `decompress`; every notebook installs geozl unpinned with `-U`; local links resolve; `SKILL.md` names `VERSION` and its links resolve |
 | `test_release.py` | `VERSION` has a `## [X.Y.Z] - date` entry and compare links in `CHANGELOG.md` |
 | `test_licenses.py` | `licenses/` copies equal the vendored upstream texts and `NOTICE` lists them |
-| `test_simd.py`, `test_ffi.py` | SIMD capping via `GEOZL_SIMD` in fresh processes; library lookup errors |
+| `test_simd.py`, `test_ffi.py` | SIMD capping via `GEOZL_SIMD` in fresh processes; library lookup errors; the package and `fit_noise` with `openzl` hidden |
 | `test_planes.py`, `test_nodata.py`, `test_noise.py`, `test_categorical.py`, `test_coeffs.py`, `test_wpstatic.py`, `test_deinterleave.py`, `test_planar_zigzag_pfor.py`, `test_linear_zero.py` | feature suites |
 
 C tests (`test/`): per-kernel round trips (`test_pfor.c`, `test_planar_zigzag*.c`,
@@ -142,7 +143,11 @@ Checklist (from `docs/adding-a-codec.md`):
       macros `EI_<NAME>(id)` / `DI_<NAME>(id)`.
 - [ ] CTid in `core/include/geozl/ctids.h`: next free id in the right band, lossless
       `0x72D700` to `0x72D77F`, lossy `0x72D780` to `0x72D7FF`. Never reuse or renumber.
-- [ ] Decoder row `REGISTER(GEOZL_CTID_<NAME>, DI_<NAME>)` in `decoder_registry.c`.
+- [ ] `X(<NAME>, lossy)` in `GEOZL_CODECS` (`core/src/codec_list.h`) and the decode
+      binding included in `decoder_registry.c`; a `kSlots` row at the end of
+      `fuzz/binding_fuzzer.c`. A wrong band or a CTid listed twice or retired fails
+      the build, a missing slot fails the fuzzer build, and `-Wswitch` names an
+      enumerator the list misses.
 - [ ] Node builder in `encoder_registry.c`, declared in `geozl.h` with `GEOZL_API`
       (a width predictor is one line through `geometry_node` or `width_node`); refuse bad
       caller input at the top.
@@ -180,7 +185,8 @@ update grid-size tests in `test_2d.py`.
   call still leaves its output buffer readable.
 - The **decode binding** checks what only it sees: header length, field layout, and the
   relation between header values and the stream widths OpenZL reports; it rejects with
-  `ZL_ErrorCode_corruption`.
+  `ZL_ERR(corruption, "<short reason>", ...)`, not `ZL_ERR_IF`, whose stringified
+  condition would put `%` and expanded macros into the one-line error.
 - Codecs with several preconditions share a `<name>_check.h` between both ends (the
   quantizers' `quant_<name>_check.h`, `pfor/pfor_check.h`).
 - Anything read from the wire that drives an allocation is bounded by the payload size
@@ -226,9 +232,11 @@ packing, so the cross-reader test can compare two independent bindings.
 
 ## 8. Conventions
 
-- C11, `-Wall -Wextra` on geozl targets (`GEOZL_WERROR=ON` in CI), hidden visibility with
-  `GEOZL_API` on public symbols, `-ffp-contract=off` everywhere so reconstructions are
-  bit identical across CPUs.
+- C11, `GEOZL_WARN` (`-Wall -Wextra` and a stricter set, `core/CMakeLists.txt`) on geozl
+  targets and fuzzers (`GEOZL_WERROR=ON` in CI), `GEOZL_PRINTF` from
+  `common/printf_attr.h` on printf-like helpers, hidden visibility with `GEOZL_API` on
+  public symbols, `-ffp-contract=off` everywhere so reconstructions are bit identical
+  across CPUs.
 - Wire integers are little endian; never write native structs.
 - Kernels return `int` (nonzero refuses the geometry) unless nothing can be refused.
 - SIMD: runtime dispatch through `geozl_simd_has`; AVX2 via target attributes so x86

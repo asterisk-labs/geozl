@@ -135,7 +135,7 @@ g.dtype, eltype(g)                           # ("uint16", UInt16)</code></pre>
       <h3 id="compress">compress</h3>
 <pre><code class="sig language-julia">GeoZL.compress(x, graph::Graph; coeffs=nothing) -&gt; Vector{UInt8}
 GeoZL.compress(x; graph::Graph, coeffs=nothing) -&gt; Vector{UInt8}</code></pre>
-      <p>Compresses one tile with a graph, given by position or by name, and returns the frame. The element type must be the graph's, and the geometry is not checked. A lossy tile outside the domain the graph was built from throws <code>ArgumentError</code>. <code>coeffs</code>, a vector or tuple of integer vectors, is stored in the frame header and read back with <a href="#coeffs"><code>coeffs</code></a>.</p>
+      <p>Compresses one tile with a graph, given by position or by name, and returns the frame. The element type must be the graph's. The shape is not checked, but a row predictor refuses a tile longer than one row that is not whole rows of the graph's width with <code>ArgumentError</code>. A lossy tile outside the domain the graph was built from throws <code>ArgumentError</code>. <code>coeffs</code>, a vector or tuple of integer vectors, is stored in the frame header and read back with <a href="#coeffs"><code>coeffs</code></a>.</p>
 <pre><code class="language-julia">frame = GeoZL.compress(tile, g; coeffs = ([1, 2, 3], [4]))
 plain = GeoZL.compress(tile; graph = g)</code></pre>
 
@@ -143,7 +143,7 @@ plain = GeoZL.compress(tile; graph = g)</code></pre>
 <pre><code class="sig language-julia">GeoZL.decompress(frame; verify=true, max_output_size=nothing) -&gt; Vector{UInt8}
 GeoZL.decompress(T, frame, dims...; nodata=nothing, verify=true,
     max_output_size=nothing) -&gt; Array{T}</code></pre>
-      <p>Decodes a frame. Without <code>T</code> the result is the raw native bytes. With it, the frame decodes in place into an <code>Array{T}</code> shaped <code>dims</code>, which may also be given as a tuple. <code>T</code> is any element type <code>graph</code> takes, and a frame its size does not divide throws <code>ArgumentError</code>. A frame that decodes to fewer bytes than it declares throws <code>GeoZLError</code>.</p>
+      <p>Decodes a frame. Without <code>T</code> the result is the raw native bytes. With it, the frame decodes in place into an <code>Array{T}</code> shaped <code>dims</code>, which may also be given as a tuple. <code>T</code> is any element type <code>graph</code> takes, and a frame its size does not divide throws <code>ArgumentError</code>. A frame that declares more output than Julia can allocate, or decodes to fewer bytes than it declares, throws <code>GeoZLError</code>.</p>
       <table class="spec">
         <tr><th>nodata</th><td>Samples equal to this value become <code>missing</code>, and the result is an <code>Array{Union{Missing,T}}</code>. It is checked as in <a href="#graph"><code>graph</code></a>, so a <code>Float16</code> frame takes only NaN.</td></tr>
         <tr><th>verify</th><td><code>true</code> or <code>false</code>, whether to check the frame checksums.</td></tr>

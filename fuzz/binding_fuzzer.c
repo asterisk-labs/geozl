@@ -1,6 +1,10 @@
 // Wrap fuzzed GeoZL headers and streams in valid OpenZL frames.
 
+#include "fuzzer.h"
+
 #include "geozl/geozl.h"
+
+#include "../core/src/codec_list.h" // GEOZL_CODECS, not installed
 
 #include "openzl/codecs/zl_store.h"
 #include "openzl/zl_common_types.h" // ZL_TernaryParam_disable
@@ -53,6 +57,12 @@ static const codec_slot kSlots[] = {
 };
 
 #define NB_SLOTS (sizeof(kSlots) / sizeof(kSlots[0]))
+
+// Written out rather than generated from GEOZL_CODECS because the saved inputs
+// pick a slot by index, so a new codec goes last. The count must match.
+#define ONE(NAME, LOSSY) +1
+_Static_assert(NB_SLOTS == 0 GEOZL_CODECS(ONE), "kSlots misses a codec");
+#undef ONE
 
 static struct {
   uint8_t hdr[MAX_HDR];
@@ -139,12 +149,16 @@ static size_t build_frame(const codec_slot *slot, uint8_t *dst, size_t cap) {
   if (ZL_isError(ZL_Compressor_selectStartingGraphID(c, g)))
     goto done;
 
+  // The streams and header usually outgrow the seed, and OpenZL would then
+  // swap the stub for STORE, so the decoder under test would never run.
   ZL_CCtx *cctx = ZL_CCtx_create();
   if (cctx == NULL)
     goto done;
   if (ZL_isError(ZL_CCtx_refCompressor(cctx, c)) ||
       ZL_isError(ZL_CCtx_setParameter(cctx, ZL_CParam_formatVersion,
-                                      ZL_MAX_FORMAT_VERSION))) {
+                                      ZL_MAX_FORMAT_VERSION)) ||
+      ZL_isError(ZL_CCtx_setParameter(cctx, ZL_CParam_storeOnExpansion,
+                                      ZL_TernaryParam_disable))) {
     ZL_CCtx_free(cctx);
     goto done;
   }

@@ -82,7 +82,9 @@ geozl_profile <- function(x, prior = "planar", width = NULL, planes = NULL,
   rownames(out) <- NULL
   structure(out, dims = if (is.null(dim(x))) length(x) else dim(x),
             dtype = dt$name, raw_bytes = raw_bytes, width = geometry$width,
-            planes = geometry$planes, prior = prior, reps = reps,
+            planes = geometry$planes,
+            # "id" names the no-predictor path, which Python reports as "none".
+            prior = if (identical(prior, "id")) "none" else prior, reps = reps,
             error = recipe, class = c("geozl_profile", "data.frame"))
 }
 

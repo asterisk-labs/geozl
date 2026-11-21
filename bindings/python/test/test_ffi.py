@@ -108,24 +108,18 @@ def test_version_falls_back_when_the_package_is_not_installed(monkeypatch):
 
 
 def test_all_promises_only_what_the_package_has():
-    for name in geozl.__all__:
-        assert hasattr(geozl, name), f"__all__ promises {name}, it is not there"
+    subpackages = [getattr(geozl, name) for name in ("lossless", "lossy")
+                   if name in geozl.__all__]
+    for module in (geozl, *subpackages):
+        for name in module.__all__:
+            assert hasattr(module, name), \
+                f"{module.__name__}.__all__ promises {name}, it is not there"
 
-def test_register_decoders_names_openzl_when_it_is_missing():
-    """Without openzl the package still imports and the low-level API says why
-    it is unavailable, instead of failing on a name that was never bound."""
-    script = (
-        "import sys\n"
-        "sys.modules['openzl'] = None\n"
-        "import geozl\n"
-        "assert 'lossless' not in geozl.__all__\n"
-        "try:\n"
-        "    geozl.register_decoders(object())\n"
-        "except ModuleNotFoundError as exc:\n"
-        "    assert exc.name == 'openzl', exc\n"
-        "else:\n"
-        "    raise SystemExit('register_decoders did not refuse')\n"
-    )
+
+def _python(body, *, openzl):
+    """Run body in a fresh interpreter, with openzl importable or not, and
+    return what it prints."""
+    script = ("" if openzl else "import sys\nsys.modules['openzl'] = None\n") + body
     # macOS strips the dyld preload from the child, so reinject the runtime
     # path the way test_malformed does, or a sanitizer build aborts on load.
     env = dict(os.environ)
@@ -136,3 +130,84 @@ def test_register_decoders_names_openzl_when_it_is_missing():
     run = subprocess.run([sys.executable, "-c", script], capture_output=True,
                          text=True, env=env)
     assert run.returncode == 0, run.stderr
+    return run.stdout
+
+
+def test_register_decoders_names_openzl_when_it_is_missing():
+    """Without openzl the package still imports and the low-level API says why
+    it is unavailable, instead of failing on a name that was never bound."""
+    _python(
+        "import geozl\n"
+        "assert 'lossless' not in geozl.__all__\n"
+        "try:\n"
+        "    geozl.register_decoders(object())\n"
+        "except ModuleNotFoundError as exc:\n"
+        "    assert exc.name == 'openzl', exc\n"
+        "else:\n"
+        "    raise SystemExit('register_decoders did not refuse')\n",
+        openzl=False)
+
+
+def test_lossy_nodes_name_openzl_when_it_is_missing():
+    """A node imported by name says what is missing, as its module would."""
+    _python(
+        "import geozl.lossy\n"
+        "for name in ('QuantLinear', 'QuantLogDecoder', 'QuantSqrt'):\n"
+        "    try:\n"
+        "        exec(f'from geozl.lossy import {name}')\n"
+        "    except ModuleNotFoundError as exc:\n"
+        "        assert exc.name == 'openzl', exc\n"
+        "    else:\n"
+        "        raise SystemExit(name + ' imported')\n"
+        "try:\n"
+        "    geozl.lossy.Nothing\n"
+        "except AttributeError:\n"
+        "    pass\n"
+        "else:\n"
+        "    raise SystemExit('an unknown name resolved')\n",
+        openzl=False)
+
+
+def test_hints_resolve_at_run_time():
+    """Runtime checkers read the hints, so every name in them must exist."""
+    import typing
+
+    import geozl
+    for fn in (geozl.decompress, geozl.coeffs, geozl.compress, geozl.graph):
+        typing.get_type_hints(fn)
+
+
+def test_all_promises_only_what_the_package_has_without_openzl():
+    """geozl.lossy stays, down to the noise fit, and the nodes leave __all__."""
+    _python(
+        "import geozl\n"
+        "assert geozl.lossy.__all__ == ['Noise', 'fit_noise'], geozl.lossy.__all__\n"
+        "for module in (geozl, geozl.lossy):\n"
+        "    for name in module.__all__:\n"
+        "        assert hasattr(module, name), (module.__name__, name)\n",
+        openzl=False)
+
+
+_SCENE = (
+    "import numpy as np\n"
+    "import geozl\n"
+    "from geozl.lossy import fit_noise\n"
+    "rng = np.random.default_rng(0)\n"
+    "mu = np.sort(rng.uniform(50, 4000, 256 * 256)).reshape(256, 256)\n"
+    "scene = (mu + rng.normal(0, np.sqrt(100 + mu))).astype(np.float32)\n"
+    "recipe = fit_noise(scene).recipe(1)\n"
+    "g = geozl.graph(scene, 'planar>zigzag>pfor', width=64, planes=1,\n"
+    "                error=recipe)\n"
+    "frame = geozl.compress(np.ascontiguousarray(scene[:64, :64]), g)\n"
+    "print(recipe, frame.hex())\n"
+)
+
+
+@needs_full
+def test_the_noise_fit_shares_a_curve_across_tiles_without_openzl():
+    """A tiled SQRT graph needs A and B from fit_noise, and fit_noise needs
+    only the kernels, so it has to work where OpenZL has no wheel, and give
+    the curve and frame it gives with OpenZL."""
+    out = _python(_SCENE, openzl=False)
+    assert out.startswith("SQRT:MAX_ERROR=1N,A=")
+    assert out == _python(_SCENE, openzl=True)

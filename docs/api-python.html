@@ -82,7 +82,7 @@
         </ol>
       </aside>
 <pre><code class="language-sh">pip install geozl</code></pre>
-      <p>The top-level calls need only NumPy. <code>geozl.lossless</code> and <code>geozl.lossy</code> also need the <code>openzl</code> package. On other platforms a source install builds the native library first.</p>
+      <p>The top-level calls, <code>geozl.lossy.fit_noise</code> and <code>Noise</code> need only NumPy. <code>geozl.lossless</code>, the <code>geozl.lossy</code> nodes and <code>register_decoders</code> also need the <code>openzl</code> package. On other platforms a source install builds the native library first.</p>
 
       <h2 class="part" id="geozl">geozl</h2>
       <p>Everything below is in <code>geozl.__all__</code>. Arrays go in as NumPy arrays or anything <code>np.ascontiguousarray</code> accepts, in native byte order, at 1, 2, 4 or 8 bytes per sample.</p>
@@ -106,7 +106,7 @@
       <h3 id="graph">graph</h3>
 <pre><code class="sig language-python">geozl.graph(raster, method, *, width=None, planes=None, error=None,
     nodata=None) -&gt; Graph</code></pre>
-      <p>Builds a reusable compression graph for one recipe. The graph owns its compression context and is not thread safe, so use one per thread.</p>
+      <p>Builds a reusable compression graph for one recipe. The graph owns one compression context, so threads that share a graph take turns on it. Build one per thread to compress in parallel. Fork only while no thread is compressing with it, since the child inherits the lock as it was.</p>
       <table class="spec">
         <tr><th>raster</th><td>A representative tile. It fixes the dtype and, for a lossy budget, the domain later tiles must stay inside. Build it from data spanning the product.</td></tr>
         <tr><th>method</th><td>A recipe as <code>profile</code> spells it, <code>&lt;predictor&gt;&gt;zigzag&gt;&lt;terminal&gt;</code>, <code>delta_1d&gt;&lt;terminal&gt;</code> or <code>id&gt;&lt;terminal&gt;</code>. The predictors are <code>delta_w</code>, <code>delta_n</code>, <code>planar</code>, <code>med</code>, <code>average</code> and <code>wp_static</code>. The terminals are <code>entropy</code>, <code>field_lz</code>, <code>zstd</code>, <code>categorical</code>, <code>transpose&gt;entropy</code>, <code>transpose&gt;zstd</code>, <code>pfor</code>, <code>lanes</code> and <code>sparse</code>.</td></tr>
@@ -127,7 +127,7 @@ g.error                                     # 'LINEAR:MAX_ERROR=2'</code></pre>
 
       <h3 id="compress">compress</h3>
 <pre><code class="sig language-python">geozl.compress(tile, graph, *, coeffs=None) -&gt; bytes</code></pre>
-      <p>Compresses one tile with a prepared graph and returns the frame. The dtype must equal the graph's. The geometry is not checked against the graph.</p>
+      <p>Compresses one tile with a prepared graph and returns the frame. The dtype must equal the graph's. The shape is not checked against the graph, but a row predictor refuses a tile longer than one row that is not whole rows of its width.</p>
       <table class="spec">
         <tr><th>graph</th><td>A <code>Graph</code> from <code>geozl.graph</code>, by position or by name.</td></tr>
         <tr><th>coeffs</th><td>Integer vectors stored in the frame header, read back with <a href="#coeffs"><code>coeffs</code></a>. At most 255 non-empty vectors of int32 values within 10,000 packed bytes. GeoZL gives them no meaning.</td></tr>
@@ -164,6 +164,7 @@ geozl.coeffs(frame)                         # ((1, 2, 3), (4,))</code></pre>
       <h3 id="graph-class">Graph</h3>
       <p>The type <code>geozl.graph</code> returns. It is exported for <code>isinstance</code> checks and annotations, and calling it raises <code>TypeError</code>.</p>
       <p>Its attributes are <code>method</code>, <code>width</code>, <code>planes</code>, <code>dtype</code>, <code>itemsize</code>, <code>error</code>, the normalized recipe or <code>None</code>, and <code>nodata</code>. Its repr shows the method, the dtype, the row width, the planes and the recipe.</p>
+      <p>A graph holds native state. Pickling or copying one raises <code>TypeError</code>, so a process pool builds one graph per worker from the same raster and recipe.</p>
 <pre><code class="language-python">geozl.graph(tile, "planar&gt;zigzag&gt;pfor")
 # &lt;geozl.Graph planar&gt;zigzag&gt;pfor, uint16, row width 256, 1 plane, lossless&gt;</code></pre>
 
@@ -193,7 +194,7 @@ except ValueError as exc:
       <p>The installed version string, or <code>"0+unknown"</code> when the package metadata is missing.</p>
 
       <h2 class="part" id="lossless">geozl.lossless</h2>
-      <p>The lossless codecs as <code>openzl.ext</code> nodes, for graphs the recipe grid does not cover. The module needs the <code>openzl</code> package. Where OpenZL publishes no wheel, <code>geozl.lossless</code> and <code>geozl.lossy</code> are absent from <code>geozl</code> and the calls above still work.</p>
+      <p>The lossless codecs as <code>openzl.ext</code> nodes, for graphs the recipe grid does not cover. The module needs the <code>openzl</code> package. Where OpenZL publishes no wheel, <code>geozl.lossless</code> is absent from <code>geozl</code>, <code>geozl.lossy</code> keeps only <code>fit_noise</code> and <code>Noise</code>, and the calls above still work.</p>
 <pre><code class="sig language-python">geozl.lossless.DeltaW(width)
 geozl.lossless.DeltaN(width, planes=1)
 geozl.lossless.Planar(width, planes=1)
@@ -250,11 +251,11 @@ geozl.lossy.QuantLog(recipe, dtype)
 geozl.lossy.QuantSqrt(recipe, dtype)</code></pre>
       <p>The three quantizers as nodes, called like the lossless ones. <code>recipe</code> is a full recipe string such as <code>"LINEAR:MAX_ERROR=0.5"</code>. The grid is resolved from each stream they encode, so there is no shared domain or cross-tile check as in <code>geozl.graph</code>. A <code>QuantSqrt</code> recipe must carry <code>A=</code> and <code>B=</code>, since a node cannot fit them.</p>
       <p>The compression context must disable the content checksum with <code>cctx.set_parameter(zl.CParam.ContentChecksum, 2)</code>, and without it <code>cctx.compress</code> raises <code>RuntimeError</code>. The constructors raise <code>ValueError</code> for a recipe they cannot parse, a <code>QuantSqrt</code> recipe without <code>A=</code> and <code>B=</code>, or a dtype without a kernel. The decoders are <code>QuantLinearDecoder</code>, <code>QuantLogDecoder</code> and <code>QuantSqrtDecoder</code>.</p>
-<pre><code class="sig language-python">geozl.lossy.fit_noise(data)
+<pre><code class="sig language-python">geozl.lossy.fit_noise(data) -&gt; Noise
 geozl.lossy.Noise(a, b, blocks, bins, range, colin, resid)
-geozl.lossy.Noise.recipe(max_error)</code></pre>
-      <p><code>fit_noise</code> fits <code>variance = a + b x</code> to a 2d raster, an <code>(N, H, W)</code> stack or a sequence of 2d rasters of one dtype, and returns a frozen <code>Noise</code>. The other fields are fit diagnostics. <code>Noise.recipe(k)</code> returns the SQRT recipe for a bound of <code>k</code> sigmas with the fitted curve, so one grid serves every tile.</p>
-      <p><code>fit_noise</code> raises <code>ValueError</code> for the wrong dimensions, mixed dtypes or a side under 10 samples, and <code>RuntimeError</code> when the data supports no fit, such as a constant raster. <code>recipe</code> raises <code>ValueError</code> for a bound that is not positive.</p>
+geozl.lossy.Noise.recipe(max_error) -&gt; str</code></pre>
+      <p><code>fit_noise</code> fits <code>variance = a + b x</code> to a 2d raster, an <code>(N, H, W)</code> stack or a sequence of 2d rasters of one dtype, and returns a frozen <code>Noise</code>. The other fields are fit diagnostics. <code>Noise.recipe(k)</code> returns the SQRT recipe for a bound of <code>k</code> sigmas with the fitted curve, so one grid serves every tile. Both need only the kernels, not the <code>openzl</code> package.</p>
+      <p><code>fit_noise</code> raises <code>ValueError</code> for the wrong dimensions, mixed dtypes or a side under 10 samples, and <a href="#geozlerror"><code>GeoZLError</code></a> when the data supports no fit, such as a constant raster. <code>recipe</code> raises <code>ValueError</code> for a boolean or for a bound that is not a positive finite number.</p>
 <pre><code class="language-python">rng = np.random.default_rng(0)
 counts = rng.poisson(100, (256, 256)).astype(np.uint16)
 noise = geozl.lossy.fit_noise(counts)

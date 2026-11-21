@@ -394,26 +394,31 @@ static int check_kernel_refusals(void) {
     fprintf(stderr, "kernel refusals: %s\n", error);
     failed = 1;
   }
-  // Each rejected CUDA batch reports exactly once.
+  // Each rejected CUDA batch reports exactly once, and an invalid call after
+  // them reports only itself.
   if (!failed) {
     const uint8_t b = batch.data[1][at];
     batch.data[1][at] = 0x7F;
     const GeozlGpuTarget target = {geozl_gpu_pointer(memory), 0,
                                    batch.targetBytes, NULL};
     int refusals = 0;
-    for (int step = 0; step < 5; ++step) {
+    for (int step = 0; step < 6; ++step) {
       error[0] = '\0';
+      const int invalid = step == 2;
       const int status =
-          step < 2 ? geozl_gpu_decode(gpu, batch.frames, batch.count,
-                                      batch.copies, batch.copyCount, 2, 2,
-                                      &target, NULL, error, sizeof(error))
-                   : geozl_gpu_synchronize(gpu, error, sizeof(error));
-      if (status != 0 &&
-          strstr(error, "frame 1: invalid PFOR block header") == NULL) {
+          step < 3
+              ? geozl_gpu_decode(gpu, batch.frames, batch.count, batch.copies,
+                                 batch.copyCount, invalid ? 3 : 2, 2, &target,
+                                 NULL, error, sizeof(error))
+              : geozl_gpu_synchronize(gpu, error, sizeof(error));
+      const char *want = invalid ? "invalid GPU decode input"
+                                 : "frame 1: invalid PFOR block header";
+      if ((invalid && status == 0) ||
+          (status != 0 && strstr(error, want) == NULL)) {
         fprintf(stderr, "kernel refusals: %s\n", error);
         failed = 1;
       }
-      refusals += status != 0;
+      refusals += !invalid && status != 0;
     }
     if (!failed && refusals != 2) {
       fprintf(stderr, "%d of two refused calls were reported\n", refusals);

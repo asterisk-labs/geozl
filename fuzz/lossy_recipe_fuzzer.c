@@ -1,3 +1,5 @@
+#include "fuzzer.h"
+
 #include "geozl/dtype.h"
 #include "lossy/lossy_recipe.h"
 

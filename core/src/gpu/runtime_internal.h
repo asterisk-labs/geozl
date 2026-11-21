@@ -1,6 +1,7 @@
 #ifndef GEOZL_GPU_RUNTIME_INTERNAL_H
 #define GEOZL_GPU_RUNTIME_INTERNAL_H
 
+#include "common/printf_attr.h"
 #include "runtime.h"
 
 #include <stdarg.h>
@@ -104,6 +105,7 @@ static inline void geozl_gpu_batch_init(GeozlGpuBatch *batch,
   batch->bufferCount = bufferCount;
 }
 
+GEOZL_PRINTF(3, 4)
 static inline int geozl_gpu_error(char *error, size_t capacity,
                                   const char *format, ...) {
   if (error != NULL && capacity != 0) {

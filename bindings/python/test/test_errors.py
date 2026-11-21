@@ -81,6 +81,24 @@ def test_a_lossy_tile_outside_the_grid_is_an_invalid_request():
     assert caught.value.code == _PARAMETER_INVALID
 
 
+def test_a_tile_of_partial_rows_is_an_invalid_request():
+    tile = _tile()
+    g = geozl.graph(tile, "planar>zigzag>pfor")
+    with pytest.raises(ValueError, match="1535 samples do not divide into rows of 48") as caught:
+        geozl.compress(tile.ravel()[:-1], g)
+    assert caught.value.code == _PARAMETER_INVALID
+    # no predictor, so no rows to read
+    geozl.compress(tile.ravel()[:-1], geozl.graph(tile, "id>zstd"))
+
+
+def test_an_openzl_refusal_is_one_line_without_build_paths():
+    with pytest.raises(geozl.GeoZLError) as caught:
+        geozl.decompress(_frame()[:-3])
+    message = str(caught.value)
+    assert message.startswith("geozl.decompress failed: Source size too small")
+    assert "\n" not in message and "Stack Trace" not in message
+
+
 def test_a_profile_where_every_recipe_fails_keeps_the_first_reason():
     with pytest.raises(geozl.GeoZLError, match="families are LINEAR") as caught:
         geozl.profile(_tile(), error="NOPE:1", reps=1)

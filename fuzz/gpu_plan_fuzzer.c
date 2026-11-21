@@ -1,5 +1,7 @@
 // Cross-check PFOR and PivCo planners against CPU decoding and buffer bounds.
 
+#include "fuzzer.h"
+
 #include "pfor_plan.h"
 #include "pivco_plan.h"
 

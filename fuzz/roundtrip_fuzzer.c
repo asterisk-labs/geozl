@@ -1,3 +1,5 @@
+#include "fuzzer.h"
+
 #include "average/decode_average_kernel.h"
 #include "average/encode_average_kernel.h"
 #include "deinterleave/decode_deinterleave_kernel.h"

@@ -65,9 +65,10 @@ A raw vector is taken as native samples of \code{dtype} already.
 
 A bad argument stops with a plain error. So does a request the library
 refuses as invalid, with ZL error code 21 (invalid parameter) or 30
-(invalid graph), such as an unknown recipe. Any other refusal signals a
-condition of class \code{geozl_error} whose \code{code} field holds the ZL error code,
-or \code{NA} when there is none. Every error has a \code{NULL} call.
+(invalid graph), such as an unknown recipe; that error also has class
+\code{geozl_invalid} and the code in its \code{code} field. Any other refusal signals
+a condition of class \code{geozl_error} whose \code{code} field holds the ZL error
+code, or \code{NA} when there is none. Every error has a \code{NULL} call.
 }
 \examples{
 tile <- matrix(1000L + 1:(64 * 64) \%\% 97L, 64, 64)

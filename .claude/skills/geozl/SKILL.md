@@ -17,7 +17,7 @@ spatial predictors (`planar`, `med`, `wp_static`, ...), a NoData mask codec,
 bounded-error quantizers (`quant_linear`, `quant_log`, `quant_sqrt`) and a block
 bit packer (`pfor`).
 
-This skill describes **geozl 0.33.0** (OpenZL `b7f498b`). Check `geozl.__version__`.
+This skill describes **geozl 0.34.0** (OpenZL `b7f498b`). Check `geozl.__version__`.
 If it differs, trust the installed source and `CHANGELOG.md` over this file.
 
 ## Mental model
@@ -77,8 +77,10 @@ recipes that fail. Treat these as starting points, not fixed recommendations.
   failures. `transpose>*` needs 2- to 8-byte elements, `categorical` accepts at most 2-byte elements, and plain `entropy`
   fails during compression above 2 bytes.
 - A `Graph` fixes the exact dtype and predictor geometry, while `compress` does not check
-  the ndarray shape. Keep one graph per intended column count and plane layout. A graph
-  is neither thread-safe nor picklable.
+  the ndarray shape, only that a row predictor gets whole rows of the graph's width once a
+  tile is longer than one row. Keep one graph per intended column count and plane layout.
+  Threads may share a graph, one `compress` at a time, so use one per thread for
+  throughput. A graph cannot be pickled or copied.
 - Lossy parameters and their accepted domain are resolved from the raster passed to
   `graph`. Build from representative valid data, pass the same `error` to `profile` and
   `graph`, and declare NoData explicitly for product-wide use. NaN and infinity are
@@ -101,7 +103,7 @@ recipes that fail. Treat these as starting points, not fixed recommendations.
 ## Reference map
 
 Read only the reference relevant to the current task. Each one identifies its source
-files in the repository and is scoped to GeoZL 0.33.0.
+files in the repository and is scoped to GeoZL 0.34.0.
 
 | Task | Read |
 | --- | --- |

@@ -113,16 +113,16 @@ test_that("R and Python refuse the same requests the same way", {
     e <- r[[name]]
     p <- py[[name]]
     expect_null(e$call, label = name)
-    # A plain R error is a ValueError, and a geozl_error a GeoZLError alone.
+    # A plain R error is a ValueError, a geozl_invalid one also a GeoZLError,
+    # and a geozl_error a GeoZLError alone.
     expect_identical(p$value_error, !e$geozl_error, label = name)
     expect_identical(p$geozl_error && !p$value_error, e$geozl_error,
                      label = name)
-    code <- if (e$geozl_error) e$code else message_code(e$message)
+    expect_identical(p$geozl_error && p$value_error, e$invalid, label = name)
+    code <- if (is.null(e$code)) message_code(e$message) else e$code
     expect_identical(code, if (is.null(p$code)) NA_real_ else
                        as.numeric(p$code), label = name)
-    # A corrupt frame's reason can quote OpenZL's build paths.
-    if (name != "flipped")
-      expect_identical(reason(e$message), reason(p$message), label = name)
+    expect_identical(reason(e$message), reason(p$message), label = name)
   }
 })
 
@@ -160,6 +160,9 @@ test_that("R and Python profile alike and fail alike", {
   expect_null(e$call)
   expect_identical(e$geozl_error,
                    py$failure$geozl_error && !py$failure$value_error)
+  expect_identical(e$invalid,
+                   py$failure$geozl_error && py$failure$value_error)
+  expect_identical(e$code, as.numeric(py$failure$code))
   expect_identical(reason(e$message), reason(py$failure$message))
 })
 

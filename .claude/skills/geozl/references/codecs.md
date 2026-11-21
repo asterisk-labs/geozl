@@ -117,5 +117,6 @@ Part of the wire format (quantizer headers) and of the C API (`geozl_dtype` in `
 ## 6. Retired CTids
 
 `0x72D708` to `0x72D70B`, `0x72D70E` and `0x72D780` are reserved and have no
-decoder. The comments in `ctids.h` keep them from being reused; a frame that names one
-fails to find a decoder instead of being misread.
+decoder. `GEOZL_CTID_RETIRED` in `ctids.h` lists them, and `decoder_registry.c` fails to
+compile when a codec takes one; a frame that names one fails to find a decoder instead of
+being misread.

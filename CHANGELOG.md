@@ -12,10 +12,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A `geozl` codec for Zarr format 3, registered through the `zarr.codecs`
   entry point. Install it with `pip install geozl[zarr]`.
 
+## [0.34.0] - 2026-11-20
+
+### Breaking
+
+- `geozl_2d_*` errors are one line: the code text, the reason and the node.
+  OpenZL's transform id and stack trace, which carried build-machine paths,
+  are gone, so code that matched the old "Code:" lines must match the new text.
+- `geozl_2d_grid_c` returns -1 when it would write names into slots shorter
+  than the new `GEOZL_2D_NAME_MAX`, instead of cutting them short.
+- `geozl_2d_graph_open_c` refuses NaN nodata with an integer dtype, which the
+  bindings already refused and which silently broke a lossy bound.
+- Python `pickle`, `copy.copy` and `copy.deepcopy` refuse a `Graph` with
+  `TypeError`. A copy used to share the native handle.
+
+### Added
+
+- `GEOZL_2D_NAME_MAX` in `geozl.h`, the slot size that holds any recipe name.
+
 ### Changed
 
 - The codec guides now show Python, R and Julia side by side. A new walkthrough
   covers the full round trip, and the release checks its runnable examples.
+- `gpu.h` states when inputs may be reused, what a target holds after a
+  failure, the CUDA context a stream must belong to, how staging grows, and
+  which calls may overlap. `geozl.h` states the alignment, NULL and threading
+  rules of the `geozl_2d_*` calls.
+- Python type hints accept the buffers, NumPy integers, floats and booleans
+  the functions already took.
+- Decoders name the reason they refuse a damaged frame, such as
+  `header is 5 bytes, not 4 or 8`, next to the corruption code, which is
+  unchanged.
+
+### Fixed
+
+- `geozl_2d_graph_open_c` refuses value nodata whose dtype width is not
+  `eltWidth`, which failed every tile.
+- The `geozl_2d_*` calls refuse NULL handles and NULL buffers with a size
+  instead of crashing, accept a NULL `src` for an empty tile, and set
+  `*outSize` to 0 on failure.
+- A tile longer than one row that is not whole rows for a row predictor is
+  code 21 with a reason instead of 55, and a `src` not aligned to its samples
+  is code 21 instead of 70, also when a graph opens.
+- `geozl_dtype_width` returns 0 for an unknown code instead of reading past
+  its table.
+- The quantizer node builders refuse NULL arguments and parameters their codec
+  would reject, and every node builder refuses a NULL compressor.
+- GeoZL no longer sets the build type of a project that adds it with
+  `add_subdirectory`. The bundled zstd still sets an empty one to `Release`.
+- The binding fuzzer turns off store on expansion, so its frames reach the
+  GeoZL decoders.
+- GPU decoding: a failed call no longer fails the next valid call with its own
+  refusal, invalid arguments fail before the call waits on earlier work, and a
+  decode or synchronize that overlaps another on the same `GeozlGpu` fails
+  instead of corrupting it.
+- Python threads that share a `Graph` take turns instead of crashing the
+  process. `geozl.lossy.fit_noise` and `Noise` import without the openzl
+  package and raise `GeoZLError`, and the quantizer nodes then raise
+  `ModuleNotFoundError` for openzl. `Noise.recipe` refuses booleans and
+  non-finite bounds, and `profile(prior="id")` reports its prior as `"none"`.
+- R and Julia `profile` also report `prior = "id"` as `"none"` instead of
+  printing "id + id".
+- R `geozl_compress` refuses a graph whose `dtype` field was edited, which made
+  it read past its input. Refusals with codes 21 and 30 also have class
+  `geozl_invalid` and carry the code. A frame declaring more bytes than an R
+  vector holds is a `geozl_error`, and `nodata` without a dtype or with
+  `as = "raw"` is refused.
+- Julia frames no longer keep the whole compress bound alive, a frame
+  declaring more than Julia can allocate throws `GeoZLError`, and the long
+  calls are GC-safe on Julia 1.12 and later.
 
 ## [0.33.0] - 2026-11-16
 
@@ -829,7 +894,8 @@ First release.
   `register_decoders` for reading frames back.
 - A libFuzzer harness over the decode path.
 
-[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.33.0...HEAD
+[Unreleased]: https://github.com/asterisk-labs/geozl/compare/v0.34.0...HEAD
+[0.34.0]: https://github.com/asterisk-labs/geozl/compare/v0.33.0...v0.34.0
 [0.33.0]: https://github.com/asterisk-labs/geozl/compare/v0.32.0...v0.33.0
 [0.32.0]: https://github.com/asterisk-labs/geozl/compare/v0.31.0...v0.32.0
 [0.31.0]: https://github.com/asterisk-labs/geozl/compare/v0.30.0...v0.31.0

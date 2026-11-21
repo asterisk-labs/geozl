@@ -1,5 +1,6 @@
 import operator
 from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any, SupportsIndex
 
 import numpy as np
 
@@ -7,7 +8,17 @@ from ._error import GeoZLError
 from ._ffi import _load_lib_full, _ptr, ffi
 from ._ffi import lib as _kernels
 
-CoeffVectors = Iterable[Iterable[int]]
+if TYPE_CHECKING:
+    # Only the type checker reads it, so typing_extensions is no dependency.
+    from typing_extensions import Buffer
+else:
+    # typing.get_type_hints resolves it at run time; Python 3.11 has none.
+    try:
+        from collections.abc import Buffer
+    except ImportError:
+        Buffer = Any
+
+CoeffVectors = Iterable[Iterable[SupportsIndex]]
 
 _MAX_BYTES = 10_000
 _MAX_VECTORS = 255
@@ -125,7 +136,7 @@ def _parse_coeffs(blob: bytes) -> tuple[tuple[int, ...], ...] | None:
 _FORMAT_UNSUPPORTED = 60
 
 
-def coeffs(frame: bytes) -> tuple[tuple[int, ...], ...] | None:
+def coeffs(frame: "Buffer") -> tuple[tuple[int, ...], ...] | None:
     """Return coefficient vectors from ``frame``, or ``None`` if absent.
 
     Only the frame header is read; the payload is not decompressed.

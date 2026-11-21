@@ -74,9 +74,10 @@
 #'
 #' A bad argument stops with a plain error. So does a request the library
 #' refuses as invalid, with ZL error code 21 (invalid parameter) or 30
-#' (invalid graph), such as an unknown recipe. Any other refusal signals a
-#' condition of class `geozl_error` whose `code` field holds the ZL error code,
-#' or `NA` when there is none. Every error has a `NULL` call.
+#' (invalid graph), such as an unknown recipe; that error also has class
+#' `geozl_invalid` and the code in its `code` field. Any other refusal signals
+#' a condition of class `geozl_error` whose `code` field holds the ZL error
+#' code, or `NA` when there is none. Every error has a `NULL` call.
 #'
 #' @param x Raster samples, a double, integer or raw vector or array. For a
 #'   bounded-error graph it fixes the domain later tiles are checked against,
@@ -142,9 +143,11 @@ print.geozl_graph <- function(x, ...) {
 #' A tile the graph refuses, such as a lossy tile outside the graph's domain,
 #' stops with `geozl_compress failed (method = "...")` and the reason.
 #'
-#' @param x Tile samples, converted to the graph's dtype. Its geometry is not
-#'   checked against the graph.
-#' @param graph A graph from [geozl_graph()].
+#' @param x Tile samples, converted to the graph's dtype. Its shape is not
+#'   checked against the graph, but a row predictor refuses a tile longer than
+#'   one row that is not whole rows of the graph's width.
+#' @param graph A graph from [geozl_graph()]. Its `dtype` field must still name
+#'   the type it was built with.
 #' @param coeffs Optional list of integer vectors to attach to this frame. Read
 #'   them back with [geozl_coeffs()]; geozl assigns them no meaning.
 #' @return The frame, as a raw vector.
@@ -156,7 +159,7 @@ geozl_compress <- function(x, graph, coeffs = NULL) {
   value <- if (!is.null(graph$nodata) && !is.na(graph$nodata))
     as.double(graph$nodata)
   bytes <- .Call(geozl_r_pack, x, dt$code, value)
-  .Call(geozl_r_compress, graph$ptr, bytes, coeffs, dt$itemsize, graph$method)
+  .Call(geozl_r_compress, graph$ptr, bytes, coeffs, dt$code, graph$method)
 }
 
 #' Decompress a frame
@@ -165,9 +168,9 @@ geozl_compress <- function(x, graph, coeffs = NULL) {
 #' does.
 #'
 #' A frame the library cannot read signals a `geozl_error`, as does one that
-#' decodes to fewer bytes than it declares. A frame above `max_output_size` is
-#' a plain error. int64 and uint64 samples read as double warn when a value
-#' does not convert exactly.
+#' declares more bytes than an R vector holds or decodes to fewer than it
+#' declares. A frame above `max_output_size` is a plain error. int64 and uint64
+#' samples read as double warn when a value does not convert exactly.
 #'
 #' @param frame A frame, as a raw vector.
 #' @param dtype The storage type the frame was written with. Without it the
@@ -179,7 +182,7 @@ geozl_compress <- function(x, graph, coeffs = NULL) {
 #'   reads without a copy through `torch_tensor_from_buffer()`.
 #' @param nodata Samples equal to this value become `NA`, and `NaN` or `NA`
 #'   turns every NaN of a float dtype into `NA`. It is checked as in
-#'   [geozl_graph()].
+#'   [geozl_graph()], and needs a `dtype` with `as` other than `"raw"`.
 #' @param verify Whether to check the frame's checksums.
 #' @param max_output_size Refuse frames that declare more output bytes than
 #'   this, a finite number of at least 0. Set it when reading untrusted frames.
@@ -212,10 +215,15 @@ geozl_decompress <- function(frame, dtype = NULL, dim = NULL, as = NULL,
   if (is.null(dtype)) {
     if (as != "raw")
       stop("`dtype` is needed to return samples", call. = FALSE)
+    if (!is.null(nodata))
+      stop("`dtype` is needed to find `nodata` samples", call. = FALSE)
   } else {
     dt <- .dtype(dtype)
     if (!is.null(dim) && as == "raw" && dt$itemsize > 1L)
       stop("`dim` counts samples, and as = \"raw\" returns bytes", call. = FALSE)
+    if (!is.null(nodata) && as == "raw")
+      stop("`nodata` marks samples as NA, and as = \"raw\" returns bytes",
+           call. = FALSE)
     nd <- .nodata(nodata, dt)
   }
   bytes <- .Call(geozl_r_decompress, frame, verify, max_output_size)

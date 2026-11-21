@@ -1,7 +1,8 @@
 """The cdef in _ffi.py is a hand written copy of the C declarations, loaded in
 ABI mode, so cffi verifies nothing and a drifted signature corrupts memory
-instead of raising. This diffs the two. Needs the C sources, so it skips on an
-installed package.
+instead of raising. A drifted struct is as bad: ffi.new allocates the size the
+cdef gives, and C writes the size it was built with. This diffs the two. Needs
+the C sources, so it skips on an installed package.
 """
 import re
 from pathlib import Path
@@ -26,6 +27,10 @@ _DECL = re.compile(
 _DROP = re.compile(r"\b(GEOZL_API|restrict|__restrict|const|static|inline)\b")
 
 _NOT_A_TYPE = {"return", "if", "while", "for", "switch", "sizeof", "typedef"}
+
+# A struct with its body, the tag optional. An opaque `typedef struct x y;` has
+# no layout to check, and nested bodies do not occur in what the cdef copies.
+_STRUCT = re.compile(r"typedef\s+struct\s*\w*\s*\{([^{}]*)\}\s*(\w+)\s*;")
 
 
 def _strip_comments(text):
@@ -61,6 +66,27 @@ def _declarations(text):
     return found
 
 
+def _fields(body):
+    """(type, name) per member, in order, so `int a, *b;` is two fields."""
+    out = []
+    for member in body.split(";"):
+        first, *more = re.sub(r"\s*([\[\]])\s*", r"\1", member).split(",")
+        toks = _tokens(first)
+        if not toks:
+            continue
+        # the base type ends at the first star or at the first name
+        star = toks.index("*") if "*" in toks else len(toks) - 1
+        base = toks[:star]
+        for decl in [toks[star:], *map(_tokens, more)]:
+            out.append((" ".join(base + decl[:-1]), decl[-1]))
+    return tuple(out)
+
+
+def _structs(text):
+    return {name: _fields(body)
+            for body, name in _STRUCT.findall(_strip_comments(text))}
+
+
 @pytest.fixture(scope="module")
 def c_declarations():
     found = {}
@@ -75,10 +101,27 @@ def cdef_declarations():
     return _declarations(_ffi._CDEF)
 
 
-def test_the_cdef_is_not_empty(cdef_declarations, c_declarations):
+@pytest.fixture(scope="module")
+def c_structs():
+    found = {}
+    for header in _HEADERS:
+        found.update(_structs(header.read_text()))
+    return found
+
+
+@pytest.fixture(scope="module")
+def cdef_structs():
+    from geozl import _ffi
+    return _structs(_ffi._CDEF)
+
+
+def test_the_cdef_is_not_empty(cdef_declarations, c_declarations, cdef_structs,
+                               c_structs):
     """A parser that matched nothing would let this whole file pass."""
     assert len(cdef_declarations) > 30
     assert len(c_declarations) > len(cdef_declarations)
+    assert len(cdef_structs) > 10 and "quant_sqrt_accum" in cdef_structs
+    assert len(c_structs) > len(cdef_structs)
 
 
 def test_every_declared_symbol_exists_in_a_header(cdef_declarations,
@@ -106,3 +149,24 @@ def test_the_parser_sees_a_planted_change(c_declarations):
         "int planar_encode(void* dst, const void* src, uint32_t width, "
         "size_t nbElts, size_t eltWidth);")
     assert planted["planar_encode"] != c_declarations["planar_encode"]
+
+
+def test_every_struct_matches_the_header(cdef_structs, c_structs):
+    drift = []
+    for name, fields in sorted(cdef_structs.items()):
+        if fields != c_structs.get(name):
+            drift.append(f"{name}\n    C  {c_structs.get(name)}\n"
+                         f"    py {fields}")
+    assert not drift, "cdef structs drifted from the headers:\n" + "\n".join(drift)
+
+
+def test_the_struct_parser_sees_a_planted_field(c_structs):
+    planted = _structs(
+        "typedef struct { double* mu; double* s2; size_t n; size_t cap; "
+        "size_t stride; size_t seen; int failed; int extra; } quant_sqrt_accum;")
+    assert planted["quant_sqrt_accum"] != c_structs["quant_sqrt_accum"]
+
+
+def test_the_struct_parser_splits_declarator_lists():
+    found = _structs("typedef struct s_tag { const double *a, b; int c [ 4 ]; } s;")
+    assert found == {"s": (("double *", "a"), ("double", "b"), ("int", "c[4]"))}
